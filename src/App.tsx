@@ -447,6 +447,11 @@ export default function App() {
   const [mode, setMode] = useState<ViewMode>("live");
   const [doc, setDoc] = useState<string>(DEFAULT_NOTE);
 
+  // Runtime verification: show which commit the UI was built from.
+  // You can set this at build time via Vite:
+  // VITE_GIT_SHA=$(git rev-parse --short HEAD)
+  const gitSha = (import.meta as any).env?.VITE_GIT_SHA ?? "unknown";
+
   const { ref: shellRef, height } = useElementSize();
 
   useHotkeys([
@@ -506,6 +511,9 @@ export default function App() {
           </Group>
 
           <Group gap="sm">
+            <Text size="xs" c="dimmed">
+              commit: {gitSha}
+            </Text>
             <SegmentedControl
               value={mode}
               onChange={(v) => setMode(v as ViewMode)}
