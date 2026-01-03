@@ -19,6 +19,7 @@ import {
   EditorView,
   ViewPlugin,
   ViewUpdate,
+  WidgetType,
   keymap,
   lineNumbers,
   highlightActiveLineGutter,
@@ -88,6 +89,16 @@ function useMarkdownRenderer() {
  * - Inline code (`code`)
  * - Task checkbox lines (- [ ] / - [x]) as a left gutter-ish check marker
  */
+class LiveBadgeWidget extends WidgetType {
+  toDOM() {
+    const dom = document.createElement("span");
+    dom.className = "lp-live-badge";
+    dom.textContent = "LIVE";
+    dom.setAttribute("aria-label", "Live preview enabled");
+    return dom;
+  }
+}
+
 function livePreviewDecorationsExtension() {
   const plugin = ViewPlugin.fromClass(
     class {
@@ -105,6 +116,17 @@ function livePreviewDecorationsExtension() {
 
       build(view: EditorView) {
         const builder = new RangeSetBuilder<Decoration>();
+
+        // Always show a visible badge at the very top when Live mode is active.
+        builder.add(
+          0,
+          0,
+          Decoration.widget({
+            widget: new LiveBadgeWidget(),
+            side: -1,
+            block: true,
+          }),
+        );
 
         // Only scan visible ranges for perf.
         for (const { from, to } of view.visibleRanges) {
@@ -242,6 +264,22 @@ function buildEditorExtensions(
         ".cm-content": {
           padding: "12px 12px 80px",
           minHeight: "100%",
+        },
+
+        /* Visible confirmation badge for Live mode */
+        ".lp-live-badge": {
+          display: "inline-block",
+          margin: "10px 12px 0",
+          padding: "4px 8px",
+          borderRadius: "999px",
+          fontSize: "12px",
+          fontWeight: "800",
+          letterSpacing: "0.08em",
+          color: "rgba(10, 18, 12, 0.95)",
+          background: "rgba(120, 255, 180, 0.95)",
+          border: "1px solid rgba(120, 255, 180, 0.55)",
+          boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
+          width: "fit-content",
         },
 
         /* Live preview styles (safe mark-only decorations) */
