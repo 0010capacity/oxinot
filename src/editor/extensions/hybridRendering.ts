@@ -134,11 +134,12 @@ function buildDecorations(view: EditorView): DecorationSet {
         if (typeName.startsWith("ATXHeading")) {
           const line = state.doc.lineAt(nodeFrom);
           const lineText = line.text;
-          const match = lineText.match(/^(#{1,6})\s+(.+)$/);
+          const match = lineText.match(/^(#{1,6})(\s+(.*))?$/);
 
           if (match) {
-            const hashEnd = line.from + match[1].length;
-            const level = match[1].length;
+            const hashMarks = match[1];
+            const hashEnd = line.from + hashMarks.length;
+            const level = hashMarks.length;
             const fontSizeMultiplier = 2.2 - level * 0.2;
 
             // Dim the hash marks
@@ -153,21 +154,23 @@ function buildDecorations(view: EditorView): DecorationSet {
               }),
             });
 
-            // Style the heading text
-            decorations.push({
-              from: hashEnd,
-              to: line.to,
-              decoration: Decoration.mark({
-                class: `cm-heading-text cm-heading-${level}`,
-                attributes: {
-                  style: `
-                    font-weight: ${level <= 2 ? "bold" : "600"};
-                    font-size: ${fontSizeMultiplier}em;
-                    line-height: 1.3;
-                  `,
-                },
-              }),
-            });
+            // Style the heading text (if there is any)
+            if (hashEnd < line.to) {
+              decorations.push({
+                from: hashEnd,
+                to: line.to,
+                decoration: Decoration.mark({
+                  class: `cm-heading-text cm-heading-${level}`,
+                  attributes: {
+                    style: `
+                      font-weight: ${level <= 2 ? "bold" : "600"};
+                      font-size: ${fontSizeMultiplier}em;
+                      line-height: 1.3;
+                    `,
+                  },
+                }),
+              });
+            }
           }
           return false;
         }
