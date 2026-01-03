@@ -32,7 +32,7 @@ import {
 } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
-import { bracketMatching } from "@codemirror/language";
+import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { oneDark } from "@codemirror/theme-one-dark";
 
@@ -82,12 +82,10 @@ function useMarkdownRenderer() {
  * - Keep Markdown as the editable source, but apply "render-like" styling inline.
  * - Start with safe decorations (mark styling). Avoid replacements early.
  *
- * Current coverage:
- * - Headings (# ... ######)
- * - Bold (**text**)
- * - Italic (*text*)
- * - Inline code (`code`)
- * - Task checkbox lines (- [ ] / - [x]) as a left gutter-ish check marker
+ * Current coverage (migrating to Lezer-based):
+ * - Headings: via CM6 Lezer syntax tree ("ATXHeading")
+ * - (Next) Bold/Italic/Inline code: migrate from regex to Lezer nodes
+ * - Task checkboxes: keep line-based for now, then migrate as needed
  */
 class LiveBadgeWidget extends WidgetType {
   toDOM() {
@@ -128,12 +126,42 @@ function livePreviewDecorationsExtension() {
           }),
         );
 
+        // --- Headings (Lezer AST based) ---
+        // Walk the syntax tree, but only apply decorations to visible ranges.
+        // In CM6 markdown, ATX headings are typically represented as "ATXHeading".
+        const tree = syntaxTree(view.state);
+        for (const { from, to } of view.visibleRanges) {
+          tree.iterate({
+            from,
+            to,
+            enter: (node) => {
+              if (node.name !== "ATXHeading") return;
+
+              // Determine heading level by counting leading '#'
+              // We look at the start of the heading line only.
+              const line = view.state.doc.lineAt(node.from);
+              const prefix = view.state.doc.sliceString(
+                line.from,
+                Math.min(line.to, line.from + 8),
+              );
+              const m = /^(#{1,6})\s+/.exec(prefix);
+              const level = m ? m[1].length : 1;
+
+              builder.add(
+                node.from,
+                node.to,
+                Decoration.mark({ class: `lp-heading lp-heading-${level}` }),
+              );
+            },
+          });
+        }
+
         // Only scan visible ranges for perf.
         for (const { from, to } of view.visibleRanges) {
           const text = view.state.doc.sliceString(from, to);
           const lineStartPos = from;
 
-          // --- Block-ish: headings (line-based) ---
+          // --- Task list (line-based for now) ---
           // We need to walk full lines within the visible slice.
           let offset = 0;
           while (offset < text.length) {
@@ -142,17 +170,6 @@ function livePreviewDecorationsExtension() {
             const line = text.slice(offset, end);
             const absLineFrom = lineStartPos + offset;
             const absLineTo = lineStartPos + offset + line.length;
-
-            // Heading: ^(#{1,6})\s+
-            const headingMatch = /^(#{1,6})\s+/.exec(line);
-            if (headingMatch) {
-              const level = headingMatch[1].length;
-              builder.add(
-                absLineFrom,
-                absLineTo,
-                Decoration.mark({ class: `lp-heading lp-heading-${level}` }),
-              );
-            }
 
             // Task list: ^\s*[-*]\s+\[( |x|X)\]\s+
             const taskMatch = /^(\s*[-*]\s+\[)( |x|X)(\])\s+/.exec(line);
@@ -181,9 +198,8 @@ function livePreviewDecorationsExtension() {
             offset += end;
           }
 
-          // --- Inline-ish: emphasis / code ---
-          // These regexes are intentionally conservative for MVP.
-          // They won't be 100% Markdown-correct, but they provide the "rendered feel".
+          // --- Inline-ish: emphasis / code (still regex for now; migrate next) ---
+          // Conservative MVP patterns.
           const patterns: Array<{ re: RegExp; cls: string }> = [
             { re: /`([^`\n]+)`/g, cls: "lp-inline-code" },
             { re: /\*\*([^\n*][\s\S]*?[^\n*]?)\*\*/g, cls: "lp-strong" },
@@ -194,7 +210,6 @@ function livePreviewDecorationsExtension() {
             re.lastIndex = 0;
             let m: RegExpExecArray | null;
             while ((m = re.exec(text))) {
-              // For italic pattern, group 1 includes a prefix char; adjust range to the actual *...* if needed.
               const start = m.index + (cls === "lp-em" ? m[1].length : 0);
               const full = cls === "lp-em" ? `*${m[2]}*` : m[0];
 
