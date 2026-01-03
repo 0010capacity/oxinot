@@ -11,6 +11,7 @@
  * - Better separation of concerns (each handler is independent)
  * - Easier to test (handlers can be tested in isolation)
  * - More maintainable (no giant 1000-line function)
+ * - Obsidian Flavored Markdown support (wiki links, tags, highlights, comments, callouts)
  */
 
 import {
@@ -23,7 +24,7 @@ import {
 import { RangeSetBuilder } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 
-// Import handlers
+// Import standard markdown handlers
 import { HeadingHandler } from "./handlers/HeadingHandler";
 import { EmphasisHandler } from "./handlers/EmphasisHandler";
 import { StrongHandler } from "./handlers/StrongHandler";
@@ -32,6 +33,13 @@ import { TaskListHandler } from "./handlers/TaskListHandler";
 import { LinkHandler } from "./handlers/LinkHandler";
 import { BlockquoteHandler } from "./handlers/BlockquoteHandler";
 import { CodeBlockHandler } from "./handlers/CodeBlockHandler";
+
+// Import Obsidian-specific handlers
+import { WikiLinkHandler } from "./handlers/WikiLinkHandler";
+import { TagHandler } from "./handlers/TagHandler";
+import { HighlightHandler } from "./handlers/HighlightHandler";
+import { CommentHandler } from "./handlers/CommentHandler";
+import { CalloutHandler } from "./handlers/CalloutHandler";
 
 // Import handler system
 import { HandlerRegistry } from "./handlers/HandlerRegistry";
@@ -101,6 +109,55 @@ function buildDecorations(view: EditorView): DecorationSet {
         return true;
       },
     });
+  }
+
+  // Process Obsidian features line-by-line (not in syntax tree)
+  for (let lineNum = 1; lineNum <= state.doc.lines; lineNum++) {
+    const line = state.doc.line(lineNum);
+    const lineText = line.text;
+    const isOnCursorLine =
+      state.selection.main.head >= line.from &&
+      state.selection.main.head <= line.to;
+
+    // Process Wiki Links [[link]] or [[link|alias]]
+    const wikiLinkDecorations = WikiLinkHandler.processLine(
+      lineText,
+      line.from,
+      isOnCursorLine,
+    );
+    decorations.push(...wikiLinkDecorations);
+
+    // Process Tags #tag or #nested/tag
+    const tagDecorations = TagHandler.processLine(
+      lineText,
+      line.from,
+      isOnCursorLine,
+    );
+    decorations.push(...tagDecorations);
+
+    // Process Highlights ==text==
+    const highlightDecorations = HighlightHandler.processLine(
+      lineText,
+      line.from,
+      isOnCursorLine,
+    );
+    decorations.push(...highlightDecorations);
+
+    // Process Comments %%comment%%
+    const commentDecorations = CommentHandler.processLine(
+      lineText,
+      line.from,
+      isOnCursorLine,
+    );
+    decorations.push(...commentDecorations);
+
+    // Process Callouts > [!type] Title
+    const calloutDecorations = CalloutHandler.processLine(
+      lineText,
+      line.from,
+      isOnCursorLine,
+    );
+    decorations.push(...calloutDecorations);
   }
 
   // Process tables line by line (not yet in handler system - complex logic)
@@ -534,6 +591,43 @@ export const hybridRenderingTheme = EditorView.theme({
     fontSize: "0.9em",
     fontStyle: "italic",
     opacity: "0.8",
+  },
+
+  // Obsidian features
+  ".cm-wiki-link": {
+    color: "#8b5cf6",
+    textDecoration: "none",
+    cursor: "pointer",
+    fontWeight: "500",
+  },
+
+  ".cm-tag": {
+    color: "#10b981",
+    background: "rgba(16, 185, 129, 0.1)",
+    padding: "0.1em 0.3em",
+    borderRadius: "3px",
+    cursor: "pointer",
+    fontWeight: "500",
+  },
+
+  ".cm-highlight": {
+    background:
+      "linear-gradient(to bottom, rgba(255, 235, 59, 0.3), rgba(255, 235, 59, 0.4))",
+    padding: "0.1em 0.2em",
+    borderRadius: "2px",
+  },
+
+  ".cm-comment": {
+    color: "#888",
+    opacity: "0.6",
+    fontStyle: "italic",
+  },
+
+  ".cm-callout-title": {
+    fontWeight: "600",
+    padding: "0.5em",
+    display: "block",
+    borderRadius: "4px",
   },
 
   // Line height

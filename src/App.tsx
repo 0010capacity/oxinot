@@ -130,6 +130,58 @@ Task lists work great in GFM:
 
 ---
 
+## 🔮 Obsidian Features
+
+This editor now supports **Obsidian Flavored Markdown**!
+
+### Wiki Links
+
+Connect your notes with [[internal links]] or use aliases like [[long note name|short alias]].
+
+You can also link to headings: [[note#heading]] or blocks: [[note#^block-id]]
+
+### Tags
+
+Organize with #tags and #nested/tags. Tags can appear anywhere: at the start, middle #inline, or end of a line.
+
+Common tags: #todo #important #project/work #ideas/creative
+
+### Highlights
+
+Use ==highlighted text== to emphasize important information. The ==yellow background== makes it stand out!
+
+### Comments
+
+Add %%private comments%% that won't appear in the rendered view. %%This is only visible when you click on it!%%
+
+### Callouts
+
+Create beautiful callouts for different purposes:
+
+> [!note] Note
+> This is a note callout with helpful information.
+
+> [!tip] Pro Tip
+> Use callouts to draw attention to important points!
+
+> [!warning] Warning
+> Be careful with this operation!
+
+> [!success] Success
+> Everything is working perfectly!
+
+> [!question] Question
+> Did you know you can use collapsible callouts?
+
+> [!example] Example
+> Here's a practical example of the concept.
+
+### Mix Everything Together
+
+You can combine ==Obsidian features== with regular **markdown** and even add #tags to [[wiki-linked notes]]. %%This creates a powerful note-taking experience!%%
+
+---
+
 [^1]: This is a footnote. It will appear with special styling and can contain more detailed information.
 `;
 
