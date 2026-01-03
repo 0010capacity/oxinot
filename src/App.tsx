@@ -142,14 +142,26 @@ function livePreviewDecorationsExtension() {
 
         // --- Headings (Lezer AST based) ---
         // Walk the syntax tree, but only apply decorations to visible ranges.
-        // Node names can vary by parser configuration; we'll start with ATXHeading.
+        // Node names can vary by parser configuration, so match a small set of known heading node names.
         const tree = syntaxTree(view.state);
         for (const { from, to } of view.visibleRanges) {
           tree.iterate({
             from,
             to,
             enter: (node) => {
-              if (node.name !== "ATXHeading") return;
+              // Match common heading node names across CM6/Lezer markdown configurations.
+              // We also require the line prefix to actually look like an ATX heading to avoid false positives.
+              const headingNodeNames = new Set([
+                "ATXHeading",
+                "Heading",
+                "ATXHeading1",
+                "ATXHeading2",
+                "ATXHeading3",
+                "ATXHeading4",
+                "ATXHeading5",
+                "ATXHeading6",
+              ]);
+              if (!headingNodeNames.has(node.name)) return;
 
               // Determine heading level by counting leading '#'
               const line = view.state.doc.lineAt(node.from);
@@ -158,17 +170,16 @@ function livePreviewDecorationsExtension() {
                 Math.min(line.to, line.from + 8),
               );
               const m = /^(#{1,6})\s+/.exec(prefix);
-              const level = m ? m[1].length : 1;
+              if (!m) return;
+              const level = m[1].length;
 
-              // Apply to the whole visual line. Styling `.cm-line` via plain CSS selectors is unreliable
-              // because CM6 wraps/segments token spans in a way that can defeat font-size inheritance.
-              // Using `Decoration.line(...)` guarantees the class is placed on the actual `.cm-line` element.
+              // Apply to the whole visual line using a line decoration so the class lands on `.cm-line`.
               pending.push({
                 from: line.from,
                 to: line.from,
                 startSide: 0,
                 deco: Decoration.line({
-                  class: `lp-heading lp-heading-${level}`,
+                  class: `lp-heading lp-heading-${level} lp-debug-line`,
                 }),
               });
             },
@@ -337,6 +348,12 @@ function buildEditorExtensions(
           fontWeight: "800",
           letterSpacing: "-0.02em",
           color: "rgba(255,255,255,0.95)",
+        },
+
+        /* DEBUG: outline any line that received our line decoration */
+        ".cm-line.lp-debug-line": {
+          outline: "2px dashed rgba(255, 120, 120, 0.7)",
+          outlineOffset: "2px",
         },
 
         /* Make heading sizing visible at the actual `.cm-line` layout node. */
