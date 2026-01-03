@@ -113,18 +113,24 @@ function livePreviewDecorationsExtension() {
       }
 
       build(view: EditorView) {
-        const builder = new RangeSetBuilder<Decoration>();
+        type PendingDeco = {
+          from: number;
+          to: number;
+          deco: Decoration;
+        };
+
+        const pending: PendingDeco[] = [];
 
         // Always show a visible badge at the very top when Live mode is active.
-        builder.add(
-          0,
-          0,
-          Decoration.widget({
+        pending.push({
+          from: 0,
+          to: 0,
+          deco: Decoration.widget({
             widget: new LiveBadgeWidget(),
             side: -1,
             block: true,
           }),
-        );
+        });
 
         // --- Headings (Lezer AST based) ---
         // Walk the syntax tree, but only apply decorations to visible ranges.
@@ -147,11 +153,13 @@ function livePreviewDecorationsExtension() {
               const m = /^(#{1,6})\s+/.exec(prefix);
               const level = m ? m[1].length : 1;
 
-              builder.add(
-                node.from,
-                node.to,
-                Decoration.mark({ class: `lp-heading lp-heading-${level}` }),
-              );
+              pending.push({
+                from: node.from,
+                to: node.to,
+                deco: Decoration.mark({
+                  class: `lp-heading lp-heading-${level}`,
+                }),
+              });
             },
           });
         }
@@ -175,24 +183,24 @@ function livePreviewDecorationsExtension() {
             const taskMatch = /^(\s*[-*]\s+\[)( |x|X)(\])\s+/.exec(line);
             if (taskMatch) {
               const checked = taskMatch[2].toLowerCase() === "x";
-              // Mark whole line for styling, and mark the "[ ]" area too.
-              builder.add(
-                absLineFrom,
-                absLineTo,
-                Decoration.mark({ class: "lp-task-line" }),
-              );
+
+              pending.push({
+                from: absLineFrom,
+                to: absLineTo,
+                deco: Decoration.mark({ class: "lp-task-line" }),
+              });
 
               const boxFrom = absLineFrom + taskMatch[1].length - 1; // points at '['
               const boxTo = boxFrom + 3; // "[ ]" or "[x]"
-              builder.add(
-                boxFrom,
-                boxTo,
-                Decoration.mark({
+              pending.push({
+                from: boxFrom,
+                to: boxTo,
+                deco: Decoration.mark({
                   class: checked
                     ? "lp-task-box lp-task-checked"
                     : "lp-task-box",
                 }),
-              );
+              });
             }
 
             offset += end;
@@ -216,10 +224,28 @@ function livePreviewDecorationsExtension() {
               const absFrom = from + start;
               const absTo = absFrom + full.length;
 
-              builder.add(absFrom, absTo, Decoration.mark({ class: cls }));
+              pending.push({
+                from: absFrom,
+                to: absTo,
+                deco: Decoration.mark({ class: cls }),
+              });
             }
           }
         }
+
+        // IMPORTANT: RangeSetBuilder requires ranges in sorted order.
+        // Our sources (syntaxTree, regex) do not guarantee stable ordering.
+        pending.sort((a, b) => {
+          if (a.from !== b.from) return a.from - b.from;
+          // Prefer zero-length widgets with smaller startSide first; we only use side -1 for the badge.
+          const aIsWidget = a.from === a.to ? 0 : 1;
+          const bIsWidget = b.from === b.to ? 0 : 1;
+          if (aIsWidget !== bIsWidget) return aIsWidget - bIsWidget;
+          return a.to - b.to;
+        });
+
+        const builder = new RangeSetBuilder<Decoration>();
+        for (const r of pending) builder.add(r.from, r.to, r.deco);
 
         return builder.finish();
       }
