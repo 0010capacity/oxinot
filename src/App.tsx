@@ -95,6 +95,11 @@ class LiveBadgeWidget extends WidgetType {
     dom.setAttribute("aria-label", "Live preview enabled");
     return dom;
   }
+
+  // Prevent the badge from stealing focus/selection.
+  ignoreEvent() {
+    return true;
+  }
 }
 
 function livePreviewDecorationsExtension() {
@@ -117,24 +122,27 @@ function livePreviewDecorationsExtension() {
           from: number;
           to: number;
           deco: Decoration;
+          startSide?: number;
         };
 
         const pending: PendingDeco[] = [];
 
-        // Always show a visible badge at the very top when Live mode is active.
+        // IMPORTANT:
+        // CM6 prohibits BLOCK decorations coming from ViewPlugins. Only inline widgets are allowed here.
+        // So the badge must be inline (block: false/undefined). We'll still place it at document start.
         pending.push({
           from: 0,
           to: 0,
+          startSide: -1,
           deco: Decoration.widget({
             widget: new LiveBadgeWidget(),
             side: -1,
-            block: true,
           }),
         });
 
         // --- Headings (Lezer AST based) ---
         // Walk the syntax tree, but only apply decorations to visible ranges.
-        // In CM6 markdown, ATX headings are typically represented as "ATXHeading".
+        // Node names can vary by parser configuration; we'll start with ATXHeading.
         const tree = syntaxTree(view.state);
         for (const { from, to } of view.visibleRanges) {
           tree.iterate({
@@ -144,7 +152,6 @@ function livePreviewDecorationsExtension() {
               if (node.name !== "ATXHeading") return;
 
               // Determine heading level by counting leading '#'
-              // We look at the start of the heading line only.
               const line = view.state.doc.lineAt(node.from);
               const prefix = view.state.doc.sliceString(
                 line.from,
@@ -156,6 +163,7 @@ function livePreviewDecorationsExtension() {
               pending.push({
                 from: node.from,
                 to: node.to,
+                startSide: 0,
                 deco: Decoration.mark({
                   class: `lp-heading lp-heading-${level}`,
                 }),
@@ -170,7 +178,6 @@ function livePreviewDecorationsExtension() {
           const lineStartPos = from;
 
           // --- Task list (line-based for now) ---
-          // We need to walk full lines within the visible slice.
           let offset = 0;
           while (offset < text.length) {
             const nextNl = text.indexOf("\n", offset);
@@ -179,7 +186,6 @@ function livePreviewDecorationsExtension() {
             const absLineFrom = lineStartPos + offset;
             const absLineTo = lineStartPos + offset + line.length;
 
-            // Task list: ^\s*[-*]\s+\[( |x|X)\]\s+
             const taskMatch = /^(\s*[-*]\s+\[)( |x|X)(\])\s+/.exec(line);
             if (taskMatch) {
               const checked = taskMatch[2].toLowerCase() === "x";
@@ -187,14 +193,16 @@ function livePreviewDecorationsExtension() {
               pending.push({
                 from: absLineFrom,
                 to: absLineTo,
+                startSide: 0,
                 deco: Decoration.mark({ class: "lp-task-line" }),
               });
 
-              const boxFrom = absLineFrom + taskMatch[1].length - 1; // points at '['
-              const boxTo = boxFrom + 3; // "[ ]" or "[x]"
+              const boxFrom = absLineFrom + taskMatch[1].length - 1;
+              const boxTo = boxFrom + 3;
               pending.push({
                 from: boxFrom,
                 to: boxTo,
+                startSide: 0,
                 deco: Decoration.mark({
                   class: checked
                     ? "lp-task-box lp-task-checked"
@@ -207,7 +215,6 @@ function livePreviewDecorationsExtension() {
           }
 
           // --- Inline-ish: emphasis / code (still regex for now; migrate next) ---
-          // Conservative MVP patterns.
           const patterns: Array<{ re: RegExp; cls: string }> = [
             { re: /`([^`\n]+)`/g, cls: "lp-inline-code" },
             { re: /\*\*([^\n*][\s\S]*?[^\n*]?)\*\*/g, cls: "lp-strong" },
@@ -227,26 +234,25 @@ function livePreviewDecorationsExtension() {
               pending.push({
                 from: absFrom,
                 to: absTo,
+                startSide: 0,
                 deco: Decoration.mark({ class: cls }),
               });
             }
           }
         }
 
-        // IMPORTANT: RangeSetBuilder requires ranges in sorted order.
-        // Our sources (syntaxTree, regex) do not guarantee stable ordering.
+        // RangeSetBuilder requires sorted input by from position and startSide.
         pending.sort((a, b) => {
           if (a.from !== b.from) return a.from - b.from;
-          // Prefer zero-length widgets with smaller startSide first; we only use side -1 for the badge.
-          const aIsWidget = a.from === a.to ? 0 : 1;
-          const bIsWidget = b.from === b.to ? 0 : 1;
-          if (aIsWidget !== bIsWidget) return aIsWidget - bIsWidget;
-          return a.to - b.to;
+          const as = a.startSide ?? 0;
+          const bs = b.startSide ?? 0;
+          if (as !== bs) return as - bs;
+          if (a.to !== b.to) return a.to - b.to;
+          return 0;
         });
 
         const builder = new RangeSetBuilder<Decoration>();
         for (const r of pending) builder.add(r.from, r.to, r.deco);
-
         return builder.finish();
       }
     },
