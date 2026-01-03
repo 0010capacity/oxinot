@@ -335,9 +335,11 @@ function buildEditorExtensions(
           letterSpacing: "-0.02em",
           color: "rgba(255,255,255,0.95)",
         },
-        ".lp-heading-1": { fontSize: "1.9em" },
-        ".lp-heading-2": { fontSize: "1.55em" },
-        ".lp-heading-3": { fontSize: "1.25em" },
+        /* In CM6, marks often end up wrapped by internal spans.
+           Apply font-size to descendants as well to ensure it takes effect visually. */
+        ".lp-heading-1, .lp-heading-1 *": { fontSize: "1.9em" },
+        ".lp-heading-2, .lp-heading-2 *": { fontSize: "1.55em" },
+        ".lp-heading-3, .lp-heading-3 *": { fontSize: "1.25em" },
 
         ".lp-strong": {
           fontWeight: "800",
