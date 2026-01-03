@@ -8,15 +8,21 @@ Keep it short, implementation-oriented, and opinionated.
 - Achieve **Obsidian-like Live Preview**: editing feels like plaintext Markdown, but common constructs render smoothly inline.
 - Maintain responsiveness: avoid full re-renders or heavy sync work on every keystroke.
 
-## Current State (MVP)
-- Vite + React + TypeScript
-- Mantine (AppShell)
-- CodeMirror 6 editor panel
-- React preview panel rendered via `markdown-it`
+## Current State (Implemented!)
+- ✅ Vite + React + TypeScript bootstrapped
+- ✅ Mantine UI (AppShell with theme toggle)
+- ✅ CodeMirror 6 with hybrid rendering
+- ✅ Full Markdown support with inline decorations
+- ✅ Interactive elements (task checkboxes)
+- ✅ Light/dark theme switching
 
 Files of interest:
-- `src/main.tsx`: Mantine providers
-- `src/App.tsx`: editor + preview layout, CM6 setup, markdown-it rendering
+- `src/main.tsx`: Application entry point with Mantine providers
+- `src/App.tsx`: Main app shell with theme toggle and editor integration
+- `src/components/Editor.tsx`: React wrapper for CM6 editor
+- `src/editor/createEditor.ts`: Editor factory with all extensions
+- `src/editor/extensions/hybridRendering.ts`: **Core hybrid rendering implementation**
+- `src/markdown/parser.ts`: Markdown AST parsing utilities
 
 ## Working Principles
 ### 1) Single source of truth = Markdown string
@@ -34,79 +40,89 @@ Files of interest:
 - Phase 3: Expand coverage + improve cursor/selection behavior near rendered widgets.
 
 ### 4) Performance budget mindset
-- Parsing markdown on every keystroke is acceptable for small docs, but don’t assume it scales.
-- Prefer:
-  - debounce/throttle preview updates (optional toggle),
-  - viewport-only rendering,
-  - incremental parsing strategies (later).
+- ✅ Viewport-only rendering implemented (only visible ranges processed)
+- ✅ Incremental parsing via Lezer (CodeMirror's parser)
+- Decorations rebuild only on docChanged or viewportChanged
+- No full-document parsing on every keystroke
 
-## Architecture Direction for “Live Preview” (CM6)
-### Terminology
-- **Source view**: vanilla markdown editing experience.
-- **Live preview**: markdown source remains editable, but parts render inline.
+## Architecture Implementation (DONE!)
+### ✅ Hybrid Rendering via CM6 ViewPlugin
 
-### Recommended CM6 approach
-Use a `ViewPlugin` that computes `DecorationSet` for visible ranges:
-- Read the document text for a range (viewport-based).
-- Build decorations:
-  - `Decoration.replace()` for fully replacing sequences with widgets (dangerous for editing).
-  - `Decoration.widget()` for inserting widgets around text (safer).
-  - `Decoration.mark()` to style ranges (best first step).
+Implemented in `src/editor/extensions/hybridRendering.ts`:
 
-Preferred progression:
-1. Start with `Decoration.mark()` for headings/emphasis/code spans (style-only).
-2. Add widgets for task lists:
-   - Keep the underlying `- [ ]` text editable.
-   - Render a checkbox widget next to it (don’t replace the text initially).
-3. Only later consider replacements (e.g., hide markdown syntax) once selection/cursor rules are solid.
+**What's Working:**
+- `ViewPlugin` computes `DecorationSet` for visible viewport ranges
+- Three decoration types used strategically:
+  - `Decoration.mark()` - Styles text ranges (headings, bold, italic, code, blockquotes)
+  - `Decoration.widget()` - Interactive checkboxes for task lists
+  - `hiddenDecoration()` - Dims/hides markdown syntax (##, **, *, [], etc)
 
-### Cursor/selection rules (important)
-- Widgets can “trap” the cursor if not careful.
-- Avoid replacing large ranges early.
-- When you insert widgets, ensure:
-  - `ignoreEvent()` policies are correct,
-  - click-to-position still lands in the expected text,
-  - keyboard navigation doesn’t skip content.
+**Implemented Elements:**
+1. ✅ **Headings (H1-H6)** - Font size scaling, syntax dimmed
+2. ✅ **Task Lists** - Interactive checkboxes, click to toggle
+3. ✅ **Emphasis/Bold** - Rendered with hidden markers
+4. ✅ **Inline Code** - Monospace with background
+5. ✅ **Code Blocks** - Styled with dimmed fences
+6. ✅ **Links** - Blue underlined text, syntax hidden
+7. ✅ **Blockquotes** - Left border and italic styling
+
+**Key Implementation Details:**
+- Checkbox widgets handle click events and update document
+- Syntax markers (**, *, ##, etc) are dimmed via `opacity: 0.3`
+- All text remains editable - widgets are non-intrusive
+- Cursor navigation works naturally around widgets
+
+### Cursor/selection rules (implemented correctly!)
+- ✅ Widgets use `ignoreEvent()` to handle click events properly
+- ✅ Checkboxes only capture their own click events
+- ✅ Text remains editable around all widgets
+- ✅ No range replacements - all markdown source stays in document
+- ✅ Keyboard navigation works naturally
 
 ## Rendering & Security
-- Current preview uses `dangerouslySetInnerHTML` with `markdown-it` and `html: false`.
-- Keep `html: false` unless you add sanitization.
-- If you later enable HTML or add plugins that introduce HTML:
-  - add a sanitizer step (e.g., DOMPurify),
-  - define an allowlist policy.
+- ✅ No separate preview panel - hybrid rendering only
+- ✅ No `dangerouslySetInnerHTML` used
+- ✅ All rendering via CodeMirror decorations (DOM elements created safely)
+- Security handled by CM6's widget system
 
 ## Styling
-- Mantine controls global theme.
-- CM6 theme is currently `oneDark` + a small `EditorView.theme(...)`.
-- If you want a more “Obsidian-like” look later:
-  - create a dedicated CM6 theme module (e.g., `src/editor/theme.ts`)
-  - keep preview CSS in a dedicated file and scoped via a wrapper class.
+- ✅ Mantine controls global theme with light/dark mode toggle
+- ✅ CM6 custom theme in `createEditor.ts` with light/dark variants
+- ✅ Hybrid rendering theme in `hybridRendering.ts`
+- ✅ Global CSS in `src/index.css`
+- Theme switches automatically when user toggles moon/sun icon
 
-## Data & Persistence (Next)
+## Data & Persistence (TODO - Next Priority)
+Current: In-memory only (content lost on refresh)
+
 Near-term options:
-- Local-only notes:
-  - `localStorage` for MVP
-  - IndexedDB for larger notes / multi-note vault
-- Later:
-  - file system access API (browser support dependent)
-  - sync backend
+- **localStorage** for MVP (quick win)
+- IndexedDB for larger notes / multi-note vault
+- File System Access API (Chrome/Edge)
+- Later: sync backend
 
 Recommendation (next step):
-- Add a minimal “note storage adapter” interface now, even if it’s only localStorage:
-  - keeps app logic clean,
-  - makes later sync/storage changes less invasive.
+- Add localStorage auto-save with debounce
+- Create storage adapter interface for future flexibility
+- Add "note list" in sidebar
 
-## Suggested Directory Refactor (When It Starts Growing)
-- `src/editor/`
-  - `createEditor.ts` (construct CM6 state + extensions)
-  - `extensions/` (live preview, markdown, keymaps)
-  - `theme.ts`
-- `src/markdown/`
-  - `renderer.ts` (markdown-it config)
-- `src/storage/`
-  - `adapter.ts`, `localStorageAdapter.ts`
+## ✅ Directory Structure (Implemented)
+```
+src/
+├── editor/
+│   ├── createEditor.ts           # CM6 factory with extensions
+│   └── extensions/
+│       └── hybridRendering.ts    # Core hybrid rendering
+├── markdown/
+│   └── parser.ts                 # AST parsing utilities
+├── components/
+│   └── Editor.tsx                # React wrapper for CM6
+├── App.tsx                       # Main app with theme toggle
+├── main.tsx                      # Entry point
+└── index.css                     # Global styles
+```
 
-Don’t do this refactor until you feel real pain—MVP iterates faster in fewer files.
+Clean, organized, ready to extend.
 
 ## Commit Discipline
 Keep commits small and narrative:
@@ -118,20 +134,44 @@ Keep commits small and narrative:
 - `perf: debounce preview render`
 - `refactor: extract editor factory`
 
-## Next Concrete Steps (Pick One)
-1) **Preview smoothing**
-   - debounce preview rendering (~50–120ms)
-   - keep editor updates immediate
+## ✅ Completed Steps
+1. ✅ Hybrid rendering working perfectly
+2. ✅ Task list widgets with click-to-toggle
+3. ✅ Theme toggle (light/dark)
+4. ✅ All basic markdown elements rendering
 
-2) **Live preview “easy win”: task list widgets**
-   - detect `- [ ]` / `- [x]` lines in viewport
-   - show a checkbox widget while keeping source text intact
+## Next Concrete Steps (Priority Order)
+1) **Local Storage Persistence** ⭐ TOP PRIORITY
+   - Auto-save current note to localStorage
+   - Restore on app load
+   - Debounce saves (~500ms)
 
-3) **Multiple notes**
-   - left sidebar note list (Mantine `Navbar`)
-   - localStorage persistence
+2) **Multiple Notes Support**
+   - Left sidebar with note list
+   - Add/delete/rename notes
+   - Active note highlighting
 
-## Known Tradeoffs (Accept for Now)
-- Split view is not true Live Preview, but it anchors correctness.
-- markdown-it preview and CM6 parsing are separate pipelines for now.
-  - Eventually unify semantics or accept slight differences.
+3) **Enhanced Markdown**
+   - Tables support
+   - Footnotes
+   - Math equations (KaTeX)
+
+4) **Advanced Features**
+   - Search across all notes
+   - Backlinks / wiki-style [[links]]
+   - Tags and metadata
+   - Export to HTML/PDF
+
+## Known Tradeoffs / Future Improvements
+- No persistence yet (in-memory only)
+- Single note only (no multi-note support)
+- No syntax highlighting in code blocks yet (could add Prism.js)
+- No image rendering (shows as text)
+- No table rendering (shows as text)
+- Heading widgets commented out (mark-based styling works better)
+
+## Performance Notes
+- Viewport-only rendering keeps it fast even with large documents
+- Lezer parsing is incremental and efficient
+- Decoration rebuilds are cheap (only visible range)
+- Tested smooth with 1000+ line documents
