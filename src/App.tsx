@@ -12,9 +12,13 @@ import {
 import { useElementSize, useHotkeys } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 
-import { EditorState } from "@codemirror/state";
+import { EditorState, RangeSetBuilder, StateEffect } from "@codemirror/state";
+import type { DecorationSet } from "@codemirror/view";
 import {
+  Decoration,
   EditorView,
+  ViewPlugin,
+  ViewUpdate,
   keymap,
   lineNumbers,
   highlightActiveLineGutter,
@@ -35,7 +39,7 @@ import MarkdownIt from "markdown-it";
 import taskLists from "markdown-it-task-lists";
 import footnote from "markdown-it-footnote";
 
-type ViewMode = "split" | "write" | "preview";
+type ViewMode = "live" | "write" | "preview";
 
 const DEFAULT_NOTE = `# md-editor
 
@@ -72,7 +76,129 @@ function useMarkdownRenderer() {
   }, []);
 }
 
-function buildEditorExtensions(onDocChanged: (next: string) => void) {
+/**
+ * Live preview (Obsidian-like) MVP:
+ * - Keep Markdown as the editable source, but apply "render-like" styling inline.
+ * - Start with safe decorations (mark styling). Avoid replacements early.
+ *
+ * Current coverage:
+ * - Headings (# ... ######)
+ * - Bold (**text**)
+ * - Italic (*text*)
+ * - Inline code (`code`)
+ * - Task checkbox lines (- [ ] / - [x]) as a left gutter-ish check marker
+ */
+function livePreviewDecorationsExtension() {
+  const plugin = ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+
+      constructor(view: EditorView) {
+        this.decorations = this.build(view);
+      }
+
+      update(update: ViewUpdate) {
+        if (update.docChanged || update.viewportChanged) {
+          this.decorations = this.build(update.view);
+        }
+      }
+
+      build(view: EditorView) {
+        const builder = new RangeSetBuilder<Decoration>();
+
+        // Only scan visible ranges for perf.
+        for (const { from, to } of view.visibleRanges) {
+          const text = view.state.doc.sliceString(from, to);
+          const lineStartPos = from;
+
+          // --- Block-ish: headings (line-based) ---
+          // We need to walk full lines within the visible slice.
+          let offset = 0;
+          while (offset < text.length) {
+            const nextNl = text.indexOf("\n", offset);
+            const end = nextNl === -1 ? text.length : nextNl + 1;
+            const line = text.slice(offset, end);
+            const absLineFrom = lineStartPos + offset;
+            const absLineTo = lineStartPos + offset + line.length;
+
+            // Heading: ^(#{1,6})\s+
+            const headingMatch = /^(#{1,6})\s+/.exec(line);
+            if (headingMatch) {
+              const level = headingMatch[1].length;
+              builder.add(
+                absLineFrom,
+                absLineTo,
+                Decoration.mark({ class: `lp-heading lp-heading-${level}` }),
+              );
+            }
+
+            // Task list: ^\s*[-*]\s+\[( |x|X)\]\s+
+            const taskMatch = /^(\s*[-*]\s+\[)( |x|X)(\])\s+/.exec(line);
+            if (taskMatch) {
+              const checked = taskMatch[2].toLowerCase() === "x";
+              // Mark whole line for styling, and mark the "[ ]" area too.
+              builder.add(
+                absLineFrom,
+                absLineTo,
+                Decoration.mark({ class: "lp-task-line" }),
+              );
+
+              const boxFrom = absLineFrom + taskMatch[1].length - 1; // points at '['
+              const boxTo = boxFrom + 3; // "[ ]" or "[x]"
+              builder.add(
+                boxFrom,
+                boxTo,
+                Decoration.mark({
+                  class: checked
+                    ? "lp-task-box lp-task-checked"
+                    : "lp-task-box",
+                }),
+              );
+            }
+
+            offset += end;
+          }
+
+          // --- Inline-ish: emphasis / code ---
+          // These regexes are intentionally conservative for MVP.
+          // They won't be 100% Markdown-correct, but they provide the "rendered feel".
+          const patterns: Array<{ re: RegExp; cls: string }> = [
+            { re: /`([^`\n]+)`/g, cls: "lp-inline-code" },
+            { re: /\*\*([^\n*][\s\S]*?[^\n*]?)\*\*/g, cls: "lp-strong" },
+            { re: /(^|[^\*])\*([^\n*][\s\S]*?[^\n*]?)\*(?!\*)/g, cls: "lp-em" },
+          ];
+
+          for (const { re, cls } of patterns) {
+            re.lastIndex = 0;
+            let m: RegExpExecArray | null;
+            while ((m = re.exec(text))) {
+              // For italic pattern, group 1 includes a prefix char; adjust range to the actual *...* if needed.
+              const start = m.index + (cls === "lp-em" ? m[1].length : 0);
+              const full = cls === "lp-em" ? `*${m[2]}*` : m[0];
+
+              const absFrom = from + start;
+              const absTo = absFrom + full.length;
+
+              builder.add(absFrom, absTo, Decoration.mark({ class: cls }));
+            }
+          }
+        }
+
+        return builder.finish();
+      }
+    },
+    {
+      decorations: (v) => v.decorations,
+    },
+  );
+
+  return plugin;
+}
+
+function buildEditorExtensions(
+  onDocChanged: (next: string) => void,
+  opts: { livePreview: boolean },
+) {
   return [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -88,6 +214,7 @@ function buildEditorExtensions(onDocChanged: (next: string) => void) {
     ]),
     markdown({ codeLanguages: languages }),
     oneDark,
+    opts.livePreview ? livePreviewDecorationsExtension() : [],
     EditorView.updateListener.of((v) => {
       if (!v.docChanged) return;
       onDocChanged(v.state.doc.toString());
@@ -105,6 +232,37 @@ function buildEditorExtensions(onDocChanged: (next: string) => void) {
         ".cm-content": {
           padding: "12px 12px 80px",
           minHeight: "100%",
+        },
+
+        /* Live preview styles (safe mark-only decorations) */
+        ".lp-heading": {
+          fontWeight: "700",
+          letterSpacing: "-0.01em",
+        },
+        ".lp-heading-1": { fontSize: "1.6em" },
+        ".lp-heading-2": { fontSize: "1.35em" },
+        ".lp-heading-3": { fontSize: "1.15em" },
+
+        ".lp-strong": { fontWeight: "700" },
+        ".lp-em": { fontStyle: "italic" },
+        ".lp-inline-code": {
+          fontFamily:
+            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+          background: "rgba(255,255,255,0.08)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: "6px",
+          padding: "0 6px",
+        },
+
+        ".lp-task-line": {
+          position: "relative",
+        },
+        ".lp-task-box": {
+          color: "rgba(255,255,255,0.65)",
+          fontWeight: "700",
+        },
+        ".lp-task-checked": {
+          color: "rgba(120, 255, 180, 0.9)",
         },
       },
       { dark: true },
@@ -136,9 +294,11 @@ function MarkdownPreview({ value }: { value: string }) {
 function CodeMirrorEditor({
   value,
   onChange,
+  livePreview,
 }: {
   value: string;
   onChange: (next: string) => void;
+  livePreview: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -150,7 +310,7 @@ function CodeMirrorEditor({
 
     const state = EditorState.create({
       doc: value,
-      extensions: buildEditorExtensions(onChange),
+      extensions: buildEditorExtensions(onChange, { livePreview }),
     });
 
     const view = new EditorView({
@@ -166,6 +326,18 @@ function CodeMirrorEditor({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Toggle live preview without recreating the view
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    view.dispatch({
+      effects: StateEffect.reconfigure.of(
+        buildEditorExtensions(onChange, { livePreview }),
+      ),
+    });
+  }, [livePreview, onChange]);
 
   // External value -> editor doc (avoid feedback loop)
   useEffect(() => {
@@ -195,7 +367,7 @@ function CodeMirrorEditor({
 }
 
 export default function App() {
-  const [mode, setMode] = useState<ViewMode>("split");
+  const [mode, setMode] = useState<ViewMode>("live");
   const [doc, setDoc] = useState<string>(DEFAULT_NOTE);
 
   const { ref: shellRef, height } = useElementSize();
@@ -216,7 +388,7 @@ export default function App() {
       "mod+1",
       (e) => {
         e.preventDefault();
-        setMode("split");
+        setMode("live");
       },
     ],
     [
@@ -235,8 +407,8 @@ export default function App() {
     ],
   ]);
 
-  const editorVisible = mode === "split" || mode === "write";
-  const previewVisible = mode === "split" || mode === "preview";
+  const editorVisible = mode === "live" || mode === "write";
+  const previewVisible = mode === "preview";
 
   return (
     <AppShell
@@ -261,7 +433,7 @@ export default function App() {
               value={mode}
               onChange={(v) => setMode(v as ViewMode)}
               data={[
-                { label: "Split", value: "split" },
+                { label: "Live", value: "live" },
                 { label: "Write", value: "write" },
                 { label: "Preview", value: "preview" },
               ]}
@@ -272,7 +444,8 @@ export default function App() {
               onClick={() => {
                 notifications.show({
                   title: "Hotkeys",
-                  message: "⌘/Ctrl+S: demo save • ⌘/Ctrl+1/2/3: view modes",
+                  message:
+                    "⌘/Ctrl+S: demo save • ⌘/Ctrl+1/2/3: Live/Write/Preview",
                 });
               }}
             >
@@ -293,7 +466,11 @@ export default function App() {
         >
           {editorVisible && (
             <Box style={{ flex: 1, minWidth: 0, height: "100%" }}>
-              <CodeMirrorEditor value={doc} onChange={setDoc} />
+              <CodeMirrorEditor
+                value={doc}
+                onChange={setDoc}
+                livePreview={mode === "live"}
+              />
             </Box>
           )}
 
