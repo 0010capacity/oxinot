@@ -18,7 +18,8 @@ const theme = createTheme({
     "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 });
 
-const INITIAL_CONTENT = `# Welcome to Hybrid Markdown Editor
+const INITIAL_CONTENT =
+  `# Welcome to Hybrid Markdown Editor
 
 This editor uses **hybrid rendering** - you can edit the source text while seeing rendered elements inline. No split view needed!
 
@@ -93,6 +94,45 @@ And bullet lists:
 **Start typing anywhere to experience the magic of hybrid rendering!** ✨
 
 The key insight: you're always editing plain markdown text, but the UI makes it *feel* like you're editing a rendered document.
+
+### Tables
+
+Tables are rendered with clean styling:
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Headings | ✅ | H1-H6 supported |
+| Task Lists | ✅ | Interactive checkboxes |
+| Tables | ✅ | You're looking at one! |
+| Code Blocks | ✅ | Syntax highlighting |
+| Inline Styles | ✅ | Bold, italic, code |
+
+Try clicking into the table - the pipe characters (` |
+  `) will dim but stay editable!
+
+### GFM Features
+
+GitHub Flavored Markdown is fully supported!
+
+**Strikethrough**: Use ~~two tildes~~ to cross out text.
+
+**Autolinks**: URLs like https://github.com automatically become clickable.
+
+**Footnotes**: Add references[^1] to your text and define them at the bottom.
+
+### More Examples
+
+You can combine features: **bold with ~~strikethrough~~** or *italic with ~~strikethrough~~*.
+
+Task lists work great in GFM:
+- [x] Support basic markdown
+- [x] Add GFM extensions
+- [ ] Add math equations
+- [ ] Add diagrams
+
+---
+
+[^1]: This is a footnote. It will appear with special styling and can contain more detailed information.
 `;
 
 function AppContent() {

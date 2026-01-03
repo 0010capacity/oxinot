@@ -1,11 +1,24 @@
-import { EditorState, Extension } from '@codemirror/state';
-import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { syntaxHighlighting, defaultHighlightStyle, indentOnInput, bracketMatching } from '@codemirror/language';
-import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
-import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
-import { hybridRenderingPlugin, hybridRenderingTheme } from './extensions/hybridRendering';
+import { EditorState, Extension } from "@codemirror/state";
+import {
+  EditorView,
+  keymap,
+  lineNumbers,
+  highlightActiveLineGutter,
+} from "@codemirror/view";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import {
+  syntaxHighlighting,
+  defaultHighlightStyle,
+  indentOnInput,
+  bracketMatching,
+} from "@codemirror/language";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import {
+  hybridRenderingPlugin,
+  hybridRenderingTheme,
+} from "./extensions/hybridRendering";
 
 /**
  * Editor configuration options
@@ -17,7 +30,7 @@ export interface EditorConfig {
   onBlur?: () => void;
   readOnly?: boolean;
   lineWrapping?: boolean;
-  theme?: 'light' | 'dark';
+  theme?: "light" | "dark";
 }
 
 /**
@@ -32,7 +45,7 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
     // History (undo/redo)
     history(),
 
-    // Markdown language support
+    // Markdown language support with GFM extensions
     markdown({
       base: markdownLanguage,
       codeLanguages: [],
@@ -92,7 +105,7 @@ function createUpdateListener(onChange?: (doc: string) => void): Extension {
  */
 function createFocusListeners(
   onFocus?: () => void,
-  onBlur?: () => void
+  onBlur?: () => void,
 ): Extension[] {
   const extensions: Extension[] = [];
 
@@ -103,7 +116,7 @@ function createFocusListeners(
           onFocus();
           return false;
         },
-      })
+      }),
     );
   }
 
@@ -114,7 +127,7 @@ function createFocusListeners(
           onBlur();
           return false;
         },
-      })
+      }),
     );
   }
 
@@ -124,63 +137,70 @@ function createFocusListeners(
 /**
  * Create base editor theme
  */
-function createEditorTheme(theme: 'light' | 'dark' = 'light'): Extension {
-  const isDark = theme === 'dark';
+function createEditorTheme(theme: "light" | "dark" = "light"): Extension {
+  const isDark = theme === "dark";
 
   return EditorView.theme(
     {
-      '&': {
-        height: '100%',
-        fontSize: '14px',
-        backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
-        color: isDark ? '#d4d4d4' : '#000000',
+      "&": {
+        height: "100%",
+        fontSize: "14px",
+        backgroundColor: isDark ? "#1e1e1e" : "#ffffff",
+        color: isDark ? "#d4d4d4" : "#000000",
       },
-      '.cm-content': {
-        padding: '20px 0',
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        caretColor: isDark ? '#ffffff' : '#000000',
+      ".cm-content": {
+        padding: "20px 0",
+        fontFamily:
+          "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        caretColor: isDark ? "#ffffff" : "#000000",
       },
-      '.cm-line': {
-        padding: '0 20px',
-        lineHeight: '1.6',
+      ".cm-line": {
+        padding: "0 20px",
+        lineHeight: "1.6",
       },
-      '.cm-gutters': {
-        backgroundColor: isDark ? '#252526' : '#f5f5f5',
-        color: isDark ? '#858585' : '#858585',
-        border: 'none',
-        paddingLeft: '8px',
+      ".cm-gutters": {
+        backgroundColor: isDark ? "#252526" : "#f5f5f5",
+        color: isDark ? "#858585" : "#858585",
+        border: "none",
+        paddingLeft: "8px",
       },
-      '.cm-activeLineGutter': {
-        backgroundColor: isDark ? '#2c2c2d' : '#e8e8e8',
+      ".cm-activeLineGutter": {
+        backgroundColor: isDark ? "#2c2c2d" : "#e8e8e8",
       },
-      '.cm-activeLine': {
-        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+      ".cm-activeLine": {
+        backgroundColor: isDark
+          ? "rgba(255, 255, 255, 0.05)"
+          : "rgba(0, 0, 0, 0.03)",
       },
-      '.cm-selectionBackground, ::selection': {
-        backgroundColor: isDark ? '#264f78' : '#b3d4fc',
+      ".cm-selectionBackground, ::selection": {
+        backgroundColor: isDark ? "#264f78" : "#b3d4fc",
       },
-      '.cm-focused .cm-selectionBackground, .cm-focused ::selection': {
-        backgroundColor: isDark ? '#264f78' : '#b3d4fc',
+      ".cm-focused .cm-selectionBackground, .cm-focused ::selection": {
+        backgroundColor: isDark ? "#264f78" : "#b3d4fc",
       },
-      '.cm-cursor': {
-        borderLeftColor: isDark ? '#ffffff' : '#000000',
+      ".cm-cursor": {
+        borderLeftColor: isDark ? "#ffffff" : "#000000",
       },
-      '&.cm-focused': {
-        outline: 'none',
+      "&.cm-focused": {
+        outline: "none",
       },
-      '.cm-scroller': {
-        overflow: 'auto',
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      ".cm-scroller": {
+        overflow: "auto",
+        fontFamily:
+          "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       },
     },
-    { dark: isDark }
+    { dark: isDark },
   );
 }
 
 /**
  * Create a CodeMirror 6 editor instance with hybrid rendering
  */
-export function createEditor(parent: HTMLElement, config: EditorConfig = {}): EditorView {
+export function createEditor(
+  parent: HTMLElement,
+  config: EditorConfig = {},
+): EditorView {
   const extensions: Extension[] = [
     // Basic extensions
     ...createBasicExtensions(config),
@@ -200,7 +220,7 @@ export function createEditor(parent: HTMLElement, config: EditorConfig = {}): Ed
   ];
 
   const state = EditorState.create({
-    doc: config.doc || '',
+    doc: config.doc || "",
     extensions,
   });
 
