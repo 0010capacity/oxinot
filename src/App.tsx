@@ -214,7 +214,7 @@ function buildEditorExtensions(
     ]),
     markdown({ codeLanguages: languages }),
     oneDark,
-    opts.livePreview ? livePreviewDecorationsExtension() : [],
+    ...(opts.livePreview ? [livePreviewDecorationsExtension()] : []),
     EditorView.updateListener.of((v) => {
       if (!v.docChanged) return;
       onDocChanged(v.state.doc.toString());
