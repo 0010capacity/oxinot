@@ -160,9 +160,12 @@ function livePreviewDecorationsExtension() {
               const m = /^(#{1,6})\s+/.exec(prefix);
               const level = m ? m[1].length : 1;
 
+              // Apply to the whole visual line, not just the AST node range.
+              // This makes font-size/line-height changes reliably visible because `.cm-line` is the layout unit.
+              const headingLine = view.state.doc.lineAt(node.from);
               pending.push({
-                from: node.from,
-                to: node.to,
+                from: headingLine.from,
+                to: headingLine.to,
                 startSide: 0,
                 deco: Decoration.mark({
                   class: `lp-heading lp-heading-${level}`,
@@ -334,9 +337,15 @@ function buildEditorExtensions(
           fontWeight: "800",
           letterSpacing: "-0.02em",
           color: "rgba(255,255,255,0.95)",
+          display: "block",
         },
-        /* In CM6, marks often end up wrapped by internal spans.
-           Apply font-size to descendants as well to ensure it takes effect visually. */
+
+        /* Make heading sizing visible at the line/layout level. */
+        ".cm-line.lp-heading-1": { fontSize: "1.9em", lineHeight: "1.25" },
+        ".cm-line.lp-heading-2": { fontSize: "1.55em", lineHeight: "1.3" },
+        ".cm-line.lp-heading-3": { fontSize: "1.25em", lineHeight: "1.35" },
+
+        /* Fallback: ensure descendants inherit the intended sizing even with nested CM spans. */
         ".lp-heading-1, .lp-heading-1 *": { fontSize: "1.9em" },
         ".lp-heading-2, .lp-heading-2 *": { fontSize: "1.55em" },
         ".lp-heading-3, .lp-heading-3 *": { fontSize: "1.25em" },
