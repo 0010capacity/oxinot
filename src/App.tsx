@@ -12,7 +12,7 @@ import {
 import { useElementSize, useHotkeys } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 
-import { EditorState, RangeSetBuilder, StateEffect } from "@codemirror/state";
+import { EditorState, RangeSetBuilder } from "@codemirror/state";
 import type { DecorationSet } from "@codemirror/view";
 import {
   Decoration,
@@ -388,17 +388,33 @@ function CodeMirrorEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Toggle live preview without recreating the view
+  // Rebuild the editor when live preview toggles.
+  // NOTE: Reconfigure can be subtle to get right; rebuilding is the simplest and most reliable.
   useEffect(() => {
-    const view = viewRef.current;
-    if (!view) return;
+    const host = hostRef.current;
+    if (!host) return;
 
-    view.dispatch({
-      effects: StateEffect.reconfigure.of(
-        buildEditorExtensions(onChange, { livePreview }),
-      ),
+    // If the view doesn't exist yet, initial mount effect will handle it.
+    const prev = viewRef.current;
+    if (!prev) return;
+
+    const scrollTop = prev.scrollDOM.scrollTop;
+    prev.destroy();
+    viewRef.current = null;
+
+    const state = EditorState.create({
+      doc: value,
+      extensions: buildEditorExtensions(onChange, { livePreview }),
     });
-  }, [livePreview, onChange]);
+
+    const nextView = new EditorView({
+      state,
+      parent: host,
+    });
+
+    nextView.scrollDOM.scrollTop = scrollTop;
+    viewRef.current = nextView;
+  }, [livePreview]);
 
   // External value -> editor doc (avoid feedback loop)
   useEffect(() => {
