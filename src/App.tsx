@@ -160,14 +160,14 @@ function livePreviewDecorationsExtension() {
               const m = /^(#{1,6})\s+/.exec(prefix);
               const level = m ? m[1].length : 1;
 
-              // Apply to the whole visual line, not just the AST node range.
-              // This makes font-size/line-height changes reliably visible because `.cm-line` is the layout unit.
-              const headingLine = view.state.doc.lineAt(node.from);
+              // Apply to the whole visual line. Styling `.cm-line` via plain CSS selectors is unreliable
+              // because CM6 wraps/segments token spans in a way that can defeat font-size inheritance.
+              // Using `Decoration.line(...)` guarantees the class is placed on the actual `.cm-line` element.
               pending.push({
-                from: headingLine.from,
-                to: headingLine.to,
+                from: line.from,
+                to: line.from,
                 startSide: 0,
-                deco: Decoration.mark({
+                deco: Decoration.line({
                   class: `lp-heading lp-heading-${level}`,
                 }),
               });
@@ -332,23 +332,17 @@ function buildEditorExtensions(
           width: "fit-content",
         },
 
-        /* Live preview styles (safe mark-only decorations) */
-        ".lp-heading": {
+        /* Live preview styles (heading line-class driven) */
+        ".cm-line.lp-heading": {
           fontWeight: "800",
           letterSpacing: "-0.02em",
           color: "rgba(255,255,255,0.95)",
-          display: "block",
         },
 
-        /* Make heading sizing visible at the line/layout level. */
+        /* Make heading sizing visible at the actual `.cm-line` layout node. */
         ".cm-line.lp-heading-1": { fontSize: "1.9em", lineHeight: "1.25" },
         ".cm-line.lp-heading-2": { fontSize: "1.55em", lineHeight: "1.3" },
         ".cm-line.lp-heading-3": { fontSize: "1.25em", lineHeight: "1.35" },
-
-        /* Fallback: ensure descendants inherit the intended sizing even with nested CM spans. */
-        ".lp-heading-1, .lp-heading-1 *": { fontSize: "1.9em" },
-        ".lp-heading-2, .lp-heading-2 *": { fontSize: "1.55em" },
-        ".lp-heading-3, .lp-heading-3 *": { fontSize: "1.25em" },
 
         ".lp-strong": {
           fontWeight: "800",
