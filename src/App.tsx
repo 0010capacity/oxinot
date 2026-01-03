@@ -18,8 +18,7 @@ const theme = createTheme({
     "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 });
 
-const INITIAL_CONTENT =
-  `# Welcome to Hybrid Markdown Editor
+const INITIAL_CONTENT = `# Welcome to Hybrid Markdown Editor
 
 This editor uses **hybrid rendering** - you can edit the source text while seeing rendered elements inline. No split view needed!
 
@@ -107,8 +106,7 @@ Tables are rendered with clean styling:
 | Code Blocks | ✅ | Syntax highlighting |
 | Inline Styles | ✅ | Bold, italic, code |
 
-Try clicking into the table - the pipe characters (` |
-  `) will dim but stay editable!
+Try clicking into the table - the pipe characters (\`|\`) will dim but stay editable!
 
 ### GFM Features
 
