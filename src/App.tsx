@@ -447,10 +447,10 @@ export default function App() {
   const [mode, setMode] = useState<ViewMode>("live");
   const [doc, setDoc] = useState<string>(DEFAULT_NOTE);
 
-  // Runtime verification: show which commit the UI was built from.
-  // You can set this at build time via Vite:
-  // VITE_GIT_SHA=$(git rev-parse --short HEAD)
-  const gitSha = (import.meta as any).env?.VITE_GIT_SHA ?? "unknown";
+  // Runtime verification: show which build-id the UI was built from.
+  // Injected via Vite `define` in `vite.config.ts`.
+  const buildId = __APP_BUILD_ID__;
+  const buildTime = __APP_BUILD_TIME__;
 
   const { ref: shellRef, height } = useElementSize();
 
@@ -512,7 +512,8 @@ export default function App() {
 
           <Group gap="sm">
             <Text size="xs" c="dimmed">
-              commit: {gitSha}
+              build: {buildId}
+              {buildTime !== "unknown" ? ` (${buildTime})` : ""}
             </Text>
             <SegmentedControl
               value={mode}
