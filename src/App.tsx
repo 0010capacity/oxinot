@@ -224,10 +224,20 @@ function buildEditorExtensions(
         "&": {
           height: "100%",
           fontSize: "14px",
+          /* Make it obvious when Live Preview is ON */
+          ...(opts.livePreview
+            ? {
+                backgroundColor: "rgba(255, 255, 255, 0.03)",
+                outline: "2px solid rgba(120, 255, 180, 0.25)",
+                outlineOffset: "-2px",
+              }
+            : null),
         },
         ".cm-scroller": {
-          fontFamily:
-            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+          /* In Live mode, use a reading font to visually differ from source mode */
+          fontFamily: opts.livePreview
+            ? "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"
+            : "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
         },
         ".cm-content": {
           padding: "12px 12px 80px",
@@ -236,20 +246,27 @@ function buildEditorExtensions(
 
         /* Live preview styles (safe mark-only decorations) */
         ".lp-heading": {
-          fontWeight: "700",
-          letterSpacing: "-0.01em",
+          fontWeight: "800",
+          letterSpacing: "-0.02em",
+          color: "rgba(255,255,255,0.95)",
         },
-        ".lp-heading-1": { fontSize: "1.6em" },
-        ".lp-heading-2": { fontSize: "1.35em" },
-        ".lp-heading-3": { fontSize: "1.15em" },
+        ".lp-heading-1": { fontSize: "1.9em" },
+        ".lp-heading-2": { fontSize: "1.55em" },
+        ".lp-heading-3": { fontSize: "1.25em" },
 
-        ".lp-strong": { fontWeight: "700" },
-        ".lp-em": { fontStyle: "italic" },
+        ".lp-strong": {
+          fontWeight: "800",
+          color: "rgba(255,255,255,0.98)",
+        },
+        ".lp-em": {
+          fontStyle: "italic",
+          color: "rgba(255,255,255,0.9)",
+        },
         ".lp-inline-code": {
           fontFamily:
             "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-          background: "rgba(255,255,255,0.08)",
-          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(255,255,255,0.12)",
+          border: "1px solid rgba(255,255,255,0.18)",
           borderRadius: "6px",
           padding: "0 6px",
         },
@@ -258,11 +275,17 @@ function buildEditorExtensions(
           position: "relative",
         },
         ".lp-task-box": {
-          color: "rgba(255,255,255,0.65)",
-          fontWeight: "700",
+          color: "rgba(255,255,255,0.85)",
+          fontWeight: "900",
+          background: "rgba(120, 255, 180, 0.12)",
+          border: "1px solid rgba(120, 255, 180, 0.25)",
+          borderRadius: "6px",
+          padding: "0 6px",
         },
         ".lp-task-checked": {
-          color: "rgba(120, 255, 180, 0.9)",
+          color: "rgba(120, 255, 180, 0.95)",
+          background: "rgba(120, 255, 180, 0.18)",
+          borderColor: "rgba(120, 255, 180, 0.35)",
         },
       },
       { dark: true },
