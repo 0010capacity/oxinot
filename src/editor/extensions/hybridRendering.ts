@@ -31,6 +31,7 @@ import { InlineCodeHandler } from "./handlers/InlineCodeHandler";
 import { TaskListHandler } from "./handlers/TaskListHandler";
 import { LinkHandler } from "./handlers/LinkHandler";
 import { BlockquoteHandler } from "./handlers/BlockquoteHandler";
+import { CodeBlockHandler } from "./handlers/CodeBlockHandler";
 
 // Import handler system
 import { HandlerRegistry } from "./handlers/HandlerRegistry";
@@ -52,6 +53,7 @@ function createHandlerRegistry(): HandlerRegistry {
     new StrongHandler(), // Bold (before emphasis to catch ** before *)
     new EmphasisHandler(), // Italic
     new InlineCodeHandler(), // Inline code
+    new CodeBlockHandler(), // Code blocks
     new LinkHandler(), // Links
     new BlockquoteHandler(), // Blockquotes
   ]);
@@ -99,6 +101,234 @@ function buildDecorations(view: EditorView): DecorationSet {
         return false;
       },
     });
+  }
+
+  // Process tables line by line (not yet in handler system - complex logic)
+  for (let lineNum = 1; lineNum <= state.doc.lines; lineNum++) {
+    const line = state.doc.line(lineNum);
+    const lineText = line.text;
+    const isTableLine = /^\s*\|.*\|/.test(lineText);
+    const isSeparator = /^\s*\|?[\s\-:|]+\|[\s\-:|]*$/.test(lineText);
+
+    if (isTableLine) {
+      const isOnCursorLine =
+        state.selection.main.head >= line.from &&
+        state.selection.main.head <= line.to;
+
+      const isHeader =
+        lineNum < state.doc.lines &&
+        /^\s*\|?[\s\-:|]+\|[\s\-:|]*$/.test(state.doc.line(lineNum + 1).text);
+
+      if (isSeparator) {
+        if (!isOnCursorLine) {
+          decorations.push({
+            from: line.from,
+            to: line.to,
+            decoration: Decoration.mark({
+              class: "cm-table-separator-hidden",
+              attributes: {
+                style:
+                  "font-size: 0; line-height: 0; opacity: 0; height: 0; display: block; overflow: hidden;",
+              },
+            }),
+          });
+        } else {
+          decorations.push({
+            from: line.from,
+            to: line.to,
+            decoration: Decoration.mark({
+              class: "cm-table-separator",
+              attributes: {
+                style: "opacity: 0.4; color: #888;",
+              },
+            }),
+          });
+        }
+      } else {
+        const cells = lineText
+          .split("|")
+          .map((cell) => cell.trim())
+          .filter((cell) => cell.length > 0);
+
+        const rowStyle = isHeader
+          ? `display: grid; grid-template-columns: repeat(${cells.length}, 1fr); gap: 0; padding: 0.75em 0; font-weight: 600; background: linear-gradient(to bottom, rgba(128, 128, 128, 0.08), rgba(128, 128, 128, 0.12)); border: 1px solid rgba(128, 128, 128, 0.25); border-bottom: 2px solid rgba(128, 128, 128, 0.4); margin-top: 0.5em;`
+          : `display: grid; grid-template-columns: repeat(${cells.length}, 1fr); gap: 0; padding: 0.6em 0; border-left: 1px solid rgba(128, 128, 128, 0.25); border-right: 1px solid rgba(128, 128, 128, 0.25); border-bottom: 1px solid rgba(128, 128, 128, 0.25);`;
+
+        decorations.push({
+          from: line.from,
+          to: line.to,
+          decoration: Decoration.mark({
+            class: isHeader ? "cm-table-header" : "cm-table-row",
+            attributes: {
+              style: rowStyle,
+            },
+          }),
+        });
+
+        let cellStart = lineText.indexOf("|");
+        cells.forEach((cell, idx) => {
+          const cellContent = `|${cell}|`;
+          const cellPos = lineText.indexOf(cellContent, cellStart);
+
+          if (cellPos !== -1) {
+            const contentStart = cellPos + 1;
+            const contentEnd = contentStart + cell.length;
+
+            decorations.push({
+              from: line.from + contentStart,
+              to: line.from + contentEnd,
+              decoration: Decoration.mark({
+                class: "cm-table-cell",
+                attributes: {
+                  style: `padding: 0 1em; ${idx < cells.length - 1 ? "border-right: 1px solid rgba(128, 128, 128, 0.2);" : ""}`,
+                },
+              }),
+            });
+
+            cellStart = contentEnd;
+          }
+        });
+
+        if (!isOnCursorLine) {
+          for (let i = 0; i < lineText.length; i++) {
+            if (lineText[i] === "|") {
+              decorations.push({
+                from: line.from + i,
+                to: line.from + i + 1,
+                decoration: Decoration.mark({
+                  class: "cm-table-pipe-hidden",
+                  attributes: {
+                    style: "font-size: 0; width: 0; opacity: 0;",
+                  },
+                }),
+              });
+            }
+          }
+        } else {
+          for (let i = 0; i < lineText.length; i++) {
+            if (lineText[i] === "|") {
+              decorations.push({
+                from: line.from + i,
+                to: line.from + i + 1,
+                decoration: Decoration.mark({
+                  class: "cm-table-pipe",
+                  attributes: {
+                    style: "opacity: 0.3; color: #888;",
+                  },
+                }),
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Process strikethrough line by line
+  for (let lineNum = 1; lineNum <= state.doc.lines; lineNum++) {
+    const line = state.doc.line(lineNum);
+    const lineText = line.text;
+    const isOnCursorLine =
+      state.selection.main.head >= line.from &&
+      state.selection.main.head <= line.to;
+
+    const strikethroughRegex = /~~([^~]+)~~/g;
+    let match;
+    while ((match = strikethroughRegex.exec(lineText)) !== null) {
+      const start = line.from + match.index;
+      const end = start + match[0].length;
+
+      decorations.push({
+        from: start,
+        to: end,
+        decoration: Decoration.mark({
+          class: "cm-strikethrough",
+          attributes: {
+            style: "text-decoration: line-through; opacity: 0.7;",
+          },
+        }),
+      });
+
+      if (!isOnCursorLine) {
+        decorations.push({
+          from: start,
+          to: start + 2,
+          decoration: Decoration.replace({}),
+        });
+        decorations.push({
+          from: end - 2,
+          to: end,
+          decoration: Decoration.replace({}),
+        });
+      } else {
+        decorations.push({
+          from: start,
+          to: start + 2,
+          decoration: Decoration.mark({
+            class: "cm-dim-marker",
+            attributes: {
+              style: "opacity: 0.5;",
+            },
+          }),
+        });
+        decorations.push({
+          from: end - 2,
+          to: end,
+          decoration: Decoration.mark({
+            class: "cm-dim-marker",
+            attributes: {
+              style: "opacity: 0.5;",
+            },
+          }),
+        });
+      }
+    }
+  }
+
+  // Process footnotes line by line
+  for (let lineNum = 1; lineNum <= state.doc.lines; lineNum++) {
+    const line = state.doc.line(lineNum);
+    const lineText = line.text;
+
+    const footnoteDefMatch = lineText.match(/^\[\^([^\]]+)\]:\s+(.+)$/);
+    if (footnoteDefMatch) {
+      const isOnCursorLine =
+        state.selection.main.head >= line.from &&
+        state.selection.main.head <= line.to;
+
+      if (!isOnCursorLine) {
+        decorations.push({
+          from: line.from,
+          to: line.to,
+          decoration: Decoration.mark({
+            class: "cm-footnote-def",
+            attributes: {
+              style:
+                "color: #888; font-size: 0.9em; font-style: italic; opacity: 0.7;",
+            },
+          }),
+        });
+      }
+    }
+
+    const footnoteRefRegex = /\[\^([^\]]+)\]/g;
+    let match;
+    while ((match = footnoteRefRegex.exec(lineText)) !== null) {
+      const refStart = line.from + match.index;
+      const refEnd = refStart + match[0].length;
+
+      decorations.push({
+        from: refStart,
+        to: refEnd,
+        decoration: Decoration.mark({
+          class: "cm-footnote-ref",
+          attributes: {
+            style:
+              "color: #4dabf7; font-size: 0.85em; vertical-align: super; cursor: pointer;",
+          },
+        }),
+      });
+    }
   }
 
   // Sort decorations (required by CM6)
