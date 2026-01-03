@@ -89,16 +89,16 @@ function buildDecorations(view: EditorView): DecorationSet {
     tree.iterate({
       from,
       to,
-      enter: (nodeRef) => {
+      enter: (node) => {
+        // Create a proper SyntaxNode for handlers
+        const syntaxNode = node.node;
+
         // Let handlers process this node
-        const nodeDecorations = handlerRegistry.handleNode(
-          nodeRef.node,
-          context,
-        );
+        const nodeDecorations = handlerRegistry.handleNode(syntaxNode, context);
         decorations.push(...nodeDecorations);
 
-        // Continue to children (return true to skip children if needed)
-        return false;
+        // Return true to process children
+        return true;
       },
     });
   }
