@@ -9,26 +9,154 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     padding: 20px;
+
+    /* Shared width constraint for outliner content */
+    --outliner-max-width: 900px;
 }
+
+/* --- Markdown preview layer (rendered) + textarea overlay (editable) --- */
+/* The preview is always visible; the textarea is transparent and sits on top for editing. */
+.block-input-wrap {
+    flex: 0 1 auto;
+    min-height: 0;
+    position: relative;
+    z-index: 3;
+    max-width: 100%;
+}
+
+/* Rendered markdown preview (underlay) */
+.block-preview {
+    width: 100%;
+    min-height: 0;
+    padding: 0 8px;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.35;
+    color: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+    outline: none;
+    cursor: text;
+    pointer-events: none; /* allow clicks to hit the textarea overlay */
+    max-width: 100%;
+}
+
+/* Headings inside a block should not look like full-page headings (Logseq-style) */
+.block-preview h1,
+.block-preview h2,
+.block-preview h3,
+.block-preview h4,
+.block-preview h5,
+.block-preview h6 {
+    font-size: 1em;
+    font-weight: 600;
+}
+
+/* Tighten block-level spacing produced by markdown-it (prevents "too much" vertical gaps) */
+.block-preview h1,
+.block-preview h2,
+.block-preview h3,
+.block-preview h4,
+.block-preview h5,
+.block-preview h6 {
+    margin: 0;
+    line-height: 1.25;
+}
+.block-preview p {
+    margin: 0;
+}
+.block-preview p + p {
+    margin-top: 0.25em;
+}
+.block-preview ul,
+.block-preview ol {
+    margin: 0;
+    padding-left: 1.25em;
+}
+.block-preview li {
+    margin: 0.1em 0;
+}
+.block-preview pre {
+    margin: 0.25em 0 0;
+}
+.block-preview blockquote {
+    margin: 0.25em 0 0;
+}
+
+/* Textarea overlay used for interaction and caret */
+.block-input-wrap .block-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: transparent;
+    /* Hide painted text but keep caret visible */
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+
+    /*
+     * Force a visible caret color even when text is transparent.
+     * Using currentColor can resolve to transparent in some browsers due to inheritance.
+     */
+    caret-color: #111827;
+
+    padding: 0 8px;
+    border: none;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+
+    /* Match preview metrics tightly (reduces "tall" blocks) */
+    font-size: 15px;
+    line-height: 1.35;
+}
+
+/* Dark mode caret */
+.block-editor.dark .block-input-wrap .block-input {
+    caret-color: #e5e7eb;
+}
+
+/* Placeholder should remain visible when empty */
+.block-input-wrap .block-input::placeholder {
+    color: #d1d5db;
+    -webkit-text-fill-color: #d1d5db;
+}
+.block-editor.dark .block-input-wrap .block-input::placeholder {
+    color: #4b5563;
+    -webkit-text-fill-color: #4b5563;
+}
+
+/* --- Markdown preview layer (non-focused blocks) --- */
+/* (removed: duplicated .block-input-wrap / .block-preview definitions to avoid conflicts) */
 
 .block-editor.light {
     background-color: #ffffff;
     color: #1a1a1a;
+}
+.block-editor.light .block-preview {
+    color: inherit;
 }
 
 .block-editor.dark {
     background-color: #1a1a1a;
     color: #e0e0e0;
 }
+.block-editor.dark .block-preview {
+    color: inherit;
+}
+.block-editor.dark .block-preview {
+    color: inherit;
+}
 
 .block-editor-breadcrumbs {
-    max-width: 900px;
+    max-width: var(--outliner-max-width);
     margin: 0 auto;
     padding: 0 0 10px;
 }
 
 .block-editor-content {
-    max-width: 900px;
+    max-width: var(--outliner-max-width);
     margin: 0 auto;
     padding: 20px 0;
 }
@@ -39,25 +167,23 @@
 
 .block-line {
     position: relative;
-    display: flex;
+    display: inline-flex;
     align-items: flex-start;
-    min-height: 28px;
-    margin: 1px 0;
-    padding: 3px 0;
+    min-height: 0;
+    margin: 0 auto;
+    padding: 0;
     border-radius: 3px;
     transition: background-color 0.15s ease;
+
+    /* Constrain each block line so hover highlight doesn't span full viewport width */
+    max-width: var(--outliner-max-width);
+    width: fit-content;
+    width: -moz-fit-content;
 }
 
-.block-line:hover {
-    background-color: rgba(99, 102, 241, 0.04);
-}
-.block-editor.dark .block-line:hover {
-    background-color: rgba(129, 140, 248, 0.06);
-}
+/* Hover highlight removed (not needed) */
 
-.block-line.focused {
-    /* No background highlight for focused block */
-}
+/* Removed empty ruleset: `.block-line.focused` */
 
 .block-children {
     position: relative;
@@ -67,11 +193,11 @@
     position: relative;
     flex-shrink: 0;
     width: 22px;
-    height: 24px;
+    height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 2px;
+    margin-top: 0;
     cursor: pointer;
     z-index: 3;
 }
@@ -102,20 +228,9 @@
     border-color: rgba(129, 140, 248, 0.55);
 }
 
-.block-line:hover .block-bullet {
-    background-color: #3b82f6;
-    transform: scale(1.15);
-    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
-}
-.block-editor.dark .block-line:hover .block-bullet {
-    background-color: #60a5fa;
-    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.2);
-}
+/* Hover bullet highlight removed (not needed) */
 
-/* Keep the brace marker's diamond rotation on hover (avoid overriding with scale-only) */
-.block-line:hover .block-bullet.brace {
-    transform: rotate(45deg) scale(1.15);
-}
+/* Hover brace marker highlight removed (not needed) */
 
 .block-bullet.active {
     width: 7px;
@@ -201,12 +316,70 @@
     position: relative;
 }
 
+/* When the textarea is used inside the overlay wrapper, its layout is controlled by `.block-input-wrap`.
+   Keep the base class usable elsewhere, but avoid double-styling. */
+.block-input-wrap .block-input {
+    flex: none;
+}
+
+/* When focused, textarea is used; when not focused, .block-preview is shown instead.
+   Keep visual parity between them. */
+.block-preview p {
+    margin: 0;
+}
+.block-preview p + p {
+    margin-top: 0.5em;
+}
+.block-preview a {
+    color: #0969da;
+    text-decoration: underline;
+}
+.block-editor.dark .block-preview a {
+    color: #4dabf7;
+}
+.block-preview code {
+    font-family: "SF Mono", "Monaco", "Consolas", monospace;
+    font-size: 0.92em;
+    background: rgba(127, 127, 127, 0.12);
+    padding: 0.15em 0.35em;
+    border-radius: 4px;
+}
+.block-preview pre {
+    margin: 0.5em 0 0;
+    padding: 0.75em 0.9em;
+    border-radius: 8px;
+    background: rgba(127, 127, 127, 0.12);
+    overflow: auto;
+}
+.block-preview pre code {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+.block-preview ul,
+.block-preview ol {
+    margin: 0;
+    padding-left: 1.25em;
+}
+.block-preview li {
+    margin: 0.15em 0;
+}
+.block-preview blockquote {
+    margin: 0.5em 0 0;
+    padding-left: 0.9em;
+    border-left: 3px solid rgba(127, 127, 127, 0.3);
+    color: rgba(127, 127, 127, 0.85);
+}
+
 .block-input::placeholder {
     color: #d1d5db;
 }
 .block-editor.dark .block-input::placeholder {
     color: #4b5563;
 }
+
+/* --- Markdown preview typography tweaks (match textarea look) --- */
+/* (deduped: see later block for the canonical ruleset) */
 
 .block-input:focus {
     outline: none;

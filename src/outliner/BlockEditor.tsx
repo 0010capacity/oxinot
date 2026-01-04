@@ -18,6 +18,10 @@ import {
 import { parseMarkdownToBlocks } from "./blockUtils";
 import { Breadcrumbs, Anchor } from "@mantine/core";
 import "./BlockEditor.css";
+import {
+  renderOutlinerBulletPreviewHtml,
+  renderOutlinerBracePreviewHtml,
+} from "./markdownRenderer";
 
 // Helper function to get block path, needed for guide line logic
 function getBlockPath(block: Block): Block[] {
@@ -61,6 +65,10 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
   const inputRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
   const isFirstRender = useRef(true);
 
+  // Used to focus the *newly created* block after Enter split/add.
+  // We must not rely on stale `blocks` captured in event handlers.
+  const pendingFocusNextFromBlockIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -75,12 +83,30 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
 
   useEffect(() => {
     if (!focusedBlockId) return;
+
+    // If we have a pending "focus the next block after X", resolve it now
+    // using the *current* blocks state (fresh after reducer update).
+    if (pendingFocusNextFromBlockIdRef.current) {
+      const fromId = pendingFocusNextFromBlockIdRef.current;
+      pendingFocusNextFromBlockIdRef.current = null;
+
+      const flat = flattenBlocks(blocks);
+      const idx = flat.findIndex((b) => b.id === fromId);
+      const next = idx >= 0 ? flat[idx + 1] : null;
+
+      if (next) {
+        setFocusedBlockId(next.id);
+        setCursorPosition(0);
+        return;
+      }
+    }
+
     const input = inputRefs.current.get(focusedBlockId);
     if (input) {
       input.focus();
       input.setSelectionRange(cursorPosition, cursorPosition);
     }
-  }, [focusedBlockId, cursorPosition]);
+  }, [blocks, focusedBlockId, cursorPosition]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>, blockId: string, block: Block) => {
@@ -112,42 +138,25 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
 
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
+
+        // IMPORTANT:
+        // - `blocks` in this key handler is stale after dispatch.
+        // - Do NOT try to compute/focus the next block using `blocks` here.
+        // Instead, record intent and resolve it in a `[blocks]` effect.
+        pendingFocusNextFromBlockIdRef.current = blockId;
+
         if (cursorPos === content.length) {
           dispatch({
             type: "ADD_BLOCK",
             payload: { afterBlockId: blockId, level: block.level },
-          });
-          requestAnimationFrame(() => {
-            const flatBlocks = flattenBlocks(blocks);
-            const index = flatBlocks.findIndex((b) => b.id === blockId);
-            if (index !== -1) {
-              setTimeout(() => {
-                const updatedFlat = flattenBlocks(blocks);
-                const nextBlock = updatedFlat[index + 1];
-                if (nextBlock) {
-                  setFocusedBlockId(nextBlock.id);
-                  setCursorPosition(0);
-                }
-              }, 0);
-            }
           });
         } else {
           dispatch({
             type: "SPLIT_BLOCK",
             payload: { blockId, offset: cursorPos },
           });
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              const flatBlocks = flattenBlocks(blocks);
-              const index = flatBlocks.findIndex((b) => b.id === blockId);
-              const nextBlock = flatBlocks[index + 1];
-              if (nextBlock) {
-                setFocusedBlockId(nextBlock.id);
-                setCursorPosition(0);
-              }
-            }, 0);
-          });
         }
+
         return;
       }
 
@@ -369,31 +378,54 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
               />
             </div>
 
-            <textarea
-              ref={(el) => {
-                if (el) {
-                  inputRefs.current.set(block.id, el);
-                } else {
-                  inputRefs.current.delete(block.id);
+            <div
+              className="block-input-wrap"
+              onMouseDown={() => {
+                // Ensure the overlay textarea always receives focus/caret when clicking anywhere
+                // on the rendered preview area.
+                setFocusedBlockId(block.id);
+              }}
+            >
+              <div
+                className="block-preview"
+                role="textbox"
+                aria-readonly="true"
+                tabIndex={-1}
+                dangerouslySetInnerHTML={{
+                  __html:
+                    block.kind === "brace"
+                      ? renderOutlinerBracePreviewHtml(block.content)
+                      : renderOutlinerBulletPreviewHtml(block.content),
+                }}
+              />
+              <textarea
+                ref={(el) => {
+                  if (el) {
+                    inputRefs.current.set(block.id, el);
+                  } else {
+                    inputRefs.current.delete(block.id);
+                  }
+                }}
+                className="block-input"
+                value={block.content}
+                onChange={(e) => handleContentChange(block.id, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, block.id, block)}
+                onFocus={() => setFocusedBlockId(block.id)}
+                onClick={(e) =>
+                  setCursorPosition(e.currentTarget.selectionStart)
                 }
-              }}
-              className="block-input"
-              value={block.content}
-              onChange={(e) => handleContentChange(block.id, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, block.id, block)}
-              onFocus={() => setFocusedBlockId(block.id)}
-              onClick={(e) => setCursorPosition(e.currentTarget.selectionStart)}
-              placeholder={
-                block.level === 0 && !currentRoot ? "Start writing..." : ""
-              }
-              rows={1}
-              style={{ height: "auto", minHeight: "24px" }}
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                target.style.height = "auto";
-                target.style.height = `${target.scrollHeight}px`;
-              }}
-            />
+                placeholder={
+                  block.level === 0 && !currentRoot ? "Start writing..." : ""
+                }
+                rows={1}
+                style={{ height: "auto", minHeight: "24px" }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "auto";
+                  target.style.height = `${target.scrollHeight}px`;
+                }}
+              />
+            </div>
           </div>
 
           {!isCollapsed && hasChildBlocks && (
@@ -436,10 +468,9 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
               <div className="block-bullet-container">
                 <div className="block-bullet" />
               </div>
-              <textarea
-                className="block-input"
-                value=""
-                onChange={() => {
+              <div
+                className="block-input-wrap"
+                onMouseDown={() => {
                   dispatch({
                     type: "ADD_BLOCK",
                     payload: {
@@ -448,9 +479,19 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
                     },
                   });
                 }}
-                placeholder="Start writing..."
-                rows={1}
-              />
+              >
+                <div className="block-preview" aria-hidden="true" />
+                <textarea
+                  className="block-input"
+                  value=""
+                  onChange={() => {
+                    // no-op: this placeholder textarea is never meant to hold user input.
+                    // A real block will be created on mouse down above.
+                  }}
+                  placeholder="Start writing..."
+                  rows={1}
+                />
+              </div>
             </div>
           ) : (
             displayedBlocks.map((block) => renderBlock(block, []))
