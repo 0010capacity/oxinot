@@ -1,11 +1,10 @@
-export type BlockKind = "bullet" | "fence" | "code" | "table";
+export type BlockKind = "bullet" | "fence" | "code";
 
 export interface Block {
   id: string;
   /**
    * For normal blocks, this is the single-line content.
    * For brace blocks, this may contain multi-line plain text (including `\n`).
-   * For table blocks, this will be empty, and tableData will be used.
    */
   content: string;
   level: number; // 0 = root level, 1 = first indent, etc.
@@ -18,14 +17,8 @@ export interface Block {
    * - "bullet": existing behavior (Enter creates/splits blocks)
    * - "fence": Enter inserts a newline inside `content` (plain text flow for `///` fence blocks)
    * - "code": Enter inserts a newline inside `content` (code block for ``` ... ``` blocks)
-   * - "table": Represents a markdown table.
    */
   kind?: BlockKind;
-
-  /**
-   * For table blocks, this stores the table data.
-   */
-  tableData?: string[][];
 
   /**
    * Present only for fence/code blocks. Tracks whether the block is currently "open"
@@ -67,10 +60,6 @@ export type BlockAction =
     }
   | { type: "DELETE_BLOCK"; payload: { blockId: string } }
   | { type: "UPDATE_BLOCK"; payload: { blockId: string; content: string } }
-  | {
-      type: "UPDATE_BLOCK_DATA";
-      payload: { blockId: string; data: Partial<Block> };
-    }
   | { type: "INDENT_BLOCK"; payload: { blockId: string } }
   | { type: "OUTDENT_BLOCK"; payload: { blockId: string } }
   | { type: "MOVE_BLOCK_UP"; payload: { blockId: string } }

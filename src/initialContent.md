@@ -28,8 +28,6 @@ def fibonacci(n):
     Even in `child blocks`
     > Blockquotes work too!
 ## Special Block Types
-### Tables
-  Type `|||` to create a table.
 ### Fence Blocks ///
   Type `///` to create a multi-line fence block
   ///

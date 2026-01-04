@@ -150,20 +150,10 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       const conversion = checkBlockConversion(current, newContent);
       if (conversion?.shouldConvert) {
         current.kind = conversion.kind;
-
-        if (conversion.kind === "code") {
+        current.fenceState = "open";
+        if (conversion.kind === "code" && conversion.language !== undefined) {
           current.language = conversion.language;
-          current.fenceState = "open";
-        } else if (conversion.kind === "fence") {
-          current.fenceState = "open";
-        } else if (conversion.kind === "table") {
-          current.tableData = [
-            ["", ""],
-            ["", ""],
-          ];
-          current.fenceState = undefined;
         }
-
         dispatch({
           type: "UPDATE_BLOCK",
           payload: { blockId, content: "" },
@@ -177,32 +167,6 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
         type: "UPDATE_BLOCK",
         payload: { blockId, content: newContent },
       });
-    },
-    [blocks],
-  );
-
-  const handleTableCellChange = useCallback(
-    (blockId: string, rowIndex: number, colIndex: number, value: string) => {
-      const flat = flattenBlocks(blocks);
-      const current = flat.find((b) => b.id === blockId);
-
-      if (current && current.kind === "table" && current.tableData) {
-        const newTableData = current.tableData.map((row, rIndex) => {
-          if (rIndex === rowIndex) {
-            return row.map((cell, cIndex) => {
-              if (cIndex === colIndex) {
-                return value;
-              }
-              return cell;
-            });
-          }
-          return row;
-        });
-        dispatch({
-          type: "UPDATE_BLOCK_DATA",
-          payload: { blockId, data: { tableData: newTableData } },
-        });
-      }
     },
     [blocks],
   );
@@ -279,7 +243,6 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
           }}
           handlers={{
             onContentChange: handleContentChange,
-            onTableCellChange: handleTableCellChange,
             onFocusBlock: setFocusedBlockId,
             onToggleCollapse: handleToggleCollapse,
             onSetFocusRoot: setFocusRootId,
@@ -305,7 +268,6 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       blocks,
       dispatch,
       handleContentChange,
-      handleTableCellChange,
       handleToggleCollapse,
     ],
   );

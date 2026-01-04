@@ -1,4 +1,4 @@
-import { Block, BlockKind } from "./types";
+import { Block } from "./types";
 import { FENCE_MARKERS, CODE_MARKERS } from "./constants";
 
 /**
@@ -17,13 +17,6 @@ export function shouldConvertToCode(block: Block, content: string): boolean {
 }
 
 /**
- * Check if content should trigger table block conversion
- */
-export function shouldConvertToTable(block: Block, content: string): boolean {
-  return block.kind !== "table" && content.trim() === "|||";
-}
-
-/**
  * Extract language from code block trigger
  * Returns the language string or empty string if no language specified
  */
@@ -37,7 +30,7 @@ export function extractCodeLanguage(content: string): string | null {
  */
 export interface ConversionResult {
   shouldConvert: boolean;
-  kind?: BlockKind;
+  kind?: "fence" | "code";
   language?: string;
 }
 
@@ -67,14 +60,6 @@ export function checkBlockConversion(
         language,
       };
     }
-  }
-
-  // Check for table conversion
-  if (shouldConvertToTable(block, content)) {
-    return {
-      shouldConvert: true,
-      kind: "table",
-    };
   }
 
   return null;
