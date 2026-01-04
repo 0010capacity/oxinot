@@ -20,7 +20,7 @@ export function shouldConvertToCode(block: Block, content: string): boolean {
  * Check if content should trigger table block conversion
  */
 export function shouldConvertToTable(block: Block, content: string): boolean {
-  return block.kind !== "table" && content.trim() === "| |";
+  return block.kind !== "table" && content.trim() === "|||";
 }
 
 /**
