@@ -235,31 +235,22 @@
 /* Hover brace marker highlight removed (not needed) */
 
 .block-bullet.active {
-    width: 7px;
-    height: 7px;
-    background-color: #6366f1;
-    border: 2px solid #c7d2fe;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
-    transform: scale(1.1);
+    /* Subtle focus: darken only (no size/shadow change) */
+    background-color: #6b7280;
 }
 .block-editor.dark .block-bullet.active {
-    background-color: #818cf8;
-    border-color: #4338ca;
-    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.18);
+    /* Subtle focus in dark mode: slightly brighter dot */
+    background-color: #a1a1aa;
 }
 
 /* Brace blocks: keep diamond even when active */
 .block-bullet.brace.active {
-    width: 9px;
-    height: 9px;
-    border-radius: 2px;
-    transform: rotate(45deg) scale(1.05);
-    background-color: rgba(99, 102, 241, 0.55);
-    border-color: rgba(99, 102, 241, 0.65);
+    /* Subtle focus for brace marker: darken only (no transform) */
+    background-color: rgba(107, 114, 128, 0.85);
 }
 .block-editor.dark .block-bullet.brace.active {
-    background-color: rgba(129, 140, 248, 0.55);
-    border-color: rgba(129, 140, 248, 0.65);
+    /* Subtle focus in dark mode */
+    background-color: rgba(161, 161, 170, 0.85);
 }
 
 .block-toggle {
