@@ -114,6 +114,13 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       if (next) {
         setFocusedBlockId(next.id);
         setCursorPosition(0);
+        requestAnimationFrame(() => {
+          const nextInput = inputRefs.current.get(next.id);
+          if (nextInput) {
+            nextInput.focus();
+            nextInput.setSelectionRange(0, 0);
+          }
+        });
         return;
       }
     }
@@ -452,7 +459,10 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
                 }}
                 className="block-input"
                 value={block.content}
-                onChange={(e) => handleContentChange(block.id, e.target.value)}
+                onChange={(e) => {
+                  handleContentChange(block.id, e.target.value);
+                  setCursorPosition(e.currentTarget.selectionStart);
+                }}
                 onKeyDown={(e) => handleKeyDown(e, block.id, block)}
                 onFocus={() => setFocusedBlockId(block.id)}
                 onClick={(e) =>
@@ -462,11 +472,17 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
                   block.level === 0 && !currentRoot ? "Start writing..." : ""
                 }
                 rows={1}
-                style={{ height: "auto", minHeight: "24px" }}
+                style={{ height: "auto", minHeight: "40px" }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = "auto";
-                  target.style.height = `${target.scrollHeight}px`;
+                  const scrollHeight = Math.max(target.scrollHeight, 40);
+                  target.style.height = `${scrollHeight}px`;
+                  // Also adjust the wrapper height to match
+                  const wrapper = target.parentElement;
+                  if (wrapper) {
+                    wrapper.style.minHeight = `${scrollHeight}px`;
+                  }
                 }}
               />
             </div>

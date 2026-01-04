@@ -18,7 +18,7 @@
 /* The preview is always visible; the textarea is transparent and sits on top for editing. */
 .block-input-wrap {
     flex: 0 1 auto;
-    min-height: 0;
+    min-height: 40px;
     position: relative;
     z-index: 3;
     max-width: 100%;
@@ -39,6 +39,7 @@
     cursor: text;
     pointer-events: none; /* allow clicks to hit the textarea overlay */
     max-width: 100%;
+    display: block;
 }
 
 /* Headings inside a block should not look like full-page headings (Logseq-style) */
@@ -110,6 +111,7 @@
     /* Match preview metrics tightly (reduces "tall" blocks) */
     font-size: 15px;
     line-height: 1.35;
+    min-height: 40px;
 }
 
 /* Dark mode caret */
@@ -169,7 +171,7 @@
     position: relative;
     display: inline-flex;
     align-items: flex-start;
-    min-height: 0;
+    min-height: 40px;
     margin: 0 auto;
     padding: 0;
     border-radius: 3px;
