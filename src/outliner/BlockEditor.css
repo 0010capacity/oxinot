@@ -292,6 +292,10 @@
     transition: all 0.15s ease;
     margin-right: -2px;
     z-index: 3;
+
+    /* Hidden by default; shown on hover/focus to reduce visual noise */
+    opacity: 0;
+    pointer-events: none;
 }
 .block-editor.dark .block-toggle {
     color: #6b7280;
@@ -307,6 +311,14 @@
 }
 .block-editor.dark .block-toggle:hover {
     color: #e5e7eb;
+}
+
+/* Show collapse/expand toggle only when the row is hovered or focused */
+.block-line:hover .block-toggle,
+.block-line.focused .block-toggle,
+.block-line:focus-within .block-toggle {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .block-toggle svg {
