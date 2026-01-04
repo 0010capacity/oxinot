@@ -7,6 +7,7 @@ import {
   canOutdent,
   getPreviousBlock,
 } from "./blockUtils";
+import { debug } from "./debug";
 
 function countAllBlocks(blocks: Block[]): number {
   let count = 0;
@@ -64,7 +65,7 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
       const currentBlock = index !== -1 ? flatBlocks[index] : null;
       const childrenOfCurrent = currentBlock ? currentBlock.children : [];
 
-      console.log("[blockReducer] ADD_BLOCK", {
+      debug.log("[blockReducer] ADD_BLOCK", {
         afterBlockId,
         level,
         currentBlockLevel: currentBlock?.level,
@@ -80,7 +81,7 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
           newBlock.id = action.payload.newBlockId;
         }
         const result = buildBlockTree([...flatBlocks, newBlock]);
-        console.log("[blockReducer] ADD_BLOCK result", {
+        debug.log("[blockReducer] ADD_BLOCK result", {
           newCountRoot: result.length,
           newCountAll: countAllBlocks(result),
         });
@@ -111,7 +112,7 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
 
       flatBlocks.splice(insertIndex, 0, newBlock);
       const result = buildBlockTree(flatBlocks);
-      console.log("[blockReducer] ADD_BLOCK result", {
+      debug.log("[blockReducer] ADD_BLOCK result", {
         newCountRoot: result.length,
         newCountAll: countAllBlocks(result),
         newBlockLevel: newBlock.level,
@@ -309,7 +310,7 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
 
     case "SPLIT_BLOCK": {
       const { blockId, offset } = action.payload;
-      console.log("[blockReducer] SPLIT_BLOCK", {
+      debug.log("[blockReducer] SPLIT_BLOCK", {
         blockId,
         offset,
         blocksCountRoot: blocks.length,
@@ -327,7 +328,7 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
       const beforeContent = content.slice(0, offset);
       const afterContent = content.slice(offset);
 
-      console.log("[blockReducer] SPLIT_BLOCK splitting", {
+      debug.log("[blockReducer] SPLIT_BLOCK splitting", {
         beforeContent,
         afterContent,
       });
@@ -348,7 +349,7 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
       ];
 
       const result = buildBlockTree(newFlatBlocks);
-      console.log("[blockReducer] SPLIT_BLOCK result", {
+      debug.log("[blockReducer] SPLIT_BLOCK result", {
         newCountRoot: result.length,
         newCountAll: countAllBlocks(result),
         newBlockId: newBlock.id,

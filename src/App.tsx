@@ -28,37 +28,50 @@ This is a **Logseq-style** outliner with *full markdown support*
   [Links](https://example.com) are clickable
   You can also use ~~strikethrough~~ text
 ### Code Blocks
-  Here's some JavaScript:
-  {
-\`\`\`javascript
+  Here's some JavaScript using a **code block** (type \`\`\`):
+  \`\`\`javascript
 function greet(name) {
   console.log(\`Hello, \${name}!\`);
   return true;
 }
 
 const result = greet("World");
-\`\`\`
-  }
+  \`\`\`
+  Python example:
+  \`\`\`python
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+  \`\`\`
 ### Lists and Formatting
   Regular **bullet** points
   With *nested* formatting
     Even in \`child blocks\`
     > Blockquotes work too!
-## Brace Blocks { }
-  Type \`{\` to create a multi-line block
-  {
-This is a brace block.
+## Special Block Types
+### Fence Blocks ///
+  Type \`///\` to create a multi-line fence block
+  ///
+This is a fence block.
 It can contain multiple lines.
 Perfect for longer content!
 
 You can have paragraphs,
 
 And even **markdown** inside.
-  }
-  Brace blocks are great for:
-    Code snippets
+  ///
+  Fence blocks are great for:
     Quotes
     Multi-line notes
+    Free-form text
+### Code Blocks \`\`\`
+  Type \`\`\`javascript\` or \`\`\`python\` to create a code block
+  Code blocks have:
+    Syntax highlighting support
+    Language-specific formatting
+    Square bullet icon (green)
+  Try typing \`\`\` on any line!
 ## Typography Examples
   # H1 Heading
   ## H2 Heading
@@ -96,12 +109,12 @@ And even **markdown** inside.
     Best for simple state
   **useEffect** - Side effects
     Runs after render
-    {
+    \`\`\`javascript
 useEffect(() => {
   document.title = \`Count: \${count}\`;
   return () => console.log('cleanup');
 }, [count]);
-    }
+    \`\`\`
   **useCallback** - Memoized functions
   **useMemo** - Memoized values
 ## Daily Notes - 2024
@@ -128,6 +141,14 @@ Action items:
 1. Update mockups by Friday
 2. Schedule follow-up next week
     }
+    Meeting notes in fence format:
+    ///
+MEETING NOTES - 2024
+===================
+Topic: Q1 Planning
+Duration: 1 hour
+Next steps: Follow up next week
+    ///
 ## Getting Started
   Start typing in any block
   Press **Enter** to create a new block

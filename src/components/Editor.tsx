@@ -5,6 +5,7 @@ import {
   updateEditorContent,
   destroyEditor,
 } from "../editor/createEditor";
+import { IME_FLUSH_TIMEOUT_MS } from "../outliner/constants";
 
 type MaybeTimer = ReturnType<typeof setTimeout> | null;
 
@@ -129,7 +130,7 @@ export const Editor: React.FC<EditorProps> = ({
               pendingOnChangeValueRef.current = null;
               if (pending != null) latest.onChange?.(pending);
             }
-          }, 50);
+          }, IME_FLUSH_TIMEOUT_MS);
 
           return;
         }
