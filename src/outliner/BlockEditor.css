@@ -12,6 +12,12 @@
 
     /* Shared width constraint for outliner content */
     --outliner-max-width: 900px;
+
+    /* Subtle active-path styling tokens */
+    --active-path-bullet-light: #9ca3af;
+    --active-path-bullet-dark: #71717a;
+    --active-path-bg-light: rgba(99, 102, 241, 0.04);
+    --active-path-bg-dark: rgba(129, 140, 248, 0.06);
 }
 
 /* --- Markdown preview layer (rendered) + textarea overlay (editable) --- */
@@ -183,6 +189,14 @@
     width: -moz-fit-content;
 }
 
+/* Active path: subtle row tint (keep it very light to avoid "highlight" feeling) */
+.block-container.on-active-path > .block-line {
+    background-color: var(--active-path-bg-light);
+}
+.block-editor.dark .block-container.on-active-path > .block-line {
+    background-color: var(--active-path-bg-dark);
+}
+
 /* Hover highlight removed (not needed) */
 
 /* Removed empty ruleset: `.block-line.focused` */
@@ -240,6 +254,22 @@
 }
 .block-editor.dark .block-bullet.active {
     /* Subtle focus in dark mode: slightly brighter dot */
+    background-color: #a1a1aa;
+}
+
+/* Active path: even subtler than focus (slight bullet tint only) */
+.block-container.on-active-path .block-bullet {
+    background-color: var(--active-path-bullet-light);
+}
+.block-editor.dark .block-container.on-active-path .block-bullet {
+    background-color: var(--active-path-bullet-dark);
+}
+
+/* Focus should win over active-path tint */
+.block-container.on-active-path .block-bullet.active {
+    background-color: #6b7280;
+}
+.block-editor.dark .block-container.on-active-path .block-bullet.active {
     background-color: #a1a1aa;
 }
 
