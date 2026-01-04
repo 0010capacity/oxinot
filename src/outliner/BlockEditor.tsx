@@ -34,6 +34,42 @@ function getBlockPath(block: Block): Block[] {
   return path;
 }
 
+function formatBreadcrumb(block: Block): string {
+  if (block.kind === "code") {
+    return "Code Block";
+  }
+  if (block.kind === "fence") {
+    return "Fence Block";
+  }
+
+  let content = block.content.trim();
+
+  if (!content) {
+    return "(empty)";
+  }
+
+  // Remove various markdown markers
+  content = content
+    // Remove links, keeping only the link text
+    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+    // Remove bold, italics, strikethrough, inline code
+    .replace(
+      /\*\*(.*?)\*\*|__(.*?)__|~~(.*?)~~|`(.*?)`|\*(.*?)\*|_(.*?)_/g,
+      (_match, p1, p2, p3, p4, p5, p6) =>
+        p1 || p2 || p3 || p4 || p5 || p6 || "",
+    )
+    // Remove leading markdown markers like #, >, -, *, 1.
+    .replace(/^(#+\s*|>\s*|[-*+]\s*|\d+\.\s*)/, "")
+    .trim();
+
+  // Truncate if too long
+  if (content.length > 50) {
+    content = content.substring(0, 50) + "...";
+  }
+
+  return content || "(empty)";
+}
+
 interface BlockEditorProps {
   initialContent?: string;
   onChange?: (blocks: Block[]) => void;
@@ -167,7 +203,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
         }
       }}
     >
-      {block.content || "(empty)"}
+      {formatBreadcrumb(block)}
     </Anchor>
   ));
 
