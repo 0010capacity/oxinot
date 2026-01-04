@@ -184,9 +184,13 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
         if (cursorPos === content.length) {
           console.log("[handleKeyDown] Dispatching ADD_BLOCK");
           const newBlockId = generateBlockId();
+          // If parent block has children, new block should be a child (level + 1)
+          // Otherwise, new block should be a sibling (same level)
+          const newLevel =
+            block.children.length > 0 ? block.level + 1 : block.level;
           dispatch({
             type: "ADD_BLOCK",
-            payload: { afterBlockId: blockId, level: block.level, newBlockId },
+            payload: { afterBlockId: blockId, level: newLevel, newBlockId },
           });
         } else {
           console.log("[handleKeyDown] Dispatching SPLIT_BLOCK");

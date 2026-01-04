@@ -95,13 +95,19 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
         newBlock.id = action.payload.newBlockId;
       }
 
-      // Find insertion point: after currentBlock and all its descendants
+      // Find insertion point based on new block's level
       let insertIndex = index + 1;
-      if (currentBlock && currentBlock.children.length > 0) {
-        // Skip all descendants of currentBlock
+
+      // If new block is at same level as current (sibling), skip all descendants
+      if (
+        newBlock.level === currentBlock.level &&
+        currentBlock.children.length > 0
+      ) {
         const descendants = collectDescendants(currentBlock);
         insertIndex = index + 1 + descendants.length;
       }
+      // If new block is level + 1 (child), insert right after parent
+      // insertIndex is already set to index + 1, which is correct
 
       flatBlocks.splice(insertIndex, 0, newBlock);
       const result = buildBlockTree(flatBlocks);
