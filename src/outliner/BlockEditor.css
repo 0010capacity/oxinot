@@ -278,19 +278,28 @@
 .block-toggle {
     position: relative;
     flex-shrink: 0;
-    width: 20px;
-    height: 24px;
+
+    /* Match bullet affordance: smaller + tighter hitbox */
+    width: 16px;
+    height: 18px;
+
     border: none;
     background: transparent;
     cursor: pointer;
     padding: 0;
+
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 3px;
+
+    /* Minimal styling */
+    border-radius: 999px;
     color: #9ca3af;
-    transition: all 0.15s ease;
-    margin-right: -2px;
+    transition:
+        opacity 0.15s ease,
+        color 0.15s ease,
+        background-color 0.15s ease;
+    margin-right: 2px;
     z-index: 3;
 
     /* Hidden by default; shown on hover/focus to reduce visual noise */
@@ -302,15 +311,17 @@
 }
 .block-toggle-placeholder {
     flex-shrink: 0;
-    width: 20px;
-    height: 24px;
-    margin-right: -2px;
+    width: 16px;
+    height: 18px;
+    margin-right: 2px;
 }
 .block-toggle:hover {
     color: #374151;
+    background-color: rgba(17, 24, 39, 0.04);
 }
 .block-editor.dark .block-toggle:hover {
     color: #e5e7eb;
+    background-color: rgba(229, 231, 235, 0.06);
 }
 
 /* Show collapse/expand toggle only when the row is hovered or focused */
@@ -323,6 +334,7 @@
 
 .block-toggle svg {
     transition: transform 0.15s ease;
+    display: block;
 }
 
 .block-input {

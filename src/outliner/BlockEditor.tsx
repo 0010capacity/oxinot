@@ -401,11 +401,20 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
                 onClick={() => handleToggleCollapse(block.id)}
                 aria-label={isCollapsed ? "Expand" : "Collapse"}
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 10 10"
+                  fill="none"
+                  aria-hidden="true"
+                  focusable="false"
+                >
                   <path
-                    d={isCollapsed ? "M4 2L8 6L4 10" : "M2 4L6 8L10 4"}
+                    d={
+                      isCollapsed ? "M4 2.5L6.5 5L4 7.5" : "M2.5 4L5 6.5L7.5 4"
+                    }
                     stroke="currentColor"
-                    strokeWidth="2"
+                    strokeWidth="1.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
