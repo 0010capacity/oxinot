@@ -196,7 +196,7 @@ export function parseInlineElements(
         case "InlineCode":
           inlines.push({ type: "InlineCode", from, to, content });
           break;
-        case "Link":
+        case "Link": {
           const urlMatch = content.match(/\[([^\]]+)\]\(([^)]+)\)/);
           inlines.push({
             type: "Link",
@@ -206,7 +206,8 @@ export function parseInlineElements(
             url: urlMatch?.[2],
           });
           break;
-        case "Image":
+        }
+        case "Image": {
           const imgMatch = content.match(/!\[([^\]]*)\]\(([^)]+)\)/);
           inlines.push({
             type: "Image",
@@ -216,6 +217,7 @@ export function parseInlineElements(
             url: imgMatch?.[2],
           });
           break;
+        }
         case "Strikethrough":
           inlines.push({ type: "Strikethrough", from, to, content });
           break;

@@ -13,6 +13,7 @@ export function createBlock(content: string = "", level: number = 0): Block {
     collapsed: false,
     children: [],
     parent: null,
+    kind: "bullet",
   };
 }
 
@@ -154,21 +155,78 @@ export function parseMarkdownToBlocks(markdown: string): Block[] {
   const lines = markdown.split("\n");
   const blocks: Block[] = [];
 
-  for (const line of lines) {
-    if (line.trim() === "") continue;
+  // Brace block parsing state
+  let inBraceBlock = false;
+  let braceLevel = 0;
+  let braceContentLines: string[] = [];
+
+  for (const rawLine of lines) {
+    if (rawLine.trim() === "") continue;
 
     // Count leading spaces/tabs for indentation level
-    const match = line.match(/^(\s*)/);
+    const match = rawLine.match(/^(\s*)/);
     const indent = match ? match[1] : "";
     const level = Math.floor(indent.length / 2); // 2 spaces = 1 level
 
-    // Remove leading whitespace and bullet/dash if present
-    const content = line
-      .trimStart()
+    const trimmedStart = rawLine.trimStart();
+    const afterBullet = trimmedStart
       .replace(/^[-*+]\s+/, "")
       .replace(/^\d+\.\s+/, "");
 
-    blocks.push(createBlock(content, level));
+    // Trigger open: any line whose content (after bullet) is exactly "{"
+    const isBraceOpen = afterBullet.trim() === "{";
+    // Trigger close: any line whose content (after bullet) is exactly "}"
+    const isBraceClose = afterBullet.trim() === "}";
+
+    if (!inBraceBlock) {
+      if (isBraceOpen) {
+        inBraceBlock = true;
+        braceLevel = level;
+        braceContentLines = [];
+
+        const braceBlock = createBlock("", level);
+        braceBlock.kind = "brace";
+        braceBlock.braceState = "open";
+        blocks.push(braceBlock);
+        continue;
+      }
+
+      // Normal bullet block
+      const content = afterBullet;
+      blocks.push(createBlock(content, level));
+      continue;
+    }
+
+    // We are inside a brace block
+    if (isBraceClose && level === braceLevel) {
+      // Close brace block and finalize content
+      const last = blocks[blocks.length - 1];
+      if (last) {
+        last.content = braceContentLines.join("\n");
+        last.braceState = "closed";
+      }
+      inBraceBlock = false;
+      braceLevel = 0;
+      braceContentLines = [];
+      continue;
+    }
+
+    // Collect raw content line as-is (but remove leading indentation that would be represented by bullets)
+    // We keep the line's text without the outer bullet prefix if present, so users can type plain text.
+    braceContentLines.push(afterBullet);
+  }
+
+  // If document ends while a brace block is still open, auto-close it.
+  // We do NOT allow unterminated brace blocks.
+  if (inBraceBlock) {
+    const last = blocks[blocks.length - 1];
+    if (last) {
+      last.content = braceContentLines.join("\n");
+      last.braceState = "closed";
+    }
+    inBraceBlock = false;
+    braceLevel = 0;
+    braceContentLines = [];
   }
 
   return buildBlockTree(blocks);
@@ -182,7 +240,28 @@ export function blocksToMarkdown(
 
   function traverse(block: Block) {
     const indent = "  ".repeat(block.level);
-    lines.push(`${indent}- ${block.content}`);
+
+    if (block.kind === "brace") {
+      // Serialize brace blocks as:
+      // - {
+      //   (plain lines...)
+      // - }
+      lines.push(`${indent}- {`);
+
+      const contentLines =
+        block.content.length > 0 ? block.content.split("\n") : [];
+
+      for (const contentLine of contentLines) {
+        // Keep content as plain text inside the brace block (not outliner bullets).
+        // We only indent by one outliner level (2 spaces) so the content remains "normal markdown"
+        // when rendered inside the brace block.
+        lines.push(`${indent}  ${contentLine}`);
+      }
+
+      lines.push(`${indent}- }`);
+    } else {
+      lines.push(`${indent}- ${block.content}`);
+    }
 
     if (includeCollapsed || !block.collapsed) {
       block.children.forEach(traverse);

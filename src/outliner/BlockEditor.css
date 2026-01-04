@@ -88,6 +88,20 @@
     background-color: #52525b;
 }
 
+/* Brace blocks: render a distinct marker (diamond) instead of the normal bullet dot */
+.block-bullet.brace {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    transform: rotate(45deg);
+    background-color: rgba(99, 102, 241, 0.35);
+    border-color: rgba(99, 102, 241, 0.55);
+}
+.block-editor.dark .block-bullet.brace {
+    background-color: rgba(129, 140, 248, 0.35);
+    border-color: rgba(129, 140, 248, 0.55);
+}
+
 .block-line:hover .block-bullet {
     background-color: #3b82f6;
     transform: scale(1.15);
@@ -96,6 +110,11 @@
 .block-editor.dark .block-line:hover .block-bullet {
     background-color: #60a5fa;
     box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.2);
+}
+
+/* Keep the brace marker's diamond rotation on hover (avoid overriding with scale-only) */
+.block-line:hover .block-bullet.brace {
+    transform: rotate(45deg) scale(1.15);
 }
 
 .block-bullet.active {
@@ -110,6 +129,20 @@
     background-color: #818cf8;
     border-color: #4338ca;
     box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.18);
+}
+
+/* Brace blocks: keep diamond even when active */
+.block-bullet.brace.active {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    transform: rotate(45deg) scale(1.05);
+    background-color: rgba(99, 102, 241, 0.55);
+    border-color: rgba(99, 102, 241, 0.65);
+}
+.block-editor.dark .block-bullet.brace.active {
+    background-color: rgba(129, 140, 248, 0.55);
+    border-color: rgba(129, 140, 248, 0.65);
 }
 
 .block-toggle {

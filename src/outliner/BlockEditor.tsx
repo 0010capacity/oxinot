@@ -13,9 +13,9 @@ import {
   flattenBlocks,
   createBlock,
   hasChildren,
-  buildBlockTree,
   findBlockById,
 } from "./blockUtils";
+import { parseMarkdownToBlocks } from "./blockUtils";
 import { Breadcrumbs, Anchor } from "@mantine/core";
 import "./BlockEditor.css";
 
@@ -45,14 +45,10 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     if (!initialContent) {
       return [createBlock("", 0)];
     }
-    const lines = initialContent.split("\n").filter((line) => line.trim());
-    const initialBlocks = lines.map((line) => {
-      const indent = line.search(/\S/);
-      const level = Math.floor(indent / 2);
-      const content = line.trim().replace(/^[-*+]\s+/, "");
-      return createBlock(content, level);
-    });
-    return buildBlockTree(initialBlocks);
+
+    // Parse initial content with brace-block support (brace blocks can contain newlines).
+    // Keeping this in `blockUtils` ensures parse/export stay consistent.
+    return parseMarkdownToBlocks(initialContent);
   });
 
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(() => {
@@ -91,6 +87,28 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       const target = e.target as HTMLTextAreaElement;
       const cursorPos = target.selectionStart;
       const content = target.value;
+
+      // Brace blocks: Enter should behave like a normal document (insert newline inside the block),
+      // not "create/split blocks". Shift+Enter is not required here.
+      if (e.key === "Enter" && block.kind === "brace" && !e.shiftKey) {
+        e.preventDefault();
+
+        const before = content.slice(0, cursorPos);
+        const after = content.slice(cursorPos);
+        const nextContent = `${before}\n${after}`;
+
+        dispatch({
+          type: "UPDATE_BLOCK",
+          payload: { blockId, content: nextContent },
+        });
+
+        requestAnimationFrame(() => {
+          setFocusedBlockId(blockId);
+          setCursorPosition(cursorPos + 1);
+        });
+
+        return;
+      }
 
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -212,12 +230,29 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
 
   const handleContentChange = useCallback(
     (blockId: string, newContent: string) => {
+      // Auto-convert: if a bullet block's entire content becomes "{", convert it into a brace block.
+      const flat = flattenBlocks(blocks);
+      const current = flat.find((b) => b.id === blockId);
+      if (current && current.kind !== "brace" && newContent.trim() === "{") {
+        current.kind = "brace";
+        current.braceState = "open";
+        dispatch({
+          type: "UPDATE_BLOCK",
+          payload: { blockId, content: "" },
+        });
+        setTimeout(() => {
+          setFocusedBlockId(blockId);
+          setCursorPosition(0);
+        }, 0);
+        return;
+      }
+
       dispatch({
         type: "UPDATE_BLOCK",
         payload: { blockId, content: newContent },
       });
     },
-    [],
+    [blocks],
   );
 
   const handleToggleCollapse = useCallback((blockId: string) => {
@@ -321,10 +356,17 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
             )}
 
             <div
-              className="block-bullet-container"
+              className={`block-bullet-container ${
+                block.kind === "brace" ? "brace" : ""
+              }`}
               onClick={() => setFocusRootId(block.id)}
+              title={block.kind === "brace" ? "Brace block" : undefined}
             >
-              <div className={`block-bullet ${isFocused ? "active" : ""}`} />
+              <div
+                className={`block-bullet ${isFocused ? "active" : ""} ${
+                  block.kind === "brace" ? "brace" : ""
+                }`}
+              />
             </div>
 
             <textarea
@@ -397,7 +439,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
               <textarea
                 className="block-input"
                 value=""
-                onChange={(e) => {
+                onChange={() => {
                   dispatch({
                     type: "ADD_BLOCK",
                     payload: {

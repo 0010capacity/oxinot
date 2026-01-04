@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { EditorView } from "@codemirror/view";
+import { EditorView, KeyBinding } from "@codemirror/view";
 import {
   createEditor,
   updateEditorContent,
@@ -16,6 +16,18 @@ interface EditorProps {
   theme?: "light" | "dark";
   className?: string;
   style?: React.CSSProperties;
+
+  /**
+   * Whether to show line numbers in the gutter.
+   * Useful to disable for embedded editors (e.g., outliner blocks).
+   */
+  lineNumbers?: boolean;
+
+  /**
+   * Optional custom keybindings for this editor instance.
+   * These are forwarded to `createEditor()` and take precedence over defaults.
+   */
+  keybindings?: KeyBinding[];
 }
 
 /**
@@ -31,12 +43,57 @@ export const Editor: React.FC<EditorProps> = ({
   theme = "light",
   className,
   style,
+  lineNumbers = true,
+  keybindings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const isUpdatingRef = useRef(false);
 
-  // Initialize editor
+  // Keep latest callbacks/flags without forcing editor re-creation.
+  const latestRef = useRef<{
+    onChange?: (value: string) => void;
+    onFocus?: () => void;
+    onBlur?: () => void;
+    readOnly: boolean;
+    lineWrapping: boolean;
+    theme: "light" | "dark";
+    lineNumbers: boolean;
+    keybindings?: KeyBinding[];
+  }>({
+    onChange,
+    onFocus,
+    onBlur,
+    readOnly,
+    lineWrapping,
+    theme,
+    lineNumbers,
+    keybindings,
+  });
+
+  useEffect(() => {
+    latestRef.current = {
+      onChange,
+      onFocus,
+      onBlur,
+      readOnly,
+      lineWrapping,
+      theme,
+      lineNumbers,
+      keybindings,
+    };
+  }, [
+    onChange,
+    onFocus,
+    onBlur,
+    readOnly,
+    lineWrapping,
+    theme,
+    lineNumbers,
+    keybindings,
+  ]);
+
+  // Initialize editor (create/destroy only when core configuration changes)
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -44,15 +101,22 @@ export const Editor: React.FC<EditorProps> = ({
     const view = createEditor(containerRef.current, {
       doc: value,
       onChange: (newDoc) => {
-        if (onChange && !isUpdatingRef.current) {
-          onChange(newDoc);
+        const latest = latestRef.current;
+        if (latest.onChange && !isUpdatingRef.current) {
+          latest.onChange(newDoc);
         }
       },
-      onFocus,
-      onBlur,
+      onFocus: () => {
+        latestRef.current.onFocus?.();
+      },
+      onBlur: () => {
+        latestRef.current.onBlur?.();
+      },
       readOnly,
       lineWrapping,
       theme,
+      lineNumbers,
+      keybindings,
     });
 
     editorViewRef.current = view;
@@ -64,7 +128,9 @@ export const Editor: React.FC<EditorProps> = ({
         editorViewRef.current = null;
       }
     };
-  }, [readOnly, lineWrapping, theme]); // Re-create only if these props change
+    // NOTE: Intentionally exclude `onChange/onFocus/onBlur` and `value` to avoid re-creating
+    // the editor on every keystroke / render. Those are handled via `latestRef`.
+  }, [readOnly, lineWrapping, theme, lineNumbers, keybindings]);
 
   // Update content when value prop changes
   useEffect(() => {

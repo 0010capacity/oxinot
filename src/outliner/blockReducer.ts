@@ -1,15 +1,48 @@
-import { Block, BlockAction } from "./types";
+import { BlockAction, Block } from "./types";
 import {
   createBlock,
   flattenBlocks,
   buildBlockTree,
-  findBlockById,
   canIndent,
   canOutdent,
-  cloneBlock,
   getPreviousBlock,
-  getNextBlock,
 } from "./blockUtils";
+
+function markBlockAndDescendantsForRemoval(block: Block): Set<string> {
+  const toRemove = new Set<string>([block.id]);
+
+  const stack: Block[] = [...block.children];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    toRemove.add(current.id);
+    stack.push(...current.children);
+  }
+
+  return toRemove;
+}
+
+function collectDescendants(block: Block): Block[] {
+  const descendants: Block[] = [];
+  const stack: Block[] = [...block.children];
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    descendants.push(current);
+    stack.push(...current.children);
+  }
+
+  return descendants;
+}
+
+function increaseDescendantLevels(block: Block, delta: number) {
+  const stack: Block[] = [...block.children];
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    current.level += delta;
+    stack.push(...current.children);
+  }
+}
 
 export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
   switch (action.type) {
@@ -28,6 +61,7 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
 
       const currentBlock = flatBlocks[index];
       const newBlock = createBlock("", level ?? currentBlock.level);
+      newBlock.kind = action.payload.kind ?? "bullet";
 
       flatBlocks.splice(index + 1, 0, newBlock);
       return buildBlockTree(flatBlocks);
@@ -42,16 +76,8 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
 
       const block = flatBlocks[index];
 
-      // Remove block and all its children
-      const toRemove = new Set([block.id]);
-      function markChildren(b: Block) {
-        b.children.forEach((child) => {
-          toRemove.add(child.id);
-          markChildren(child);
-        });
-      }
-      markChildren(block);
-
+      // Remove block and all its descendants
+      const toRemove = markBlockAndDescendantsForRemoval(block);
       const filtered = flatBlocks.filter((b) => !toRemove.has(b.id));
       return buildBlockTree(filtered);
     }
@@ -84,13 +110,7 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
       block.level = previous.level + 1;
 
       // Also increase level of all descendants
-      function increaseChildrenLevel(b: Block) {
-        b.children.forEach((child) => {
-          child.level += 1;
-          increaseChildrenLevel(child);
-        });
-      }
-      increaseChildrenLevel(block);
+      increaseDescendantLevels(block, 1);
 
       return buildBlockTree(flatBlocks);
     }
@@ -105,13 +125,11 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
       block.level = Math.max(0, block.level - 1);
 
       // Also decrease level of all descendants
-      function decreaseChildrenLevel(b: Block) {
-        b.children.forEach((child) => {
-          child.level = Math.max(0, child.level - 1);
-          decreaseChildrenLevel(child);
-        });
-      }
-      decreaseChildrenLevel(block);
+      increaseDescendantLevels(block, -1);
+      // Clamp at 0 after shifting
+      flatBlocks.forEach((b) => {
+        if (b.level < 0) b.level = 0;
+      });
 
       return buildBlockTree(flatBlocks);
     }
@@ -130,18 +148,7 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
       if (block.level !== previous.level) return blocks;
 
       // Collect all descendants of current block
-      const descendants: Block[] = [];
-      function collectDescendants(b: Block) {
-        b.children.forEach((child) => {
-          descendants.push(child);
-          collectDescendants(child);
-        });
-      }
-      collectDescendants(block);
-
-      // Collect all descendants of previous block
-      const previousDescendants: Block[] = [];
-      collectDescendants(previous);
+      const descendants = collectDescendants(block);
 
       // Remove all involved blocks from array
       const toMove = [block, ...descendants];
@@ -180,18 +187,10 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
       const nextSibling = flatBlocks[nextSiblingIndex];
 
       // Collect all descendants of current block
-      const descendants: Block[] = [];
-      function collectDescendants(b: Block) {
-        b.children.forEach((child) => {
-          descendants.push(child);
-          collectDescendants(child);
-        });
-      }
-      collectDescendants(block);
+      const descendants = collectDescendants(block);
 
       // Collect all descendants of next sibling
-      const nextDescendants: Block[] = [];
-      collectDescendants(nextSibling);
+      const nextDescendants = collectDescendants(nextSibling);
 
       // Remove current block and its descendants
       const toMove = [block, ...descendants];

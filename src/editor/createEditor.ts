@@ -4,6 +4,7 @@ import {
   keymap,
   lineNumbers,
   highlightActiveLineGutter,
+  KeyBinding,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -31,17 +32,34 @@ export interface EditorConfig {
   readOnly?: boolean;
   lineWrapping?: boolean;
   theme?: "light" | "dark";
+
+  /**
+   * Whether to show line numbers in the gutter.
+   * Defaults to true for the full editor, but can be disabled for embedded editors (e.g., outliner blocks).
+   */
+  lineNumbers?: boolean;
+
+  /**
+   * Optional additional key bindings to add on top of the defaults.
+   * Useful for per-block outliner behaviors (e.g., Enter to split block).
+   *
+   * These bindings are prepended so they take precedence over defaults.
+   */
+  keybindings?: KeyBinding[];
 }
 
 /**
  * Create basic editor extensions
  */
 function createBasicExtensions(config: EditorConfig): Extension[] {
-  const extensions: Extension[] = [
-    // Line numbers
-    lineNumbers(),
-    highlightActiveLineGutter(),
+  const extensions: Extension[] = [];
 
+  // Line numbers (optional)
+  if (config.lineNumbers !== false) {
+    extensions.push(lineNumbers(), highlightActiveLineGutter());
+  }
+
+  extensions.push(
     // History (undo/redo)
     history(),
 
@@ -66,14 +84,15 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
     // Highlight selection matches
     highlightSelectionMatches(),
 
-    // Keymaps
+    // Keymaps (prepend user bindings so they override defaults)
     keymap.of([
+      ...(config.keybindings ?? []),
       ...defaultKeymap,
       ...historyKeymap,
       ...closeBracketsKeymap,
       ...searchKeymap,
     ]),
-  ];
+  );
 
   // Line wrapping
   if (config.lineWrapping !== false) {
