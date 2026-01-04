@@ -326,19 +326,22 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
         afterContent,
       });
 
-      // Update current block
-      block.content = beforeContent;
-
-      // Create new block with remaining content
+      // Create new blocks immutably
+      const updatedBlock = { ...block, content: beforeContent };
       const newBlock = createBlock(afterContent, block.level);
       if (action.payload.newBlockId) {
         newBlock.id = action.payload.newBlockId;
       }
 
-      // Insert new block after current
-      flatBlocks.splice(index + 1, 0, newBlock);
+      // Create new flat array with updated block and new block
+      const newFlatBlocks = [
+        ...flatBlocks.slice(0, index),
+        updatedBlock,
+        newBlock,
+        ...flatBlocks.slice(index + 1),
+      ];
 
-      const result = buildBlockTree(flatBlocks);
+      const result = buildBlockTree(newFlatBlocks);
       console.log("[blockReducer] SPLIT_BLOCK result", {
         newCountRoot: result.length,
         newCountAll: countAllBlocks(result),
