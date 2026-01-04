@@ -423,7 +423,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
               title={block.kind === "brace" ? "Brace block" : undefined}
             >
               <div
-                className={`block-bullet ${isFocused ? "active" : ""} ${
+                className={`block-bullet ${
                   block.kind === "brace" ? "brace" : ""
                 }`}
               />
