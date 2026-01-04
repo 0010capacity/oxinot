@@ -44,7 +44,12 @@ export interface BlockSelection {
 export type BlockAction =
   | {
       type: "ADD_BLOCK";
-      payload: { afterBlockId?: string; level?: number; kind?: BlockKind };
+      payload: {
+        afterBlockId?: string;
+        level?: number;
+        kind?: BlockKind;
+        newBlockId?: string;
+      };
     }
   | { type: "DELETE_BLOCK"; payload: { blockId: string } }
   | { type: "UPDATE_BLOCK"; payload: { blockId: string; content: string } }
@@ -54,4 +59,7 @@ export type BlockAction =
   | { type: "MOVE_BLOCK_DOWN"; payload: { blockId: string } }
   | { type: "TOGGLE_COLLAPSE"; payload: { blockId: string } }
   | { type: "MERGE_WITH_PREVIOUS"; payload: { blockId: string } }
-  | { type: "SPLIT_BLOCK"; payload: { blockId: string; offset: number } };
+  | {
+      type: "SPLIT_BLOCK";
+      payload: { blockId: string; offset: number; newBlockId?: string };
+    };

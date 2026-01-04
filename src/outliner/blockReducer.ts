@@ -8,6 +8,17 @@ import {
   getPreviousBlock,
 } from "./blockUtils";
 
+function countAllBlocks(blocks: Block[]): number {
+  let count = 0;
+  const stack = [...blocks];
+  while (stack.length > 0) {
+    const block = stack.pop()!;
+    count++;
+    stack.push(...block.children);
+  }
+  return count;
+}
+
 function markBlockAndDescendantsForRemoval(block: Block): Set<string> {
   const toRemove = new Set<string>([block.id]);
 
@@ -49,22 +60,58 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
     case "ADD_BLOCK": {
       const { afterBlockId, level } = action.payload;
       const flatBlocks = flattenBlocks(blocks);
+      const index = flatBlocks.findIndex((b) => b.id === afterBlockId);
+      const currentBlock = index !== -1 ? flatBlocks[index] : null;
+      const childrenOfCurrent = currentBlock ? currentBlock.children : [];
+
+      console.log("[blockReducer] ADD_BLOCK", {
+        afterBlockId,
+        level,
+        currentBlockLevel: currentBlock?.level,
+        currentBlockChildrenCount: childrenOfCurrent.length,
+        blocksCountRoot: blocks.length,
+        blocksCountAll: countAllBlocks(blocks),
+      });
 
       if (!afterBlockId) {
         // Add at the end
         const newBlock = createBlock("", level ?? 0);
-        return buildBlockTree([...flatBlocks, newBlock]);
+        if (action.payload.newBlockId) {
+          newBlock.id = action.payload.newBlockId;
+        }
+        const result = buildBlockTree([...flatBlocks, newBlock]);
+        console.log("[blockReducer] ADD_BLOCK result", {
+          newCountRoot: result.length,
+          newCountAll: countAllBlocks(result),
+        });
+        return result;
       }
 
-      const index = flatBlocks.findIndex((b) => b.id === afterBlockId);
       if (index === -1) return blocks;
 
-      const currentBlock = flatBlocks[index];
       const newBlock = createBlock("", level ?? currentBlock.level);
       newBlock.kind = action.payload.kind ?? "bullet";
+      if (action.payload.newBlockId) {
+        newBlock.id = action.payload.newBlockId;
+      }
 
-      flatBlocks.splice(index + 1, 0, newBlock);
-      return buildBlockTree(flatBlocks);
+      // Find insertion point: after currentBlock and all its descendants
+      let insertIndex = index + 1;
+      if (currentBlock && currentBlock.children.length > 0) {
+        // Skip all descendants of currentBlock
+        const descendants = collectDescendants(currentBlock);
+        insertIndex = index + 1 + descendants.length;
+      }
+
+      flatBlocks.splice(insertIndex, 0, newBlock);
+      const result = buildBlockTree(flatBlocks);
+      console.log("[blockReducer] ADD_BLOCK result", {
+        newCountRoot: result.length,
+        newCountAll: countAllBlocks(result),
+        newBlockLevel: newBlock.level,
+        currentBlockChildrenAfter: currentBlock?.children.length,
+      });
+      return result;
     }
 
     case "DELETE_BLOCK": {
@@ -256,6 +303,12 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
 
     case "SPLIT_BLOCK": {
       const { blockId, offset } = action.payload;
+      console.log("[blockReducer] SPLIT_BLOCK", {
+        blockId,
+        offset,
+        blocksCountRoot: blocks.length,
+        blocksCountAll: countAllBlocks(blocks),
+      });
       const flatBlocks = flattenBlocks(blocks);
       const index = flatBlocks.findIndex((b) => b.id === blockId);
 
@@ -268,16 +321,30 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
       const beforeContent = content.slice(0, offset);
       const afterContent = content.slice(offset);
 
+      console.log("[blockReducer] SPLIT_BLOCK splitting", {
+        beforeContent,
+        afterContent,
+      });
+
       // Update current block
       block.content = beforeContent;
 
       // Create new block with remaining content
       const newBlock = createBlock(afterContent, block.level);
+      if (action.payload.newBlockId) {
+        newBlock.id = action.payload.newBlockId;
+      }
 
       // Insert new block after current
       flatBlocks.splice(index + 1, 0, newBlock);
 
-      return buildBlockTree(flatBlocks);
+      const result = buildBlockTree(flatBlocks);
+      console.log("[blockReducer] SPLIT_BLOCK result", {
+        newCountRoot: result.length,
+        newCountAll: countAllBlocks(result),
+        newBlockId: newBlock.id,
+      });
+      return result;
     }
 
     default:

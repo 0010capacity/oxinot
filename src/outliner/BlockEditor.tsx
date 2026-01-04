@@ -14,6 +14,8 @@ import {
   createBlock,
   hasChildren,
   findBlockById,
+  generateBlockId,
+  blocksToMarkdown,
 } from "./blockUtils";
 import { parseMarkdownToBlocks } from "./blockUtils";
 import { Breadcrumbs, Anchor } from "@mantine/core";
@@ -82,6 +84,12 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
   }, [blocks]);
 
   useEffect(() => {
+    console.log("[BlockEditor useEffect] blocks changed", {
+      blockCount: blocks.length,
+      focusedBlockId,
+      pendingFocusNext: pendingFocusNextFromBlockIdRef.current,
+    });
+
     if (!focusedBlockId) return;
 
     // If we have a pending "focus the next block after X", resolve it now
@@ -90,9 +98,18 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       const fromId = pendingFocusNextFromBlockIdRef.current;
       pendingFocusNextFromBlockIdRef.current = null;
 
+      console.log("[BlockEditor useEffect] Focusing next block after", {
+        fromId,
+      });
+
       const flat = flattenBlocks(blocks);
       const idx = flat.findIndex((b) => b.id === fromId);
       const next = idx >= 0 ? flat[idx + 1] : null;
+
+      console.log("[BlockEditor useEffect] Next block found", {
+        idx,
+        nextId: next?.id,
+      });
 
       if (next) {
         setFocusedBlockId(next.id);
@@ -113,6 +130,16 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       const target = e.target as HTMLTextAreaElement;
       const cursorPos = target.selectionStart;
       const content = target.value;
+
+      if (e.key === "Enter") {
+        console.log("[handleKeyDown] Enter pressed", {
+          blockId,
+          cursorPos,
+          contentLength: content.length,
+          isAtEnd: cursorPos === content.length,
+          blockKind: block.kind,
+        });
+      }
 
       // Brace blocks: Enter should behave like a normal document (insert newline inside the block),
       // not "create/split blocks". Shift+Enter is not required here.
@@ -139,6 +166,15 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
 
+        console.log("[handleKeyDown] Enter key action", {
+          blockId,
+          cursorPos,
+          contentLength: content.length,
+          isAtEnd: cursorPos === content.length,
+          actionType:
+            cursorPos === content.length ? "ADD_BLOCK" : "SPLIT_BLOCK",
+        });
+
         // IMPORTANT:
         // - `blocks` in this key handler is stale after dispatch.
         // - Do NOT try to compute/focus the next block using `blocks` here.
@@ -146,14 +182,18 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
         pendingFocusNextFromBlockIdRef.current = blockId;
 
         if (cursorPos === content.length) {
+          console.log("[handleKeyDown] Dispatching ADD_BLOCK");
+          const newBlockId = generateBlockId();
           dispatch({
             type: "ADD_BLOCK",
-            payload: { afterBlockId: blockId, level: block.level },
+            payload: { afterBlockId: blockId, level: block.level, newBlockId },
           });
         } else {
+          console.log("[handleKeyDown] Dispatching SPLIT_BLOCK");
+          const newBlockId = generateBlockId();
           dispatch({
             type: "SPLIT_BLOCK",
-            payload: { blockId, offset: cursorPos },
+            payload: { blockId, offset: cursorPos, newBlockId },
           });
         }
 
@@ -450,6 +490,17 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     ],
   );
 
+  // Generate debug JSON
+  const debugJson = useMemo(() => {
+    const serializeBlock = (block: Block): any => ({
+      id: block.id.substring(0, 8),
+      content: block.content.substring(0, 50),
+      level: block.level,
+      children: block.children.map(serializeBlock),
+    });
+    return JSON.stringify(blocks.map(serializeBlock), null, 2);
+  }, [blocks]);
+
   return (
     <>
       <Breadcrumbs className="block-editor-breadcrumbs">
@@ -496,6 +547,13 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
           ) : (
             displayedBlocks.map((block) => renderBlock(block, []))
           )}
+        </div>
+
+        <div className="block-editor-debug">
+          <div className="block-editor-debug-title">📝 Markdown Source</div>
+          <div className="block-editor-debug-content">
+            {blocksToMarkdown(blocks)}
+          </div>
         </div>
 
         <div className="block-editor-help">
