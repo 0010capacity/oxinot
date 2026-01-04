@@ -1,213 +1,150 @@
-.block-editor {
+.block-editor-container {
     width: 100%;
     height: 100%;
-    overflow-y: auto;
+    padding: 20px;
     font-family:
         -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
         "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
         sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    padding: 20px;
-
-    /* Shared width constraint for outliner content */
-    --outliner-max-width: 900px;
-
-    /* Subtle active-path styling tokens */
-    --active-path-bullet-light: #9ca3af;
-    --active-path-bullet-dark: #71717a;
-    --active-path-bg-light: rgba(99, 102, 241, 0.04);
-    --active-path-bg-dark: rgba(129, 140, 248, 0.06);
 }
 
-/* --- Markdown preview layer (rendered) + textarea overlay (editable) --- */
-/* The preview is always visible; the textarea is transparent and sits on top for editing. */
-.block-input-wrap {
-    flex: 0 1 auto;
-    min-height: 40px;
-    position: relative;
-    z-index: 3;
-    max-width: 100%;
-}
-
-/* Rendered markdown preview (underlay) */
-.block-preview {
-    width: 100%;
-    min-height: 0;
-    padding: 0 8px;
-    font-family: inherit;
-    font-size: 15px;
-    line-height: 1.35;
-    color: inherit;
-    white-space: pre-wrap;
-    word-break: break-word;
-    outline: none;
-    cursor: text;
-    pointer-events: none; /* allow clicks to hit the textarea overlay */
-    max-width: 100%;
-    display: block;
-}
-
-/* Headings inside a block should not look like full-page headings (Logseq-style) */
-.block-preview h1,
-.block-preview h2,
-.block-preview h3,
-.block-preview h4,
-.block-preview h5,
-.block-preview h6 {
-    font-size: 1em;
-    font-weight: 600;
-}
-
-/* Tighten block-level spacing produced by markdown-it (prevents "too much" vertical gaps) */
-.block-preview h1,
-.block-preview h2,
-.block-preview h3,
-.block-preview h4,
-.block-preview h5,
-.block-preview h6 {
-    margin: 0;
-    line-height: 1.25;
-}
-.block-preview p {
-    margin: 0;
-}
-.block-preview p + p {
-    margin-top: 0.25em;
-}
-.block-preview ul,
-.block-preview ol {
-    margin: 0;
-    padding-left: 1.25em;
-}
-.block-preview li {
-    margin: 0.1em 0;
-}
-.block-preview pre {
-    margin: 0.25em 0 0;
-}
-.block-preview blockquote {
-    margin: 0.25em 0 0;
-}
-
-/* Textarea overlay used for interaction and caret */
-.block-input-wrap .block-input {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    background: transparent;
-    /* Hide painted text but keep caret visible */
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-
-    /*
-     * Force a visible caret color even when text is transparent.
-     * Using currentColor can resolve to transparent in some browsers due to inheritance.
-     */
-    caret-color: #111827;
-
-    padding: 0 8px;
-    border: none;
-    outline: none;
-    resize: none;
-    overflow: hidden;
-
-    /* Match preview metrics tightly (reduces "tall" blocks) */
-    font-size: 15px;
-    line-height: 1.35;
-    min-height: 40px;
-}
-
-/* Dark mode caret */
-.block-editor.dark .block-input-wrap .block-input {
-    caret-color: #e5e7eb;
-}
-
-/* Placeholder should remain visible when empty */
-.block-input-wrap .block-input::placeholder {
-    color: #d1d5db;
-    -webkit-text-fill-color: #d1d5db;
-}
-.block-editor.dark .block-input-wrap .block-input::placeholder {
-    color: #4b5563;
-    -webkit-text-fill-color: #4b5563;
-}
-
-/* --- Markdown preview layer (non-focused blocks) --- */
-/* (removed: duplicated .block-input-wrap / .block-preview definitions to avoid conflicts) */
-
-.block-editor.light {
+.block-editor-container.theme-light {
     background-color: #ffffff;
     color: #1a1a1a;
 }
-.block-editor.light .block-preview {
-    color: inherit;
-}
 
-.block-editor.dark {
+.block-editor-container.theme-dark {
     background-color: #1a1a1a;
     color: #e0e0e0;
 }
-.block-editor.dark .block-preview {
-    color: inherit;
-}
-.block-editor.dark .block-preview {
-    color: inherit;
+
+/* Breadcrumbs */
+.block-breadcrumbs {
+    max-width: 900px;
+    margin: 0 auto 20px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.block-editor-breadcrumbs {
-    max-width: var(--outliner-max-width);
+.theme-dark .block-breadcrumbs {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Blocks list */
+.blocks-list {
+    max-width: 900px;
     margin: 0 auto;
-    padding: 0 0 10px;
 }
 
-.block-editor-content {
-    max-width: var(--outliner-max-width);
-    margin: 0 auto;
-    padding: 20px 0;
-}
-
+/* Block container */
 .block-container {
     position: relative;
+    margin: 4px 0;
 }
 
+/* Block line */
 .block-line {
-    position: relative;
-    display: inline-flex;
+    display: flex;
     align-items: flex-start;
+    gap: 4px;
     min-height: 40px;
-    margin: 0 auto;
-    padding: 0;
-    border-radius: 3px;
     transition: background-color 0.15s ease;
-
-    /* Constrain each block line so hover highlight doesn't span full viewport width */
-    max-width: var(--outliner-max-width);
-    width: fit-content;
-    width: -moz-fit-content;
+    border-radius: 4px;
 }
 
-/* Hover highlight removed (not needed) */
+.block-line.focused {
+    /* background removed for cleaner look */
+}
 
-/* Removed empty ruleset: `.block-line.focused` */
+.theme-dark .block-line.focused {
+    /* background removed for cleaner look */
+}
 
-.block-children {
+/* Active path highlighting */
+.block-container.on-active-path > .block-line {
+    /* background removed for cleaner look */
+}
+
+.theme-dark .block-container.on-active-path > .block-line {
+    /* background removed for cleaner look */
+}
+
+/* Focus within */
+.block-children.focus-within {
     position: relative;
 }
 
-.block-bullet-container {
-    position: relative;
+.block-children.focus-within::before {
+    /* vertical line removed for cleaner look */
+}
+
+.theme-dark .block-children.focus-within::before {
+    /* vertical line removed for cleaner look */
+}
+
+/* Toggle button */
+.block-toggle {
     flex-shrink: 0;
-    width: 22px;
+    width: 18px;
     height: 18px;
+    margin-top: 11px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 0;
+    border-radius: 3px;
+    color: #9ca3af;
+    transition: all 0.15s ease;
+    opacity: 0;
+}
+
+.theme-dark .block-toggle {
+    color: #6b7280;
+}
+
+.block-line:hover .block-toggle,
+.block-line.focused .block-toggle {
+    opacity: 1;
+}
+
+.block-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #374151;
+}
+
+.theme-dark .block-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #e5e7eb;
+}
+
+.block-toggle.collapsed svg,
+.block-toggle.expanded svg {
+    transition: transform 0.15s ease;
+}
+
+.block-toggle-placeholder {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    margin-top: 11px;
+}
+
+/* Bullet container */
+.block-bullet-container {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    z-index: 3;
+    z-index: 10;
 }
 
 .block-bullet {
@@ -218,321 +155,143 @@
     transition: all 0.2s ease;
     border: 1px solid transparent;
 }
-.block-editor.dark .block-bullet {
+
+.theme-dark .block-bullet {
     background-color: #52525b;
 }
 
-/* Brace blocks: render a distinct marker (diamond) instead of the normal bullet dot */
+.block-bullet.active {
+    background-color: #6366f1;
+    transform: scale(1.3);
+}
+
+.theme-dark .block-bullet.active {
+    background-color: #818cf8;
+}
+
+.block-bullet-container:hover .block-bullet {
+    background-color: #9ca3af;
+    transform: scale(1.2);
+}
+
+.theme-dark .block-bullet-container:hover .block-bullet {
+    background-color: #71717a;
+}
+
+/* Brace blocks */
 .block-bullet.brace {
     width: 8px;
     height: 8px;
     border-radius: 2px;
     transform: rotate(45deg);
-    background-color: rgba(99, 102, 241, 0.35);
-    border-color: rgba(99, 102, 241, 0.55);
-}
-.block-editor.dark .block-bullet.brace {
-    background-color: rgba(129, 140, 248, 0.35);
-    border-color: rgba(129, 140, 248, 0.55);
+    background-color: rgba(99, 102, 241, 0.4);
+    border-color: rgba(99, 102, 241, 0.6);
 }
 
-/* Hover bullet highlight removed (not needed) */
-
-/* Hover brace marker highlight removed (not needed) */
-
-.block-bullet.active {
-    /* Subtle focus: darken only (no size/shadow change) */
-    background-color: #6b7280;
-}
-.block-editor.dark .block-bullet.active {
-    /* Subtle focus in dark mode: slightly brighter dot */
-    background-color: #a1a1aa;
+.theme-dark .block-bullet.brace {
+    background-color: rgba(129, 140, 248, 0.4);
+    border-color: rgba(129, 140, 248, 0.6);
 }
 
-/* Active path: even subtler than focus (slight bullet tint only) */
-.block-container.on-active-path .block-bullet {
-    background-color: var(--active-path-bullet-light);
-}
-.block-editor.dark .block-container.on-active-path .block-bullet {
-    background-color: var(--active-path-bullet-dark);
-}
-
-/* Focus should win over active-path tint */
-.block-container.on-active-path .block-bullet.active {
-    background-color: #6b7280;
-}
-.block-editor.dark .block-container.on-active-path .block-bullet.active {
-    background-color: #a1a1aa;
-}
-
-/* Brace blocks: keep diamond even when active */
 .block-bullet.brace.active {
-    /* Subtle focus for brace marker: darken only (no transform) */
-    background-color: rgba(107, 114, 128, 0.85);
+    background-color: rgba(99, 102, 241, 0.7);
+    border-color: rgba(99, 102, 241, 0.9);
+    transform: rotate(45deg) scale(1.3);
 }
-.block-editor.dark .block-bullet.brace.active {
-    /* Subtle focus in dark mode */
-    background-color: rgba(161, 161, 170, 0.85);
+
+.theme-dark .block-bullet.brace.active {
+    background-color: rgba(129, 140, 248, 0.7);
+    border-color: rgba(129, 140, 248, 0.9);
+}
+
+/* Editor wrapper */
+.block-editor-wrap {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+}
+
+/* Override CodeMirror styles for block editors */
+.block-editor-wrap .cm-editor {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    height: auto !important;
+}
+
+.block-editor-wrap .cm-scroller {
+    overflow: visible !important;
+    padding: 0 !important;
+}
+
+.block-editor-wrap .cm-content {
+    padding: 8px 12px !important;
+    min-height: 40px !important;
+    font-size: 16px !important;
+    line-height: 1.6 !important;
+}
+
+.block-editor-wrap .cm-line {
+    padding: 0 !important;
+}
+
+/* Block children */
+.block-children {
+    position: relative;
+    padding-left: 0;
+}
+
+/* Empty state */
+.empty-state {
+    padding: 20px 0;
+}
+
+.empty-state .block-line {
+    opacity: 0.6;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .block-editor-container {
+        padding: 12px;
+    }
+
+    .blocks-list {
+        max-width: 100%;
+    }
+
+    .block-breadcrumbs {
+        max-width: 100%;
+    }
+
+    .block-line {
+        gap: 2px;
+    }
+
+    .block-editor-wrap .cm-content {
+        font-size: 15px !important;
+    }
+}
+
+/* Smooth focus transitions */
+* {
+    transition: background-color 0.15s ease;
+}
+
+/* Hide CodeMirror's default cursor in unfocused editors */
+.block-editor-wrap .cm-editor:not(.cm-focused) .cm-cursor {
+    display: none;
+}
+
+/* Ensure proper z-index stacking */
+.block-editor-wrap {
+    z-index: 1;
+}
+
+.block-bullet-container {
+    z-index: 10;
 }
 
 .block-toggle {
-    position: relative;
-    flex-shrink: 0;
-
-    /* Match bullet affordance: smaller + tighter hitbox */
-    width: 16px;
-    height: 18px;
-
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    padding: 0;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    /* Minimal styling */
-    border-radius: 999px;
-    color: #9ca3af;
-    transition:
-        opacity 0.15s ease,
-        color 0.15s ease,
-        background-color 0.15s ease;
-    margin-right: 2px;
-    z-index: 3;
-
-    /* Hidden by default; shown on hover/focus to reduce visual noise */
-    opacity: 0;
-    pointer-events: none;
-}
-.block-editor.dark .block-toggle {
-    color: #6b7280;
-}
-.block-toggle-placeholder {
-    flex-shrink: 0;
-    width: 16px;
-    height: 18px;
-    margin-right: 2px;
-}
-.block-toggle:hover {
-    color: #374151;
-    background-color: rgba(17, 24, 39, 0.04);
-}
-.block-editor.dark .block-toggle:hover {
-    color: #e5e7eb;
-    background-color: rgba(229, 231, 235, 0.06);
-}
-
-/* Show collapse/expand toggle only when the row is hovered or focused */
-.block-line:hover .block-toggle,
-.block-line.focused .block-toggle,
-.block-line:focus-within .block-toggle {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.block-toggle svg {
-    transition: transform 0.15s ease;
-    display: block;
-}
-
-.block-input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-family: inherit;
-    font-size: 15px;
-    line-height: 1.5;
-    padding: 3px 8px;
-    resize: none;
-    overflow: hidden;
-    color: inherit;
-    min-height: 24px;
-    margin: 0;
-    z-index: 3;
-    position: relative;
-}
-
-/* When the textarea is used inside the overlay wrapper, its layout is controlled by `.block-input-wrap`.
-   Keep the base class usable elsewhere, but avoid double-styling. */
-.block-input-wrap .block-input {
-    flex: none;
-}
-
-/* When focused, textarea is used; when not focused, .block-preview is shown instead.
-   Keep visual parity between them. */
-.block-preview p {
-    margin: 0;
-}
-.block-preview p + p {
-    margin-top: 0.5em;
-}
-.block-preview a {
-    color: #0969da;
-    text-decoration: underline;
-}
-.block-editor.dark .block-preview a {
-    color: #4dabf7;
-}
-.block-preview code {
-    font-family: "SF Mono", "Monaco", "Consolas", monospace;
-    font-size: 0.92em;
-    background: rgba(127, 127, 127, 0.12);
-    padding: 0.15em 0.35em;
-    border-radius: 4px;
-}
-.block-preview pre {
-    margin: 0.5em 0 0;
-    padding: 0.75em 0.9em;
-    border-radius: 8px;
-    background: rgba(127, 127, 127, 0.12);
-    overflow: auto;
-}
-.block-preview pre code {
-    background: transparent;
-    padding: 0;
-    border-radius: 0;
-}
-.block-preview ul,
-.block-preview ol {
-    margin: 0;
-    padding-left: 1.25em;
-}
-.block-preview li {
-    margin: 0.15em 0;
-}
-.block-preview blockquote {
-    margin: 0.5em 0 0;
-    padding-left: 0.9em;
-    border-left: 3px solid rgba(127, 127, 127, 0.3);
-    color: rgba(127, 127, 127, 0.85);
-}
-
-.block-input::placeholder {
-    color: #d1d5db;
-}
-.block-editor.dark .block-input::placeholder {
-    color: #4b5563;
-}
-
-/* --- Markdown preview typography tweaks (match textarea look) --- */
-/* (deduped: see later block for the canonical ruleset) */
-
-.block-input:focus {
-    outline: none;
-}
-
-/* Help section */
-.block-editor-help {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    padding: 12px 16px;
-    font-size: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    max-width: 600px;
-    backdrop-filter: blur(10px);
-}
-.block-editor.dark .block-editor-help {
-    background: rgba(30, 30, 30, 0.95);
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-}
-
-.help-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #6b7280;
-}
-.block-editor.dark .help-item {
-    color: #9ca3af;
-}
-
-.help-item kbd {
-    background-color: #f3f4f6;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    padding: 2px 6px;
-    font-family: "SF Mono", "Monaco", "Consolas", monospace;
-    font-size: 11px;
-    font-weight: 600;
-    color: #374151;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-.block-editor.dark .help-item kbd {
-    background-color: #374151;
-    border-color: #4b5563;
-    color: #e5e7eb;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-/* Debug panel */
-.block-editor-debug {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    width: 500px;
-    max-height: 400px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    padding: 12px 16px;
-    font-size: 11px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    overflow-y: auto;
-    backdrop-filter: blur(10px);
-    font-family: "SF Mono", "Monaco", "Consolas", monospace;
-}
-.block-editor.dark .block-editor-debug {
-    background: rgba(30, 30, 30, 0.95);
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-    color: #e5e7eb;
-}
-
-.block-editor-debug-title {
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: #1f2937;
-}
-.block-editor.dark .block-editor-debug-title {
-    color: #f3f4f6;
-}
-
-.block-editor-debug-content {
-    background: rgba(0, 0, 0, 0.02);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    border-radius: 4px;
-    padding: 8px;
-    white-space: pre-wrap;
-    word-break: break-all;
-    color: #374151;
-    max-height: 350px;
-    overflow-y: auto;
-}
-.block-editor.dark .block-editor-debug-content {
-    background: rgba(255, 255, 255, 0.02);
-    border-color: rgba(255, 255, 255, 0.05);
-    color: #d1d5db;
-}
-
-/* Selection styling */
-.block-input::selection {
-    background-color: #bfdbfe;
-}
-.block-editor.dark .block-input::selection {
-    background-color: #1e40af;
-}
-
-*:focus {
-    outline: none;
+    z-index: 10;
 }

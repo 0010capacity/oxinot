@@ -5,13 +5,11 @@
  * inline within the CodeMirror editor. It uses a plugin architecture where each
  * markdown element type is handled by a dedicated handler.
  *
- * Key improvements over the previous implementation:
- * - Modular handler system (easy to add/remove/modify handlers)
- * - Reduced code duplication (common patterns extracted to utilities)
- * - Better separation of concerns (each handler is independent)
- * - Easier to test (handlers can be tested in isolation)
- * - More maintainable (no giant 1000-line function)
- * - Obsidian Flavored Markdown support (wiki links, tags, highlights, comments, callouts)
+ * Improvements in this version:
+ * - IME safety: avoid aggressive decoration rebuilds during composition (e.g., Korean)
+ * - Better performance: compute decorations only for merged visible ranges
+ * - Line-by-line features (wiki links/tags/highlights/comments/callouts/tables/strike/footnotes)
+ *   are processed only for visible lines (plus a small buffer).
  */
 
 import {
@@ -47,6 +45,10 @@ import { RenderContext } from "./handlers/types";
 import { DecorationSpec, sortDecorations } from "./utils/decorationHelpers";
 import { getCursorInfo } from "./utils/nodeHelpers";
 
+type VisibleRange = { from: number; to: number };
+
+const VISIBLE_LINE_BUFFER = 2;
+
 /**
  * Initialize the handler registry with all handlers
  */
@@ -72,12 +74,84 @@ function createHandlerRegistry(): HandlerRegistry {
 // Create singleton registry
 const handlerRegistry = createHandlerRegistry();
 
+function mergeRanges(ranges: readonly VisibleRange[]): VisibleRange[] {
+  if (!ranges.length) return [];
+  const sorted = [...ranges].sort((a, b) => a.from - b.from);
+  const merged: VisibleRange[] = [];
+  let cur = { ...sorted[0] };
+
+  for (let i = 1; i < sorted.length; i++) {
+    const r = sorted[i];
+    if (r.from <= cur.to) {
+      cur.to = Math.max(cur.to, r.to);
+    } else {
+      merged.push(cur);
+      cur = { ...r };
+    }
+  }
+
+  merged.push(cur);
+  return merged;
+}
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
+
+function getVisibleLineRanges(
+  view: EditorView,
+  mergedVisibleRanges: VisibleRange[],
+  bufferLines: number,
+): Array<{ fromLine: number; toLine: number }> {
+  const { doc } = view.state;
+  const out: Array<{ fromLine: number; toLine: number }> = [];
+
+  for (const r of mergedVisibleRanges) {
+    // lineAt expects a valid position in [0..doc.length]
+    const fromPos = clamp(r.from, 0, doc.length);
+    const toPos = clamp(r.to, 0, doc.length);
+
+    const fromLine = doc.lineAt(fromPos).number;
+    const toLine = doc.lineAt(toPos).number;
+
+    out.push({
+      fromLine: clamp(fromLine - bufferLines, 1, doc.lines),
+      toLine: clamp(toLine + bufferLines, 1, doc.lines),
+    });
+  }
+
+  // Merge overlapping line ranges to reduce redundant loops
+  out.sort((a, b) => a.fromLine - b.fromLine);
+  const merged: Array<{ fromLine: number; toLine: number }> = [];
+  for (const r of out) {
+    const last = merged[merged.length - 1];
+    if (!last || r.fromLine > last.toLine) {
+      merged.push({ ...r });
+    } else {
+      last.toLine = Math.max(last.toLine, r.toLine);
+    }
+  }
+
+  return merged;
+}
+
+function isCursorOnLine(view: EditorView, lineFrom: number, lineTo: number) {
+  const head = view.state.selection.main.head;
+  return head >= lineFrom && head <= lineTo;
+}
+
 /**
- * Build decorations for the visible range using the handler system
+ * Build decorations for the visible range using the handler system.
+ *
+ * Important:
+ * - We compute decorations only for (merged) visible ranges to avoid doing full-doc work.
+ * - We still sort all DecorationSpecs at the end (required by CM6).
  */
 function buildDecorations(view: EditorView): DecorationSet {
   const { state } = view;
   const decorations: DecorationSpec[] = [];
+
+  const mergedVisibleRanges = mergeRanges(view.visibleRanges);
 
   // Get cursor information once
   const cursor = getCursorInfo(state);
@@ -89,95 +163,73 @@ function buildDecorations(view: EditorView): DecorationSet {
     decorations,
   };
 
-  // Process only visible ranges for performance
-  for (const { from, to } of view.visibleRanges) {
-    const tree = syntaxTree(state);
+  // Cache syntax tree once per build
+  const tree = syntaxTree(state);
 
-    // Iterate through syntax tree
+  // Syntax-tree-driven handlers: only for visible ranges
+  for (const { from, to } of mergedVisibleRanges) {
     tree.iterate({
       from,
       to,
       enter: (node) => {
-        // Create a proper SyntaxNode for handlers
         const syntaxNode = node.node;
-
-        // Let handlers process this node
         const nodeDecorations = handlerRegistry.handleNode(syntaxNode, context);
-        decorations.push(...nodeDecorations);
-
-        // Return true to process children
+        if (nodeDecorations.length) decorations.push(...nodeDecorations);
         return true;
       },
     });
   }
 
-  // Process Obsidian features line-by-line (not in syntax tree)
-  for (let lineNum = 1; lineNum <= state.doc.lines; lineNum++) {
-    const line = state.doc.line(lineNum);
-    const lineText = line.text;
-    const isOnCursorLine =
-      state.selection.main.head >= line.from &&
-      state.selection.main.head <= line.to;
+  // Line-by-line features: only for visible lines (plus buffer)
+  const visibleLineRanges = getVisibleLineRanges(
+    view,
+    mergedVisibleRanges,
+    VISIBLE_LINE_BUFFER,
+  );
 
-    // Process Wiki Links [[link]] or [[link|alias]]
-    const wikiLinkDecorations = WikiLinkHandler.processLine(
-      lineText,
-      line.from,
-      isOnCursorLine,
-    );
-    decorations.push(...wikiLinkDecorations);
+  // Obsidian-esque inline patterns (not represented in syntax tree)
+  for (const lr of visibleLineRanges) {
+    for (let lineNum = lr.fromLine; lineNum <= lr.toLine; lineNum++) {
+      const line = state.doc.line(lineNum);
+      const lineText = line.text;
+      const onCursorLine = isCursorOnLine(view, line.from, line.to);
 
-    // Process Tags #tag or #nested/tag
-    const tagDecorations = TagHandler.processLine(
-      lineText,
-      line.from,
-      isOnCursorLine,
-    );
-    decorations.push(...tagDecorations);
-
-    // Process Highlights ==text==
-    const highlightDecorations = HighlightHandler.processLine(
-      lineText,
-      line.from,
-      isOnCursorLine,
-    );
-    decorations.push(...highlightDecorations);
-
-    // Process Comments %%comment%%
-    const commentDecorations = CommentHandler.processLine(
-      lineText,
-      line.from,
-      isOnCursorLine,
-    );
-    decorations.push(...commentDecorations);
-
-    // Process Callouts > [!type] Title
-    const calloutDecorations = CalloutHandler.processLine(
-      lineText,
-      line.from,
-      isOnCursorLine,
-    );
-    decorations.push(...calloutDecorations);
+      decorations.push(
+        ...WikiLinkHandler.processLine(lineText, line.from, onCursorLine),
+      );
+      decorations.push(
+        ...TagHandler.processLine(lineText, line.from, onCursorLine),
+      );
+      decorations.push(
+        ...HighlightHandler.processLine(lineText, line.from, onCursorLine),
+      );
+      decorations.push(
+        ...CommentHandler.processLine(lineText, line.from, onCursorLine),
+      );
+      decorations.push(
+        ...CalloutHandler.processLine(lineText, line.from, onCursorLine),
+      );
+    }
   }
 
-  // Process tables line by line (not yet in handler system - complex logic)
-  for (let lineNum = 1; lineNum <= state.doc.lines; lineNum++) {
-    const line = state.doc.line(lineNum);
-    const lineText = line.text;
-    const isTableLine = /^\s*\|.*\|/.test(lineText);
-    const isSeparator = /^\s*\|?[\s\-:|]+\|[\s\-:|]*$/.test(lineText);
+  // Tables (complex logic; keep as is but limited to visible lines)
+  for (const lr of visibleLineRanges) {
+    for (let lineNum = lr.fromLine; lineNum <= lr.toLine; lineNum++) {
+      const line = state.doc.line(lineNum);
+      const lineText = line.text;
 
-    if (isTableLine) {
-      const isOnCursorLine =
-        state.selection.main.head >= line.from &&
-        state.selection.main.head <= line.to;
+      const isTableLine = /^\s*\|.*\|/.test(lineText);
+      if (!isTableLine) continue;
+
+      const isSeparator = /^\s*\|?[\s\-:|]+\|[\s\-:|]*$/.test(lineText);
+      const onCursorLine = isCursorOnLine(view, line.from, line.to);
 
       const isHeader =
         lineNum < state.doc.lines &&
         /^\s*\|?[\s\-:|]+\|[\s\-:|]*$/.test(state.doc.line(lineNum + 1).text);
 
       if (isSeparator) {
-        if (!isOnCursorLine) {
+        if (!onCursorLine) {
           decorations.push({
             from: line.from,
             to: line.to,
@@ -201,190 +253,179 @@ function buildDecorations(view: EditorView): DecorationSet {
             }),
           });
         }
-      } else {
-        const cells = lineText
-          .split("|")
-          .map((cell) => cell.trim())
-          .filter((cell) => cell.length > 0);
+        continue;
+      }
 
-        const rowStyle = isHeader
-          ? `display: grid; grid-template-columns: repeat(${cells.length}, 1fr); gap: 0; padding: 0.75em 0; font-weight: 600; background: linear-gradient(to bottom, rgba(128, 128, 128, 0.08), rgba(128, 128, 128, 0.12)); border: 1px solid rgba(128, 128, 128, 0.25); border-bottom: 2px solid rgba(128, 128, 128, 0.4); margin-top: 0.5em;`
-          : `display: grid; grid-template-columns: repeat(${cells.length}, 1fr); gap: 0; padding: 0.6em 0; border-left: 1px solid rgba(128, 128, 128, 0.25); border-right: 1px solid rgba(128, 128, 128, 0.25); border-bottom: 1px solid rgba(128, 128, 128, 0.25);`;
+      const cells = lineText
+        .split("|")
+        .map((cell) => cell.trim())
+        .filter((cell) => cell.length > 0);
+
+      const rowStyle = isHeader
+        ? `display: grid; grid-template-columns: repeat(${cells.length}, 1fr); gap: 0; padding: 0.75em 0; font-weight: 600; background: linear-gradient(to bottom, rgba(128, 128, 128, 0.08), rgba(128, 128, 128, 0.12)); border: 1px solid rgba(128, 128, 128, 0.25); border-bottom: 2px solid rgba(128, 128, 128, 0.4); margin-top: 0.5em;`
+        : `display: grid; grid-template-columns: repeat(${cells.length}, 1fr); gap: 0; padding: 0.6em 0; border-left: 1px solid rgba(128, 128, 128, 0.25); border-right: 1px solid rgba(128, 128, 128, 0.25); border-bottom: 1px solid rgba(128, 128, 128, 0.25);`;
+
+      decorations.push({
+        from: line.from,
+        to: line.to,
+        decoration: Decoration.mark({
+          class: isHeader ? "cm-table-header" : "cm-table-row",
+          attributes: { style: rowStyle },
+        }),
+      });
+
+      // Cell content styling
+      let cellStart = lineText.indexOf("|");
+      cells.forEach((cell, idx) => {
+        const cellContent = `|${cell}|`;
+        const cellPos = lineText.indexOf(cellContent, cellStart);
+        if (cellPos === -1) return;
+
+        const contentStart = cellPos + 1;
+        const contentEnd = contentStart + cell.length;
 
         decorations.push({
-          from: line.from,
-          to: line.to,
+          from: line.from + contentStart,
+          to: line.from + contentEnd,
           decoration: Decoration.mark({
-            class: isHeader ? "cm-table-header" : "cm-table-row",
+            class: "cm-table-cell",
             attributes: {
-              style: rowStyle,
+              style: `padding: 0 1em; ${idx < cells.length - 1 ? "border-right: 1px solid rgba(128, 128, 128, 0.2);" : ""}`,
             },
           }),
         });
 
-        let cellStart = lineText.indexOf("|");
-        cells.forEach((cell, idx) => {
-          const cellContent = `|${cell}|`;
-          const cellPos = lineText.indexOf(cellContent, cellStart);
+        cellStart = contentEnd;
+      });
 
-          if (cellPos !== -1) {
-            const contentStart = cellPos + 1;
-            const contentEnd = contentStart + cell.length;
-
-            decorations.push({
-              from: line.from + contentStart,
-              to: line.from + contentEnd,
-              decoration: Decoration.mark({
-                class: "cm-table-cell",
-                attributes: {
-                  style: `padding: 0 1em; ${idx < cells.length - 1 ? "border-right: 1px solid rgba(128, 128, 128, 0.2);" : ""}`,
-                },
-              }),
-            });
-
-            cellStart = contentEnd;
-          }
-        });
-
-        if (!isOnCursorLine) {
-          for (let i = 0; i < lineText.length; i++) {
-            if (lineText[i] === "|") {
-              decorations.push({
-                from: line.from + i,
-                to: line.from + i + 1,
-                decoration: Decoration.mark({
-                  class: "cm-table-pipe-hidden",
-                  attributes: {
-                    style: "font-size: 0; width: 0; opacity: 0;",
-                  },
-                }),
-              });
-            }
-          }
-        } else {
-          for (let i = 0; i < lineText.length; i++) {
-            if (lineText[i] === "|") {
-              decorations.push({
-                from: line.from + i,
-                to: line.from + i + 1,
-                decoration: Decoration.mark({
-                  class: "cm-table-pipe",
-                  attributes: {
-                    style: "opacity: 0.3; color: #888;",
-                  },
-                }),
-              });
-            }
-          }
+      // Pipe visibility
+      if (!onCursorLine) {
+        for (let i = 0; i < lineText.length; i++) {
+          if (lineText[i] !== "|") continue;
+          decorations.push({
+            from: line.from + i,
+            to: line.from + i + 1,
+            decoration: Decoration.mark({
+              class: "cm-table-pipe-hidden",
+              attributes: { style: "font-size: 0; width: 0; opacity: 0;" },
+            }),
+          });
+        }
+      } else {
+        for (let i = 0; i < lineText.length; i++) {
+          if (lineText[i] !== "|") continue;
+          decorations.push({
+            from: line.from + i,
+            to: line.from + i + 1,
+            decoration: Decoration.mark({
+              class: "cm-table-pipe",
+              attributes: { style: "opacity: 0.3; color: #888;" },
+            }),
+          });
         }
       }
     }
   }
 
-  // Process strikethrough line by line
-  for (let lineNum = 1; lineNum <= state.doc.lines; lineNum++) {
-    const line = state.doc.line(lineNum);
-    const lineText = line.text;
-    const isOnCursorLine =
-      state.selection.main.head >= line.from &&
-      state.selection.main.head <= line.to;
+  // Strikethrough (visible lines only)
+  for (const lr of visibleLineRanges) {
+    for (let lineNum = lr.fromLine; lineNum <= lr.toLine; lineNum++) {
+      const line = state.doc.line(lineNum);
+      const lineText = line.text;
+      const onCursorLine = isCursorOnLine(view, line.from, line.to);
 
-    const strikethroughRegex = /~~([^~]+)~~/g;
-    let match;
-    while ((match = strikethroughRegex.exec(lineText)) !== null) {
-      const start = line.from + match.index;
-      const end = start + match[0].length;
+      const strikethroughRegex = /~~([^~]+)~~/g;
+      let match: RegExpExecArray | null;
+      while ((match = strikethroughRegex.exec(lineText)) !== null) {
+        const start = line.from + match.index;
+        const end = start + match[0].length;
 
-      decorations.push({
-        from: start,
-        to: end,
-        decoration: Decoration.mark({
-          class: "cm-strikethrough",
-          attributes: {
-            style: "text-decoration: line-through; opacity: 0.7;",
-          },
-        }),
-      });
-
-      if (!isOnCursorLine) {
         decorations.push({
           from: start,
-          to: start + 2,
-          decoration: Decoration.replace({}),
-        });
-        decorations.push({
-          from: end - 2,
           to: end,
-          decoration: Decoration.replace({}),
-        });
-      } else {
-        decorations.push({
-          from: start,
-          to: start + 2,
           decoration: Decoration.mark({
-            class: "cm-dim-marker",
+            class: "cm-strikethrough",
             attributes: {
-              style: "opacity: 0.5;",
+              style: "text-decoration: line-through; opacity: 0.7;",
             },
           }),
         });
-        decorations.push({
-          from: end - 2,
-          to: end,
-          decoration: Decoration.mark({
-            class: "cm-dim-marker",
-            attributes: {
-              style: "opacity: 0.5;",
-            },
-          }),
-        });
+
+        if (!onCursorLine) {
+          decorations.push({
+            from: start,
+            to: start + 2,
+            decoration: Decoration.replace({}),
+          });
+          decorations.push({
+            from: end - 2,
+            to: end,
+            decoration: Decoration.replace({}),
+          });
+        } else {
+          decorations.push({
+            from: start,
+            to: start + 2,
+            decoration: Decoration.mark({
+              class: "cm-dim-marker",
+              attributes: { style: "opacity: 0.5;" },
+            }),
+          });
+          decorations.push({
+            from: end - 2,
+            to: end,
+            decoration: Decoration.mark({
+              class: "cm-dim-marker",
+              attributes: { style: "opacity: 0.5;" },
+            }),
+          });
+        }
       }
     }
   }
 
-  // Process footnotes line by line
-  for (let lineNum = 1; lineNum <= state.doc.lines; lineNum++) {
-    const line = state.doc.line(lineNum);
-    const lineText = line.text;
+  // Footnotes (visible lines only)
+  for (const lr of visibleLineRanges) {
+    for (let lineNum = lr.fromLine; lineNum <= lr.toLine; lineNum++) {
+      const line = state.doc.line(lineNum);
+      const lineText = line.text;
 
-    const footnoteDefMatch = lineText.match(/^\[\^([^\]]+)\]:\s+(.+)$/);
-    if (footnoteDefMatch) {
-      const isOnCursorLine =
-        state.selection.main.head >= line.from &&
-        state.selection.main.head <= line.to;
+      const def = lineText.match(/^\[\^([^\]]+)\]:\s+(.+)$/);
+      if (def) {
+        const onCursorLine = isCursorOnLine(view, line.from, line.to);
+        if (!onCursorLine) {
+          decorations.push({
+            from: line.from,
+            to: line.to,
+            decoration: Decoration.mark({
+              class: "cm-footnote-def",
+              attributes: {
+                style:
+                  "color: #888; font-size: 0.9em; font-style: italic; opacity: 0.7;",
+              },
+            }),
+          });
+        }
+      }
 
-      if (!isOnCursorLine) {
+      const footnoteRefRegex = /\[\^([^\]]+)\]/g;
+      let match: RegExpExecArray | null;
+      while ((match = footnoteRefRegex.exec(lineText)) !== null) {
+        const refStart = line.from + match.index;
+        const refEnd = refStart + match[0].length;
+
         decorations.push({
-          from: line.from,
-          to: line.to,
+          from: refStart,
+          to: refEnd,
           decoration: Decoration.mark({
-            class: "cm-footnote-def",
+            class: "cm-footnote-ref",
             attributes: {
               style:
-                "color: #888; font-size: 0.9em; font-style: italic; opacity: 0.7;",
+                "color: #4dabf7; font-size: 0.85em; vertical-align: super; cursor: pointer;",
             },
           }),
         });
       }
-    }
-
-    const footnoteRefRegex = /\[\^([^\]]+)\]/g;
-    let match;
-    while ((match = footnoteRefRegex.exec(lineText)) !== null) {
-      const refStart = line.from + match.index;
-      const refEnd = refStart + match[0].length;
-
-      decorations.push({
-        from: refStart,
-        to: refEnd,
-        decoration: Decoration.mark({
-          class: "cm-footnote-ref",
-          attributes: {
-            style:
-              "color: #4dabf7; font-size: 0.85em; vertical-align: super; cursor: pointer;",
-          },
-        }),
-      });
     }
   }
 
@@ -394,13 +435,11 @@ function buildDecorations(view: EditorView): DecorationSet {
   // Build decoration set using RangeSetBuilder
   const builder = new RangeSetBuilder<Decoration>();
   for (const spec of sortedDecorations) {
-    // Skip invalid ranges
     if (spec.from >= spec.to) continue;
 
     try {
       builder.add(spec.from, spec.to, spec.decoration);
     } catch (error) {
-      // Log but don't crash - CM6 can throw on invalid ranges
       console.warn("Failed to add decoration:", error, spec);
     }
   }
@@ -409,23 +448,74 @@ function buildDecorations(view: EditorView): DecorationSet {
 }
 
 /**
- * View plugin that manages hybrid rendering decorations
+ * View plugin that manages hybrid rendering decorations.
+ *
+ * IME safety:
+ * - During IME composition, avoid frequent rebuilds triggered by doc/selection churn.
+ * - Rebuild once on composition end (and allow viewport rebuilds while composing).
  */
 export const hybridRenderingPlugin = ViewPlugin.fromClass(
-  class {
+  class HybridRenderingViewPlugin {
     decorations: DecorationSet;
+    private isComposing = false;
+
+    // CM will attach the view to plugin instances; declare for TS.
+    view!: EditorView;
 
     constructor(view: EditorView) {
       this.decorations = buildDecorations(view);
+
+      // Track IME composition state. Using DOM listeners is reliable across platforms.
+      view.dom.addEventListener("compositionstart", this.onCompositionStart, {
+        passive: true,
+      });
+      view.dom.addEventListener("compositionend", this.onCompositionEnd, {
+        passive: true,
+      });
     }
 
+    private onCompositionStart = () => {
+      this.isComposing = true;
+    };
+
+    private onCompositionEnd = () => {
+      this.isComposing = false;
+
+      // Let the DOM/selection settle after composition commits.
+      requestAnimationFrame(() => {
+        try {
+          this.decorations = buildDecorations(this.view);
+        } catch {
+          // Ignore errors if view was destroyed mid-frame
+        }
+      });
+    };
+
     update(update: ViewUpdate) {
-      // Rebuild decorations when:
-      // - Document changed
-      // - Viewport changed (scrolling)
-      // - Selection changed (cursor moved - affects marker visibility)
+      if (this.isComposing) {
+        if (update.viewportChanged) {
+          this.decorations = buildDecorations(update.view);
+        }
+        return;
+      }
+
       if (update.docChanged || update.viewportChanged || update.selectionSet) {
         this.decorations = buildDecorations(update.view);
+      }
+    }
+
+    destroy() {
+      try {
+        this.view.dom.removeEventListener(
+          "compositionstart",
+          this.onCompositionStart,
+        );
+        this.view.dom.removeEventListener(
+          "compositionend",
+          this.onCompositionEnd,
+        );
+      } catch {
+        // no-op
       }
     }
   },

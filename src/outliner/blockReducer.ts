@@ -58,7 +58,7 @@ function increaseDescendantLevels(block: Block, delta: number) {
 export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
   switch (action.type) {
     case "ADD_BLOCK": {
-      const { afterBlockId, level } = action.payload;
+      const { afterBlockId, level, content } = action.payload;
       const flatBlocks = flattenBlocks(blocks);
       const index = flatBlocks.findIndex((b) => b.id === afterBlockId);
       const currentBlock = index !== -1 ? flatBlocks[index] : null;
@@ -75,7 +75,7 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
 
       if (!afterBlockId) {
         // Add at the end
-        const newBlock = createBlock("", level ?? 0);
+        const newBlock = createBlock(content ?? "", level ?? 0);
         if (action.payload.newBlockId) {
           newBlock.id = action.payload.newBlockId;
         }
@@ -87,9 +87,9 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
         return result;
       }
 
-      if (index === -1) return blocks;
+      if (index === -1 || !currentBlock) return blocks;
 
-      const newBlock = createBlock("", level ?? currentBlock.level);
+      const newBlock = createBlock(content ?? "", level ?? currentBlock.level);
       newBlock.kind = action.payload.kind ?? "bullet";
       if (action.payload.newBlockId) {
         newBlock.id = action.payload.newBlockId;

@@ -49,6 +49,7 @@ export type BlockAction =
         level?: number;
         kind?: BlockKind;
         newBlockId?: string;
+        content?: string;
       };
     }
   | { type: "DELETE_BLOCK"; payload: { blockId: string } }

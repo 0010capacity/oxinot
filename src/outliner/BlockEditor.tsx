@@ -3,9 +3,9 @@ import React, {
   useRef,
   useEffect,
   useState,
-  KeyboardEvent,
   useCallback,
   useMemo,
+  memo,
 } from "react";
 import { Block } from "./types";
 import { blockReducer } from "./blockReducer";
@@ -14,18 +14,14 @@ import {
   createBlock,
   hasChildren,
   findBlockById,
-  generateBlockId,
-  blocksToMarkdown,
 } from "./blockUtils";
 import { parseMarkdownToBlocks } from "./blockUtils";
 import { Breadcrumbs, Anchor } from "@mantine/core";
 import "./BlockEditor.css";
-import {
-  renderOutlinerBulletPreviewHtml,
-  renderOutlinerBracePreviewHtml,
-} from "./markdownRenderer";
+import { Editor } from "../components/Editor";
+import { KeyBinding } from "@codemirror/view";
 
-// Helper function to get block path, needed for guide line logic
+// Helper function to get block path
 function getBlockPath(block: Block): Block[] {
   const path: Block[] = [];
   let current: Block | null = block;
@@ -42,6 +38,137 @@ interface BlockEditorProps {
   theme?: "light" | "dark";
 }
 
+// Memoized Block component for performance - defined outside to avoid recreation
+const BlockComponent = memo<{
+  block: Block;
+  isFocused: boolean;
+  isOnActivePath: boolean;
+  effectiveLevel: number;
+  onContentChange: (blockId: string, content: string) => void;
+  onFocusBlock: (blockId: string) => void;
+  onToggleCollapse: (blockId: string) => void;
+  onSetFocusRoot: (blockId: string) => void;
+  theme: "light" | "dark";
+  keybindings: KeyBinding[];
+  children?: React.ReactNode;
+}>(
+  ({
+    block,
+    isFocused,
+    isOnActivePath,
+    effectiveLevel,
+    onContentChange,
+    onFocusBlock,
+    onToggleCollapse,
+    onSetFocusRoot,
+    theme,
+    keybindings,
+    children,
+  }) => {
+    const isCollapsed = block.collapsed;
+    const hasChildBlocks = hasChildren(block);
+
+    return (
+      <div
+        className={`block-container ${hasChildBlocks ? "has-children" : ""} ${children ? "focus-within" : ""} ${isOnActivePath ? "on-active-path" : ""}`}
+        data-block-id={block.id}
+      >
+        <div
+          className={`block-line ${isFocused ? "focused" : ""}`}
+          style={{ paddingLeft: `${effectiveLevel * 24}px` }}
+        >
+          {hasChildBlocks ? (
+            <button
+              className={`block-toggle ${
+                isCollapsed ? "collapsed" : "expanded"
+              }`}
+              onClick={() => onToggleCollapse(block.id)}
+              aria-label={isCollapsed ? "Expand" : "Collapse"}
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 10 10"
+                fill="none"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d={isCollapsed ? "M4 2.5L6.5 5L4 7.5" : "M2.5 4L5 6.5L7.5 4"}
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          ) : (
+            <div className="block-toggle-placeholder" />
+          )}
+
+          <div
+            className={`block-bullet-container ${
+              block.kind === "brace" ? "brace" : ""
+            }`}
+            onClick={() => onSetFocusRoot(block.id)}
+            title={block.kind === "brace" ? "Brace block" : undefined}
+          >
+            <div
+              className={`block-bullet ${isFocused ? "active" : ""} ${
+                block.kind === "brace" ? "brace" : ""
+              }`}
+            />
+          </div>
+
+          <div className="block-editor-wrap">
+            <Editor
+              value={block.content}
+              onChange={(newContent) => onContentChange(block.id, newContent)}
+              onFocus={() => onFocusBlock(block.id)}
+              theme={theme}
+              lineNumbers={false}
+              lineWrapping={true}
+              keybindings={keybindings}
+              className="block-editor"
+              style={{
+                minHeight: "40px",
+                fontSize: "16px",
+              }}
+            />
+          </div>
+        </div>
+
+        {!isCollapsed && hasChildBlocks && children && (
+          <div className={`block-children ${children ? "focus-within" : ""}`}>
+            {children}
+          </div>
+        )}
+      </div>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if THIS block's content changed or focus changed
+    // Don't re-render just because siblings changed
+    if (prevProps.block.id !== nextProps.block.id) return false;
+    if (prevProps.block.content !== nextProps.block.content) return false;
+    if (prevProps.isFocused !== nextProps.isFocused) return false;
+    if (prevProps.theme !== nextProps.theme) return false;
+
+    // For other changes, only re-render if they affect this block
+    if (prevProps.block.collapsed !== nextProps.block.collapsed) return false;
+    if (prevProps.block.kind !== nextProps.block.kind) return false;
+    if (prevProps.isOnActivePath !== nextProps.isOnActivePath) return false;
+    if (prevProps.effectiveLevel !== nextProps.effectiveLevel) return false;
+    if (prevProps.block.children.length !== nextProps.block.children.length)
+      return false;
+
+    // Skip re-render - nothing important changed
+    return true;
+  },
+);
+
+BlockComponent.displayName = "BlockComponent";
+
 export const BlockEditor: React.FC<BlockEditorProps> = ({
   initialContent = "",
   onChange,
@@ -51,9 +178,6 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     if (!initialContent) {
       return [createBlock("", 0)];
     }
-
-    // Parse initial content with brace-block support (brace blocks can contain newlines).
-    // Keeping this in `blockUtils` ensures parse/export stay consistent.
     return parseMarkdownToBlocks(initialContent);
   });
 
@@ -63,14 +187,10 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
   });
   const [focusRootId, setFocusRootId] = useState<string | null>(null);
 
-  const [cursorPosition, setCursorPosition] = useState<number>(0);
-  const inputRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
   const isFirstRender = useRef(true);
+  const prevBlockCountRef = useRef(blocks.length);
 
-  // Used to focus the *newly created* block after Enter split/add.
-  // We must not rely on stale `blocks` captured in event handlers.
-  const pendingFocusNextFromBlockIdRef = useRef<string | null>(null);
-
+  // Notify parent of block changes
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -81,218 +201,39 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       onChange(blocks);
     }, 200);
     return () => clearTimeout(timeoutId);
-  }, [blocks]);
+  }, [blocks, onChange]);
 
+  // Auto-focus newly created blocks
   useEffect(() => {
-    console.log("[BlockEditor useEffect] blocks changed", {
-      blockCount: blocks.length,
-      focusedBlockId,
-      pendingFocusNext: pendingFocusNextFromBlockIdRef.current,
-    });
-
-    if (!focusedBlockId) return;
-
-    // If we have a pending "focus the next block after X", resolve it now
-    // using the *current* blocks state (fresh after reducer update).
-    if (pendingFocusNextFromBlockIdRef.current) {
-      const fromId = pendingFocusNextFromBlockIdRef.current;
-      pendingFocusNextFromBlockIdRef.current = null;
-
-      console.log("[BlockEditor useEffect] Focusing next block after", {
-        fromId,
-      });
-
-      const flat = flattenBlocks(blocks);
-      const idx = flat.findIndex((b) => b.id === fromId);
-      const next = idx >= 0 ? flat[idx + 1] : null;
-
-      console.log("[BlockEditor useEffect] Next block found", {
-        idx,
-        nextId: next?.id,
-      });
-
-      if (next) {
-        setFocusedBlockId(next.id);
-        setCursorPosition(0);
-        requestAnimationFrame(() => {
-          const nextInput = inputRefs.current.get(next.id);
-          if (nextInput) {
-            nextInput.focus();
-            nextInput.setSelectionRange(0, 0);
-          }
-        });
-        return;
-      }
-    }
-
-    const input = inputRefs.current.get(focusedBlockId);
-    if (input) {
-      input.focus();
-      input.setSelectionRange(cursorPosition, cursorPosition);
-    }
-  }, [blocks, focusedBlockId, cursorPosition]);
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLTextAreaElement>, blockId: string, block: Block) => {
-      const target = e.target as HTMLTextAreaElement;
-      const cursorPos = target.selectionStart;
-      const content = target.value;
-
-      if (e.key === "Enter") {
-        console.log("[handleKeyDown] Enter pressed", {
-          blockId,
-          cursorPos,
-          contentLength: content.length,
-          isAtEnd: cursorPos === content.length,
-          blockKind: block.kind,
-        });
-      }
-
-      // Brace blocks: Enter should behave like a normal document (insert newline inside the block),
-      // not "create/split blocks". Shift+Enter is not required here.
-      if (e.key === "Enter" && block.kind === "brace" && !e.shiftKey) {
-        e.preventDefault();
-
-        const before = content.slice(0, cursorPos);
-        const after = content.slice(cursorPos);
-        const nextContent = `${before}\n${after}`;
-
-        dispatch({
-          type: "UPDATE_BLOCK",
-          payload: { blockId, content: nextContent },
-        });
-
-        requestAnimationFrame(() => {
-          setFocusedBlockId(blockId);
-          setCursorPosition(cursorPos + 1);
-        });
-
-        return;
-      }
-
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-
-        console.log("[handleKeyDown] Enter key action", {
-          blockId,
-          cursorPos,
-          contentLength: content.length,
-          isAtEnd: cursorPos === content.length,
-          actionType:
-            cursorPos === content.length ? "ADD_BLOCK" : "SPLIT_BLOCK",
-        });
-
-        // IMPORTANT:
-        // - `blocks` in this key handler is stale after dispatch.
-        // - Do NOT try to compute/focus the next block using `blocks` here.
-        // Instead, record intent and resolve it in a `[blocks]` effect.
-        pendingFocusNextFromBlockIdRef.current = blockId;
-
-        if (cursorPos === content.length) {
-          console.log("[handleKeyDown] Dispatching ADD_BLOCK");
-          const newBlockId = generateBlockId();
-          // If parent block has children, new block should be a child (level + 1)
-          // Otherwise, new block should be a sibling (same level)
-          const newLevel =
-            block.children.length > 0 ? block.level + 1 : block.level;
-          dispatch({
-            type: "ADD_BLOCK",
-            payload: { afterBlockId: blockId, level: newLevel, newBlockId },
-          });
-        } else {
-          console.log("[handleKeyDown] Dispatching SPLIT_BLOCK");
-          const newBlockId = generateBlockId();
-          dispatch({
-            type: "SPLIT_BLOCK",
-            payload: { blockId, offset: cursorPos, newBlockId },
-          });
-        }
-
-        return;
-      }
-
-      if (e.key === "Backspace" && cursorPos === 0) {
-        e.preventDefault();
-        const flatBlocks = flattenBlocks(blocks);
-        const index = flatBlocks.findIndex((b) => b.id === blockId);
-        if (index > 0) {
-          const previousBlock = flatBlocks[index - 1];
-          const previousContent = previousBlock.content;
-          if (content.length === 0) {
-            dispatch({ type: "DELETE_BLOCK", payload: { blockId } });
-          } else {
-            dispatch({ type: "MERGE_WITH_PREVIOUS", payload: { blockId } });
-          }
+    const currentBlockCount = blocks.length;
+    if (currentBlockCount > prevBlockCountRef.current) {
+      // A block was added - focus it
+      const flatBlocks = flattenBlocks(blocks);
+      if (focusedBlockId) {
+        const currentIndex = flatBlocks.findIndex(
+          (b) => b.id === focusedBlockId,
+        );
+        if (currentIndex !== -1 && currentIndex + 1 < flatBlocks.length) {
+          const nextBlock = flatBlocks[currentIndex + 1];
+          // Small delay to allow React to render the new block
           setTimeout(() => {
-            setFocusedBlockId(previousBlock.id);
-            setCursorPosition(previousContent.length);
-          }, 0);
-        } else if (flatBlocks.length > 1 && content.length === 0) {
-          dispatch({ type: "DELETE_BLOCK", payload: { blockId } });
+            setFocusedBlockId(nextBlock.id);
+          }, 10);
         }
-        return;
       }
+    }
+    prevBlockCountRef.current = currentBlockCount;
+  }, [blocks, focusedBlockId]);
 
-      if (e.key === "Tab" && !e.shiftKey) {
-        e.preventDefault();
-        dispatch({ type: "INDENT_BLOCK", payload: { blockId } });
-        setTimeout(() => setCursorPosition(cursorPos), 0);
-        return;
-      }
-
-      if (e.key === "Tab" && e.shiftKey) {
-        e.preventDefault();
-        dispatch({ type: "OUTDENT_BLOCK", payload: { blockId } });
-        setTimeout(() => setCursorPosition(cursorPos), 0);
-        return;
-      }
-
-      if (e.key === "ArrowUp" && e.altKey) {
-        e.preventDefault();
-        dispatch({ type: "MOVE_BLOCK_UP", payload: { blockId } });
-        setTimeout(() => setCursorPosition(cursorPos), 0);
-        return;
-      }
-
-      if (e.key === "ArrowDown" && e.altKey) {
-        e.preventDefault();
-        dispatch({ type: "MOVE_BLOCK_DOWN", payload: { blockId } });
-        setTimeout(() => setCursorPosition(cursorPos), 0);
-        return;
-      }
-
-      if (e.key === "ArrowUp" && !e.altKey && cursorPos === 0) {
-        e.preventDefault();
-        const flatBlocks = flattenBlocks(blocks);
-        const index = flatBlocks.findIndex((b) => b.id === blockId);
-        if (index > 0) {
-          const previousBlock = flatBlocks[index - 1];
-          setFocusedBlockId(previousBlock.id);
-          setCursorPosition(previousBlock.content.length);
-        }
-        return;
-      }
-
-      if (e.key === "ArrowDown" && !e.altKey && cursorPos === content.length) {
-        e.preventDefault();
-        const flatBlocks = flattenBlocks(blocks);
-        const index = flatBlocks.findIndex((b) => b.id === blockId);
-        if (index < flatBlocks.length - 1) {
-          const nextBlock = flatBlocks[index + 1];
-          setFocusedBlockId(nextBlock.id);
-          setCursorPosition(0);
-        }
-        return;
-      }
-    },
-    [blocks],
-  );
+  const handleContentChangeRef =
+    useRef<(blockId: string, newContent: string) => void>();
 
   const handleContentChange = useCallback(
     (blockId: string, newContent: string) => {
-      // Auto-convert: if a bullet block's entire content becomes "{", convert it into a brace block.
       const flat = flattenBlocks(blocks);
       const current = flat.find((b) => b.id === blockId);
+
+      // Auto-convert: if a bullet block's entire content becomes "{", convert to brace block
       if (current && current.kind !== "brace" && newContent.trim() === "{") {
         current.kind = "brace";
         current.braceState = "open";
@@ -300,10 +241,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
           type: "UPDATE_BLOCK",
           payload: { blockId, content: "" },
         });
-        setTimeout(() => {
-          setFocusedBlockId(blockId);
-          setCursorPosition(0);
-        }, 0);
+        setTimeout(() => setFocusedBlockId(blockId), 0);
         return;
       }
 
@@ -315,19 +253,162 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     [blocks],
   );
 
+  handleContentChangeRef.current = handleContentChange;
+
   const handleToggleCollapse = useCallback((blockId: string) => {
     dispatch({ type: "TOGGLE_COLLAPSE", payload: { blockId } });
   }, []);
 
+  // Custom keybindings for block navigation
+  const createBlockKeybindings = useCallback(
+    (blockId: string, block: Block): KeyBinding[] => [
+      {
+        key: "Enter",
+        run: (view) => {
+          const state = view.state;
+          const cursorPos = state.selection.main.head;
+          const content = state.doc.toString();
+          const contentLength = content.length;
+
+          // Handle Enter key - split or create new block
+          if (block.kind === "brace") {
+            // For brace blocks, allow newlines (don't split)
+            return false;
+          }
+
+          if (cursorPos === 0 && contentLength === 0) {
+            // Empty block + Enter = outdent
+            dispatch({
+              type: "OUTDENT_BLOCK",
+              payload: { blockId },
+            });
+            return true;
+          }
+
+          if (cursorPos === contentLength) {
+            // At end - create new sibling block
+            dispatch({
+              type: "ADD_BLOCK",
+              payload: {
+                afterBlockId: blockId,
+                level: block.level,
+                content: "",
+              },
+            });
+          } else {
+            // In middle - split block
+            dispatch({
+              type: "SPLIT_BLOCK",
+              payload: { blockId, offset: cursorPos },
+            });
+          }
+          return true;
+        },
+      },
+      {
+        key: "Backspace",
+        run: (view) => {
+          const state = view.state;
+          const cursorPos = state.selection.main.head;
+          const content = state.doc.toString();
+
+          if (cursorPos === 0 && content.length === 0) {
+            // Delete empty block or merge with previous
+            const flatBlocks = flattenBlocks(blocks);
+            const index = flatBlocks.findIndex((b) => b.id === blockId);
+            const previousBlock = index > 0 ? flatBlocks[index - 1] : null;
+
+            if (previousBlock) {
+              dispatch({
+                type: "MERGE_WITH_PREVIOUS",
+                payload: { blockId },
+              });
+            } else {
+              dispatch({
+                type: "DELETE_BLOCK",
+                payload: { blockId },
+              });
+            }
+            return true;
+          }
+          return false;
+        },
+      },
+      {
+        key: "Tab",
+        run: () => {
+          dispatch({
+            type: "INDENT_BLOCK",
+            payload: { blockId },
+          });
+          return true;
+        },
+      },
+      {
+        key: "Shift-Tab",
+        run: () => {
+          dispatch({
+            type: "OUTDENT_BLOCK",
+            payload: { blockId },
+          });
+          return true;
+        },
+      },
+      {
+        key: "ArrowUp",
+        run: (view) => {
+          const state = view.state;
+          const cursorPos = state.selection.main.head;
+          const line = state.doc.lineAt(cursorPos);
+
+          // Only handle if we're on the first line
+          if (line.number === 1) {
+            const flatBlocks = flattenBlocks(blocks);
+            const index = flatBlocks.findIndex((b) => b.id === blockId);
+            const previousBlock = index > 0 ? flatBlocks[index - 1] : null;
+
+            if (previousBlock) {
+              setFocusedBlockId(previousBlock.id);
+              return true;
+            }
+          }
+          return false;
+        },
+      },
+      {
+        key: "ArrowDown",
+        run: (view) => {
+          const state = view.state;
+          const cursorPos = state.selection.main.head;
+          const line = state.doc.lineAt(cursorPos);
+
+          // Only handle if we're on the last line
+          if (line.number === state.doc.lines) {
+            const flatBlocks = flattenBlocks(blocks);
+            const index = flatBlocks.findIndex((b) => b.id === blockId);
+            const nextBlock =
+              index < flatBlocks.length - 1 ? flatBlocks[index + 1] : null;
+
+            if (nextBlock) {
+              setFocusedBlockId(nextBlock.id);
+              return true;
+            }
+          }
+          return false;
+        },
+      },
+    ],
+    [blocks, dispatch],
+  );
+
   const currentRoot = useMemo(() => {
-    return focusRootId ? findBlockById(blocks, focusRootId) : null;
+    if (!focusRootId) return null;
+    return findBlockById(blocks, focusRootId);
   }, [blocks, focusRootId]);
 
   const displayedBlocks = useMemo(() => {
-    if (currentRoot) {
-      return currentRoot.children;
-    }
-    return blocks;
+    if (!currentRoot) return blocks;
+    return currentRoot.children;
   }, [blocks, currentRoot]);
 
   const breadcrumbPath = useMemo(() => {
@@ -337,23 +418,20 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     return getBlockPath(focusedBlock);
   }, [blocks, focusRootId]);
 
-  const breadcrumbItems = useMemo(
-    () => [
-      <Anchor href="#" onClick={() => setFocusRootId(null)} key="home">
-        Home
-      </Anchor>,
-      ...breadcrumbPath.map((block) => (
-        <Anchor
-          href="#"
-          onClick={() => setFocusRootId(block.id)}
-          key={block.id}
-        >
-          {block.content.substring(0, 20) || "Untitled"}
-        </Anchor>
-      )),
-    ],
-    [breadcrumbPath],
-  );
+  const breadcrumbItems = breadcrumbPath.map((block) => (
+    <Anchor
+      key={block.id}
+      onClick={() => {
+        if (block.parent) {
+          setFocusRootId(block.parent.id);
+        } else {
+          setFocusRootId(null);
+        }
+      }}
+    >
+      {block.content || "(empty)"}
+    </Anchor>
+  ));
 
   const activePath = useMemo(() => {
     if (!focusedBlockId) return [];
@@ -369,188 +447,71 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
 
   const renderBlock = useCallback(
     (block: Block, ancestors: Block[]): React.ReactNode => {
-      const isCollapsed = block.collapsed;
-      const hasChildBlocks = hasChildren(block);
       const isFocused = focusedBlockId === block.id;
       const isOnActivePath = activePathIds.has(block.id);
-
-      // Check if this block or any descendant contains the focused block
-      const checkFocusWithin = (b: Block): boolean => {
-        if (activePathIds.has(b.id)) return true;
-        return b.children.some(checkFocusWithin);
-      };
-      const isFocusWithin = checkFocusWithin(block);
-
       const effectiveLevel = block.level - (currentRoot?.level ?? 0);
+      const keybindings = createBlockKeybindings(block.id, block);
 
       return (
-        <div
+        <BlockComponent
           key={block.id}
-          className={`block-container ${hasChildBlocks ? "has-children" : ""} ${isFocusWithin ? "focus-within" : ""} ${isOnActivePath ? "on-active-path" : ""}`}
-          data-block-id={block.id}
+          block={block}
+          isFocused={isFocused}
+          isOnActivePath={isOnActivePath}
+          effectiveLevel={effectiveLevel}
+          onContentChange={(blockId, content) =>
+            handleContentChangeRef.current?.(blockId, content)
+          }
+          onFocusBlock={setFocusedBlockId}
+          onToggleCollapse={handleToggleCollapse}
+          onSetFocusRoot={setFocusRootId}
+          theme={theme}
+          keybindings={keybindings}
         >
-          <div
-            className={`block-line ${isFocused ? "focused" : ""}`}
-            style={{ paddingLeft: `${effectiveLevel * 24}px` }}
-          >
-            {hasChildBlocks ? (
-              <button
-                className={`block-toggle ${
-                  isCollapsed ? "collapsed" : "expanded"
-                }`}
-                onClick={() => handleToggleCollapse(block.id)}
-                aria-label={isCollapsed ? "Expand" : "Collapse"}
-              >
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 10 10"
-                  fill="none"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path
-                    d={
-                      isCollapsed ? "M4 2.5L6.5 5L4 7.5" : "M2.5 4L5 6.5L7.5 4"
-                    }
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            ) : (
-              <div className="block-toggle-placeholder" />
+          {!block.collapsed &&
+            hasChildren(block) &&
+            block.children.map((child) =>
+              renderBlock(child, [...ancestors, block]),
             )}
-
-            <div
-              className={`block-bullet-container ${
-                block.kind === "brace" ? "brace" : ""
-              }`}
-              onClick={() => setFocusRootId(block.id)}
-              title={block.kind === "brace" ? "Brace block" : undefined}
-            >
-              <div
-                className={`block-bullet ${isFocused ? "active" : ""} ${
-                  block.kind === "brace" ? "brace" : ""
-                }`}
-              />
-            </div>
-
-            <div
-              className="block-input-wrap"
-              onMouseDown={() => {
-                // Ensure the overlay textarea always receives focus/caret when clicking anywhere
-                // on the rendered preview area.
-                setFocusedBlockId(block.id);
-              }}
-            >
-              <div
-                className="block-preview"
-                role="textbox"
-                aria-readonly="true"
-                tabIndex={-1}
-                dangerouslySetInnerHTML={{
-                  __html:
-                    block.kind === "brace"
-                      ? renderOutlinerBracePreviewHtml(block.content)
-                      : renderOutlinerBulletPreviewHtml(block.content),
-                }}
-              />
-              <textarea
-                ref={(el) => {
-                  if (el) {
-                    inputRefs.current.set(block.id, el);
-                  } else {
-                    inputRefs.current.delete(block.id);
-                  }
-                }}
-                className="block-input"
-                value={block.content}
-                onChange={(e) => {
-                  handleContentChange(block.id, e.target.value);
-                  setCursorPosition(e.currentTarget.selectionStart);
-                }}
-                onKeyDown={(e) => handleKeyDown(e, block.id, block)}
-                onFocus={() => setFocusedBlockId(block.id)}
-                onClick={(e) =>
-                  setCursorPosition(e.currentTarget.selectionStart)
-                }
-                placeholder={
-                  block.level === 0 && !currentRoot ? "Start writing..." : ""
-                }
-                rows={1}
-                style={{ height: "auto", minHeight: "40px" }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = "auto";
-                  const scrollHeight = Math.max(target.scrollHeight, 40);
-                  target.style.height = `${scrollHeight}px`;
-                  // Also adjust the wrapper height to match
-                  const wrapper = target.parentElement;
-                  if (wrapper) {
-                    wrapper.style.minHeight = `${scrollHeight}px`;
-                  }
-                }}
-              />
-            </div>
-          </div>
-
-          {!isCollapsed && hasChildBlocks && (
-            <div
-              className={`block-children ${isFocusWithin ? "focus-within" : ""}`}
-            >
-              {block.children.map((child) =>
-                renderBlock(child, [...ancestors, block]),
-              )}
-            </div>
-          )}
-        </div>
+        </BlockComponent>
       );
     },
     [
       focusedBlockId,
-      handleContentChange,
-      handleKeyDown,
-      handleToggleCollapse,
       currentRoot,
       activePathIds,
+      theme,
+      createBlockKeybindings,
+      handleToggleCollapse,
     ],
   );
 
-  // Generate debug JSON
-  const debugJson = useMemo(() => {
-    const serializeBlock = (block: Block): any => ({
-      id: block.id.substring(0, 8),
-      content: block.content.substring(0, 50),
-      level: block.level,
-      children: block.children.map(serializeBlock),
-    });
-    return JSON.stringify(blocks.map(serializeBlock), null, 2);
-  }, [blocks]);
-
   return (
-    <>
-      <Breadcrumbs className="block-editor-breadcrumbs">
-        {breadcrumbItems}
-      </Breadcrumbs>
-      <div className={`block-editor ${theme}`}>
-        <div className="block-editor-content">
-          {displayedBlocks.length === 0 ? (
-            <div
-              className="block-line"
-              style={{
-                paddingLeft: `${(currentRoot?.level ?? -1) * 24}px`,
-              }}
-            >
-              <div className="block-toggle-placeholder" />
-              <div className="block-bullet-container">
-                <div className="block-bullet" />
-              </div>
-              <div
-                className="block-input-wrap"
-                onMouseDown={() => {
+    <div className={`block-editor-container theme-${theme}`}>
+      {breadcrumbPath.length > 0 && (
+        <div className="block-breadcrumbs">
+          <Breadcrumbs separator="›">{breadcrumbItems}</Breadcrumbs>
+        </div>
+      )}
+
+      <div className="blocks-list">
+        {displayedBlocks.map((block) => renderBlock(block, []))}
+      </div>
+
+      {displayedBlocks.length === 0 && (
+        <div
+          className="empty-state"
+          style={{ paddingLeft: `${(currentRoot?.level ?? 0) * 24}px` }}
+        >
+          <div className="block-line">
+            <div className="block-toggle-placeholder" />
+            <div className="block-bullet-container">
+              <div className="block-bullet" />
+            </div>
+            <div className="block-editor-wrap">
+              <Editor
+                value=""
+                onChange={() => {
                   dispatch({
                     type: "ADD_BLOCK",
                     payload: {
@@ -559,50 +520,21 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
                     },
                   });
                 }}
-              >
-                <div className="block-preview" aria-hidden="true" />
-                <textarea
-                  className="block-input"
-                  value=""
-                  onChange={() => {
-                    // no-op: this placeholder textarea is never meant to hold user input.
-                    // A real block will be created on mouse down above.
-                  }}
-                  placeholder="Start writing..."
-                  rows={1}
-                />
-              </div>
+                theme={theme}
+                lineNumbers={false}
+                lineWrapping={true}
+                className="block-editor"
+                style={{
+                  minHeight: "40px",
+                  fontSize: "16px",
+                }}
+              />
             </div>
-          ) : (
-            displayedBlocks.map((block) => renderBlock(block, []))
-          )}
-        </div>
-
-        <div className="block-editor-debug">
-          <div className="block-editor-debug-title">📝 Markdown Source</div>
-          <div className="block-editor-debug-content">
-            {blocksToMarkdown(blocks)}
           </div>
         </div>
-
-        <div className="block-editor-help">
-          <div className="help-item">
-            <kbd>Enter</kbd> New block
-          </div>
-          <div className="help-item">
-            <kbd>Tab</kbd> Indent
-          </div>
-          <div className="help-item">
-            <kbd>Shift</kbd>+<kbd>Tab</kbd> Outdent
-          </div>
-          <div className="help-item">
-            <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> Move block
-          </div>
-          <div className="help-item">
-            <kbd>Backspace</kbd> Merge/Delete
-          </div>
-        </div>
-      </div>
-    </>
+      )}
+    </div>
   );
 };
+
+export default BlockEditor;

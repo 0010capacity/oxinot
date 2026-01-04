@@ -6,6 +6,8 @@ import {
   destroyEditor,
 } from "../editor/createEditor";
 
+type MaybeTimer = ReturnType<typeof setTimeout> | null;
+
 interface EditorProps {
   value?: string;
   onChange?: (value: string) => void;
@@ -49,6 +51,13 @@ export const Editor: React.FC<EditorProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const isUpdatingRef = useRef(false);
+
+  // IME safety: while composing (Korean/Japanese/Chinese), avoid pushing updates
+  // into React state on every intermediate composition change, because it can
+  // cause re-renders that interfere with the IME pipeline and duplicate input.
+  const isComposingRef = useRef(false);
+  const pendingOnChangeValueRef = useRef<string | null>(null);
+  const flushTimerRef = useRef<MaybeTimer>(null);
 
   // Keep latest callbacks/flags without forcing editor re-creation.
   const latestRef = useRef<{
@@ -102,14 +111,49 @@ export const Editor: React.FC<EditorProps> = ({
       doc: value,
       onChange: (newDoc) => {
         const latest = latestRef.current;
-        if (latest.onChange && !isUpdatingRef.current) {
-          latest.onChange(newDoc);
+
+        if (!latest.onChange || isUpdatingRef.current) return;
+
+        // If the user is composing, buffer the latest value and flush once the
+        // composition has ended (or after a small debounce).
+        if (isComposingRef.current) {
+          pendingOnChangeValueRef.current = newDoc;
+
+          // Debounced flush as a safety net in case compositionend isn't observed
+          // (some environments can miss it when focus changes quickly).
+          if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+          flushTimerRef.current = setTimeout(() => {
+            flushTimerRef.current = null;
+            if (!isComposingRef.current) {
+              const pending = pendingOnChangeValueRef.current;
+              pendingOnChangeValueRef.current = null;
+              if (pending != null) latest.onChange?.(pending);
+            }
+          }, 50);
+
+          return;
         }
+
+        latest.onChange(newDoc);
       },
       onFocus: () => {
         latestRef.current.onFocus?.();
       },
       onBlur: () => {
+        // If we lose focus mid-composition, end composing and flush whatever we have.
+        isComposingRef.current = false;
+
+        if (flushTimerRef.current) {
+          clearTimeout(flushTimerRef.current);
+          flushTimerRef.current = null;
+        }
+
+        const pending = pendingOnChangeValueRef.current;
+        pendingOnChangeValueRef.current = null;
+        if (pending != null) {
+          latestRef.current.onChange?.(pending);
+        }
+
         latestRef.current.onBlur?.();
       },
       readOnly,
@@ -121,8 +165,48 @@ export const Editor: React.FC<EditorProps> = ({
 
     editorViewRef.current = view;
 
+    // Track IME composition state from the editor DOM. We attach directly to the
+    // editor root to avoid needing changes inside CM extensions.
+    const dom = view.dom;
+
+    const onCompositionStart = () => {
+      isComposingRef.current = true;
+    };
+
+    const onCompositionEnd = () => {
+      isComposingRef.current = false;
+
+      // Flush buffered value once the IME commits.
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+
+      const pending = pendingOnChangeValueRef.current;
+      pendingOnChangeValueRef.current = null;
+      if (pending != null) {
+        latestRef.current.onChange?.(pending);
+      }
+    };
+
+    dom.addEventListener("compositionstart", onCompositionStart, {
+      passive: true,
+    });
+    dom.addEventListener("compositionend", onCompositionEnd, { passive: true });
+
     // Cleanup
     return () => {
+      dom.removeEventListener("compositionstart", onCompositionStart);
+      dom.removeEventListener("compositionend", onCompositionEnd);
+
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+
+      pendingOnChangeValueRef.current = null;
+      isComposingRef.current = false;
+
       if (editorViewRef.current) {
         destroyEditor(editorViewRef.current);
         editorViewRef.current = null;
