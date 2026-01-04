@@ -69,31 +69,37 @@ span[class*="heading"],
 }
 
 /* Add subtle divider lines under H1 and H2 for section separation */
-.cm-heading-1,
-.cm-heading-text.cm-heading-1 {
-    border-bottom: 2px solid rgba(127, 127, 127, 0.2) !important;
-    padding-bottom: 0.3em !important;
-    margin-bottom: 0.5em !important;
-    display: block !important;
+.cm-line:has(.cm-heading-1)::after,
+.cm-line:has(.cm-heading-text.cm-heading-1)::after {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 0;
+    border-bottom: 2px solid rgba(127, 127, 127, 0.2);
+    margin-top: 0.3em;
+    margin-bottom: 0.5em;
 }
 
-.cm-heading-2,
-.cm-heading-text.cm-heading-2 {
-    border-bottom: 1px solid rgba(127, 127, 127, 0.15) !important;
-    padding-bottom: 0.25em !important;
-    margin-bottom: 0.4em !important;
-    display: block !important;
+.cm-line:has(.cm-heading-2)::after,
+.cm-line:has(.cm-heading-text.cm-heading-2)::after {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 0;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.15);
+    margin-top: 0.25em;
+    margin-bottom: 0.4em;
 }
 
 /* Dark mode adjustments for heading dividers */
-.cm-editor.cm-focused .cm-heading-1,
-.cm-editor.cm-focused .cm-heading-text.cm-heading-1 {
-    border-bottom-color: rgba(200, 200, 200, 0.25) !important;
+.cm-editor.cm-focused .cm-line:has(.cm-heading-1)::after,
+.cm-editor.cm-focused .cm-line:has(.cm-heading-text.cm-heading-1)::after {
+    border-bottom-color: rgba(200, 200, 200, 0.25);
 }
 
-.cm-editor.cm-focused .cm-heading-2,
-.cm-editor.cm-focused .cm-heading-text.cm-heading-2 {
-    border-bottom-color: rgba(200, 200, 200, 0.2) !important;
+.cm-editor.cm-focused .cm-line:has(.cm-heading-2)::after,
+.cm-editor.cm-focused .cm-line:has(.cm-heading-text.cm-heading-2)::after {
+    border-bottom-color: rgba(200, 200, 200, 0.2);
 }
 
 /* CodeMirror Editor Styles */
@@ -190,8 +196,15 @@ span[class*="heading"],
 
 /* Hidden/Dimmed Syntax Styles */
 .cm-hidden {
-    opacity: 0.3;
-    font-size: 0.85em;
+    display: none !important;
+    opacity: 0 !important;
+    font-size: 0.01em !important;
+}
+
+.cm-dim-marker {
+    opacity: 0.4 !important;
+    font-size: 0.85em !important;
+    color: rgba(127, 127, 127, 0.6) !important;
 }
 
 /* Selection Styles */
