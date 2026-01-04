@@ -147,6 +147,20 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
       return buildBlockTree(flatBlocks);
     }
 
+    case "UPDATE_BLOCK_DATA": {
+      const { blockId, data } = action.payload;
+      const flatBlocks = flattenBlocks(blocks);
+      const blockIndex = flatBlocks.findIndex((b) => b.id === blockId);
+
+      if (blockIndex === -1) return blocks;
+
+      const newBlock = { ...flatBlocks[blockIndex], ...data };
+      const newFlatBlocks = [...flatBlocks];
+      newFlatBlocks[blockIndex] = newBlock;
+
+      return buildBlockTree(newFlatBlocks);
+    }
+
     case "INDENT_BLOCK": {
       const { blockId } = action.payload;
 

@@ -1,16 +1,11 @@
-import { Block } from "./types";
+import { Block, BlockKind } from "./types";
 import { FENCE_MARKERS, CODE_MARKERS } from "./constants";
 
 /**
  * Check if content should trigger fence block conversion
  */
-export function shouldConvertToFence(
-  block: Block,
-  content: string,
-): boolean {
-  return (
-    block.kind !== "fence" && content.trim() === FENCE_MARKERS.DELIMITER
-  );
+export function shouldConvertToFence(block: Block, content: string): boolean {
+  return block.kind !== "fence" && content.trim() === FENCE_MARKERS.DELIMITER;
 }
 
 /**
@@ -19,6 +14,13 @@ export function shouldConvertToFence(
 export function shouldConvertToCode(block: Block, content: string): boolean {
   if (block.kind === "code") return false;
   return content.trim().startsWith(CODE_MARKERS.FENCE);
+}
+
+/**
+ * Check if content should trigger table block conversion
+ */
+export function shouldConvertToTable(block: Block, content: string): boolean {
+  return block.kind !== "table" && content.trim() === "| |";
 }
 
 /**
@@ -35,7 +37,7 @@ export function extractCodeLanguage(content: string): string | null {
  */
 export interface ConversionResult {
   shouldConvert: boolean;
-  kind?: "fence" | "code";
+  kind?: BlockKind;
   language?: string;
 }
 
@@ -65,6 +67,14 @@ export function checkBlockConversion(
         language,
       };
     }
+  }
+
+  // Check for table conversion
+  if (shouldConvertToTable(block, content)) {
+    return {
+      shouldConvert: true,
+      kind: "table",
+    };
   }
 
   return null;

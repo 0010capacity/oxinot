@@ -3,6 +3,8 @@ import { Block } from "./types";
 import { hasChildren } from "./blockUtils";
 import { Editor } from "../components/Editor";
 import { KeyBinding } from "@codemirror/view";
+import { TableBlockComponent } from "./TableBlockComponent";
+import "./TableBlock.css";
 
 // Grouped props for better organization
 export interface BlockComponentProps {
@@ -14,6 +16,12 @@ export interface BlockComponentProps {
   };
   handlers: {
     onContentChange: (blockId: string, content: string) => void;
+    onTableCellChange: (
+      blockId: string,
+      rowIndex: number,
+      colIndex: number,
+      value: string,
+    ) => void;
     onFocusBlock: (blockId: string) => void;
     onToggleCollapse: (blockId: string) => void;
     onSetFocusRoot: (blockId: string) => void;
@@ -32,15 +40,47 @@ export interface BlockComponentProps {
 export const BlockComponent = memo<BlockComponentProps>(
   ({ block, state, handlers, config, children }) => {
     const { isFocused, isOnActivePath, effectiveLevel } = state;
-    const { onContentChange, onFocusBlock, onToggleCollapse, onSetFocusRoot } =
-      handlers;
+    const {
+      onContentChange,
+      onTableCellChange,
+      onFocusBlock,
+      onToggleCollapse,
+      onSetFocusRoot,
+    } = handlers;
     const { theme, keybindings } = config;
     const isCollapsed = block.collapsed;
     const hasChildBlocks = hasChildren(block);
 
+    const editorContent =
+      block.kind === "table" ? (
+        <TableBlockComponent
+          block={block}
+          onCellChange={(rowIndex, colIndex, value) =>
+            onTableCellChange(block.id, rowIndex, colIndex, value)
+          }
+        />
+      ) : (
+        <Editor
+          value={block.content}
+          onChange={(newContent) => onContentChange(block.id, newContent)}
+          onFocus={() => onFocusBlock(block.id)}
+          theme={theme}
+          lineNumbers={false}
+          lineWrapping={true}
+          keybindings={keybindings}
+          className="block-editor"
+          style={{
+            minHeight: "32px",
+            fontSize: block.kind === "code" ? "14px" : "16px",
+          }}
+        />
+      );
+
     return (
       <div
-        className={`block-container ${hasChildBlocks ? "has-children" : ""} ${children ? "focus-within" : ""} ${isOnActivePath ? "on-active-path" : ""}`}
+        className={`block-container ${hasChildBlocks ? "has-children" : ""} ${
+          children ? "focus-within" : ""
+        } ${isOnActivePath ? "on-active-path" : ""}`}
         data-block-id={block.id}
       >
         <div
@@ -82,7 +122,9 @@ export const BlockComponent = memo<BlockComponentProps>(
                 ? "fence"
                 : block.kind === "code"
                   ? "code"
-                  : ""
+                  : block.kind === "table"
+                    ? "table"
+                    : ""
             }`}
             onClick={() => onSetFocusRoot(block.id)}
             title={
@@ -90,7 +132,9 @@ export const BlockComponent = memo<BlockComponentProps>(
                 ? "Fence block"
                 : block.kind === "code"
                   ? `Code block${block.language ? ` (${block.language})` : ""}`
-                  : undefined
+                  : block.kind === "table"
+                    ? "Table block"
+                    : undefined
             }
           >
             <div
@@ -99,7 +143,9 @@ export const BlockComponent = memo<BlockComponentProps>(
                   ? "fence"
                   : block.kind === "code"
                     ? "code"
-                    : ""
+                    : block.kind === "table"
+                      ? "table"
+                      : ""
               }`}
             />
           </div>
@@ -110,23 +156,12 @@ export const BlockComponent = memo<BlockComponentProps>(
                 ? "code-block-editor"
                 : block.kind === "fence"
                   ? "fence-block-editor"
-                  : ""
+                  : block.kind === "table"
+                    ? "table-block-editor"
+                    : ""
             }`}
           >
-            <Editor
-              value={block.content}
-              onChange={(newContent) => onContentChange(block.id, newContent)}
-              onFocus={() => onFocusBlock(block.id)}
-              theme={theme}
-              lineNumbers={false}
-              lineWrapping={true}
-              keybindings={keybindings}
-              className="block-editor"
-              style={{
-                minHeight: "32px",
-                fontSize: block.kind === "code" ? "14px" : "16px",
-              }}
-            />
+            {editorContent}
           </div>
         </div>
 
@@ -143,6 +178,11 @@ export const BlockComponent = memo<BlockComponentProps>(
     // Don't re-render just because siblings changed
     if (prevProps.block.id !== nextProps.block.id) return false;
     if (prevProps.block.content !== nextProps.block.content) return false;
+    if (
+      JSON.stringify(prevProps.block.tableData) !==
+      JSON.stringify(nextProps.block.tableData)
+    )
+      return false;
     if (prevProps.state.isFocused !== nextProps.state.isFocused) return false;
     if (prevProps.config.theme !== nextProps.config.theme) return false;
 
