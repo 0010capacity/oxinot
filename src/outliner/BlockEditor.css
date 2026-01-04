@@ -189,14 +189,6 @@
     width: -moz-fit-content;
 }
 
-/* Active path: subtle row tint (keep it very light to avoid "highlight" feeling) */
-.block-container.on-active-path > .block-line {
-    background-color: var(--active-path-bg-light);
-}
-.block-editor.dark .block-container.on-active-path > .block-line {
-    background-color: var(--active-path-bg-dark);
-}
-
 /* Hover highlight removed (not needed) */
 
 /* Removed empty ruleset: `.block-line.focused` */
