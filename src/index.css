@@ -53,8 +53,6 @@ h6 *,
 div[class*="heading"],
 span[class*="heading"],
 .cm-heading-text,
-.cm-heading-1,
-.cm-heading-2,
 .cm-heading-3,
 .cm-heading-4,
 .cm-heading-5,
@@ -68,6 +66,34 @@ span[class*="heading"],
     text-decoration-color: transparent !important;
     border-bottom-width: 0 !important;
     border-bottom-style: none !important;
+}
+
+/* Add subtle divider lines under H1 and H2 for section separation */
+.cm-heading-1,
+.cm-heading-text.cm-heading-1 {
+    border-bottom: 2px solid rgba(127, 127, 127, 0.2) !important;
+    padding-bottom: 0.3em !important;
+    margin-bottom: 0.5em !important;
+    display: block !important;
+}
+
+.cm-heading-2,
+.cm-heading-text.cm-heading-2 {
+    border-bottom: 1px solid rgba(127, 127, 127, 0.15) !important;
+    padding-bottom: 0.25em !important;
+    margin-bottom: 0.4em !important;
+    display: block !important;
+}
+
+/* Dark mode adjustments for heading dividers */
+.cm-editor.cm-focused .cm-heading-1,
+.cm-editor.cm-focused .cm-heading-text.cm-heading-1 {
+    border-bottom-color: rgba(200, 200, 200, 0.25) !important;
+}
+
+.cm-editor.cm-focused .cm-heading-2,
+.cm-editor.cm-focused .cm-heading-text.cm-heading-2 {
+    border-bottom-color: rgba(200, 200, 200, 0.2) !important;
 }
 
 /* CodeMirror Editor Styles */
