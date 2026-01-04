@@ -45,17 +45,15 @@ export class HeadingHandler extends BaseHandler {
     const isOnCursor = this.isOnCursorLine(node, context);
 
     // Hide/dim the hash marks
-    decorations.push(
-      createHiddenMarker(line.from, hashEnd, isOnCursor)
-    );
+    decorations.push(createHiddenMarker(line.from, hashEnd, isOnCursor));
 
     // Style the heading text (if there is any)
     if (hashEnd < line.to) {
       decorations.push(
         createStyledText(hashEnd, line.to, {
           className: `cm-heading-text cm-heading-${level}`,
-          style: getHeadingStyle(level),
-        })
+          style: `${getHeadingStyle(level)}; text-decoration: none !important; border-bottom: none !important;`,
+        }),
       );
     }
 

@@ -15,6 +15,26 @@ body {
     height: 100%;
 }
 
+/* Remove all heading underlines and borders globally */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+[class*="heading"],
+[class*="Heading"],
+.cm-line h1,
+.cm-line h2,
+.cm-line h3,
+.cm-line h4,
+.cm-line h5,
+.cm-line h6 {
+    text-decoration: none !important;
+    border-bottom: none !important;
+    border-top: none !important;
+}
+
 /* CodeMirror Editor Styles */
 .cm-editor {
     height: 100%;

@@ -24,6 +24,7 @@ import { syntaxTree } from "@codemirror/language";
 
 // Import standard markdown handlers
 import { HeadingHandler } from "./handlers/HeadingHandler";
+import { SetextHeadingHandler } from "./handlers/SetextHeadingHandler";
 import { EmphasisHandler } from "./handlers/EmphasisHandler";
 import { StrongHandler } from "./handlers/StrongHandler";
 import { InlineCodeHandler } from "./handlers/InlineCodeHandler";
@@ -59,7 +60,8 @@ function createHandlerRegistry(): HandlerRegistry {
   // Order matters - handlers are checked in registration order
   registry.registerAll([
     new TaskListHandler(), // Check task lists before generic list items
-    new HeadingHandler(), // Headings
+    new HeadingHandler(), // ATX Headings (# ## ###)
+    new SetextHeadingHandler(), // Setext Headings (underlined with === or ---)
     new StrongHandler(), // Bold (before emphasis to catch ** before *)
     new EmphasisHandler(), // Italic
     new InlineCodeHandler(), // Inline code
@@ -539,6 +541,45 @@ export const hybridRenderingTheme = EditorView.theme({
   // Heading general styling
   ".cm-heading": {
     display: "block",
+    textDecoration: "none !important",
+    borderBottom: "none !important",
+  },
+
+  // Heading text specific styling
+  ".cm-heading-text": {
+    textDecoration: "none !important",
+    borderBottom: "none !important",
+  },
+
+  // Individual heading levels
+  ".cm-heading-1": {
+    textDecoration: "none !important",
+    borderBottom: "none !important",
+  },
+
+  ".cm-heading-2": {
+    textDecoration: "none !important",
+    borderBottom: "none !important",
+  },
+
+  ".cm-heading-3": {
+    textDecoration: "none !important",
+    borderBottom: "none !important",
+  },
+
+  ".cm-heading-4": {
+    textDecoration: "none !important",
+    borderBottom: "none !important",
+  },
+
+  ".cm-heading-5": {
+    textDecoration: "none !important",
+    borderBottom: "none !important",
+  },
+
+  ".cm-heading-6": {
+    textDecoration: "none !important",
+    borderBottom: "none !important",
   },
 
   // Code block styling
