@@ -16,12 +16,12 @@ export const HEADING_SIZES = [2.2, 2.0, 1.8, 1.6, 1.4, 1.2];
  * Heading font weights by level
  */
 export const HEADING_WEIGHTS = {
-  1: 'bold',
-  2: 'bold',
-  3: '600',
-  4: '600',
-  5: '600',
-  6: '600',
+  1: "bold",
+  2: "bold",
+  3: "600",
+  4: "600",
+  5: "600",
+  6: "600",
 } as const;
 
 /**
@@ -29,16 +29,16 @@ export const HEADING_WEIGHTS = {
  */
 export const MARKER_STYLES = {
   /** Completely hidden (when cursor is not on line) */
-  hidden: 'display: none;',
+  hidden: "display: none;",
 
   /** Dimmed and smaller (when cursor is on line) */
-  dimmed: 'opacity: 0.4; font-size: 0.85em;',
+  dimmed: "opacity: 0.4; font-size: 0.85em;",
 
   /** Slightly visible */
-  subtle: 'opacity: 0.5;',
+  subtle: "opacity: 0.5;",
 
   /** Very subtle (for delimiters) */
-  verySubtle: 'opacity: 0.3;',
+  verySubtle: "opacity: 0.3;",
 } as const;
 
 /**
@@ -46,52 +46,52 @@ export const MARKER_STYLES = {
  */
 export const CODE_STYLES = {
   fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
-  fontSize: '0.9em',
-  backgroundColor: 'rgba(127, 127, 127, 0.1)',
-  padding: '0.2em 0.4em',
-  borderRadius: '3px',
-  lineHeight: '1.5',
+  fontSize: "0.9em",
+  backgroundColor: "rgba(127, 127, 127, 0.1)",
+  padding: "0.2em 0.4em",
+  borderRadius: "3px",
+  lineHeight: "1.5",
 } as const;
 
 /**
  * Blockquote styles
  */
 export const BLOCKQUOTE_STYLES = {
-  borderLeft: '3px solid rgba(127, 127, 127, 0.3)',
-  paddingLeft: '12px',
-  marginLeft: '4px',
-  color: 'rgba(127, 127, 127, 0.8)',
-  fontStyle: 'italic',
+  borderLeft: "3px solid rgba(127, 127, 127, 0.3)",
+  paddingLeft: "12px",
+  marginLeft: "4px",
+  color: "rgba(127, 127, 127, 0.8)",
+  fontStyle: "italic",
 } as const;
 
 /**
  * Link styles
  */
 export const LINK_STYLES = {
-  color: '#0969da',
-  textDecoration: 'underline',
-  cursor: 'pointer',
-  hoverOpacity: '0.8',
+  color: "#0969da",
+  textDecoration: "underline",
+  cursor: "pointer",
+  hoverOpacity: "0.8",
 } as const;
 
 /**
  * Table styles
  */
 export const TABLE_STYLES = {
-  cellPadding: '8px 12px',
-  headerFontWeight: '600',
-  headerBackground: 'rgba(127, 127, 127, 0.1)',
-  border: '1px solid rgba(127, 127, 127, 0.2)',
-  borderRadius: '4px',
-  margin: '16px 0',
+  cellPadding: "8px 12px",
+  headerFontWeight: "600",
+  headerBackground: "rgba(127, 127, 127, 0.1)",
+  border: "1px solid rgba(127, 127, 127, 0.2)",
+  borderRadius: "4px",
+  margin: "16px 0",
 } as const;
 
 /**
  * Strikethrough styles
  */
 export const STRIKETHROUGH_STYLES = {
-  textDecoration: 'line-through',
-  opacity: '0.7',
+  textDecoration: "line-through",
+  opacity: "0.7",
 } as const;
 
 /**
@@ -99,16 +99,16 @@ export const STRIKETHROUGH_STYLES = {
  */
 export const FOOTNOTE_STYLES = {
   reference: {
-    color: '#0969da',
-    fontSize: '0.85em',
-    verticalAlign: 'super',
-    cursor: 'pointer',
+    color: "#0969da",
+    fontSize: "0.85em",
+    verticalAlign: "super",
+    cursor: "pointer",
   },
   definition: {
-    color: 'rgba(127, 127, 127, 0.8)',
-    fontSize: '0.9em',
-    fontStyle: 'italic',
-    opacity: '0.8',
+    color: "rgba(127, 127, 127, 0.8)",
+    fontSize: "0.9em",
+    fontStyle: "italic",
+    opacity: "0.8",
   },
 } as const;
 
@@ -116,9 +116,9 @@ export const FOOTNOTE_STYLES = {
  * Task list checkbox styles
  */
 export const CHECKBOX_STYLES = {
-  accentColor: '#0969da',
-  marginRight: '8px',
-  cursor: 'pointer',
+  accentColor: "#0969da",
+  marginRight: "8px",
+  cursor: "pointer",
 } as const;
 
 /**
@@ -136,7 +136,7 @@ export function getHeadingSize(level: number): number {
  */
 export function getHeadingWeight(level: number): string {
   if (level < 1 || level > 6) {
-    return 'normal';
+    return "normal";
   }
   return HEADING_WEIGHTS[level as keyof typeof HEADING_WEIGHTS];
 }
@@ -151,6 +151,8 @@ export function getHeadingStyle(level: number): string {
     font-weight: ${weight};
     font-size: ${size}em;
     line-height: 1.3;
+    text-decoration: none;
+    border-bottom: none;
   `.trim();
 }
 

@@ -1,105 +1,126 @@
 /* Global Styles */
 * {
-  box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 html,
 body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  overflow: hidden;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
 }
 
 #root {
-  height: 100%;
+    height: 100%;
 }
 
 /* CodeMirror Editor Styles */
 .cm-editor {
-  height: 100%;
+    height: 100%;
 }
 
 .cm-scroller {
-  overflow: auto;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    overflow: auto;
+    font-family:
+        "Inter",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Oxygen,
+        Ubuntu,
+        Cantarell,
+        sans-serif;
 }
 
 /* Task Checkbox Styles */
 .cm-task-checkbox {
-  margin-right: 0.5em;
-  cursor: pointer;
-  vertical-align: middle;
+    margin-right: 0.5em;
+    cursor: pointer;
+    vertical-align: middle;
 }
 
 /* Heading Styles */
 .cm-heading-text {
-  display: inline-block;
+    display: inline-block;
+    text-decoration: none !important;
+    border-bottom: none !important;
+}
+
+.cm-heading-1,
+.cm-heading-2,
+.cm-heading-3,
+.cm-heading-4,
+.cm-heading-5,
+.cm-heading-6 {
+    text-decoration: none !important;
+    border-bottom: none !important;
 }
 
 /* Code Block Styles */
 .cm-code-block {
-  margin: 0.5em 0;
-  border-radius: 4px;
-  overflow: hidden;
+    margin: 0.5em 0;
+    border-radius: 4px;
+    overflow: hidden;
 }
 
 .cm-code-block-language {
-  background: rgba(128, 128, 128, 0.2);
-  padding: 0.25em 0.5em;
-  font-size: 0.85em;
-  font-family: monospace;
-  color: #888;
+    background: rgba(128, 128, 128, 0.2);
+    padding: 0.25em 0.5em;
+    font-size: 0.85em;
+    font-family: monospace;
+    color: #888;
 }
 
 /* Inline Code Styles */
 .cm-inline-code {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace;
-  background: rgba(128, 128, 128, 0.15);
-  padding: 0.1em 0.3em;
-  border-radius: 3px;
-  font-size: 0.9em;
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", "Courier New", monospace;
+    background: rgba(128, 128, 128, 0.15);
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.9em;
 }
 
 /* Link Styles */
 .cm-link-text {
-  color: #4dabf7;
-  text-decoration: underline;
-  cursor: pointer;
+    color: #4dabf7;
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 .cm-link-text:hover {
-  color: #339af0;
+    color: #339af0;
 }
 
 /* Blockquote Styles */
 .cm-blockquote {
-  border-left: 3px solid #ccc;
-  padding-left: 1em;
-  margin-left: 0;
-  color: #666;
-  font-style: italic;
+    border-left: 3px solid #ccc;
+    padding-left: 1em;
+    margin-left: 0;
+    color: #666;
+    font-style: italic;
 }
 
 /* Hidden/Dimmed Syntax Styles */
 .cm-hidden {
-  opacity: 0.3;
-  font-size: 0.85em;
+    opacity: 0.3;
+    font-size: 0.85em;
 }
 
 /* Selection Styles */
 ::selection {
-  background: #b3d4fc;
+    background: #b3d4fc;
 }
 
 /* Smooth Transitions */
 .cm-line {
-  transition: padding 0.1s ease;
+    transition: padding 0.1s ease;
 }
 
 /* Print Styles */
 @media print {
-  .cm-gutters {
-    display: none;
-  }
+    .cm-gutters {
+        display: none;
+    }
 }
