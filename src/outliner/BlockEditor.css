@@ -255,6 +255,56 @@
     height: auto !important;
 }
 
+/* Hide markdown markers in unfocused blocks (when CM editor loses focus) */
+.block-editor-wrap .cm-editor:not(.cm-focused) .cm-hidden {
+    display: none !important;
+}
+
+.block-editor-wrap .cm-editor:not(.cm-focused) .cm-hidden-marker {
+    opacity: 0 !important;
+    font-size: 0.01em !important;
+}
+
+.block-editor-wrap .cm-editor:not(.cm-focused) .cm-dim-marker {
+    opacity: 0 !important;
+    font-size: 0.01em !important;
+}
+
+/* Show markdown rendering styles in unfocused blocks */
+.block-editor-wrap .cm-editor:not(.cm-focused) .cm-strong {
+    font-weight: bold !important;
+}
+
+.block-editor-wrap .cm-editor:not(.cm-focused) .cm-emphasis {
+    font-style: italic !important;
+}
+
+.block-editor-wrap .cm-editor:not(.cm-focused) .cm-inline-code {
+    font-family: "SF Mono", "Monaco", "Menlo", "Consolas", monospace !important;
+    background-color: rgba(127, 127, 127, 0.1) !important;
+    padding: 0.2em 0.4em !important;
+    border-radius: 3px !important;
+    font-size: 0.9em !important;
+}
+
+.block-editor-wrap .cm-editor:not(.cm-focused) .cm-link-text {
+    color: #0969da !important;
+    text-decoration: underline !important;
+}
+
+.theme-dark .block-editor-wrap .cm-editor:not(.cm-focused) .cm-link-text {
+    color: #58a6ff !important;
+}
+
+/* Ensure heading markers are hidden in unfocused blocks */
+.block-editor-wrap .cm-editor:not(.cm-focused) .cm-heading .cm-hidden-marker {
+    display: none !important;
+}
+
+.block-editor-wrap .cm-editor:not(.cm-focused) .cm-heading .cm-dim-marker {
+    display: none !important;
+}
+
 /* Code block specific styling */
 .code-block-editor .cm-editor {
     background: rgba(128, 128, 128, 0.08) !important;

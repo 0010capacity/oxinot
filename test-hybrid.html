@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hybrid Rendering Test</title>
+  <style>
+    body { 
+      font-family: sans-serif; 
+      padding: 20px;
+      background: #1a1a1a;
+      color: #e0e0e0;
+    }
+    .test-block {
+      margin: 20px 0;
+      padding: 10px;
+      background: #2a2a2a;
+      border-radius: 4px;
+    }
+    h3 { color: #4CAF50; }
+  </style>
+</head>
+<body>
+  <h1>CodeMirror 6 Hybrid Rendering Test</h1>
+  
+  <div class="test-block">
+    <h3>Test 1: Single-line editor (like outliner blocks)</h3>
+    <div id="editor1"></div>
+  </div>
+
+  <div class="test-block">
+    <h3>Test 2: Multi-line editor</h3>
+    <div id="editor2"></div>
+  </div>
+
+  <script type="module">
+    import { EditorView, basicSetup } from 'https://esm.sh/codemirror@6.0.1';
+    import { markdown } from 'https://esm.sh/@codemirror/lang-markdown@6.2.4';
+
+    // Test 1: Single line
+    new EditorView({
+      doc: 'This is **bold** and *italic* text',
+      extensions: [basicSetup, markdown()],
+      parent: document.getElementById('editor1')
+    });
+
+    // Test 2: Multi-line
+    new EditorView({
+      doc: `# Heading
+This is **bold** and *italic* text
+\`inline code\` and [link](url)`,
+      extensions: [basicSetup, markdown()],
+      parent: document.getElementById('editor2')
+    });
+  </script>
+</body>
+</html>
