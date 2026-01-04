@@ -15,24 +15,59 @@ body {
     height: 100%;
 }
 
-/* Remove all heading underlines and borders globally */
+/* NUCLEAR OPTION: Remove ALL heading underlines with maximum specificity */
 h1,
 h2,
 h3,
 h4,
 h5,
 h6,
+h1 *,
+h2 *,
+h3 *,
+h4 *,
+h5 *,
+h6 *,
 [class*="heading"],
 [class*="Heading"],
+[class*="heading"] *,
+[class*="Heading"] *,
 .cm-line h1,
 .cm-line h2,
 .cm-line h3,
 .cm-line h4,
 .cm-line h5,
-.cm-line h6 {
+.cm-line h6,
+.cm-line h1 *,
+.cm-line h2 *,
+.cm-line h3 *,
+.cm-line h4 *,
+.cm-line h5 *,
+.cm-line h6 *,
+.cm-content h1,
+.cm-content h2,
+.cm-content h3,
+.cm-content h4,
+.cm-content h5,
+.cm-content h6,
+div[class*="heading"],
+span[class*="heading"],
+.cm-heading-text,
+.cm-heading-1,
+.cm-heading-2,
+.cm-heading-3,
+.cm-heading-4,
+.cm-heading-5,
+.cm-heading-6,
+.mantine-Title-root {
     text-decoration: none !important;
     border-bottom: none !important;
     border-top: none !important;
+    text-decoration-line: none !important;
+    text-decoration-style: none !important;
+    text-decoration-color: transparent !important;
+    border-bottom-width: 0 !important;
+    border-bottom-style: none !important;
 }
 
 /* CodeMirror Editor Styles */
@@ -61,21 +96,26 @@ h6,
     vertical-align: middle;
 }
 
-/* Heading Styles */
-.cm-heading-text {
+/* Heading Styles - Additional enforcement */
+.cm-heading-text,
+.cm-heading-text *,
+.cm-heading-1,
+.cm-heading-1 *,
+.cm-heading-2,
+.cm-heading-2 *,
+.cm-heading-3,
+.cm-heading-3 *,
+.cm-heading-4,
+.cm-heading-4 *,
+.cm-heading-5,
+.cm-heading-5 *,
+.cm-heading-6,
+.cm-heading-6 * {
     display: inline-block;
     text-decoration: none !important;
     border-bottom: none !important;
-}
-
-.cm-heading-1,
-.cm-heading-2,
-.cm-heading-3,
-.cm-heading-4,
-.cm-heading-5,
-.cm-heading-6 {
-    text-decoration: none !important;
-    border-bottom: none !important;
+    text-decoration-line: none !important;
+    border-bottom-width: 0 !important;
 }
 
 /* Code Block Styles */
