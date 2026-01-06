@@ -285,6 +285,11 @@ pub fn run() {
             commands::block::indent_block,
             commands::block::outdent_block,
             commands::block::toggle_collapse,
+            // Page commands
+            commands::page::get_pages,
+            commands::page::create_page,
+            commands::page::update_page,
+            commands::page::delete_page,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
