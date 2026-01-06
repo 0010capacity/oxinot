@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 
+mod commands;
 mod db;
 mod models;
 mod utils;
@@ -246,12 +247,15 @@ pub fn run() {
             })?;
 
             let db_path = db::get_db_path(app_data_dir);
-            let _db = db::DbConnection::new(db_path).map_err(|e| {
+            let db = db::DbConnection::new(db_path).map_err(|e| {
                 tauri::Error::Io(std::io::Error::new(
                     std::io::ErrorKind::Other,
                     format!("Failed to initialize database: {}", e),
                 ))
             })?;
+
+            // Register database connection as Tauri state
+            app.manage(db.get());
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -272,6 +276,15 @@ pub fn run() {
             delete_path,
             rename_path,
             get_path_info,
+            // Block commands
+            commands::block::get_page_blocks,
+            commands::block::create_block,
+            commands::block::update_block,
+            commands::block::delete_block,
+            commands::block::move_block,
+            commands::block::indent_block,
+            commands::block::outdent_block,
+            commands::block::toggle_collapse,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
