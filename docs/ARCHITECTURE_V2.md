@@ -1894,7 +1894,7 @@ src/
 
 #### 작업 목록
 
-1. **Cargo.toml 의존성 추가**
+1. **Cargo.toml 의존성 추가** ✅
    ```toml
    [dependencies]
    rusqlite = { version = "0.31", features = ["bundled"] }
@@ -1902,20 +1902,22 @@ src/
    chrono = { version = "0.4", features = ["serde"] }
    ```
 
-2. **DB 모듈 생성**
-   - `src-tauri/src/db/mod.rs`
-   - `src-tauri/src/db/connection.rs`: 연결 풀 초기화
-   - `src-tauri/src/db/schema.rs`: CREATE TABLE SQL
+2. **DB 모듈 생성** ✅
+   - `src-tauri/src/db/mod.rs` ✅
+   - `src-tauri/src/db/connection.rs`: 연결 풀 초기화 ✅
+   - `src-tauri/src/db/schema.rs`: CREATE TABLE SQL ✅
 
-3. **앱 시작 시 DB 초기화**
-   - `lib.rs`의 `setup` 훅에서 DB 연결
-   - 테이블 없으면 생성
+3. **앱 시작 시 DB 초기화** ✅
+   - `lib.rs`의 `setup` 훅에서 DB 연결 ✅
+   - 테이블 없으면 생성 ✅
 
-4. **테스트**
+4. **테스트** 🔄 (Pending)
    - 앱 시작 시 `data/outliner.db` 파일 생성 확인
    - 테이블 구조 확인
 
 #### 예상 소요 시간: 2-3시간
+
+**진행상황**: DB 모듈 구축 완료, 스키마 초기화 구현됨 (2025-01-17)
 
 ---
 
