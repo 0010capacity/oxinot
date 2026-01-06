@@ -1921,37 +1921,40 @@ src/
 
 ---
 
-### 11.2 Phase 2: Block CRUD 명령어
+### 11.2 Phase 2: Block CRUD 명령어 ✅
 
 **목표**: 블록 생성/읽기/수정/삭제 Tauri 명령어 구현
 
 #### 작업 목록
 
-1. **모델 정의**
-   - `src-tauri/src/models/block.rs`
-   - `src-tauri/src/models/page.rs`
+1. **모델 정의** ✅
+   - `src-tauri/src/models/block.rs` ✅
+   - `src-tauri/src/models/page.rs` ✅
 
-2. **Fractional Indexing 유틸**
-   - `src-tauri/src/utils/fractional_index.rs`
+2. **Fractional Indexing 유틸** ✅
+   - `src-tauri/src/utils/fractional_index.rs` ✅
 
-3. **Block 명령어 구현**
-   - `get_page_blocks`: 페이지의 모든 블록 조회
-   - `create_block`: 새 블록 생성
-   - `update_block`: 블록 내용 수정
-   - `delete_block`: 블록 삭제 (자손 포함)
+3. **Block 명령어 구현** ✅
+   - `get_page_blocks`: 페이지의 모든 블록 조회 ✅
+   - `create_block`: 새 블록 생성 ✅
+   - `update_block`: 블록 내용 수정 ✅
+   - `delete_block`: 블록 삭제 (자손 포함) ✅
 
-4. **Page 명령어 구현**
-   - `get_pages`: 페이지 목록
-   - `create_page`: 새 페이지
-   - `delete_page`: 페이지 삭제
+4. **Page 명령어 구현** ✅
+   - `get_pages`: 페이지 목록 ✅
+   - `create_page`: 새 페이지 ✅
+   - `update_page`: 페이지 수정 ✅
+   - `delete_page`: 페이지 삭제 ✅
 
-5. **lib.rs에 명령어 등록**
+5. **lib.rs에 명령어 등록** ✅
 
-6. **테스트**
+6. **테스트** 🔄 (Pending)
    - 프론트에서 `invoke` 호출 테스트
    - DB에 데이터 저장 확인
 
 #### 예상 소요 시간: 4-6시간
+
+**진행상황**: Block/Page CRUD 명령어 모두 구현 완료 (2025-01-17)
 
 ---
 
