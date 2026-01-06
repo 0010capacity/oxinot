@@ -3,6 +3,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 
+mod db;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileSystemItem {
     name: String,
@@ -23,7 +25,7 @@ pub struct PathInfo {
 
 #[tauri::command]
 async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+    use tauri_plugin_dialog::DialogExt;
 
     let folder = app
         .dialog()
@@ -32,7 +34,7 @@ async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, Strin
         .blocking_pick_folder();
 
     if let Some(folder_path) = folder {
-        let path_str = folder_path.to_string_lossy().to_string();
+        let path_str = folder_path.to_string();
 
         // Check if workspace is empty and create Welcome.md if needed
         match fs::read_dir(&path_str) {
@@ -233,6 +235,22 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
+            // Initialize database
+            let app_data_dir = app.path().app_data_dir().map_err(|e| {
+                tauri::Error::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Failed to get app data directory: {}", e),
+                ))
+            })?;
+
+            let db_path = db::get_db_path(app_data_dir);
+            let _db = db::DbConnection::new(db_path).map_err(|e| {
+                tauri::Error::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Failed to initialize database: {}", e),
+                ))
+            })?;
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
