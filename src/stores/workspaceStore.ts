@@ -192,6 +192,3 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set({ error: null });
   },
 }));
-```
-
-Now let me update the App.tsx to use the Zustand store instead of Context:
