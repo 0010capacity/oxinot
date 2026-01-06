@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use tauri::Manager;
 
 mod db;
+mod models;
+mod utils;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileSystemItem {
