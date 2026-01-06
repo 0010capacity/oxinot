@@ -1,177 +1,183 @@
-# Markdown Editor - Hybrid Rendering
+# MD Outliner
 
-A modern, web-based Markdown note editor with **hybrid rendering** capabilities, inspired by Obsidian and Logseq. Built with React, TypeScript, CodeMirror 6, and Mantine.
+A modern markdown outliner application built with Tauri, React, and TypeScript. This app combines the power of block-based outliner editing (like Logseq) with a unique file tree navigation system.
 
-## Features
+## 🌟 Features
 
-### 🎨 Hybrid Rendering (Live Preview)
-- Edit Markdown source text directly while seeing rendered elements inline
-- No separate preview pane needed
-- Seamless editing experience where rendered elements are directly editable
+### Unique File Tree Integration
+- **No separate file explorer sidebar** - Navigate your workspace directly in the main outliner view
+- **Folder notes** - Every folder automatically gets its own markdown note
+- **Unified interface** - Switch seamlessly between file tree view and document editing with the same outliner layout
 
-### ✨ Supported Markdown Elements
+### Powerful Outliner Editor
+- **Block-based editing** - Logseq-style outliner with infinite nesting
+- **Live markdown rendering** - See formatted text as you type
+- **Full markdown support** - Headings, code blocks, lists, links, and more
+- **Keyboard-first workflow** - Tab/Shift+Tab for indenting, Enter for new blocks
 
-#### Block Elements
-- **Headings** (H1-H6) - Rendered with proper typography, syntax dimmed
-- **Code Blocks** - Syntax highlighting with language labels
-- **Blockquotes** - Styled with left border and italic text
-- **Task Lists** - Interactive checkboxes that toggle on click
-- **Lists** - Bullet and numbered lists with proper indentation
+### Local-First & Fast
+- **Built with Tauri** - Lightweight desktop app powered by Rust
+- **Direct file system access** - Work with real `.md` files on your computer
+- **Auto-save** - Changes are automatically saved to disk
+- **No database** - Just plain markdown files you own
 
-#### Inline Elements
-- **Emphasis** (*italic*) - Rendered italic with hidden markers
-- **Strong** (**bold**) - Rendered bold with hidden markers
-- **Inline Code** - Monospace with background highlighting
-- **Links** - Underlined and colored, syntax hidden
-- **Images** - Support for markdown image syntax
+## 🚀 Getting Started
 
-### 🎯 Key Design Principles
-
-1. **Single Source of Truth**: Plain Markdown text is the canonical format
-2. **No Feedback Loops**: Clean separation between React state and CodeMirror
-3. **Performance**: Viewport-based rendering, only visible elements processed
-4. **Progressive Enhancement**: Start with basic styling, add widgets incrementally
-
-## Technology Stack
-
-- **React 18** - UI framework
-- **TypeScript** - Type safety
-- **CodeMirror 6** - Powerful text editor
-- **Mantine** - Component library and theming
-- **Vite** - Fast build tool
-- **Lezer** - Incremental parsing for syntax trees
-
-## Getting Started
+### Prerequisites
+- Node.js 18+ 
+- Rust (for Tauri)
+- npm or yarn
 
 ### Installation
 
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd md-editor
+```
+
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-### Development
-
+3. Run in development mode:
 ```bash
-npm run dev
+npm run tauri:dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the editor.
-
-### Build
-
+4. Build for production:
 ```bash
-npm run build
+npm run tauri:build
 ```
 
-### Preview Production Build
+## 📖 How It Works
 
-```bash
-npm run preview
+### Workspace Selection
+When you first launch the app, you'll be prompted to select a workspace folder. This folder will contain all your markdown documents.
+
+If the folder is empty, a `Welcome.md` file is automatically created to help you get started.
+
+### File Tree View
+The main view shows your workspace as an outliner structure:
+- **Folders** appear as collapsible nodes with folder icons
+- **Markdown files** appear as bullet points (without `.md` extension)
+- Click any file to open it in the editor
+- Click folders to expand/collapse their contents
+
+### Document Editing
+When you open a file:
+- Switch to editor mode with the "📄 Editor" button
+- Edit using the block-based outliner interface
+- Changes are auto-saved after 1 second of inactivity
+- Return to file tree view with the "📁 Tree" button
+
+### Folder Notes
+Every folder automatically has a folder note (e.g., `MyFolder/MyFolder.md`). This lets you:
+- Add descriptions and metadata to folders
+- Organize your thoughts about a collection of documents
+- Use folders as first-class outline nodes
+
+## 🎨 UI Design
+
+The interface is inspired by modern note-taking apps with a clean, minimal design:
+- **Dark mode by default** (light mode available)
+- **Material Symbols icons** for a consistent look
+- **Inter font** for excellent readability
+- **Hover interactions** - Controls appear when you need them
+- **No clutter** - Focus on your content
+
+## 🛠️ Technology Stack
+
+### Frontend
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Mantine UI** - Component library
+- **CodeMirror 6** - Advanced text editing
+- **Vite** - Fast build tool
+
+### Backend
+- **Tauri 2** - Desktop app framework
+- **Rust** - File system operations
+- **Native dialogs** - Folder selection
+
+### Markdown Processing
+- **@lezer/markdown** - Parsing
+- **markdown-it** - Rendering
+- Custom block-based data structure
+
+## 📁 Project Structure
+
+```
+md-editor/
+├── src/                      # React frontend
+│   ├── components/           # UI components
+│   │   └── FileTreeView.tsx  # File tree outliner view
+│   ├── contexts/             # React contexts
+│   │   └── WorkspaceContext.tsx  # Workspace state management
+│   ├── outliner/             # Block editor implementation
+│   │   ├── BlockEditor.tsx   # Main editor component
+│   │   ├── types.ts          # Block type definitions
+│   │   └── blockUtils.ts     # Block manipulation utilities
+│   ├── App.tsx               # Main app component
+│   ├── tauri-api.ts          # Tauri backend API wrapper
+│   └── index.css             # Global styles
+├── src-tauri/                # Rust backend
+│   ├── src/
+│   │   └── lib.rs            # File system commands
+│   ├── Cargo.toml            # Rust dependencies
+│   └── tauri.conf.json       # Tauri configuration
+└── package.json              # Node dependencies
 ```
 
-## Architecture
+## ⚡ Available Scripts
 
-### Directory Structure
+- `npm run dev` - Start Vite dev server only
+- `npm run tauri:dev` - Run full Tauri app in development
+- `npm run build` - Build frontend only
+- `npm run tauri:build` - Build complete desktop app
+- `npm run lint` - Run ESLint
 
-```
-src/
-├── editor/
-│   ├── createEditor.ts           # Editor factory with all extensions
-│   └── extensions/
-│       └── hybridRendering.ts    # Core hybrid rendering logic
-├── markdown/
-│   └── parser.ts                 # Markdown AST parsing utilities
-├── components/
-│   └── Editor.tsx                # React wrapper for CodeMirror
-├── App.tsx                       # Main application component
-└── main.tsx                      # Application entry point
-```
+## 🔧 Configuration
 
-### How Hybrid Rendering Works
+### Vite (Frontend)
+Edit `vite.config.ts` to customize build settings.
 
-The hybrid rendering system uses **CodeMirror 6's decoration API** to transform the editing experience:
+### Tauri (App)
+Edit `src-tauri/tauri.conf.json` for:
+- Window size and appearance
+- App metadata
+- Build targets
 
-1. **Syntax Tree Parsing**: CodeMirror's Lezer parser provides a live syntax tree
-2. **Decoration Building**: A ViewPlugin scans visible ranges and creates decorations
-3. **Widget Insertion**: Interactive widgets (checkboxes) are inserted at specific positions
-4. **Mark Decorations**: CSS styling is applied to ranges (headings, emphasis, etc.)
-5. **Syntax Hiding**: Markdown syntax characters are dimmed or hidden
+### Rust Backend
+Edit `src-tauri/src/lib.rs` to add new commands or modify file system operations.
 
-#### Three Types of Decorations
-
-1. **Marks** - Apply styling to text ranges (headings, bold, italic)
-2. **Widgets** - Insert DOM elements (checkboxes, buttons)
-3. **Replace** - Hide or replace text (syntax characters)
-
-### Key Components
-
-#### `hybridRenderingPlugin` (ViewPlugin)
-- Scans visible editor viewport
-- Builds decoration sets for each markdown element
-- Updates decorations on document or viewport changes
-- Performance-optimized: only processes visible lines
-
-#### `createEditor()`
-- Factory function that assembles all CodeMirror extensions
-- Configures markdown language support
-- Adds hybrid rendering decorations
-- Sets up keymaps and editing behaviors
-
-#### `<Editor>` Component
-- React wrapper around CodeMirror EditorView
-- Manages editor lifecycle (mount/unmount)
-- Handles prop updates without recreating the view
-- Prevents feedback loops between React state and CM6
-
-## Customization
-
-### Theme
-
-Toggle between light and dark themes using the moon/sun icon in the header.
-
-### Editor Configuration
-
-Modify `src/editor/createEditor.ts` to adjust:
-- Line wrapping
-- Line numbers
-- Keybindings
-- Extensions
-
-### Hybrid Rendering
-
-Customize rendering behavior in `src/editor/extensions/hybridRendering.ts`:
-- Add new markdown element support
-- Modify widget styling
-- Adjust syntax hiding behavior
-- Change decoration priorities
-
-## Roadmap
-
-- [ ] Multiple note support with sidebar navigation
-- [ ] Local storage / IndexedDB persistence
-- [ ] File system access API integration
-- [ ] Backlinks and wiki-style links
-- [ ] Search and replace
-- [ ] Export to HTML/PDF
-- [ ] Plugins system
-- [ ] Mobile responsive design
-- [ ] Collaborative editing
-
-## Inspiration
-
-This project is inspired by:
-- **Obsidian** - For its excellent hybrid rendering UX
-- **Logseq** - For its block-based editing architecture (code reference)
-- **CodeMirror 6** - For its powerful and flexible editor framework
-
-## License
-
-MIT
-
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Development Notes
+## 📝 License
 
-See [AGENT_NOTES.md](docs/AGENT_NOTES.md) for detailed implementation notes and architecture decisions.
+[Your License Here]
+
+## 🙏 Acknowledgments
+
+- Inspired by [Logseq](https://logseq.com/) for block-based editing
+- Built with [Tauri](https://tauri.app/) for native performance
+- Uses [CodeMirror](https://codemirror.net/) for text editing
+
+## 🐛 Known Issues
+
+- File tree only shows `.md` files (by design)
+- No search functionality yet
+- No block references/backlinks yet
+
+## 🗺️ Roadmap
+
+- [ ] File search
+- [ ] Block references and backlinks
+- [ ] Multiple workspace support
+- [ ] Keyboard shortcuts reference
+- [ ] Export to PDF/HTML
+- [ ] Mobile version
+- [ ] Cloud sync options

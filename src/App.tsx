@@ -7,13 +7,16 @@ import {
   Text,
   Group,
   ActionIcon,
+  Button,
   useMantineColorScheme,
   createTheme,
 } from "@mantine/core";
-import { IconSun, IconMoon } from "@tabler/icons-react";
+import { IconSun, IconMoon, IconFolder } from "@tabler/icons-react";
 import { BlockEditor } from "./outliner/BlockEditor";
 import { Block } from "./outliner/types";
 import { blocksToMarkdown } from "./outliner/blockUtils";
+import { useWorkspaceStore } from "./stores/workspaceStore";
+import { FileTreeView } from "./components/FileTreeView";
 
 import INITIAL_CONTENT from "./initialContent.md?raw";
 
@@ -22,17 +25,75 @@ const theme = createTheme({
     "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 });
 
+function WorkspaceSelector() {
+  const { selectWorkspace } = useWorkspaceStore();
+
+  return (
+    <Container size="sm" py="xl" mt={100}>
+      <div style={{ textAlign: "center" }}>
+        <Title order={1} mb="md">
+          📝 MD Outliner
+        </Title>
+        <Text size="lg" c="dimmed" mb="xl">
+          A markdown outliner with file tree integration
+        </Text>
+        <Button
+          size="lg"
+          leftSection={<IconFolder size={20} />}
+          onClick={selectWorkspace}
+        >
+          Select Workspace Folder
+        </Button>
+      </div>
+    </Container>
+  );
+}
+
 function AppContent() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
+  const {
+    workspacePath,
+    currentFile,
+    fileContent,
+    setFileContent,
+    saveFile,
+    selectWorkspace,
+  } = useWorkspaceStore();
   const [blocks, setBlocks] = React.useState<Block[]>([]);
   const [showDebug, setShowDebug] = React.useState(false);
   const [markdown, setMarkdown] = React.useState("");
+  const [viewMode, setViewMode] = React.useState<"tree" | "editor">("tree");
 
   const handleBlocksChange = React.useCallback((newBlocks: Block[]) => {
     setBlocks(newBlocks);
-    setMarkdown(blocksToMarkdown(newBlocks));
+    const md = blocksToMarkdown(newBlocks);
+    setMarkdown(md);
   }, []);
+
+  // Auto-save when markdown changes and we have a current file
+  React.useEffect(() => {
+    if (currentFile && markdown && viewMode === "editor") {
+      const timeoutId = setTimeout(() => {
+        saveFile(currentFile, markdown).catch((err) => {
+          console.error("Auto-save failed:", err);
+        });
+      }, 1000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [markdown, currentFile, saveFile, viewMode]);
+
+  // Switch to editor mode when a file is opened
+  React.useEffect(() => {
+    if (currentFile) {
+      setViewMode("editor");
+    }
+  }, [currentFile]);
+
+  if (!workspacePath) {
+    return <WorkspaceSelector />;
+  }
 
   return (
     <AppShell
@@ -49,12 +110,25 @@ function AppContent() {
         <Container fluid h="100%" px="md">
           <Group h="100%" justify="space-between">
             <Group>
-              <Title order={3}>🧠 Block Outliner</Title>
+              <Title order={3}>📝 MD Outliner</Title>
               <Text size="sm" c="dimmed">
-                Logseq-style Block Editor
+                {viewMode === "tree"
+                  ? "File Tree"
+                  : currentFile
+                    ? currentFile.split("/").pop()?.replace(".md", "")
+                    : "Editor"}
               </Text>
             </Group>
             <Group>
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={() =>
+                  setViewMode(viewMode === "tree" ? "editor" : "tree")
+                }
+              >
+                {viewMode === "tree" ? "📄 Editor" : "📁 Tree"}
+              </Button>
               <ActionIcon
                 variant={showDebug ? "filled" : "default"}
                 onClick={() => setShowDebug(!showDebug)}
@@ -65,6 +139,15 @@ function AppContent() {
                 <Text size="sm" fw={700}>
                   MD
                 </Text>
+              </ActionIcon>
+              <ActionIcon
+                variant="default"
+                onClick={selectWorkspace}
+                size="lg"
+                aria-label="Change workspace"
+                title="Change workspace"
+              >
+                <IconFolder size={18} />
               </ActionIcon>
               <ActionIcon
                 variant="default"
@@ -94,11 +177,16 @@ function AppContent() {
               transition: "flex 0.2s ease",
             }}
           >
-            <BlockEditor
-              initialContent={INITIAL_CONTENT}
-              theme={isDark ? "dark" : "light"}
-              onChange={handleBlocksChange}
-            />
+            {viewMode === "tree" ? (
+              <FileTreeView />
+            ) : (
+              <BlockEditor
+                initialContent={currentFile ? fileContent : INITIAL_CONTENT}
+                theme={isDark ? "dark" : "light"}
+                onChange={handleBlocksChange}
+                key={currentFile || "default"}
+              />
+            )}
           </div>
           {showDebug && (
             <div
