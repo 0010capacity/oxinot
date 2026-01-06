@@ -1958,27 +1958,29 @@ src/
 
 ---
 
-### 11.3 Phase 3: Block 조작 명령어
+### 11.3 Phase 3: Block 조작 명령어 ✅
 
 **목표**: 들여쓰기/내어쓰기/이동/접기 구현
 
 #### 작업 목록
 
-1. **헬퍼 함수 구현**
-   - `find_previous_sibling`: 이전 형제 찾기
-   - `collect_descendant_ids`: 자손 ID 수집 (재귀 CTE)
+1. **헬퍼 함수 구현** ✅
+   - `find_previous_sibling`: 이전 형제 찾기 ✅
+   - `collect_descendant_ids`: 자손 ID 수집 (재귀 CTE) ✅
 
-2. **조작 명령어 구현**
-   - `indent_block`: 이전 형제의 자식으로
-   - `outdent_block`: 부모의 형제로
-   - `move_block`: 임의 위치로 이동
-   - `toggle_collapse`: 접기/펼치기
+2. **조작 명령어 구현** ✅
+   - `indent_block`: 이전 형제의 자식으로 ✅
+   - `outdent_block`: 부모의 형제로 ✅
+   - `move_block`: 임의 위치로 이동 ✅
+   - `toggle_collapse`: 접기/펼치기 ✅
 
-3. **테스트**
+3. **테스트** 🔄 (Pending)
    - 복잡한 트리에서 들여쓰기/내어쓰기
    - Fractional Indexing 동작 확인
 
 #### 예상 소요 시간: 3-4시간
+
+**진행상황**: Block 조작 명령어 모두 구현 완료 (Phase 2와 함께) (2025-01-17)
 
 ---
 
