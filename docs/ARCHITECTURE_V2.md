@@ -1984,35 +1984,37 @@ src/
 
 ---
 
-### 11.4 Phase 4: Zustand 스토어 재작성
+### 11.4 Phase 4: Zustand 스토어 재작성 ✅
 
 **목표**: 정규화된 상태 관리, Optimistic Update
 
 #### 작업 목록
 
-1. **의존성 추가**
+1. **의존성 추가** ✅
    ```bash
    npm install immer react-virtuoso
    ```
 
-2. **blockStore.ts 작성**
-   - 섹션 7.1의 코드 기반
-   - `blocksById`, `childrenMap` 구조
-   - Optimistic Update 패턴
+2. **blockStore.ts 작성** ✅
+   - 섹션 7.1의 코드 기반 ✅
+   - `blocksById`, `childrenMap` 구조 ✅
+   - Optimistic Update 패턴 ✅
 
-3. **Selector Hooks 작성**
-   - `useBlock(id)`
-   - `useChildrenIds(parentId)`
-   - `useFocusedBlockId()`
+3. **Selector Hooks 작성** ✅
+   - `useBlock(id)` ✅
+   - `useChildrenIds(parentId)` ✅
+   - `useFocusedBlockId()` ✅
 
-4. **Debounced Update Hook**
-   - `useDebouncedBlockUpdate`
+4. **Debounced Update Hook** ✅
+   - `useDebouncedBlockUpdate` ✅
 
 5. **기존 코드 정리**
    - `blockReducer.ts` 삭제 또는 아카이브
    - `blockUtils.ts` 정리
 
 #### 예상 소요 시간: 4-5시간
+
+**진행상황**: Zustand 스토어, Optimistic Update, Selector Hooks 모두 구현 완료 (2025-01-17)
 
 ---
 
