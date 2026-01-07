@@ -248,6 +248,7 @@ pub fn run() {
             })?;
 
             let db_path = db::get_db_path(app_data_dir);
+            let db_path_str = db_path.to_string_lossy().to_string();
             let db = db::DbConnection::new(db_path).map_err(|e| {
                 tauri::Error::Io(std::io::Error::new(
                     std::io::ErrorKind::Other,
@@ -257,6 +258,10 @@ pub fn run() {
 
             // Register database connection as Tauri state
             app.manage(db.get());
+
+            // Initialize markdown mirror service
+            let mirror_service = services::MarkdownMirrorService::new(db_path_str);
+            app.manage(mirror_service);
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -291,6 +296,8 @@ pub fn run() {
             commands::page::create_page,
             commands::page::update_page,
             commands::page::delete_page,
+            // Mirror commands
+            commands::block::queue_mirror,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

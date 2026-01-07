@@ -127,10 +127,12 @@ pub fn markdown_to_blocks(content: &str, page_id: &str) -> Vec<Block> {
     blocks
 }
 
+#[derive(Clone)]
 pub struct MarkdownMirrorService {
     sender: mpsc::Sender<MirrorCommand>,
 }
 
+#[derive(Clone)]
 enum MirrorCommand {
     QueuePage(String),
     Shutdown,

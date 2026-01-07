@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::models::block::{
     Block, BlockType, CreateBlockRequest, MoveBlockRequest, UpdateBlockRequest,
 };
+use crate::services::MarkdownMirrorService;
 use crate::utils::fractional_index;
 
 /// Get all blocks for a page
@@ -392,4 +393,14 @@ pub fn block_type_to_string(bt: &BlockType) -> String {
         BlockType::Code => "code".to_string(),
         BlockType::Fence => "fence".to_string(),
     }
+}
+
+/// Queue a page for markdown mirroring
+#[tauri::command]
+pub async fn queue_mirror(
+    mirror_service: State<'_, MarkdownMirrorService>,
+    page_id: String,
+) -> Result<bool, String> {
+    mirror_service.queue_mirror(page_id);
+    Ok(true)
 }
