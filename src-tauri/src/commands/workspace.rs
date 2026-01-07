@@ -1,4 +1,3 @@
-use crate::db::DbConnection;
 use crate::models::block::BlockType;
 use crate::services::markdown_to_blocks;
 use chrono::Utc;
@@ -11,6 +10,62 @@ use uuid::Uuid;
 pub struct MigrationResult {
     pub pages: usize,
     pub blocks: usize,
+}
+
+/// Initialize database for a workspace
+#[tauri::command]
+pub async fn init_workspace_db(
+    db: tauri::State<'_, Arc<std::sync::Mutex<rusqlite::Connection>>>,
+) -> Result<bool, String> {
+    let conn = db.lock().map_err(|e| e.to_string())?;
+
+    // Initialize database schema if not already done
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS workspace (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS pages (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            file_path TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS blocks (
+            id TEXT PRIMARY KEY,
+            page_id TEXT NOT NULL,
+            parent_id TEXT,
+            content TEXT NOT NULL,
+            order_weight REAL NOT NULL,
+            is_collapsed INTEGER NOT NULL DEFAULT 0,
+            block_type TEXT NOT NULL DEFAULT 'bullet',
+            language TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (page_id) REFERENCES pages(id) ON DELETE CASCADE,
+            FOREIGN KEY (parent_id) REFERENCES blocks(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_blocks_page_id ON blocks(page_id);
+        CREATE INDEX IF NOT EXISTS idx_blocks_parent_id ON blocks(parent_id);
+        CREATE INDEX IF NOT EXISTS idx_blocks_order ON blocks(page_id, parent_id, order_weight);
+
+        CREATE TABLE IF NOT EXISTS block_refs (
+            id TEXT PRIMARY KEY,
+            block_id TEXT NOT NULL,
+            ref_block_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (block_id) REFERENCES blocks(id) ON DELETE CASCADE,
+            FOREIGN KEY (ref_block_id) REFERENCES blocks(id) ON DELETE CASCADE
+        );",
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(true)
 }
 
 /// Migrate markdown files from workspace to SQLite database

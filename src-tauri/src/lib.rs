@@ -299,6 +299,7 @@ pub fn run() {
             // Mirror commands
             commands::block::queue_mirror,
             // Workspace commands
+            commands::workspace::init_workspace_db,
             commands::workspace::migrate_workspace,
         ])
         .run(tauri::generate_context!())

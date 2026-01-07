@@ -1,4 +1,4 @@
-import React from "react";
+import { useEffect, useState } from "react";
 import {
   MantineProvider,
   AppShell,
@@ -10,10 +10,19 @@ import {
   Button,
   useMantineColorScheme,
   createTheme,
+  Stack,
+  Loader,
 } from "@mantine/core";
 import { IconSun, IconMoon, IconFolder } from "@tabler/icons-react";
 import { useWorkspaceStore } from "./stores/workspaceStore";
-import { FileTreeView } from "./components/FileTreeView";
+import {
+  usePageStore,
+  useCurrentPageId,
+  usePagesLoading,
+} from "./stores/pageStore";
+import { MigrationDialog } from "./components/MigrationDialog";
+import { PageSidebar } from "./components/PageSidebar";
+import { BlockEditor } from "./outliner/BlockEditor";
 
 const theme = createTheme({
   fontFamily:
@@ -30,7 +39,7 @@ function WorkspaceSelector() {
           📝 MD Outliner
         </Title>
         <Text size="lg" c="dimmed" mb="xl">
-          A markdown outliner with file tree integration
+          A markdown outliner with database-driven organization
         </Text>
         <Button
           size="lg"
@@ -47,159 +56,181 @@ function WorkspaceSelector() {
 function AppContent() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
-  const { workspacePath, currentFile, selectWorkspace } = useWorkspaceStore();
-  const [showDebug, setShowDebug] = React.useState(false);
-  const [viewMode, setViewMode] = React.useState<"tree" | "editor">("tree");
 
-  // Switch to editor mode when a file is opened
-  React.useEffect(() => {
-    if (currentFile) {
-      setViewMode("editor");
+  const { workspacePath, selectWorkspace } = useWorkspaceStore();
+  const { loadPages } = usePageStore();
+  const currentPageId = useCurrentPageId();
+  const pagesLoading = usePagesLoading();
+
+  const [showMigration, setShowMigration] = useState(false);
+  const [dbInitialized, setDbInitialized] = useState(false);
+  const [checkingDb, setCheckingDb] = useState(true);
+  const [viewMode, setViewMode] = useState<"sidebar" | "tree">("sidebar");
+
+  // Check if database is initialized when workspace is selected
+  useEffect(() => {
+    if (!workspacePath) {
+      setCheckingDb(false);
+      setDbInitialized(false);
+      return;
     }
-  }, [currentFile]);
+
+    const checkDatabase = async () => {
+      setCheckingDb(true);
+      try {
+        // Try to load pages - if this succeeds, DB is initialized
+        await loadPages();
+        setDbInitialized(true);
+        setShowMigration(false);
+      } catch (error) {
+        // DB not initialized, show migration dialog
+        setDbInitialized(false);
+        setShowMigration(true);
+      } finally {
+        setCheckingDb(false);
+      }
+    };
+
+    checkDatabase();
+  }, [workspacePath, loadPages]);
+
+  const handleMigrationComplete = async () => {
+    setShowMigration(false);
+    setDbInitialized(true);
+    // Reload pages after migration
+    await loadPages();
+  };
+
+  const handleMigrationCancel = () => {
+    setShowMigration(false);
+    selectWorkspace();
+  };
 
   if (!workspacePath) {
     return <WorkspaceSelector />;
   }
 
-  return (
-    <AppShell
-      header={{ height: 60 }}
-      padding={0}
-      styles={(theme) => ({
-        main: {
-          backgroundColor: isDark ? theme.colors.dark[8] : theme.colors.gray[0],
-          height: "100vh",
-        },
-      })}
-    >
-      <AppShell.Header>
-        <Container fluid h="100%" px="md">
-          <Group h="100%" justify="space-between">
-            <Group>
-              <Title order={3}>📝 MD Outliner</Title>
-              <Text size="sm" c="dimmed">
-                {viewMode === "tree"
-                  ? "File Tree"
-                  : currentFile
-                    ? currentFile.split("/").pop()?.replace(".md", "")
-                    : "Editor"}
-              </Text>
-            </Group>
-            <Group>
-              <Button
-                variant="subtle"
-                size="sm"
-                onClick={() =>
-                  setViewMode(viewMode === "tree" ? "editor" : "tree")
-                }
-              >
-                {viewMode === "tree" ? "📄 Editor" : "📁 Tree"}
-              </Button>
-              <ActionIcon
-                variant={showDebug ? "filled" : "default"}
-                onClick={() => setShowDebug(!showDebug)}
-                size="lg"
-                aria-label="Toggle debug panel"
-                title="Show markdown source"
-              >
-                <Text size="sm" fw={700}>
-                  MD
-                </Text>
-              </ActionIcon>
-              <ActionIcon
-                variant="default"
-                onClick={selectWorkspace}
-                size="lg"
-                aria-label="Change workspace"
-                title="Change workspace"
-              >
-                <IconFolder size={18} />
-              </ActionIcon>
-              <ActionIcon
-                variant="default"
-                onClick={() => toggleColorScheme()}
-                size="lg"
-                aria-label="Toggle color scheme"
-              >
-                {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
-              </ActionIcon>
-            </Group>
-          </Group>
-        </Container>
-      </AppShell.Header>
-
-      <AppShell.Main>
-        <div
-          style={{
-            height: "calc(100vh - 60px)",
-            overflow: "hidden",
-            display: "flex",
-          }}
-        >
-          <div
-            style={{
-              flex: showDebug ? "0 0 60%" : "1",
-              overflow: "auto",
-              transition: "flex 0.2s ease",
-            }}
-          >
-            {viewMode === "tree" ? (
-              <FileTreeView />
-            ) : (
-              // TODO: Migrate to new Zustand-based BlockEditor
-              // <BlockEditor
-              //   initialContent={currentFile ? fileContent : INITIAL_CONTENT}
-              //   theme={isDark ? "dark" : "light"}
-              //   onChange={handleBlocksChange}
-              //   key={currentFile || "default"}
-              // />
-              <div style={{ padding: "16px", color: "#999" }}>
-                Block editor migration in progress...
-              </div>
-            )}
-          </div>
-          {showDebug && (
-            <div
-              style={{
-                flex: "0 0 40%",
-                borderLeft: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
-                backgroundColor: isDark ? "#1a1b1e" : "#f8f9fa",
-                overflow: "auto",
-                padding: "20px",
-              }}
-            >
-              <Group mb="md" justify="space-between">
-                <div>
-                  <Title order={4}>Markdown Source</Title>
-                  <Text size="sm" c="dimmed">
-                    Block editor migration in progress...
-                  </Text>
-                </div>
-              </Group>
-              <pre
-                style={{
-                  fontFamily: "'SF Mono', 'Monaco', 'Consolas', monospace",
-                  fontSize: "13px",
-                  lineHeight: "1.6",
-                  color: isDark ? "#e9ecef" : "#212529",
-                  backgroundColor: isDark ? "#25262b" : "#ffffff",
-                  padding: "16px",
-                  borderRadius: "8px",
-                  border: `1px solid ${isDark ? "#373A40" : "#dee2e6"}`,
-                  overflow: "auto",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  margin: 0,
-                }}
-              >
-                {"// Block editor migration in progress..."}
-              </pre>
-            </div>
-          )}
+  if (checkingDb) {
+    return (
+      <Container size="sm" py="xl" mt={100}>
+        <div style={{ textAlign: "center" }}>
+          <Loader size="lg" mb="md" style={{ margin: "0 auto" }} />
+          <Text>Checking workspace...</Text>
         </div>
-      </AppShell.Main>
-    </AppShell>
+      </Container>
+    );
+  }
+
+  return (
+    <>
+      <AppShell
+        header={{ height: 60 }}
+        navbar={
+          dbInitialized
+            ? {
+                width: 280,
+                breakpoint: "sm",
+                collapsed: { mobile: viewMode === "sidebar", desktop: false },
+              }
+            : undefined
+        }
+        padding={0}
+        styles={(theme) => ({
+          main: {
+            backgroundColor: isDark
+              ? theme.colors.dark[8]
+              : theme.colors.gray[0],
+            height: "100vh",
+          },
+        })}
+      >
+        <AppShell.Header>
+          <Container fluid h="100%" px="md">
+            <Group h="100%" justify="space-between">
+              <Group>
+                <Title order={3}>📝 MD Outliner</Title>
+                <Text size="sm" c="dimmed">
+                  {workspacePath.split("/").pop()}
+                </Text>
+              </Group>
+              <Group>
+                {dbInitialized && currentPageId && (
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    onClick={() =>
+                      setViewMode(viewMode === "sidebar" ? "tree" : "sidebar")
+                    }
+                  >
+                    {viewMode === "sidebar" ? "📁 Tree" : "📄 Pages"}
+                  </Button>
+                )}
+                <ActionIcon
+                  variant="default"
+                  onClick={selectWorkspace}
+                  size="lg"
+                  aria-label="Change workspace"
+                  title="Change workspace"
+                >
+                  <IconFolder size={18} />
+                </ActionIcon>
+                <ActionIcon
+                  variant="default"
+                  onClick={() => toggleColorScheme()}
+                  size="lg"
+                  aria-label="Toggle color scheme"
+                >
+                  {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
+                </ActionIcon>
+              </Group>
+            </Group>
+          </Container>
+        </AppShell.Header>
+
+        {dbInitialized && (
+          <AppShell.Navbar
+            p="md"
+            style={{ backgroundColor: isDark ? "#1a1b1e" : "#f8f9fa" }}
+          >
+            <PageSidebar />
+          </AppShell.Navbar>
+        )}
+
+        <AppShell.Main style={{ overflow: "hidden" }}>
+          {!dbInitialized ? (
+            <Container size="sm" py="xl" mt={50}>
+              <Stack align="center">
+                <Loader />
+                <Text>Initializing workspace...</Text>
+              </Stack>
+            </Container>
+          ) : pagesLoading ? (
+            <Container size="sm" py="xl" mt={50}>
+              <Stack align="center">
+                <Loader />
+                <Text>Loading pages...</Text>
+              </Stack>
+            </Container>
+          ) : currentPageId ? (
+            <BlockEditor pageId={currentPageId} />
+          ) : (
+            <Container size="sm" py="xl" mt={50}>
+              <Stack align="center">
+                <Text c="dimmed">Select a page to begin</Text>
+              </Stack>
+            </Container>
+          )}
+        </AppShell.Main>
+      </AppShell>
+
+      {/* Migration Dialog */}
+      <MigrationDialog
+        workspacePath={workspacePath}
+        isOpen={showMigration}
+        onComplete={handleMigrationComplete}
+        onCancel={handleMigrationCancel}
+      />
+    </>
   );
 }
 

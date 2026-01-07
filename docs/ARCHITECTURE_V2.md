@@ -2100,6 +2100,43 @@ src/
 
 **진행상황**: markdown_to_blocks, migrate_workspace 명령어 모두 구현 완료 (2025-01-17)
 
+### 11.8 Phase 8: UI 통합 ✅
+
+**목표**: 페이지 리스트, 사이드바, 마이그레이션 다이얼로그 구현 및 App 통합
+
+#### 작업 목록
+
+1. **페이지 스토어** ✅
+   - `pageStore.ts` 작성 ✅
+   - `usePageStore`, `useCurrentPageId` 등 Selector hooks ✅
+   - Immer 기반 상태 관리 ✅
+
+2. **마이그레이션 다이얼로그** ✅
+   - `MigrationDialog.tsx` 작성 ✅
+   - `init_workspace_db` 명령어 추가 (Rust) ✅
+   - 진행 상태 표시 (초기화 → 스캔 → 임포트 → 완료) ✅
+   - 에러 처리 및 재시도 ✅
+
+3. **페이지 사이드바** ✅
+   - `PageSidebar.tsx` 작성 ✅
+   - 페이지 목록 표시 ✅
+   - 페이지 생성/수정/삭제 기능 ✅
+   - 현재 페이지 선택 상태 표시 ✅
+
+4. **App 컴포넌트 통합** ✅
+   - 워크스페이스 선택 시 DB 초기화 확인 ✅
+   - 마이그레이션 다이얼로그 자동 표시 ✅
+   - BlockEditor와 PageSidebar 연동 ✅
+   - 페이지 선택 시 자동으로 블록 로드 ✅
+
+5. **BlockComponent CSS** ✅
+   - `BlockComponent.css` 작성 ✅
+   - 스타일 관련 빌드 오류 해결 ✅
+
+#### 예상 소요 시간: 4-6시간
+
+**진행상황**: 모든 주요 UI 컴포넌트 구현 완료, 프론트엔드/백엔드 빌드 성공 (2025-01-17)
+
 ---
 
 ## 12. 마이그레이션 전략
@@ -2293,9 +2330,18 @@ pub struct MigrationResult {
 ### Phase 7: 마이그레이션 ✅
 - [x] `markdown_to_blocks`
 - [x] `migrate_workspace` 명령어
-- [x] 마이그레이션 UI (Pending - Phase 8)
+- [x] 마이그레이션 UI
+
+### Phase 8: UI 통합 ✅
+- [x] 페이지 스토어 (`pageStore.ts`)
+- [x] 마이그레이션 다이얼로그 (`MigrationDialog.tsx`)
+- [x] 페이지 사이드바 (`PageSidebar.tsx`)
+- [x] App 컴포넌트 통합
+- [x] BlockComponent CSS
+- [x] Rust 백엔드 `init_workspace_db` 명령어
+- [x] 프론트엔드/백엔드 빌드 성공
 
 ---
 
 *문서 버전: 1.0*
-*최종 수정: 2024*
+*최종 수정: 2025-01-17*
