@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useMantineColorScheme } from "@mantine/core";
 import { useBlockStore } from "../stores/blockStore";
-import { Editor } from "../components/Editor";
+import { useViewStore } from "../stores/viewStore";
+import { BlockComponent } from "./BlockComponent";
+import "./BlockEditor.css";
 
 interface BlockEditorProps {
   pageId: string;
@@ -13,35 +15,22 @@ export function BlockEditor({ pageId }: BlockEditorProps) {
 
   const loadPage = useBlockStore((state) => state.loadPage);
   const createBlock = useBlockStore((state) => state.createBlock);
-  const updateBlockContent = useBlockStore((state) => state.updateBlockContent);
   const isLoading = useBlockStore((state) => state.isLoading);
   const error = useBlockStore((state) => state.error);
-  const blocksById = useBlockStore((state) => state.blocksById);
   const childrenMap = useBlockStore((state) => state.childrenMap);
 
-  const [markdownContent, setMarkdownContent] = useState("");
-  const [isInitialized, setIsInitialized] = useState(false);
+  const focusedBlockId = useViewStore((state) => state.focusedBlockId);
 
   // Load page blocks
   useEffect(() => {
     if (pageId) {
-      loadPage(pageId).then(() => {
-        setIsInitialized(true);
-      });
+      loadPage(pageId);
     }
   }, [pageId, loadPage]);
 
-  // Convert blocks to markdown when blocks change
-  useEffect(() => {
-    if (!isInitialized || isLoading) return;
-
-    const markdown = blocksToMarkdown(blocksById, childrenMap);
-    setMarkdownContent(markdown);
-  }, [blocksById, childrenMap, isInitialized, isLoading]);
-
   // Auto-create first block if page is empty
   useEffect(() => {
-    if (!isLoading && !error && isInitialized && pageId) {
+    if (!isLoading && !error && pageId) {
       const rootBlocks = childrenMap["root"] || [];
       const hasBlocks = rootBlocks.length > 0;
 
@@ -51,78 +40,58 @@ export function BlockEditor({ pageId }: BlockEditorProps) {
         });
       }
     }
-  }, [isLoading, error, isInitialized, pageId, childrenMap, createBlock]);
+  }, [isLoading, error, pageId, childrenMap, createBlock]);
 
-  const handleMarkdownChange = (content: string) => {
-    setMarkdownContent(content);
-
-    // Simple update: just update first block with content for now
-    const rootBlocks = childrenMap["root"] || [];
-    if (rootBlocks.length > 0) {
-      const firstBlockId = rootBlocks[0];
-      updateBlockContent(firstBlockId, content).catch(console.error);
-    }
-  };
-
-  if (isLoading && !isInitialized) {
+  if (isLoading) {
     return (
       <div
-        style={{
-          padding: "16px",
-          opacity: 0.5,
-          color: isDark ? "#909296" : "#868e96",
-        }}
+        className={`block-editor-container ${isDark ? "theme-dark" : "theme-light"}`}
       >
-        Loading...
+        <div
+          style={{
+            padding: "16px",
+            opacity: 0.5,
+            color: isDark ? "#909296" : "#868e96",
+          }}
+        >
+          Loading...
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ padding: "16px", color: "#fa5252" }}>Error: {error}</div>
+      <div
+        className={`block-editor-container ${isDark ? "theme-dark" : "theme-light"}`}
+      >
+        <div style={{ padding: "16px", color: "#fa5252" }}>Error: {error}</div>
+      </div>
     );
   }
 
+  // Determine which blocks to show based on zoom level
+  const blocksToShow = focusedBlockId
+    ? [focusedBlockId]
+    : childrenMap["root"] || [];
+
   return (
-    <div style={{ height: "100%", overflow: "hidden" }}>
-      <Editor
-        value={markdownContent}
-        onChange={handleMarkdownChange}
-        theme={isDark ? "dark" : "light"}
-        lineNumbers={false}
-        lineWrapping={true}
-      />
+    <div
+      className={`block-editor-container ${isDark ? "theme-dark" : "theme-light"}`}
+    >
+      <div className="blocks-list">
+        {blocksToShow.length === 0 ? (
+          <div className="empty-state">
+            <div style={{ opacity: 0.5, padding: "20px" }}>
+              Start typing to create your first block...
+            </div>
+          </div>
+        ) : (
+          blocksToShow.map((blockId) => (
+            <BlockComponent key={blockId} blockId={blockId} depth={0} />
+          ))
+        )}
+      </div>
     </div>
   );
-}
-
-// Convert blocks tree to markdown outline format
-function blocksToMarkdown(
-  blocksById: Record<string, any>,
-  childrenMap: Record<string, string[]>,
-): string {
-  const lines: string[] = [];
-
-  function traverse(parentId: string | null, depth: number) {
-    const key = parentId ?? "root";
-    const childIds = childrenMap[key] ?? [];
-
-    for (const id of childIds) {
-      const block = blocksById[id];
-      if (block) {
-        const indent = "  ".repeat(depth);
-        const bullet = "- ";
-        const content = block.content || "";
-        lines.push(`${indent}${bullet}${content}`);
-
-        if (!block.isCollapsed) {
-          traverse(id, depth + 1);
-        }
-      }
-    }
-  }
-
-  traverse(null, 0);
-  return lines.join("\n");
 }

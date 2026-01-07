@@ -1,8 +1,6 @@
 .block-component {
     display: flex;
     flex-direction: column;
-    min-height: 32px;
-    padding-bottom: 4px;
     font-family:
         -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 14px;
@@ -12,8 +10,8 @@
 .block-row {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 4px 0;
+    gap: 4px;
+    padding: 2px 0;
     position: relative;
 }
 
@@ -26,16 +24,16 @@
     width: 24px;
     height: 24px;
     padding: 0;
-    margin-top: 4px;
+    margin: 0;
     background: none;
     border: none;
     cursor: pointer;
     color: currentColor;
-    font-size: 12px;
+    font-size: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.6;
+    opacity: 0.5;
     transition: opacity 0.2s ease;
 }
 
@@ -47,22 +45,33 @@
     transform: rotate(-90deg);
 }
 
-.block-bullet {
+.block-bullet-wrapper {
     flex-shrink: 0;
-    width: 24px;
+    width: 20px;
     height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 4px;
-    font-size: 12px;
+    margin: 0;
+    transition: opacity 0.2s ease;
+}
+
+.block-bullet-wrapper:hover {
+    opacity: 1;
+}
+
+.block-bullet {
+    font-size: 14px;
     opacity: 0.5;
     user-select: none;
+    line-height: 1;
 }
 
 .block-content-wrapper {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: flex-start;
 }
 
 .block-editor {
@@ -82,30 +91,20 @@
     outline: none;
 }
 
-.zoom-button {
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    margin-top: 4px;
-    margin-left: 4px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: currentColor;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    border-radius: 4px;
+/* Override CodeMirror default padding for alignment */
+.block-editor .cm-editor {
+    padding: 0 !important;
 }
 
-.zoom-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+.block-editor .cm-scroller {
+    padding: 0 !important;
 }
 
-.zoom-button:active {
-    background-color: rgba(0, 0, 0, 0.1);
+.block-editor .cm-content {
+    padding: 0 !important;
+}
+
+.block-editor .cm-line {
+    padding: 0 !important;
+    line-height: 24px !important;
 }

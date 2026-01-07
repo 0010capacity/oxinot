@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { EditorView, KeyBinding } from "@codemirror/view";
 import {
   createEditor,
@@ -33,56 +33,53 @@ interface EditorProps {
   keybindings?: KeyBinding[];
 }
 
+export interface EditorRef {
+  focus: () => void;
+  getView: () => EditorView | null;
+}
+
 /**
  * React wrapper component for CodeMirror 6 editor with hybrid rendering
  */
-export const Editor: React.FC<EditorProps> = ({
-  value = "",
-  onChange,
-  onFocus,
-  onBlur,
-  readOnly = false,
-  lineWrapping = true,
-  theme = "light",
-  className,
-  style,
-  lineNumbers = true,
-  keybindings,
-}) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const editorViewRef = useRef<EditorView | null>(null);
-  const isUpdatingRef = useRef(false);
+export const Editor = forwardRef<EditorRef, EditorProps>(
+  (
+    {
+      value = "",
+      onChange,
+      onFocus,
+      onBlur,
+      readOnly = false,
+      lineWrapping = true,
+      theme = "light",
+      className,
+      style,
+      lineNumbers = true,
+      keybindings,
+    },
+    ref,
+  ) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const editorViewRef = useRef<EditorView | null>(null);
+    const isUpdatingRef = useRef(false);
 
-  // IME safety: while composing (Korean/Japanese/Chinese), avoid pushing updates
-  // into React state on every intermediate composition change, because it can
-  // cause re-renders that interfere with the IME pipeline and duplicate input.
-  const isComposingRef = useRef(false);
-  const pendingOnChangeValueRef = useRef<string | null>(null);
-  const flushTimerRef = useRef<MaybeTimer>(null);
+    // IME safety: while composing (Korean/Japanese/Chinese), avoid pushing updates
+    // into React state on every intermediate composition change, because it can
+    // cause re-renders that interfere with the IME pipeline and duplicate input.
+    const isComposingRef = useRef(false);
+    const pendingOnChangeValueRef = useRef<string | null>(null);
+    const flushTimerRef = useRef<MaybeTimer>(null);
 
-  // Keep latest callbacks/flags without forcing editor re-creation.
-  const latestRef = useRef<{
-    onChange?: (value: string) => void;
-    onFocus?: () => void;
-    onBlur?: () => void;
-    readOnly: boolean;
-    lineWrapping: boolean;
-    theme: "light" | "dark";
-    lineNumbers: boolean;
-    keybindings?: KeyBinding[];
-  }>({
-    onChange,
-    onFocus,
-    onBlur,
-    readOnly,
-    lineWrapping,
-    theme,
-    lineNumbers,
-    keybindings,
-  });
-
-  useEffect(() => {
-    latestRef.current = {
+    // Keep latest callbacks/flags without forcing editor re-creation.
+    const latestRef = useRef<{
+      onChange?: (value: string) => void;
+      onFocus?: () => void;
+      onBlur?: () => void;
+      readOnly: boolean;
+      lineWrapping: boolean;
+      theme: "light" | "dark";
+      lineNumbers: boolean;
+      keybindings?: KeyBinding[];
+    }>({
       onChange,
       onFocus,
       onBlur,
@@ -91,59 +88,115 @@ export const Editor: React.FC<EditorProps> = ({
       theme,
       lineNumbers,
       keybindings,
-    };
-  }, [
-    onChange,
-    onFocus,
-    onBlur,
-    readOnly,
-    lineWrapping,
-    theme,
-    lineNumbers,
-    keybindings,
-  ]);
+    });
 
-  // Initialize editor (create/destroy only when core configuration changes)
-  useEffect(() => {
-    if (!containerRef.current) return;
+    useEffect(() => {
+      latestRef.current = {
+        onChange,
+        onFocus,
+        onBlur,
+        readOnly,
+        lineWrapping,
+        theme,
+        lineNumbers,
+        keybindings,
+      };
+    }, [
+      onChange,
+      onFocus,
+      onBlur,
+      readOnly,
+      lineWrapping,
+      theme,
+      lineNumbers,
+      keybindings,
+    ]);
 
-    // Create editor instance
-    const view = createEditor(containerRef.current, {
-      doc: value,
-      onChange: (newDoc) => {
-        const latest = latestRef.current;
-
-        if (!latest.onChange || isUpdatingRef.current) return;
-
-        // If the user is composing, buffer the latest value and flush once the
-        // composition has ended (or after a small debounce).
-        if (isComposingRef.current) {
-          pendingOnChangeValueRef.current = newDoc;
-
-          // Debounced flush as a safety net in case compositionend isn't observed
-          // (some environments can miss it when focus changes quickly).
-          if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
-          flushTimerRef.current = setTimeout(() => {
-            flushTimerRef.current = null;
-            if (!isComposingRef.current) {
-              const pending = pendingOnChangeValueRef.current;
-              pendingOnChangeValueRef.current = null;
-              if (pending != null) latest.onChange?.(pending);
-            }
-          }, IME_FLUSH_TIMEOUT_MS);
-
-          return;
+    // Expose focus method to parent
+    useImperativeHandle(ref, () => ({
+      focus: () => {
+        if (editorViewRef.current) {
+          editorViewRef.current.focus();
         }
+      },
+      getView: () => editorViewRef.current,
+    }));
 
-        latest.onChange(newDoc);
-      },
-      onFocus: () => {
-        latestRef.current.onFocus?.();
-      },
-      onBlur: () => {
-        // If we lose focus mid-composition, end composing and flush whatever we have.
+    // Initialize editor (create/destroy only when core configuration changes)
+    useEffect(() => {
+      if (!containerRef.current) return;
+
+      // Create editor instance
+      const view = createEditor(containerRef.current, {
+        doc: value,
+        onChange: (newDoc) => {
+          const latest = latestRef.current;
+
+          if (!latest.onChange || isUpdatingRef.current) return;
+
+          // If the user is composing, buffer the latest value and flush once the
+          // composition has ended (or after a small debounce).
+          if (isComposingRef.current) {
+            pendingOnChangeValueRef.current = newDoc;
+
+            // Debounced flush as a safety net in case compositionend isn't observed
+            // (some environments can miss it when focus changes quickly).
+            if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+            flushTimerRef.current = setTimeout(() => {
+              flushTimerRef.current = null;
+              if (!isComposingRef.current) {
+                const pending = pendingOnChangeValueRef.current;
+                pendingOnChangeValueRef.current = null;
+                if (pending != null) latest.onChange?.(pending);
+              }
+            }, IME_FLUSH_TIMEOUT_MS);
+
+            return;
+          }
+
+          latest.onChange(newDoc);
+        },
+        onFocus: () => {
+          latestRef.current.onFocus?.();
+        },
+        onBlur: () => {
+          // If we lose focus mid-composition, end composing and flush whatever we have.
+          isComposingRef.current = false;
+
+          if (flushTimerRef.current) {
+            clearTimeout(flushTimerRef.current);
+            flushTimerRef.current = null;
+          }
+
+          const pending = pendingOnChangeValueRef.current;
+          pendingOnChangeValueRef.current = null;
+          if (pending != null) {
+            latestRef.current.onChange?.(pending);
+          }
+
+          latestRef.current.onBlur?.();
+        },
+        readOnly,
+        lineWrapping,
+        theme,
+        lineNumbers,
+        keybindings,
+      });
+
+      editorViewRef.current = view;
+
+      // Track IME composition state from the editor DOM. We attach directly to the
+      // editor root to avoid needing changes inside CM extensions.
+      const dom = view.dom;
+
+      const onCompositionStart = () => {
+        isComposingRef.current = true;
+      };
+
+      const onCompositionEnd = () => {
         isComposingRef.current = false;
 
+        // Flush buffered value once the IME commits.
         if (flushTimerRef.current) {
           clearTimeout(flushTimerRef.current);
           flushTimerRef.current = null;
@@ -154,93 +207,64 @@ export const Editor: React.FC<EditorProps> = ({
         if (pending != null) {
           latestRef.current.onChange?.(pending);
         }
+      };
 
-        latestRef.current.onBlur?.();
-      },
-      readOnly,
-      lineWrapping,
-      theme,
-      lineNumbers,
-      keybindings,
-    });
+      dom.addEventListener("compositionstart", onCompositionStart, {
+        passive: true,
+      });
+      dom.addEventListener("compositionend", onCompositionEnd, {
+        passive: true,
+      });
 
-    editorViewRef.current = view;
+      // Cleanup
+      return () => {
+        dom.removeEventListener("compositionstart", onCompositionStart);
+        dom.removeEventListener("compositionend", onCompositionEnd);
 
-    // Track IME composition state from the editor DOM. We attach directly to the
-    // editor root to avoid needing changes inside CM extensions.
-    const dom = view.dom;
+        if (flushTimerRef.current) {
+          clearTimeout(flushTimerRef.current);
+          flushTimerRef.current = null;
+        }
 
-    const onCompositionStart = () => {
-      isComposingRef.current = true;
-    };
+        pendingOnChangeValueRef.current = null;
+        isComposingRef.current = false;
 
-    const onCompositionEnd = () => {
-      isComposingRef.current = false;
+        if (editorViewRef.current) {
+          destroyEditor(editorViewRef.current);
+          editorViewRef.current = null;
+        }
+      };
+      // NOTE: Intentionally exclude `onChange/onFocus/onBlur` and `value` to avoid re-creating
+      // the editor on every keystroke / render. Those are handled via `latestRef`.
+    }, [readOnly, lineWrapping, theme, lineNumbers, keybindings]);
 
-      // Flush buffered value once the IME commits.
-      if (flushTimerRef.current) {
-        clearTimeout(flushTimerRef.current);
-        flushTimerRef.current = null;
-      }
-
-      const pending = pendingOnChangeValueRef.current;
-      pendingOnChangeValueRef.current = null;
-      if (pending != null) {
-        latestRef.current.onChange?.(pending);
-      }
-    };
-
-    dom.addEventListener("compositionstart", onCompositionStart, {
-      passive: true,
-    });
-    dom.addEventListener("compositionend", onCompositionEnd, { passive: true });
-
-    // Cleanup
-    return () => {
-      dom.removeEventListener("compositionstart", onCompositionStart);
-      dom.removeEventListener("compositionend", onCompositionEnd);
-
-      if (flushTimerRef.current) {
-        clearTimeout(flushTimerRef.current);
-        flushTimerRef.current = null;
-      }
-
-      pendingOnChangeValueRef.current = null;
-      isComposingRef.current = false;
-
+    // Update content when value prop changes
+    useEffect(() => {
       if (editorViewRef.current) {
-        destroyEditor(editorViewRef.current);
-        editorViewRef.current = null;
+        const currentDoc = editorViewRef.current.state.doc.toString();
+        if (currentDoc !== value) {
+          isUpdatingRef.current = true;
+          updateEditorContent(editorViewRef.current, value);
+          isUpdatingRef.current = false;
+        }
       }
-    };
-    // NOTE: Intentionally exclude `onChange/onFocus/onBlur` and `value` to avoid re-creating
-    // the editor on every keystroke / render. Those are handled via `latestRef`.
-  }, [readOnly, lineWrapping, theme, lineNumbers, keybindings]);
+    }, [value]);
 
-  // Update content when value prop changes
-  useEffect(() => {
-    if (editorViewRef.current) {
-      const currentDoc = editorViewRef.current.state.doc.toString();
-      if (currentDoc !== value) {
-        isUpdatingRef.current = true;
-        updateEditorContent(editorViewRef.current, value);
-        isUpdatingRef.current = false;
-      }
-    }
-  }, [value]);
+    return (
+      <div
+        ref={containerRef}
+        className={className}
+        style={{
+          width: "100%",
+          height: "100%",
+          overflow: "hidden",
+          ...style,
+        }}
+      />
+    );
+  },
+);
 
-  return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{
-        width: "100%",
-        height: "100%",
-        overflow: "hidden",
-        ...style,
-      }}
-    />
-  );
-};
+Editor.displayName = "Editor";
 
 export default Editor;
