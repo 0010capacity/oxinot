@@ -15,7 +15,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [children, setChildren] = useState<FileSystemItem[]>([]);
-  const { deleteItem, renameItem } = useWorkspaceStore();
+  const { deleteItem } = useWorkspaceStore();
 
   const handleToggle = async () => {
     if (item.is_directory) {

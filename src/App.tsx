@@ -52,14 +52,8 @@ function WorkspaceSelector() {
 function AppContent() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
-  const {
-    workspacePath,
-    currentFile,
-    fileContent,
-    setFileContent,
-    saveFile,
-    selectWorkspace,
-  } = useWorkspaceStore();
+  const { workspacePath, currentFile, fileContent, saveFile, selectWorkspace } =
+    useWorkspaceStore();
   const [blocks, setBlocks] = React.useState<Block[]>([]);
   const [showDebug, setShowDebug] = React.useState(false);
   const [markdown, setMarkdown] = React.useState("");
