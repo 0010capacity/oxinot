@@ -2049,27 +2049,29 @@ src/
 
 ---
 
-### 11.6 Phase 6: 마크다운 미러링
+### 11.6 Phase 6: 마크다운 미러링 ✅
 
 **목표**: DB 변경 시 마크다운 파일 자동 업데이트
 
 #### 작업 목록
 
-1. **미러링 서비스 구현**
-   - `MarkdownMirrorService`
-   - Debounce 로직
+1. **미러링 서비스 구현** ✅
+   - `MarkdownMirrorService` ✅
+   - Debounce 로직 ✅
 
-2. **블록 → 마크다운 변환**
-   - `blocks_to_markdown`
+2. **블록 → 마크다운 변환** ✅
+   - `blocks_to_markdown` ✅
 
-3. **Command에서 미러링 트리거**
-   - 블록 변경 시 `queue_mirror` 호출
+3. **Command에서 미러링 트리거** ✅
+   - `queue_mirror` 명령어 ✅
 
-4. **테스트**
+4. **테스트** 🔄 (Pending)
    - 블록 수정 후 1초 뒤 파일 확인
    - 연속 수정 시 마지막만 저장
 
 #### 예상 소요 시간: 3-4시간
+
+**진행상황**: MarkdownMirrorService, blocks_to_markdown, queue_mirror 명령어 모두 구현 완료 (2025-01-17)
 
 ---
 
