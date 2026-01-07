@@ -10,6 +10,7 @@ interface NavigationState {
   currentNotePath: string | null;
   workspaceName: string | null;
   focusedBlockId: string | null;
+  zoomPath: string[]; // Array of block IDs from root to current zoom level
   breadcrumb: string[];
 }
 
@@ -18,6 +19,7 @@ interface ViewState extends NavigationState {
   showIndex: () => void;
   openNote: (notePath: string, noteName: string) => void;
   zoomIntoBlock: (blockId: string) => void;
+  zoomOut: () => void;
   zoomOutToNote: () => void;
   goBack: () => void;
   setWorkspaceName: (name: string) => void;
@@ -29,6 +31,7 @@ const initialState: NavigationState = {
   currentNotePath: null,
   workspaceName: null,
   focusedBlockId: null,
+  zoomPath: [],
   breadcrumb: [],
 };
 
@@ -41,6 +44,7 @@ export const useViewStore = create<ViewState>()(
         state.mode = "index";
         state.currentNotePath = null;
         state.focusedBlockId = null;
+        state.zoomPath = [];
         state.breadcrumb = state.workspaceName ? [state.workspaceName] : [];
       });
     },
@@ -50,6 +54,7 @@ export const useViewStore = create<ViewState>()(
         state.mode = "note";
         state.currentNotePath = notePath;
         state.focusedBlockId = null;
+        state.zoomPath = [];
         state.breadcrumb = state.workspaceName
           ? [state.workspaceName, noteName]
           : [noteName];
@@ -59,19 +64,43 @@ export const useViewStore = create<ViewState>()(
     zoomIntoBlock: (blockId: string) => {
       set((state) => {
         state.focusedBlockId = blockId;
+        // Add to zoom path if not already there
+        if (!state.zoomPath.includes(blockId)) {
+          state.zoomPath.push(blockId);
+        }
+      });
+    },
+
+    zoomOut: () => {
+      set((state) => {
+        if (state.zoomPath.length > 0) {
+          // Remove last block from zoom path
+          state.zoomPath.pop();
+          // Set focused block to the new last item (or null if empty)
+          state.focusedBlockId =
+            state.zoomPath.length > 0
+              ? state.zoomPath[state.zoomPath.length - 1]
+              : null;
+        }
       });
     },
 
     zoomOutToNote: () => {
       set((state) => {
         state.focusedBlockId = null;
+        state.zoomPath = [];
       });
     },
 
     goBack: () => {
       set((state) => {
-        if (state.focusedBlockId) {
-          state.focusedBlockId = null;
+        if (state.zoomPath.length > 0) {
+          // Zoom out one level
+          state.zoomPath.pop();
+          state.focusedBlockId =
+            state.zoomPath.length > 0
+              ? state.zoomPath[state.zoomPath.length - 1]
+              : null;
         } else if (state.mode === "note") {
           state.mode = "index";
           state.currentNotePath = null;
@@ -102,3 +131,4 @@ export const useCurrentNotePath = () =>
 export const useBreadcrumb = () => useViewStore((state) => state.breadcrumb);
 export const useFocusedBlockId = () =>
   useViewStore((state) => state.focusedBlockId);
+export const useZoomPath = () => useViewStore((state) => state.zoomPath);

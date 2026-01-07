@@ -34,7 +34,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const indentBlock = useBlockStore((state) => state.indentBlock);
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
-    const { zoomIntoBlock } = useViewStore();
 
     const { debouncedUpdate, flushUpdate } = useDebouncedBlockUpdate(blockId);
     const editorRef = useRef<EditorRef>(null);
@@ -68,15 +67,33 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       (e: React.MouseEvent) => {
         e.stopPropagation();
         if (hasChildren) {
-          // If has children, zoom into this block
-          zoomIntoBlock(blockId);
+          // Calculate full path from root to this block
+          const blocksById = useBlockStore.getState().blocksById;
+          const path: string[] = [];
+          let currentId: string | null = blockId;
+
+          // Build path from current block to root
+          while (currentId) {
+            path.unshift(currentId);
+            const currentBlock = blocksById[currentId] as
+              | typeof block
+              | undefined;
+            if (!currentBlock) break;
+            currentId = currentBlock.parentId || null;
+          }
+
+          // Set the full path in view store
+          useViewStore.setState({
+            focusedBlockId: blockId,
+            zoomPath: path,
+          });
         } else {
           // Otherwise just focus
           setFocusedBlock(blockId);
           editorRef.current?.focus();
         }
       },
-      [blockId, hasChildren, zoomIntoBlock, setFocusedBlock],
+      [blockId, hasChildren, setFocusedBlock],
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
