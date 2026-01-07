@@ -298,6 +298,8 @@ pub fn run() {
             commands::page::delete_page,
             // Mirror commands
             commands::block::queue_mirror,
+            // Workspace commands
+            commands::workspace::migrate_workspace,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
