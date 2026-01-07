@@ -11,37 +11,45 @@
 .block-row {
     display: flex;
     align-items: flex-start;
-    gap: 4px;
+    gap: 6px;
     padding: 2px 0;
     position: relative;
+    border-radius: 3px;
+    transition: background-color 0.15s ease;
 }
 
-/* Vertical line for hierarchy */
-.block-children::before {
+/* Subtle hover effect - no background color */
+.block-row:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.theme-dark .block-row:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Focused block - subtle left border instead of background */
+.block-row:has(.block-editor .cm-focused) {
+    background-color: transparent;
+}
+
+.block-row:has(.block-editor .cm-focused)::before {
     content: "";
     position: absolute;
-    left: 12px;
+    left: -4px;
     top: 0;
-    bottom: 12px;
-    width: 1px;
-    background-color: rgba(0, 0, 0, 0.1);
-}
-
-.theme-dark .block-children::before {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.block-children {
-    position: relative;
+    bottom: 0;
+    width: 2px;
+    background-color: rgba(99, 102, 241, 0.5);
+    border-radius: 1px;
 }
 
 /* Collapse/Expand Toggle - show only on hover */
 .collapse-toggle {
     flex-shrink: 0;
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     padding: 0;
-    margin: 0;
+    margin: 2px 0 0 0;
     background: none;
     border: none;
     cursor: pointer;
@@ -58,7 +66,7 @@
 }
 
 .block-row:hover .collapse-toggle {
-    opacity: 0.6;
+    opacity: 0.5;
 }
 
 .collapse-toggle:hover {
@@ -71,54 +79,97 @@
 }
 
 .collapse-toggle.collapsed {
-    opacity: 0.4;
+    opacity: 0.3;
+}
+
+.block-row:hover .collapse-toggle.collapsed {
+    opacity: 0.5;
 }
 
 /* Placeholder for alignment when no toggle */
 .collapse-toggle-placeholder {
     flex-shrink: 0;
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
 }
 
-/* Bullet Point Wrapper */
+/* Bullet Point Wrapper with Logseq-style lines */
 .block-bullet-wrapper {
     flex-shrink: 0;
-    width: 20px;
+    width: 24px;
     height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0;
-    transition: opacity 0.2s ease;
     position: relative;
+    z-index: 2;
+}
+
+/* Vertical line from parent (Logseq style) */
+.block-bullet-wrapper::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -2px;
+    width: 1px;
+    height: 14px;
+    background-color: rgba(0, 0, 0, 0.15);
+    transform: translateX(-0.5px);
+}
+
+.theme-dark .block-bullet-wrapper::before {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Hide top line for root-level blocks */
+.block-component:first-child > .block-row > .block-bullet-wrapper::before {
+    display: none;
+}
+
+/* Horizontal line to bullet (Logseq style) */
+.block-bullet-wrapper::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 8px;
+    height: 1px;
+    background-color: rgba(0, 0, 0, 0.15);
+    transform: translateY(-0.5px);
+}
+
+.theme-dark .block-bullet-wrapper::after {
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
 .block-bullet-wrapper:hover {
     opacity: 1;
 }
 
-/* Clean bullet point - just a circle */
+/* Clean bullet point */
 .block-bullet {
-    width: 5px;
-    height: 5px;
+    width: 4px;
+    height: 4px;
     border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.35);
+    background-color: rgba(0, 0, 0, 0.4);
     transition: all 0.2s ease;
     display: block;
+    position: relative;
+    z-index: 3;
 }
 
 .theme-dark .block-bullet {
-    background-color: rgba(255, 255, 255, 0.35);
+    background-color: rgba(255, 255, 255, 0.4);
 }
 
 .block-bullet-wrapper:hover .block-bullet {
-    background-color: rgba(0, 0, 0, 0.6);
-    transform: scale(1.4);
+    background-color: rgba(0, 0, 0, 0.7);
+    transform: scale(1.5);
 }
 
 .theme-dark .block-bullet-wrapper:hover .block-bullet {
-    background-color: rgba(255, 255, 255, 0.6);
+    background-color: rgba(255, 255, 255, 0.7);
 }
 
 /* Content Wrapper */
@@ -146,7 +197,7 @@
     outline: none;
 }
 
-/* Override CodeMirror default padding for alignment */
+/* Override CodeMirror default styles */
 .block-editor .cm-editor {
     padding: 0 !important;
     background: transparent !important;
@@ -164,7 +215,7 @@
 }
 
 .block-editor .cm-content {
-    padding: 0 4px !important;
+    padding: 2px 4px !important;
     background: transparent !important;
 }
 
@@ -173,7 +224,7 @@
     line-height: 24px !important;
 }
 
-/* Ensure active line background is subtle */
+/* Ensure active line background is transparent */
 .block-editor .cm-activeLine {
     background: transparent !important;
 }
@@ -184,22 +235,67 @@
     border: none !important;
 }
 
-/* Subtle highlight on hover */
-.block-row:hover {
-    background-color: rgba(0, 0, 0, 0.02);
-    border-radius: 3px;
+/* Block children container */
+.block-children {
+    position: relative;
+    margin-left: 0;
 }
 
-.theme-dark .block-row:hover {
-    background-color: rgba(255, 255, 255, 0.03);
+/* Vertical line connecting children (Logseq style) */
+.block-children::before {
+    content: "";
+    position: absolute;
+    left: 32px;
+    top: 0;
+    bottom: 14px;
+    width: 1px;
+    background-color: rgba(0, 0, 0, 0.15);
 }
 
-/* Focused block highlight */
-.block-row:has(.block-editor .cm-focused) {
-    background-color: rgba(0, 0, 0, 0.03);
-    border-radius: 3px;
+.theme-dark .block-children::before {
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
-.theme-dark .block-row:has(.block-editor .cm-focused) {
-    background-color: rgba(255, 255, 255, 0.04);
+/* Thread path visualization for focused blocks */
+.block-component.on-focus-path > .block-row {
+    background-color: rgba(99, 102, 241, 0.03);
+}
+
+.theme-dark .block-component.on-focus-path > .block-row {
+    background-color: rgba(129, 140, 248, 0.05);
+}
+
+/* Highlight thread path lines */
+.block-component.on-focus-path > .block-row > .block-bullet-wrapper::before,
+.block-component.on-focus-path > .block-row > .block-bullet-wrapper::after {
+    background-color: rgba(99, 102, 241, 0.4);
+}
+
+.theme-dark
+    .block-component.on-focus-path
+    > .block-row
+    > .block-bullet-wrapper::before,
+.theme-dark
+    .block-component.on-focus-path
+    > .block-row
+    > .block-bullet-wrapper::after {
+    background-color: rgba(129, 140, 248, 0.4);
+}
+
+.block-component.on-focus-path > .block-children::before {
+    background-color: rgba(99, 102, 241, 0.4);
+}
+
+.theme-dark .block-component.on-focus-path > .block-children::before {
+    background-color: rgba(129, 140, 248, 0.4);
+}
+
+/* Focused block bullet highlight */
+.block-row:has(.block-editor .cm-focused) .block-bullet {
+    background-color: rgb(99, 102, 241);
+    transform: scale(1.5);
+}
+
+.theme-dark .block-row:has(.block-editor .cm-focused) .block-bullet {
+    background-color: rgb(129, 140, 248);
 }
