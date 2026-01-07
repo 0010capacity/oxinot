@@ -18,7 +18,7 @@
     transition: background-color 0.15s ease;
 }
 
-/* Subtle hover effect - no background color */
+/* Subtle hover effect */
 .block-row:hover {
     background-color: rgba(0, 0, 0, 0.02);
 }
@@ -28,10 +28,6 @@
 }
 
 /* Focused block - subtle left border instead of background */
-.block-row:has(.block-editor .cm-focused) {
-    background-color: transparent;
-}
-
 .block-row:has(.block-editor .cm-focused)::before {
     content: "";
     position: absolute;
@@ -93,7 +89,7 @@
     height: 20px;
 }
 
-/* Bullet Point Wrapper with Logseq-style lines */
+/* Bullet Point Wrapper */
 .block-bullet-wrapper {
     flex-shrink: 0;
     width: 24px;
@@ -103,48 +99,6 @@
     justify-content: center;
     margin: 0;
     position: relative;
-    z-index: 2;
-}
-
-/* Vertical line from parent (Logseq style) */
-.block-bullet-wrapper::before {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: -2px;
-    width: 1px;
-    height: 14px;
-    background-color: rgba(0, 0, 0, 0.15);
-    transform: translateX(-0.5px);
-}
-
-.theme-dark .block-bullet-wrapper::before {
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-/* Hide top line for root-level blocks */
-.block-component:first-child > .block-row > .block-bullet-wrapper::before {
-    display: none;
-}
-
-/* Horizontal line to bullet (Logseq style) */
-.block-bullet-wrapper::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 8px;
-    height: 1px;
-    background-color: rgba(0, 0, 0, 0.15);
-    transform: translateY(-0.5px);
-}
-
-.theme-dark .block-bullet-wrapper::after {
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-.block-bullet-wrapper:hover {
-    opacity: 1;
 }
 
 /* Clean bullet point */
@@ -155,8 +109,6 @@
     background-color: rgba(0, 0, 0, 0.4);
     transition: all 0.2s ease;
     display: block;
-    position: relative;
-    z-index: 3;
 }
 
 .theme-dark .block-bullet {
@@ -170,6 +122,16 @@
 
 .theme-dark .block-bullet-wrapper:hover .block-bullet {
     background-color: rgba(255, 255, 255, 0.7);
+}
+
+/* Focused block bullet highlight */
+.block-row:has(.block-editor .cm-focused) .block-bullet {
+    background-color: rgb(99, 102, 241);
+    transform: scale(1.5);
+}
+
+.theme-dark .block-row:has(.block-editor .cm-focused) .block-bullet {
+    background-color: rgb(129, 140, 248);
 }
 
 /* Content Wrapper */
@@ -239,63 +201,4 @@
 .block-children {
     position: relative;
     margin-left: 0;
-}
-
-/* Vertical line connecting children (Logseq style) */
-.block-children::before {
-    content: "";
-    position: absolute;
-    left: 32px;
-    top: 0;
-    bottom: 14px;
-    width: 1px;
-    background-color: rgba(0, 0, 0, 0.15);
-}
-
-.theme-dark .block-children::before {
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-/* Thread path visualization for focused blocks */
-.block-component.on-focus-path > .block-row {
-    background-color: rgba(99, 102, 241, 0.03);
-}
-
-.theme-dark .block-component.on-focus-path > .block-row {
-    background-color: rgba(129, 140, 248, 0.05);
-}
-
-/* Highlight thread path lines */
-.block-component.on-focus-path > .block-row > .block-bullet-wrapper::before,
-.block-component.on-focus-path > .block-row > .block-bullet-wrapper::after {
-    background-color: rgba(99, 102, 241, 0.4);
-}
-
-.theme-dark
-    .block-component.on-focus-path
-    > .block-row
-    > .block-bullet-wrapper::before,
-.theme-dark
-    .block-component.on-focus-path
-    > .block-row
-    > .block-bullet-wrapper::after {
-    background-color: rgba(129, 140, 248, 0.4);
-}
-
-.block-component.on-focus-path > .block-children::before {
-    background-color: rgba(99, 102, 241, 0.4);
-}
-
-.theme-dark .block-component.on-focus-path > .block-children::before {
-    background-color: rgba(129, 140, 248, 0.4);
-}
-
-/* Focused block bullet highlight */
-.block-row:has(.block-editor .cm-focused) .block-bullet {
-    background-color: rgb(99, 102, 241);
-    transform: scale(1.5);
-}
-
-.theme-dark .block-row:has(.block-editor .cm-focused) .block-bullet {
-    background-color: rgb(129, 140, 248);
 }

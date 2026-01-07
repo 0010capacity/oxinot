@@ -27,23 +27,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const childIds = useChildrenIds(blockId);
     const hasChildren = childIds.length > 0;
     const focusedBlockId = useFocusedBlockId();
-    const blocksById = useBlockStore((state) => state.blocksById);
-
-    // Check if this block is on the focus path
-    const isOnFocusPath = useMemo(() => {
-      if (!focusedBlockId) return false;
-      if (blockId === focusedBlockId) return true;
-
-      // Check if focusedBlock is a descendant of this block
-      let currentId: string | null = focusedBlockId;
-      while (currentId) {
-        if (currentId === blockId) return true;
-        const currentBlock = blocksById[currentId] as typeof block | undefined;
-        if (!currentBlock) break;
-        currentId = currentBlock.parentId || null;
-      }
-      return false;
-    }, [focusedBlockId, blockId, blocksById]);
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
     const createBlock = useBlockStore((state) => state.createBlock);
@@ -173,9 +156,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     if (!block) return null;
 
     return (
-      <div
-        className={`block-component ${isOnFocusPath ? "on-focus-path" : ""}`}
-      >
+      <div className="block-component">
         <div className="block-row" style={{ paddingLeft: `${depth * 24}px` }}>
           {/* Collapse/Expand Toggle */}
           {hasChildren ? (
