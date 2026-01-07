@@ -27,18 +27,6 @@
     background-color: rgba(255, 255, 255, 0.02);
 }
 
-/* Focused block - subtle left border instead of background */
-.block-row:has(.block-editor .cm-focused)::before {
-    content: "";
-    position: absolute;
-    left: -4px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background-color: rgba(99, 102, 241, 0.5);
-    border-radius: 1px;
-}
-
 /* Collapse/Expand Toggle - show only on hover */
 .collapse-toggle {
     flex-shrink: 0;
@@ -124,14 +112,14 @@
     background-color: rgba(255, 255, 255, 0.7);
 }
 
-/* Focused block bullet highlight */
+/* Focused block bullet highlight - more prominent */
 .block-row:has(.block-editor .cm-focused) .block-bullet {
-    background-color: rgb(99, 102, 241);
-    transform: scale(1.5);
+    background-color: rgba(0, 0, 0, 0.85);
+    transform: scale(1.6);
 }
 
 .theme-dark .block-row:has(.block-editor .cm-focused) .block-bullet {
-    background-color: rgb(129, 140, 248);
+    background-color: rgba(255, 255, 255, 0.85);
 }
 
 /* Content Wrapper */
