@@ -1,13 +1,14 @@
 .block-editor-container {
     width: 100%;
     height: 100%;
-    padding: 20px;
+    padding: 40px 20px;
     font-family:
         -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
         "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
         sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-y: auto;
 }
 
 .block-editor-container.theme-light {
@@ -34,54 +35,9 @@
 
 /* Blocks list */
 .blocks-list {
-    max-width: 900px;
+    max-width: 800px;
     margin: 0 auto;
-}
-
-/* Block container */
-.block-container {
-    position: relative;
-    margin: 1px 0;
-}
-
-/* Block line */
-.block-line {
-    display: flex;
-    align-items: flex-start;
-    gap: 4px;
-    min-height: 32px;
-    transition: background-color 0.15s ease;
-    border-radius: 4px;
-}
-
-.block-line.focused {
-    /* background removed for cleaner look */
-}
-
-.theme-dark .block-line.focused {
-    /* background removed for cleaner look */
-}
-
-/* Active path highlighting */
-.block-container.on-active-path > .block-line {
-    /* background removed for cleaner look */
-}
-
-.theme-dark .block-container.on-active-path > .block-line {
-    /* background removed for cleaner look */
-}
-
-/* Focus within */
-.block-children.focus-within {
-    position: relative;
-}
-
-.block-children.focus-within::before {
-    /* vertical line removed for cleaner look */
-}
-
-.theme-dark .block-children.focus-within::before {
-    /* vertical line removed for cleaner look */
+    padding-bottom: 200px;
 }
 
 /* Toggle button */
@@ -361,45 +317,26 @@
 /* Responsive */
 @media (max-width: 768px) {
     .block-editor-container {
-        padding: 12px;
+        padding: 20px 12px;
     }
 
     .blocks-list {
         max-width: 100%;
+        padding-bottom: 150px;
     }
 
     .block-breadcrumbs {
         max-width: 100%;
     }
-
-    .block-line {
-        gap: 2px;
-    }
-
-    .block-editor-wrap .cm-content {
-        font-size: 15px !important;
-    }
 }
 
-/* Smooth focus transitions */
-* {
-    transition: background-color 0.15s ease;
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: rgba(0, 0, 0, 0.4);
 }
 
-/* Hide CodeMirror's default cursor in unfocused editors */
-.block-editor-wrap .cm-editor:not(.cm-focused) .cm-cursor {
-    display: none;
-}
-
-/* Ensure proper z-index stacking */
-.block-editor-wrap {
-    z-index: 1;
-}
-
-.block-bullet-container {
-    z-index: 10;
-}
-
-.block-toggle {
-    z-index: 10;
+.theme-dark .empty-state {
+    color: rgba(255, 255, 255, 0.4);
 }

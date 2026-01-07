@@ -168,7 +168,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               {block.isCollapsed ? "▶" : "▼"}
             </button>
           ) : (
-            <div style={{ width: "24px", height: "24px", flexShrink: 0 }} />
+            <div className="collapse-toggle-placeholder" />
           )}
 
           {/* Bullet Point - clickable for zoom */}
@@ -178,7 +178,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             style={{ cursor: hasChildren ? "pointer" : "default" }}
             title={hasChildren ? "Click to zoom into this block" : undefined}
           >
-            <span className="block-bullet">•</span>
+            <div className="block-bullet" />
           </div>
 
           {/* Content Editor */}

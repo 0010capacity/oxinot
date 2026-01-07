@@ -5,6 +5,7 @@
         -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 14px;
     line-height: 1.5;
+    position: relative;
 }
 
 .block-row {
@@ -15,10 +16,26 @@
     position: relative;
 }
 
-.block-row:hover .zoom-button {
-    opacity: 1;
+/* Vertical line for hierarchy */
+.block-children::before {
+    content: "";
+    position: absolute;
+    left: 12px;
+    top: 0;
+    bottom: 12px;
+    width: 1px;
+    background-color: rgba(0, 0, 0, 0.1);
 }
 
+.theme-dark .block-children::before {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.block-children {
+    position: relative;
+}
+
+/* Collapse/Expand Toggle - show only on hover */
 .collapse-toggle {
     flex-shrink: 0;
     width: 24px;
@@ -33,18 +50,38 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.5;
-    transition: opacity 0.2s ease;
+    opacity: 0;
+    transition:
+        opacity 0.15s ease,
+        background-color 0.15s ease;
+    border-radius: 3px;
+}
+
+.block-row:hover .collapse-toggle {
+    opacity: 0.6;
 }
 
 .collapse-toggle:hover {
-    opacity: 1;
+    opacity: 1 !important;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.theme-dark .collapse-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.08);
 }
 
 .collapse-toggle.collapsed {
-    transform: rotate(-90deg);
+    opacity: 0.4;
 }
 
+/* Placeholder for alignment when no toggle */
+.collapse-toggle-placeholder {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+}
+
+/* Bullet Point Wrapper */
 .block-bullet-wrapper {
     flex-shrink: 0;
     width: 20px;
@@ -54,19 +91,37 @@
     justify-content: center;
     margin: 0;
     transition: opacity 0.2s ease;
+    position: relative;
 }
 
 .block-bullet-wrapper:hover {
     opacity: 1;
 }
 
+/* Clean bullet point - just a circle */
 .block-bullet {
-    font-size: 14px;
-    opacity: 0.5;
-    user-select: none;
-    line-height: 1;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.35);
+    transition: all 0.2s ease;
+    display: block;
 }
 
+.theme-dark .block-bullet {
+    background-color: rgba(255, 255, 255, 0.35);
+}
+
+.block-bullet-wrapper:hover .block-bullet {
+    background-color: rgba(0, 0, 0, 0.6);
+    transform: scale(1.4);
+}
+
+.theme-dark .block-bullet-wrapper:hover .block-bullet {
+    background-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Content Wrapper */
 .block-content-wrapper {
     flex: 1;
     min-width: 0;
@@ -95,10 +150,12 @@
 .block-editor .cm-editor {
     padding: 0 !important;
     background: transparent !important;
+    outline: none !important;
 }
 
 .block-editor .cm-editor.cm-focused {
     background: transparent !important;
+    outline: none !important;
 }
 
 .block-editor .cm-scroller {
@@ -107,7 +164,7 @@
 }
 
 .block-editor .cm-content {
-    padding: 0 !important;
+    padding: 0 4px !important;
     background: transparent !important;
 }
 
@@ -125,4 +182,24 @@
 .block-editor .cm-gutters {
     background: transparent !important;
     border: none !important;
+}
+
+/* Subtle highlight on hover */
+.block-row:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: 3px;
+}
+
+.theme-dark .block-row:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Focused block highlight */
+.block-row:has(.block-editor .cm-focused) {
+    background-color: rgba(0, 0, 0, 0.03);
+    border-radius: 3px;
+}
+
+.theme-dark .block-row:has(.block-editor .cm-focused) {
+    background-color: rgba(255, 255, 255, 0.04);
 }
