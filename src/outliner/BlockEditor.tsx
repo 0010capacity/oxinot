@@ -1,326 +1,91 @@
-import React, {
-  useReducer,
-  useRef,
-  useEffect,
-  useState,
-  useCallback,
-  useMemo,
-} from "react";
-import { Block } from "./types";
-import { blockReducer } from "./blockReducer";
-import {
-  flattenBlocks,
-  createBlock,
-  hasChildren,
-  findBlockById,
-} from "./blockUtils";
-import { parseMarkdownToBlocks } from "./blockUtils";
-import { ONCHANGE_DEBOUNCE_MS, AUTO_FOCUS_DELAY_MS } from "./constants";
-import { Breadcrumbs, Anchor } from "@mantine/core";
-import "./BlockEditor.css";
-import { Editor } from "../components/Editor";
-import { createBlockKeybindings } from "./blockKeybindings";
-import { checkBlockConversion } from "./blockConversion";
-import { BlockComponent } from "./BlockComponent";
-
-// Helper function to get block path
-function getBlockPath(block: Block): Block[] {
-  const path: Block[] = [];
-  let current: Block | null = block;
-  while (current) {
-    path.unshift(current);
-    current = current.parent;
-  }
-  return path;
-}
-
-function formatBreadcrumb(block: Block): string {
-  if (block.kind === "code") {
-    return "Code Block";
-  }
-  if (block.kind === "fence") {
-    return "Fence Block";
-  }
-
-  let content = block.content.trim();
-
-  if (!content) {
-    return "(empty)";
-  }
-
-  // Remove various markdown markers
-  content = content
-    // Remove links, keeping only the link text
-    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
-    // Remove bold, italics, strikethrough, inline code
-    .replace(
-      /\*\*(.*?)\*\*|__(.*?)__|~~(.*?)~~|`(.*?)`|\*(.*?)\*|_(.*?)_/g,
-      (_match, p1, p2, p3, p4, p5, p6) =>
-        p1 || p2 || p3 || p4 || p5 || p6 || "",
-    )
-    // Remove leading markdown markers like #, >, -, *, 1.
-    .replace(/^(#+\s*|>\s*|[-*+]\s*|\d+\.\s*)/, "")
-    .trim();
-
-  // Truncate if too long
-  if (content.length > 50) {
-    content = content.substring(0, 50) + "...";
-  }
-
-  return content || "(empty)";
-}
+import { useMemo, useEffect } from "react";
+import { Virtuoso } from "react-virtuoso";
+import { useBlockStore } from "../stores/blockStore";
+import { BlockRow } from "./BlockRow";
 
 interface BlockEditorProps {
-  initialContent?: string;
-  onChange?: (blocks: Block[]) => void;
-  theme?: "light" | "dark";
+  pageId: string;
 }
 
-export const BlockEditor: React.FC<BlockEditorProps> = ({
-  initialContent = "",
-  onChange,
-  theme = "light",
-}) => {
-  const [blocks, dispatch] = useReducer(blockReducer, null, () => {
-    if (!initialContent) {
-      return [createBlock("", 0)];
-    }
-    return parseMarkdownToBlocks(initialContent);
-  });
+export function BlockEditor({ pageId }: BlockEditorProps) {
+  const loadPage = useBlockStore((state) => state.loadPage);
+  const isLoading = useBlockStore((state) => state.isLoading);
+  const error = useBlockStore((state) => state.error);
 
-  const [focusedBlockId, setFocusedBlockId] = useState<string | null>(() => {
-    const firstBlock = blocks[0];
-    return firstBlock ? firstBlock.id : null;
-  });
-  const [focusRootId, setFocusRootId] = useState<string | null>(null);
-
-  const isFirstRender = useRef(true);
-  const prevBlockCountRef = useRef(blocks.length);
-
-  // Notify parent of block changes
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
+    if (pageId) {
+      loadPage(pageId);
     }
-    if (!onChange) return;
-    const timeoutId = setTimeout(() => {
-      onChange(blocks);
-    }, ONCHANGE_DEBOUNCE_MS);
-    return () => clearTimeout(timeoutId);
-  }, [blocks, onChange]);
+  }, [pageId, loadPage]);
 
-  // Auto-focus newly created blocks
-  useEffect(() => {
-    const currentBlockCount = blocks.length;
-    if (currentBlockCount > prevBlockCountRef.current) {
-      // A block was added - focus it
-      const flatBlocks = flattenBlocks(blocks);
-      if (focusedBlockId) {
-        const currentIndex = flatBlocks.findIndex(
-          (b) => b.id === focusedBlockId,
-        );
-        if (currentIndex !== -1 && currentIndex + 1 < flatBlocks.length) {
-          const nextBlock = flatBlocks[currentIndex + 1];
-          // Small delay to allow React to render the new block
-          setTimeout(() => {
-            setFocusedBlockId(nextBlock.id);
-          }, AUTO_FOCUS_DELAY_MS);
-        }
-      }
-    }
-    prevBlockCountRef.current = currentBlockCount;
-  }, [blocks, focusedBlockId]);
+  if (isLoading) {
+    return <div style={{ padding: "16px" }}>Loading...</div>;
+  }
 
-  const handleContentChange = useCallback(
-    (blockId: string, newContent: string) => {
-      const flat = flattenBlocks(blocks);
-      const current = flat.find((b) => b.id === blockId);
+  if (error) {
+    return <div style={{ padding: "16px", color: "red" }}>Error: {error}</div>;
+  }
 
-      if (!current) {
-        // Block not found, just update content
-        dispatch({
-          type: "UPDATE_BLOCK",
-          payload: { blockId, content: newContent },
-        });
-        return;
-      }
+  return <BlockList parentId={null} />;
+}
 
-      // Check for auto-conversion
-      const conversion = checkBlockConversion(current, newContent);
-      if (conversion?.shouldConvert) {
-        current.kind = conversion.kind;
-        current.fenceState = "open";
-        if (conversion.kind === "code" && conversion.language !== undefined) {
-          current.language = conversion.language;
-        }
-        dispatch({
-          type: "UPDATE_BLOCK",
-          payload: { blockId, content: "" },
-        });
-        setTimeout(() => setFocusedBlockId(blockId), 0);
-        return;
-      }
+interface BlockListProps {
+  parentId: string | null;
+}
 
-      // Normal content update
-      dispatch({
-        type: "UPDATE_BLOCK",
-        payload: { blockId, content: newContent },
-      });
-    },
-    [blocks],
-  );
+function BlockList({ parentId }: BlockListProps) {
+  const flattenedBlocks = useFlattenedBlocks(parentId);
 
-  const handleToggleCollapse = useCallback((blockId: string) => {
-    dispatch({ type: "TOGGLE_COLLAPSE", payload: { blockId } });
-  }, []);
-
-  const currentRoot = useMemo(() => {
-    if (!focusRootId) return null;
-    return findBlockById(blocks, focusRootId);
-  }, [blocks, focusRootId]);
-
-  const displayedBlocks = useMemo(() => {
-    if (!currentRoot) return blocks;
-    return currentRoot.children;
-  }, [blocks, currentRoot]);
-
-  const breadcrumbPath = useMemo(() => {
-    if (!focusRootId) return [];
-    const focusedBlock = findBlockById(blocks, focusRootId);
-    if (!focusedBlock) return [];
-    return getBlockPath(focusedBlock);
-  }, [blocks, focusRootId]);
-
-  const breadcrumbItems = breadcrumbPath.map((block) => (
-    <Anchor
-      key={block.id}
-      onClick={() => {
-        if (block.parent) {
-          setFocusRootId(block.parent.id);
-        } else {
-          setFocusRootId(null);
-        }
-      }}
-    >
-      {formatBreadcrumb(block)}
-    </Anchor>
-  ));
-
-  const activePath = useMemo(() => {
-    if (!focusedBlockId) return [];
-    const focusedBlock = findBlockById(blocks, focusedBlockId);
-    if (!focusedBlock) return [];
-    return getBlockPath(focusedBlock);
-  }, [blocks, focusedBlockId]);
-
-  const activePathIds = useMemo(
-    () => new Set(activePath.map((b) => b.id)),
-    [activePath],
-  );
-
-  const renderBlock = useCallback(
-    (block: Block, ancestors: Block[]): React.ReactNode => {
-      const isFocused = focusedBlockId === block.id;
-      const isOnActivePath = activePathIds.has(block.id);
-      const effectiveLevel = block.level - (currentRoot?.level ?? 0);
-      const keybindings = createBlockKeybindings(
-        block.id,
-        block,
-        blocks,
-        dispatch,
-        setFocusedBlockId,
-      );
-
-      return (
-        <BlockComponent
-          key={block.id}
-          block={block}
-          state={{
-            isFocused,
-            isOnActivePath,
-            effectiveLevel,
-          }}
-          handlers={{
-            onContentChange: handleContentChange,
-            onFocusBlock: setFocusedBlockId,
-            onToggleCollapse: handleToggleCollapse,
-            onSetFocusRoot: setFocusRootId,
-          }}
-          config={{
-            theme,
-            keybindings,
-          }}
-        >
-          {!block.collapsed &&
-            hasChildren(block) &&
-            block.children.map((child) =>
-              renderBlock(child, [...ancestors, block]),
-            )}
-        </BlockComponent>
-      );
-    },
-    [
-      focusedBlockId,
-      currentRoot,
-      activePathIds,
-      theme,
-      blocks,
-      dispatch,
-      handleContentChange,
-      handleToggleCollapse,
-    ],
-  );
+  if (flattenedBlocks.length === 0) {
+    return (
+      <div style={{ padding: "16px", color: "#999" }}>
+        No blocks yet. Click to add one.
+      </div>
+    );
+  }
 
   return (
-    <div className={`block-editor-container theme-${theme}`}>
-      {breadcrumbPath.length > 0 && (
-        <div className="block-breadcrumbs">
-          <Breadcrumbs separator="›">{breadcrumbItems}</Breadcrumbs>
-        </div>
-      )}
-
-      <div className="blocks-list">
-        {displayedBlocks.map((block) => renderBlock(block, []))}
-      </div>
-
-      {displayedBlocks.length === 0 && (
-        <div
-          className="empty-state"
-          style={{ paddingLeft: `${(currentRoot?.level ?? 0) * 24}px` }}
-        >
-          <div className="block-line">
-            <div className="block-toggle-placeholder" />
-            <div className="block-bullet-container">
-              <div className="block-bullet" />
-            </div>
-            <div className="block-editor-wrap">
-              <Editor
-                value=""
-                onChange={() => {
-                  dispatch({
-                    type: "ADD_BLOCK",
-                    payload: {
-                      level: currentRoot ? currentRoot.level + 1 : 0,
-                      afterBlockId: currentRoot?.id,
-                    },
-                  });
-                }}
-                theme={theme}
-                lineNumbers={false}
-                lineWrapping={true}
-                className="block-editor"
-                style={{
-                  minHeight: "32px",
-                  fontSize: "16px",
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <Virtuoso
+      style={{ height: "100%" }}
+      totalCount={flattenedBlocks.length}
+      itemContent={(index) => {
+        const { id, depth } = flattenedBlocks[index];
+        return <BlockRow key={id} blockId={id} depth={depth} />;
+      }}
+    />
   );
-};
+}
 
-export default BlockEditor;
+interface FlatBlock {
+  id: string;
+  depth: number;
+}
+
+function useFlattenedBlocks(rootParentId: string | null): FlatBlock[] {
+  const blocksById = useBlockStore((state) => state.blocksById);
+  const childrenMap = useBlockStore((state) => state.childrenMap);
+
+  return useMemo(() => {
+    const result: FlatBlock[] = [];
+
+    function traverse(parentId: string | null, depth: number) {
+      const key = parentId ?? "root";
+      const childIds = childrenMap[key] ?? [];
+
+      for (const id of childIds) {
+        const block = blocksById[id];
+        if (block) {
+          result.push({ id, depth });
+
+          // If not collapsed, traverse children
+          if (!block.isCollapsed) {
+            traverse(id, depth + 1);
+          }
+        }
+      }
+    }
+
+    traverse(rootParentId, 0);
+    return result;
+  }, [blocksById, childrenMap, rootParentId]);
+}

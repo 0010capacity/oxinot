@@ -12,13 +12,8 @@ import {
   createTheme,
 } from "@mantine/core";
 import { IconSun, IconMoon, IconFolder } from "@tabler/icons-react";
-import { BlockEditor } from "./outliner/BlockEditor";
-import { Block } from "./outliner/types";
-import { blocksToMarkdown } from "./outliner/blockUtils";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { FileTreeView } from "./components/FileTreeView";
-
-import INITIAL_CONTENT from "./initialContent.md?raw";
 
 const theme = createTheme({
   fontFamily:
@@ -52,31 +47,9 @@ function WorkspaceSelector() {
 function AppContent() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
-  const { workspacePath, currentFile, fileContent, saveFile, selectWorkspace } =
-    useWorkspaceStore();
-  const [blocks, setBlocks] = React.useState<Block[]>([]);
+  const { workspacePath, currentFile, selectWorkspace } = useWorkspaceStore();
   const [showDebug, setShowDebug] = React.useState(false);
-  const [markdown, setMarkdown] = React.useState("");
   const [viewMode, setViewMode] = React.useState<"tree" | "editor">("tree");
-
-  const handleBlocksChange = React.useCallback((newBlocks: Block[]) => {
-    setBlocks(newBlocks);
-    const md = blocksToMarkdown(newBlocks);
-    setMarkdown(md);
-  }, []);
-
-  // Auto-save when markdown changes and we have a current file
-  React.useEffect(() => {
-    if (currentFile && markdown && viewMode === "editor") {
-      const timeoutId = setTimeout(() => {
-        saveFile(currentFile, markdown).catch((err) => {
-          console.error("Auto-save failed:", err);
-        });
-      }, 1000);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [markdown, currentFile, saveFile, viewMode]);
 
   // Switch to editor mode when a file is opened
   React.useEffect(() => {
@@ -174,12 +147,16 @@ function AppContent() {
             {viewMode === "tree" ? (
               <FileTreeView />
             ) : (
-              <BlockEditor
-                initialContent={currentFile ? fileContent : INITIAL_CONTENT}
-                theme={isDark ? "dark" : "light"}
-                onChange={handleBlocksChange}
-                key={currentFile || "default"}
-              />
+              // TODO: Migrate to new Zustand-based BlockEditor
+              // <BlockEditor
+              //   initialContent={currentFile ? fileContent : INITIAL_CONTENT}
+              //   theme={isDark ? "dark" : "light"}
+              //   onChange={handleBlocksChange}
+              //   key={currentFile || "default"}
+              // />
+              <div style={{ padding: "16px", color: "#999" }}>
+                Block editor migration in progress...
+              </div>
             )}
           </div>
           {showDebug && (
@@ -196,7 +173,7 @@ function AppContent() {
                 <div>
                   <Title order={4}>Markdown Source</Title>
                   <Text size="sm" c="dimmed">
-                    {blocks.length} blocks total
+                    Block editor migration in progress...
                   </Text>
                 </div>
               </Group>
@@ -216,7 +193,7 @@ function AppContent() {
                   margin: 0,
                 }}
               >
-                {markdown || "// Start typing to see markdown..."}
+                {"// Block editor migration in progress..."}
               </pre>
             </div>
           )}

@@ -1,164 +1,116 @@
-import React, { memo } from "react";
-import { Block } from "./types";
-import { hasChildren } from "./blockUtils";
+import React, { memo, useCallback } from "react";
+import { useBlock, useChildrenIds, useBlockStore } from "../stores/blockStore";
+import { useDebouncedBlockUpdate } from "../hooks/useDebouncedBlockUpdate";
 import { Editor } from "../components/Editor";
-import { KeyBinding } from "@codemirror/view";
+import "./BlockComponent.css";
 
-// Grouped props for better organization
-export interface BlockComponentProps {
-  block: Block;
-  state: {
-    isFocused: boolean;
-    isOnActivePath: boolean;
-    effectiveLevel: number;
-  };
-  handlers: {
-    onContentChange: (blockId: string, content: string) => void;
-    onFocusBlock: (blockId: string) => void;
-    onToggleCollapse: (blockId: string) => void;
-    onSetFocusRoot: (blockId: string) => void;
-  };
-  config: {
-    theme: "light" | "dark";
-    keybindings: KeyBinding[];
-  };
-  children?: React.ReactNode;
+interface BlockComponentProps {
+  blockId: string;
+  depth: number;
 }
 
-/**
- * Memoized Block component for performance
- * Represents a single block in the outliner with its editor and bullet point
- */
-export const BlockComponent = memo<BlockComponentProps>(
-  ({ block, state, handlers, config, children }) => {
-    const { isFocused, isOnActivePath, effectiveLevel } = state;
-    const { onContentChange, onFocusBlock, onToggleCollapse, onSetFocusRoot } =
-      handlers;
-    const { theme, keybindings } = config;
-    const isCollapsed = block.collapsed;
-    const hasChildBlocks = hasChildren(block);
+export const BlockComponent = memo(function BlockComponent({
+  blockId,
+  depth,
+}: BlockComponentProps) {
+  const block = useBlock(blockId);
+  const childIds = useChildrenIds(blockId);
+  const hasChildren = childIds.length > 0;
 
-    return (
-      <div
-        className={`block-container ${hasChildBlocks ? "has-children" : ""} ${children ? "focus-within" : ""} ${isOnActivePath ? "on-active-path" : ""}`}
-        data-block-id={block.id}
-      >
-        <div
-          className={`block-line ${isFocused ? "focused" : ""}`}
-          style={{ paddingLeft: `${effectiveLevel * 24}px` }}
-        >
-          {hasChildBlocks ? (
-            <button
-              className={`block-toggle ${
-                isCollapsed ? "collapsed" : "expanded"
-              }`}
-              onClick={() => onToggleCollapse(block.id)}
-              aria-label={isCollapsed ? "Expand" : "Collapse"}
-            >
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 10 10"
-                fill="none"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path
-                  d={isCollapsed ? "M4 2.5L6.5 5L4 7.5" : "M2.5 4L5 6.5L7.5 4"}
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          ) : (
-            <div className="block-toggle-placeholder" />
-          )}
+  const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
+  const createBlock = useBlockStore((state) => state.createBlock);
+  const deleteBlock = useBlockStore((state) => state.deleteBlock);
+  const indentBlock = useBlockStore((state) => state.indentBlock);
+  const outdentBlock = useBlockStore((state) => state.outdentBlock);
+  const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
 
-          <div
-            className={`block-bullet-container ${
-              block.kind === "fence"
-                ? "fence"
-                : block.kind === "code"
-                  ? "code"
-                  : ""
-            }`}
-            onClick={() => onSetFocusRoot(block.id)}
-            title={
-              block.kind === "fence"
-                ? "Fence block"
-                : block.kind === "code"
-                  ? `Code block${block.language ? ` (${block.language})` : ""}`
-                  : undefined
-            }
+  const { debouncedUpdate, flushUpdate } = useDebouncedBlockUpdate(blockId);
+
+  const handleContentChange = useCallback(
+    (content: string) => {
+      debouncedUpdate(content);
+    },
+    [debouncedUpdate],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        flushUpdate();
+        createBlock(blockId);
+      } else if (e.key === "Backspace" && block?.content === "") {
+        e.preventDefault();
+        deleteBlock(blockId);
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        flushUpdate();
+        if (e.shiftKey) {
+          outdentBlock(blockId);
+        } else {
+          indentBlock(blockId);
+        }
+      }
+    },
+    [
+      blockId,
+      block?.content,
+      flushUpdate,
+      createBlock,
+      deleteBlock,
+      indentBlock,
+      outdentBlock,
+    ],
+  );
+
+  const handleFocus = useCallback(() => {
+    setFocusedBlock(blockId);
+  }, [blockId, setFocusedBlock]);
+
+  const handleBlur = useCallback(() => {
+    flushUpdate();
+  }, [flushUpdate]);
+
+  if (!block) return null;
+
+  return (
+    <div
+      className="block-component"
+      style={{ paddingLeft: `${depth * 24}px` }}
+      onKeyDown={handleKeyDown}
+    >
+      <div className="block-row">
+        {/* Collapse/Expand Toggle */}
+        {hasChildren && (
+          <button
+            className={`collapse-toggle ${block.isCollapsed ? "collapsed" : ""}`}
+            onClick={() => toggleCollapse(blockId)}
+            aria-label={block.isCollapsed ? "Expand" : "Collapse"}
           >
-            <div
-              className={`block-bullet ${isFocused ? "active" : ""} ${
-                block.kind === "fence"
-                  ? "fence"
-                  : block.kind === "code"
-                    ? "code"
-                    : ""
-              }`}
-            />
-          </div>
-
-          <div
-            className={`block-editor-wrap ${
-              block.kind === "code"
-                ? "code-block-editor"
-                : block.kind === "fence"
-                  ? "fence-block-editor"
-                  : ""
-            }`}
-          >
-            <Editor
-              value={block.content}
-              onChange={(newContent) => onContentChange(block.id, newContent)}
-              onFocus={() => onFocusBlock(block.id)}
-              theme={theme}
-              lineNumbers={false}
-              lineWrapping={true}
-              keybindings={keybindings}
-              className="block-editor"
-              style={{
-                minHeight: "32px",
-                fontSize: block.kind === "code" ? "14px" : "16px",
-              }}
-            />
-          </div>
-        </div>
-
-        {!isCollapsed && hasChildBlocks && children && (
-          <div className={`block-children ${children ? "focus-within" : ""}`}>
-            {children}
-          </div>
+            {block.isCollapsed ? "▶" : "▼"}
+          </button>
         )}
+
+        {/* Bullet Point */}
+        <span className="block-bullet">•</span>
+
+        {/* Content Editor */}
+        <div className="block-content-wrapper">
+          <Editor
+            value={block.content}
+            onChange={handleContentChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            lineNumbers={false}
+            lineWrapping={true}
+            className="block-editor"
+            style={{
+              minHeight: "32px",
+              fontSize: "14px",
+            }}
+          />
+        </div>
       </div>
-    );
-  },
-  (prevProps, nextProps) => {
-    // Only re-render if THIS block's content changed or focus changed
-    // Don't re-render just because siblings changed
-    if (prevProps.block.id !== nextProps.block.id) return false;
-    if (prevProps.block.content !== nextProps.block.content) return false;
-    if (prevProps.state.isFocused !== nextProps.state.isFocused) return false;
-    if (prevProps.config.theme !== nextProps.config.theme) return false;
-
-    // For other changes, only re-render if they affect this block
-    if (prevProps.block.collapsed !== nextProps.block.collapsed) return false;
-    if (prevProps.block.kind !== nextProps.block.kind) return false;
-    if (prevProps.state.isOnActivePath !== nextProps.state.isOnActivePath)
-      return false;
-    if (prevProps.state.effectiveLevel !== nextProps.state.effectiveLevel)
-      return false;
-    if (prevProps.block.children.length !== nextProps.block.children.length)
-      return false;
-
-    // Skip re-render - nothing important changed
-    return true;
-  },
-);
-
-BlockComponent.displayName = "BlockComponent";
+    </div>
+  );
+});
