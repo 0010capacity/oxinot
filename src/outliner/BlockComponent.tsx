@@ -34,6 +34,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const indentBlock = useBlockStore((state) => state.indentBlock);
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
+    const targetCursorPosition = useBlockStore(
+      (state) => state.targetCursorPosition,
+    );
+    const clearTargetCursorPosition = useBlockStore(
+      (state) => state.clearTargetCursorPosition,
+    );
 
     const { debouncedUpdate, flushUpdate } = useDebouncedBlockUpdate(blockId);
     const editorRef = useRef<EditorRef>(null);
@@ -41,12 +47,28 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // Focus editor when this block becomes focused
     useEffect(() => {
       if (focusedBlockId === blockId && editorRef.current) {
-        // Small delay to ensure DOM is ready
         setTimeout(() => {
-          editorRef.current?.focus();
+          const view = editorRef.current?.getView();
+          if (view) {
+            view.focus();
+
+            // Set cursor position if specified
+            if (targetCursorPosition !== null) {
+              const pos = Math.min(targetCursorPosition, view.state.doc.length);
+              view.dispatch({
+                selection: { anchor: pos, head: pos },
+              });
+              clearTargetCursorPosition();
+            }
+          }
         }, 10);
       }
-    }, [focusedBlockId, blockId]);
+    }, [
+      focusedBlockId,
+      blockId,
+      targetCursorPosition,
+      clearTargetCursorPosition,
+    ]);
 
     const handleContentChange = useCallback(
       (content: string) => {
@@ -127,7 +149,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 .getPreviousBlock(blockId);
               deleteBlock(blockId);
               if (prevBlockId) {
-                setFocusedBlock(prevBlockId);
+                const prevBlock = useBlockStore
+                  .getState()
+                  .getBlock(prevBlockId);
+                if (prevBlock) {
+                  // Move to end of previous block
+                  setFocusedBlock(prevBlockId, prevBlock.content.length);
+                } else {
+                  setFocusedBlock(prevBlockId);
+                }
               }
               return true;
             } else if (cursor === 0) {
@@ -141,13 +171,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   .getBlock(prevBlockId);
                 if (prevBlock) {
                   // Merge current content into previous block
+                  const prevLength = prevBlock.content.length;
                   const newContent = prevBlock.content + content;
                   flushUpdate();
                   useBlockStore
                     .getState()
                     .updateBlockContent(prevBlockId, newContent);
                   deleteBlock(blockId);
-                  setFocusedBlock(prevBlockId);
+                  // Set cursor at the merge point
+                  setFocusedBlock(prevBlockId, prevLength);
                   return true;
                 }
               }
@@ -168,7 +200,30 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 .getPreviousBlock(blockId);
               if (prevBlockId) {
                 flushUpdate();
-                setFocusedBlock(prevBlockId);
+
+                // Calculate column position in current line
+                const columnPos = cursor - line.from;
+
+                // Get previous block and calculate target position
+                const prevBlock = useBlockStore
+                  .getState()
+                  .getBlock(prevBlockId);
+                if (prevBlock) {
+                  const prevContent = prevBlock.content;
+                  const lines = prevContent.split("\n");
+                  const lastLine = lines[lines.length - 1];
+
+                  // Calculate position: sum of all previous lines + target column
+                  let targetPos = 0;
+                  for (let i = 0; i < lines.length - 1; i++) {
+                    targetPos += lines[i].length + 1; // +1 for newline
+                  }
+                  targetPos += Math.min(columnPos, lastLine.length);
+
+                  setFocusedBlock(prevBlockId, targetPos);
+                } else {
+                  setFocusedBlock(prevBlockId);
+                }
                 return true;
               }
             }
@@ -189,7 +244,23 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 .getNextBlock(blockId);
               if (nextBlockId) {
                 flushUpdate();
-                setFocusedBlock(nextBlockId);
+
+                // Calculate column position in current line
+                const columnPos = cursor - line.from;
+
+                // Get next block and calculate target position
+                const nextBlock = useBlockStore
+                  .getState()
+                  .getBlock(nextBlockId);
+                if (nextBlock) {
+                  const nextContent = nextBlock.content;
+                  const firstLine = nextContent.split("\n")[0];
+                  const targetPos = Math.min(columnPos, firstLine.length);
+
+                  setFocusedBlock(nextBlockId, targetPos);
+                } else {
+                  setFocusedBlock(nextBlockId);
+                }
                 return true;
               }
             }

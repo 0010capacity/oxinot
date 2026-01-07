@@ -30,6 +30,9 @@ interface BlockState {
   // 선택/포커스 상태
   focusedBlockId: string | null;
   selectedBlockIds: string[];
+
+  // 커서 위치 추적 (블록 간 이동 시)
+  targetCursorPosition: number | null;
 }
 
 interface BlockActions {
@@ -56,8 +59,9 @@ interface BlockActions {
   toggleCollapse: (id: string) => Promise<void>;
 
   // 선택/포커스
-  setFocusedBlock: (id: string | null) => void;
+  setFocusedBlock: (id: string | null, cursorPos?: number) => void;
   setSelectedBlocks: (ids: string[]) => void;
+  clearTargetCursorPosition: () => void;
 
   // 키보드 네비게이션
   getPreviousBlock: (id: string) => string | null;
@@ -83,6 +87,7 @@ export const useBlockStore = create<BlockStore>()(
     error: null,
     focusedBlockId: null,
     selectedBlockIds: [],
+    targetCursorPosition: null,
 
     // ============ Page Operations ============
 
@@ -415,15 +420,22 @@ export const useBlockStore = create<BlockStore>()(
 
     // ============ Focus/Selection ============
 
-    setFocusedBlock: (id: string | null) => {
+    setFocusedBlock: (id: string | null, cursorPos?: number) => {
       set((state) => {
         state.focusedBlockId = id;
+        state.targetCursorPosition = cursorPos ?? null;
       });
     },
 
     setSelectedBlocks: (ids: string[]) => {
       set((state) => {
         state.selectedBlockIds = ids;
+      });
+    },
+
+    clearTargetCursorPosition: () => {
+      set((state) => {
+        state.targetCursorPosition = null;
       });
     },
 
