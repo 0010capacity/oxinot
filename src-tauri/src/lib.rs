@@ -6,6 +6,7 @@ use tauri::Manager;
 mod commands;
 mod db;
 mod models;
+mod services;
 mod utils;
 
 #[derive(Debug, Serialize, Deserialize)]
