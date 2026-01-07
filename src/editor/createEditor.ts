@@ -19,6 +19,7 @@ import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import {
   hybridRenderingPlugin,
   hybridRenderingTheme,
+  isFocusedFacet,
 } from "./extensions/hybridRendering";
 
 /**
@@ -46,6 +47,12 @@ export interface EditorConfig {
    * These bindings are prepended so they take precedence over defaults.
    */
   keybindings?: KeyBinding[];
+
+  /**
+   * Whether this editor should be treated as focused for rendering purposes.
+   * Used to control markdown marker visibility in outliner blocks.
+   */
+  isFocused?: boolean;
 }
 
 /**
@@ -228,6 +235,7 @@ export function createEditor(
     createEditorTheme(config.theme),
 
     // Hybrid rendering (live preview)
+    isFocusedFacet.of(config.isFocused ?? true),
     hybridRenderingPlugin,
     hybridRenderingTheme,
 

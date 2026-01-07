@@ -352,6 +352,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               lineWrapping={true}
               theme={isDark ? "dark" : "light"}
               keybindings={keybindings}
+              isFocused={focusedBlockId === blockId}
               className="block-editor"
               style={{
                 minHeight: "24px",

@@ -31,6 +31,12 @@ interface EditorProps {
    * These are forwarded to `createEditor()` and take precedence over defaults.
    */
   keybindings?: KeyBinding[];
+
+  /**
+   * Whether this editor should be treated as focused for rendering purposes.
+   * Used to control markdown marker visibility in outliner blocks.
+   */
+  isFocused?: boolean;
 }
 
 export interface EditorRef {
@@ -55,6 +61,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       style,
       lineNumbers = true,
       keybindings,
+      isFocused,
     },
     ref,
   ) => {
@@ -79,6 +86,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       theme: "light" | "dark";
       lineNumbers: boolean;
       keybindings?: KeyBinding[];
+      isFocused?: boolean;
     }>({
       onChange,
       onFocus,
@@ -88,6 +96,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       theme,
       lineNumbers,
       keybindings,
+      isFocused,
     });
 
     useEffect(() => {
@@ -100,6 +109,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         theme,
         lineNumbers,
         keybindings,
+        isFocused,
       };
     }, [
       onChange,
@@ -110,6 +120,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       theme,
       lineNumbers,
       keybindings,
+      isFocused,
     ]);
 
     // Expose focus method to parent
@@ -181,6 +192,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         theme,
         lineNumbers,
         keybindings,
+        isFocused,
       });
 
       editorViewRef.current = view;
@@ -236,7 +248,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       };
       // NOTE: Intentionally exclude `onChange/onFocus/onBlur` and `value` to avoid re-creating
       // the editor on every keystroke / render. Those are handled via `latestRef`.
-    }, [readOnly, lineWrapping, theme, lineNumbers, keybindings]);
+    }, [readOnly, lineWrapping, theme, lineNumbers, keybindings, isFocused]);
 
     // Update content when value prop changes
     useEffect(() => {

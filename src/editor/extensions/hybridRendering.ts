@@ -19,7 +19,7 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import { RangeSetBuilder } from "@codemirror/state";
+import { RangeSetBuilder, Facet } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 
 // Import standard markdown handlers
@@ -47,6 +47,14 @@ import { DecorationSpec, sortDecorations } from "./utils/decorationHelpers";
 import { getCursorInfo } from "./utils/nodeHelpers";
 
 type VisibleRange = { from: number; to: number };
+
+/**
+ * Facet for tracking whether the editor is focused for rendering purposes.
+ * This is used to control markdown marker visibility in outliner blocks.
+ */
+export const isFocusedFacet = Facet.define<boolean, boolean>({
+  combine: (values) => values[values.length - 1] ?? true,
+});
 
 const VISIBLE_LINE_BUFFER = 2;
 
@@ -162,7 +170,7 @@ function buildDecorations(view: EditorView): DecorationSet {
   const context: RenderContext = {
     state,
     cursor,
-    editorHasFocus: view.hasFocus,
+    editorHasFocus: state.facet(isFocusedFacet),
     decorations,
   };
 
