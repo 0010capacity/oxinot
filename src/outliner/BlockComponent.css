@@ -94,17 +94,35 @@
 /* Override CodeMirror default padding for alignment */
 .block-editor .cm-editor {
     padding: 0 !important;
+    background: transparent !important;
+}
+
+.block-editor .cm-editor.cm-focused {
+    background: transparent !important;
 }
 
 .block-editor .cm-scroller {
     padding: 0 !important;
+    background: transparent !important;
 }
 
 .block-editor .cm-content {
     padding: 0 !important;
+    background: transparent !important;
 }
 
 .block-editor .cm-line {
     padding: 0 !important;
     line-height: 24px !important;
+}
+
+/* Ensure active line background is subtle */
+.block-editor .cm-activeLine {
+    background: transparent !important;
+}
+
+/* Remove any gutter backgrounds */
+.block-editor .cm-gutters {
+    background: transparent !important;
+    border: none !important;
 }

@@ -10,6 +10,7 @@ import { useViewStore } from "../stores/viewStore";
 import { Editor, EditorRef } from "../components/Editor";
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
+import { useMantineColorScheme } from "@mantine/core";
 import "./BlockComponent.css";
 
 interface BlockComponentProps {
@@ -19,6 +20,9 @@ interface BlockComponentProps {
 
 export const BlockComponent: React.FC<BlockComponentProps> = memo(
   function BlockComponent({ blockId, depth }) {
+    const { colorScheme } = useMantineColorScheme();
+    const isDark = colorScheme === "dark";
+
     const block = useBlock(blockId);
     const childIds = useChildrenIds(blockId);
     const hasChildren = childIds.length > 0;
@@ -170,6 +174,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               onBlur={handleBlur}
               lineNumbers={false}
               lineWrapping={true}
+              theme={isDark ? "dark" : "light"}
               keybindings={keybindings}
               className="block-editor"
               style={{
