@@ -74,8 +74,8 @@ export abstract class BaseHandler implements DecorationHandler {
   protected isOnCursorLine(node: SyntaxNode, context: RenderContext): boolean {
     const nodeLine = context.state.doc.lineAt(node.from);
     return (
-      nodeLine.from >= context.cursor.lineFrom &&
-      nodeLine.to <= context.cursor.lineTo
+      nodeLine.from === context.cursor.lineFrom &&
+      nodeLine.to === context.cursor.lineTo
     );
   }
 
