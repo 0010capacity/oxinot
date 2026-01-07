@@ -211,20 +211,8 @@
     height: auto !important;
 }
 
-/* Hide markdown markers in unfocused blocks (when CM editor loses focus) */
-.block-editor-wrap .cm-editor:not(.cm-focused) .cm-hidden {
-    display: none !important;
-}
-
-.block-editor-wrap .cm-editor:not(.cm-focused) .cm-hidden-marker {
-    opacity: 0 !important;
-    font-size: 0.01em !important;
-}
-
-.block-editor-wrap .cm-editor:not(.cm-focused) .cm-dim-marker {
-    opacity: 0 !important;
-    font-size: 0.01em !important;
-}
+/* Markdown markers are controlled by handlers based on cursor line position */
+/* cm-hidden and cm-dim-marker classes are applied by the handlers */
 
 /* Show markdown rendering styles in unfocused blocks */
 .block-editor-wrap .cm-editor:not(.cm-focused) .cm-strong {
@@ -252,14 +240,7 @@
     color: #58a6ff !important;
 }
 
-/* Ensure heading markers are hidden in unfocused blocks */
-.block-editor-wrap .cm-editor:not(.cm-focused) .cm-heading .cm-hidden-marker {
-    display: none !important;
-}
-
-.block-editor-wrap .cm-editor:not(.cm-focused) .cm-heading .cm-dim-marker {
-    display: none !important;
-}
+/* Heading markers are controlled by HeadingHandler based on cursor line */
 
 /* Code block specific styling */
 .code-block-editor .cm-editor {

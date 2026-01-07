@@ -111,8 +111,8 @@ span[class*="heading"],
 }
 
 /* Add subtle divider lines under H1 and H2 for section separation */
-.cm-line:has(.cm-heading-1)::after,
-.cm-line:has(.cm-heading-text.cm-heading-1)::after {
+.cm-line.cm-activeLine:has(.cm-heading-1)::after,
+.cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-1)::after {
     content: "";
     display: block;
     width: 100%;
@@ -122,8 +122,8 @@ span[class*="heading"],
     margin-bottom: 0.5em;
 }
 
-.cm-line:has(.cm-heading-2)::after,
-.cm-line:has(.cm-heading-text.cm-heading-2)::after {
+.cm-line.cm-activeLine:has(.cm-heading-2)::after,
+.cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-2)::after {
     content: "";
     display: block;
     width: 100%;
@@ -134,13 +134,15 @@ span[class*="heading"],
 }
 
 /* Dark mode adjustments for heading dividers */
-.cm-editor.cm-focused .cm-line:has(.cm-heading-1)::after,
-.cm-editor.cm-focused .cm-line:has(.cm-heading-text.cm-heading-1)::after {
+.cm-editor.cm-focused .cm-line.cm-activeLine:has(.cm-heading-1)::after,
+.cm-editor.cm-focused
+    .cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-1)::after {
     border-bottom-color: rgba(200, 200, 200, 0.25);
 }
 
-.cm-editor.cm-focused .cm-line:has(.cm-heading-2)::after,
-.cm-editor.cm-focused .cm-line:has(.cm-heading-text.cm-heading-2)::after {
+.cm-editor.cm-focused .cm-line.cm-activeLine:has(.cm-heading-2)::after,
+.cm-editor.cm-focused
+    .cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-2)::after {
     border-bottom-color: rgba(200, 200, 200, 0.2);
 }
 

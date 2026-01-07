@@ -308,7 +308,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         <div
           className="indent-guide"
           style={{
-            left: `${depth * 24 + 14}px`, // Align with collapse toggle center (20px width / 2 + 4px margin)
+            left: `${depth * 24 + 18}px`, // Align with collapse toggle center (20px width / 2 + 4px margin)
           }}
         />
       ) : null;
