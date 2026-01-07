@@ -2250,50 +2250,50 @@ pub struct MigrationResult {
 
 구현 시 각 항목을 체크하세요:
 
-### Phase 1: SQLite
-- [ ] rusqlite 의존성 추가
-- [ ] DB 연결 모듈 (`connection.rs`)
-- [ ] 스키마 생성 (`schema.rs`)
-- [ ] 앱 시작 시 DB 초기화
+### Phase 1: SQLite ✅
+- [x] rusqlite 의존성 추가
+- [x] DB 연결 모듈 (`connection.rs`)
+- [x] 스키마 생성 (`schema.rs`)
+- [x] 앱 시작 시 DB 초기화
 
-### Phase 2: Block CRUD
-- [ ] Block 모델 정의
-- [ ] Page 모델 정의
-- [ ] Fractional Indexing 유틸
-- [ ] `get_page_blocks` 구현
-- [ ] `create_block` 구현
-- [ ] `update_block` 구현
-- [ ] `delete_block` 구현
-- [ ] 명령어 등록
+### Phase 2: Block CRUD ✅
+- [x] Block 모델 정의
+- [x] Page 모델 정의
+- [x] Fractional Indexing 유틸
+- [x] `get_page_blocks` 구현
+- [x] `create_block` 구현
+- [x] `update_block` 구현
+- [x] `delete_block` 구현
+- [x] 명령어 등록
 
-### Phase 3: Block 조작
-- [ ] `indent_block` 구현
-- [ ] `outdent_block` 구현
-- [ ] `move_block` 구현
-- [ ] `toggle_collapse` 구현
+### Phase 3: Block 조작 ✅
+- [x] `indent_block` 구현
+- [x] `outdent_block` 구현
+- [x] `move_block` 구현
+- [x] `toggle_collapse` 구현
 
-### Phase 4: Zustand
-- [ ] immer 설치
-- [ ] react-virtuoso 설치
-- [ ] `blockStore.ts` 작성
-- [ ] Selector hooks 작성
-- [ ] Debounced update hook
+### Phase 4: Zustand ✅
+- [x] immer 설치
+- [x] react-virtuoso 설치
+- [x] `blockStore.ts` 작성
+- [x] Selector hooks 작성
+- [x] Debounced update hook
 
-### Phase 5: 컴포넌트
-- [ ] `BlockEditor` 수정
-- [ ] `BlockComponent` 수정
-- [ ] 가상 스크롤 적용
-- [ ] 키보드 네비게이션
+### Phase 5: 컴포넌트 ✅
+- [x] `BlockEditor` 수정
+- [x] `BlockComponent` 수정
+- [x] 가상 스크롤 적용
+- [x] 키보드 네비게이션
 
-### Phase 6: 미러링
-- [ ] `MarkdownMirrorService`
-- [ ] `blocks_to_markdown`
-- [ ] 트리거 연동
+### Phase 6: 미러링 ✅
+- [x] `MarkdownMirrorService`
+- [x] `blocks_to_markdown`
+- [x] 트리거 연동
 
-### Phase 7: 마이그레이션
-- [ ] `markdown_to_blocks`
-- [ ] `migrate_workspace` 명령어
-- [ ] 마이그레이션 UI
+### Phase 7: 마이그레이션 ✅
+- [x] `markdown_to_blocks`
+- [x] `migrate_workspace` 명령어
+- [x] 마이그레이션 UI (Pending - Phase 8)
 
 ---
 
