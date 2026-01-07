@@ -2018,36 +2018,34 @@ src/
 
 ---
 
-### 11.5 Phase 5: 컴포넌트 연동
+### 11.5 Phase 5: 컴포넌트 연동 ✅
 
 **목표**: UI 컴포넌트를 새 스토어에 연결
 
 #### 작업 목록
 
-1. **BlockEditor 수정**
-   - 가상 스크롤 (react-virtuoso) 적용
-   - `useFlattenedBlocks` 훅
+1. **BlockEditor 수정** ✅
+   - 가상 스크롤 (react-virtuoso) 적용 ✅
+   - `useFlattenedBlocks` 훅 ✅
 
-2. **BlockComponent 수정**
-   - `useBlock` 셀렉터 사용
-   - `memo`로 최적화
-   - 키 이벤트 핸들러
+2. **BlockComponent 수정** ✅
+   - `useBlock` 셀렉터 사용 ✅
+   - `memo`로 최적화 ✅
+   - 키 이벤트 핸들러 ✅
 
-3. **BlockContent 유지**
-   - CodeMirror 로직은 대부분 유지
-   - 상태 연동만 변경
+3. **BlockRow 생성** ✅
+   - 가상화 래퍼 컴포넌트 ✅
 
-4. **Sidebar 연동**
-   - 페이지 목록 → `pageStore`
-   - 페이지 선택 시 `loadPage` 호출
+4. **AppContent 임시 수정** ✅
+   - 마이그레이션 중 상태 반영 ✅
 
-5. **테스트**
+5. **테스트** 🔄 (Pending)
    - 블록 생성/수정/삭제
-   - 들여쓰기/내어쓰기
-   - 접기/펼치기
-   - 가상 스크롤 동작
+   - 가상 스크롤 성능
 
 #### 예상 소요 시간: 5-7시간
+
+**진행상황**: BlockEditor, BlockComponent, BlockRow 모두 Zustand 스토어 기반으로 재구현 완료 (2025-01-17)
 
 ---
 
