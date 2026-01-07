@@ -3,25 +3,21 @@ import {
   MantineProvider,
   AppShell,
   Container,
-  Title,
-  Text,
   Group,
   ActionIcon,
-  Button,
   useMantineColorScheme,
   createTheme,
   Stack,
-  Loader,
+  Text,
+  Button,
 } from "@mantine/core";
-import { IconSun, IconMoon, IconFolder } from "@tabler/icons-react";
+import { IconSun, IconMoon, IconSettings } from "@tabler/icons-react";
 import { useWorkspaceStore } from "./stores/workspaceStore";
-import {
-  usePageStore,
-  useCurrentPageId,
-  usePagesLoading,
-} from "./stores/pageStore";
+import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
+import { usePageStore } from "./stores/pageStore";
 import { MigrationDialog } from "./components/MigrationDialog";
-import { PageSidebar } from "./components/PageSidebar";
+import { Breadcrumb } from "./components/Breadcrumb";
+import { FileTreeIndex } from "./components/FileTreeIndex";
 import { BlockEditor } from "./outliner/BlockEditor";
 
 const theme = createTheme({
@@ -34,40 +30,41 @@ function WorkspaceSelector() {
 
   return (
     <Container size="sm" py="xl" mt={100}>
-      <div style={{ textAlign: "center" }}>
-        <Title order={1} mb="md">
-          📝 MD Outliner
-        </Title>
-        <Text size="lg" c="dimmed" mb="xl">
-          A markdown outliner with database-driven organization
+      <Stack align="center" gap="lg">
+        <Text size="xl" fw={600}>
+          MD Outliner
         </Text>
-        <Button
-          size="lg"
-          leftSection={<IconFolder size={20} />}
-          onClick={selectWorkspace}
-        >
-          Select Workspace Folder
+        <Text size="sm" c="dimmed">
+          Select a workspace to begin
+        </Text>
+        <Button onClick={selectWorkspace} size="md">
+          Select Workspace
         </Button>
-      </div>
+      </Stack>
     </Container>
   );
 }
 
-function AppContent() {
+interface AppContentProps {
+  workspacePath: string;
+}
+
+function AppContent({ workspacePath }: AppContentProps) {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
-
-  const { workspacePath, selectWorkspace } = useWorkspaceStore();
+  const { selectWorkspace } = useWorkspaceStore();
   const { loadPages } = usePageStore();
-  const currentPageId = useCurrentPageId();
-  const pagesLoading = usePagesLoading();
+  const currentPageId = usePageStore((state) => state.currentPageId);
+  const viewMode = useViewMode();
+  const breadcrumb = useBreadcrumb();
+  const { showIndex, setWorkspaceName } = useViewStore();
 
   const [showMigration, setShowMigration] = useState(false);
   const [dbInitialized, setDbInitialized] = useState(false);
   const [checkingDb, setCheckingDb] = useState(true);
-  const [viewMode, setViewMode] = useState<"sidebar" | "tree">("sidebar");
 
-  // Check if database is initialized when workspace is selected
+  const workspaceName = workspacePath.split("/").pop() || "Workspace";
+
   useEffect(() => {
     if (!workspacePath) {
       setCheckingDb(false);
@@ -78,12 +75,11 @@ function AppContent() {
     const checkDatabase = async () => {
       setCheckingDb(true);
       try {
-        // Try to load pages - if this succeeds, DB is initialized
         await loadPages();
         setDbInitialized(true);
         setShowMigration(false);
+        setWorkspaceName(workspaceName);
       } catch (error) {
-        // DB not initialized, show migration dialog
         setDbInitialized(false);
         setShowMigration(true);
       } finally {
@@ -92,13 +88,14 @@ function AppContent() {
     };
 
     checkDatabase();
-  }, [workspacePath, loadPages]);
+  }, [workspacePath, loadPages, setWorkspaceName, workspaceName]);
 
   const handleMigrationComplete = async () => {
     setShowMigration(false);
     setDbInitialized(true);
-    // Reload pages after migration
     await loadPages();
+    setWorkspaceName(workspaceName);
+    showIndex();
   };
 
   const handleMigrationCancel = () => {
@@ -106,124 +103,97 @@ function AppContent() {
     selectWorkspace();
   };
 
-  if (!workspacePath) {
-    return <WorkspaceSelector />;
-  }
-
   if (checkingDb) {
     return (
-      <Container size="sm" py="xl" mt={100}>
-        <div style={{ textAlign: "center" }}>
-          <Loader size="lg" mb="md" style={{ margin: "0 auto" }} />
-          <Text>Checking workspace...</Text>
-        </div>
-      </Container>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+        }}
+      >
+        <Text size="sm" c="dimmed">
+          Checking workspace...
+        </Text>
+      </div>
     );
   }
 
   return (
     <>
       <AppShell
-        header={{ height: 60 }}
-        navbar={
-          dbInitialized
-            ? {
-                width: 280,
-                breakpoint: "sm",
-                collapsed: { mobile: viewMode === "sidebar", desktop: false },
-              }
-            : undefined
-        }
         padding={0}
-        styles={(theme) => ({
+        styles={{
           main: {
-            backgroundColor: isDark
-              ? theme.colors.dark[8]
-              : theme.colors.gray[0],
+            backgroundColor: isDark ? "#1a1b1e" : "#ffffff",
             height: "100vh",
+            display: "flex",
+            flexDirection: "column",
           },
-        })}
+        }}
       >
-        <AppShell.Header>
-          <Container fluid h="100%" px="md">
-            <Group h="100%" justify="space-between">
-              <Group>
-                <Title order={3}>📝 MD Outliner</Title>
-                <Text size="sm" c="dimmed">
-                  {workspacePath.split("/").pop()}
-                </Text>
-              </Group>
-              <Group>
-                {dbInitialized && currentPageId && (
-                  <Button
-                    variant="subtle"
-                    size="sm"
-                    onClick={() =>
-                      setViewMode(viewMode === "sidebar" ? "tree" : "sidebar")
-                    }
-                  >
-                    {viewMode === "sidebar" ? "📁 Tree" : "📄 Pages"}
-                  </Button>
-                )}
-                <ActionIcon
-                  variant="default"
-                  onClick={selectWorkspace}
-                  size="lg"
-                  aria-label="Change workspace"
-                  title="Change workspace"
-                >
-                  <IconFolder size={18} />
-                </ActionIcon>
-                <ActionIcon
-                  variant="default"
-                  onClick={() => toggleColorScheme()}
-                  size="lg"
-                  aria-label="Toggle color scheme"
-                >
-                  {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
-                </ActionIcon>
-              </Group>
-            </Group>
-          </Container>
-        </AppShell.Header>
-
-        {dbInitialized && (
-          <AppShell.Navbar
-            p="md"
-            style={{ backgroundColor: isDark ? "#1a1b1e" : "#f8f9fa" }}
+        <AppShell.Main>
+          {/* Top Control Bar */}
+          <Group
+            justify="space-between"
+            p="xs"
+            style={{
+              borderBottom: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
+            }}
           >
-            <PageSidebar />
-          </AppShell.Navbar>
-        )}
+            <div style={{ flex: 1 }}>
+              {dbInitialized && breadcrumb.length > 0 && (
+                <Breadcrumb
+                  workspaceName={workspaceName}
+                  pageName={
+                    breadcrumb[breadcrumb.length - 1] !== workspaceName
+                      ? breadcrumb[breadcrumb.length - 1]
+                      : undefined
+                  }
+                  onNavigateHome={showIndex}
+                />
+              )}
+            </div>
 
-        <AppShell.Main style={{ overflow: "hidden" }}>
-          {!dbInitialized ? (
-            <Container size="sm" py="xl" mt={50}>
-              <Stack align="center">
-                <Loader />
-                <Text>Initializing workspace...</Text>
-              </Stack>
-            </Container>
-          ) : pagesLoading ? (
-            <Container size="sm" py="xl" mt={50}>
-              <Stack align="center">
-                <Loader />
-                <Text>Loading pages...</Text>
-              </Stack>
-            </Container>
-          ) : currentPageId ? (
-            <BlockEditor pageId={currentPageId} />
-          ) : (
-            <Container size="sm" py="xl" mt={50}>
-              <Stack align="center">
-                <Text c="dimmed">Select a page to begin</Text>
-              </Stack>
-            </Container>
-          )}
+            <Group gap="xs">
+              <ActionIcon
+                variant="subtle"
+                onClick={() => toggleColorScheme()}
+                size="sm"
+                title="Toggle theme"
+              >
+                {isDark ? <IconSun size={16} /> : <IconMoon size={16} />}
+              </ActionIcon>
+              <ActionIcon variant="subtle" size="sm" title="Settings">
+                <IconSettings size={16} />
+              </ActionIcon>
+            </Group>
+          </Group>
+
+          {/* Main Content Panel */}
+          <div style={{ flex: 1, overflow: "auto" }}>
+            {!dbInitialized ? (
+              <Container size="sm" py="xl" mt={50}>
+                <Text ta="center" c="dimmed">
+                  Initializing workspace...
+                </Text>
+              </Container>
+            ) : viewMode === "index" ? (
+              <FileTreeIndex />
+            ) : currentPageId ? (
+              <BlockEditor pageId={currentPageId} />
+            ) : (
+              <Container size="sm" py="xl" mt={50}>
+                <Text ta="center" c="dimmed">
+                  No page selected
+                </Text>
+              </Container>
+            )}
+          </div>
         </AppShell.Main>
       </AppShell>
 
-      {/* Migration Dialog */}
       <MigrationDialog
         workspacePath={workspacePath}
         isOpen={showMigration}
@@ -235,9 +205,19 @@ function AppContent() {
 }
 
 function App() {
+  const { workspacePath } = useWorkspaceStore();
+
+  if (!workspacePath) {
+    return (
+      <MantineProvider theme={theme} defaultColorScheme="dark">
+        <WorkspaceSelector />
+      </MantineProvider>
+    );
+  }
+
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
-      <AppContent />
+      <AppContent workspacePath={workspacePath} />
     </MantineProvider>
   );
 }
