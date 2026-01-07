@@ -162,6 +162,7 @@ function buildDecorations(view: EditorView): DecorationSet {
   const context: RenderContext = {
     state,
     cursor,
+    editorHasFocus: view.hasFocus,
     decorations,
   };
 

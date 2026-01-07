@@ -21,6 +21,9 @@ export interface RenderContext {
   /** Information about the current cursor position */
   cursor: CursorInfo;
 
+  /** Whether the editor currently has focus */
+  editorHasFocus: boolean;
+
   /** Array to collect decoration specs */
   decorations: DecorationSpec[];
 }
@@ -72,6 +75,11 @@ export abstract class BaseHandler implements DecorationHandler {
    * Helper to check if node is on cursor line
    */
   protected isOnCursorLine(node: SyntaxNode, context: RenderContext): boolean {
+    // Only show markers if the editor has focus AND cursor is on this line
+    if (!context.editorHasFocus) {
+      return false;
+    }
+
     const nodeLine = context.state.doc.lineAt(node.from);
     return (
       nodeLine.from === context.cursor.lineFrom &&
