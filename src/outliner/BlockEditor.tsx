@@ -1,126 +1,128 @@
-import { useMemo, useEffect } from "react";
-import { Virtuoso } from "react-virtuoso";
+import { useEffect, useState } from "react";
+import { useMantineColorScheme } from "@mantine/core";
 import { useBlockStore } from "../stores/blockStore";
-import { useFocusedBlockId } from "../stores/viewStore";
-import { BlockRow } from "./BlockRow";
+import { Editor } from "../components/Editor";
 
 interface BlockEditorProps {
   pageId: string;
 }
 
 export function BlockEditor({ pageId }: BlockEditorProps) {
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === "dark";
+
   const loadPage = useBlockStore((state) => state.loadPage);
   const createBlock = useBlockStore((state) => state.createBlock);
+  const updateBlockContent = useBlockStore((state) => state.updateBlockContent);
   const isLoading = useBlockStore((state) => state.isLoading);
   const error = useBlockStore((state) => state.error);
-  const focusedBlockId = useFocusedBlockId();
   const blocksById = useBlockStore((state) => state.blocksById);
   const childrenMap = useBlockStore((state) => state.childrenMap);
 
+  const [markdownContent, setMarkdownContent] = useState("");
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Load page blocks
   useEffect(() => {
     if (pageId) {
-      loadPage(pageId);
+      loadPage(pageId).then(() => {
+        setIsInitialized(true);
+      });
     }
   }, [pageId, loadPage]);
 
+  // Convert blocks to markdown when blocks change
+  useEffect(() => {
+    if (!isInitialized || isLoading) return;
+
+    const markdown = blocksToMarkdown(blocksById, childrenMap);
+    setMarkdownContent(markdown);
+  }, [blocksById, childrenMap, isInitialized, isLoading]);
+
   // Auto-create first block if page is empty
   useEffect(() => {
-    if (!isLoading && !error && pageId) {
+    if (!isLoading && !error && isInitialized && pageId) {
       const rootBlocks = childrenMap["root"] || [];
       const hasBlocks = rootBlocks.length > 0;
 
       if (!hasBlocks) {
-        // Create first block automatically
         createBlock(null, "").catch((err) => {
           console.error("Failed to create initial block:", err);
         });
       }
     }
-  }, [isLoading, error, pageId, childrenMap, blocksById, createBlock]);
+  }, [isLoading, error, isInitialized, pageId, childrenMap, createBlock]);
 
-  if (isLoading) {
-    return <div style={{ padding: "16px" }}>Loading...</div>;
+  const handleMarkdownChange = (content: string) => {
+    setMarkdownContent(content);
+
+    // Simple update: just update first block with content for now
+    const rootBlocks = childrenMap["root"] || [];
+    if (rootBlocks.length > 0) {
+      const firstBlockId = rootBlocks[0];
+      updateBlockContent(firstBlockId, content).catch(console.error);
+    }
+  };
+
+  if (isLoading && !isInitialized) {
+    return (
+      <div
+        style={{
+          padding: "16px",
+          opacity: 0.5,
+          color: isDark ? "#909296" : "#868e96",
+        }}
+      >
+        Loading...
+      </div>
+    );
   }
 
   if (error) {
-    return <div style={{ padding: "16px", color: "red" }}>Error: {error}</div>;
-  }
-
-  // When zoomed into a block, show the block itself and its children
-  // When not zoomed, show all root blocks
-  return <BlockList focusedBlockId={focusedBlockId} />;
-}
-
-interface BlockListProps {
-  focusedBlockId: string | null;
-}
-
-function BlockList({ focusedBlockId }: BlockListProps) {
-  const flattenedBlocks = useFlattenedBlocks(focusedBlockId);
-
-  if (flattenedBlocks.length === 0) {
     return (
-      <div style={{ padding: "16px", color: "#999" }}>Initializing...</div>
+      <div style={{ padding: "16px", color: "#fa5252" }}>Error: {error}</div>
     );
   }
 
   return (
-    <Virtuoso
-      style={{ height: "100%" }}
-      totalCount={flattenedBlocks.length}
-      itemContent={(index) => {
-        const { id, depth } = flattenedBlocks[index];
-        return <BlockRow key={id} blockId={id} depth={depth} />;
-      }}
-    />
+    <div style={{ height: "100%", overflow: "hidden" }}>
+      <Editor
+        value={markdownContent}
+        onChange={handleMarkdownChange}
+        theme={isDark ? "dark" : "light"}
+        lineNumbers={false}
+        lineWrapping={true}
+      />
+    </div>
   );
 }
 
-interface FlatBlock {
-  id: string;
-  depth: number;
-}
+// Convert blocks tree to markdown outline format
+function blocksToMarkdown(
+  blocksById: Record<string, any>,
+  childrenMap: Record<string, string[]>,
+): string {
+  const lines: string[] = [];
 
-function useFlattenedBlocks(focusedBlockId: string | null): FlatBlock[] {
-  const blocksById = useBlockStore((state) => state.blocksById);
-  const childrenMap = useBlockStore((state) => state.childrenMap);
+  function traverse(parentId: string | null, depth: number) {
+    const key = parentId ?? "root";
+    const childIds = childrenMap[key] ?? [];
 
-  return useMemo(() => {
-    const result: FlatBlock[] = [];
+    for (const id of childIds) {
+      const block = blocksById[id];
+      if (block) {
+        const indent = "  ".repeat(depth);
+        const bullet = "- ";
+        const content = block.content || "";
+        lines.push(`${indent}${bullet}${content}`);
 
-    if (focusedBlockId) {
-      // When zoomed in, show the focused block at depth 0
-      const focusedBlock = blocksById[focusedBlockId];
-      if (focusedBlock) {
-        result.push({ id: focusedBlockId, depth: 0 });
-
-        // Then show its children
-        if (!focusedBlock.isCollapsed) {
-          traverseChildren(focusedBlockId, 1);
-        }
-      }
-    } else {
-      // When not zoomed, show all root blocks
-      traverseChildren(null, 0);
-    }
-
-    function traverseChildren(parentId: string | null, depth: number) {
-      const key = parentId ?? "root";
-      const childIds = childrenMap[key] ?? [];
-
-      for (const id of childIds) {
-        const block = blocksById[id];
-        if (block) {
-          result.push({ id, depth });
-
-          // If not collapsed, traverse children
-          if (!block.isCollapsed) {
-            traverseChildren(id, depth + 1);
-          }
+        if (!block.isCollapsed) {
+          traverse(id, depth + 1);
         }
       }
     }
+  }
 
-    return result;
-  }, [blocksById, childrenMap, focusedBlockId]);
+  traverse(null, 0);
+  return lines.join("\n");
 }
