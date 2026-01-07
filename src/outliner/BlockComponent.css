@@ -1,77 +1,111 @@
 .block-component {
-  display: flex;
-  flex-direction: column;
-  min-height: 32px;
-  padding-bottom: 4px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    min-height: 32px;
+    padding-bottom: 4px;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 .block-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 4px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 4px 0;
+    position: relative;
+}
+
+.block-row:hover .zoom-button {
+    opacity: 1;
 }
 
 .collapse-toggle {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  margin-top: 4px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: currentColor;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.6;
-  transition: opacity 0.2s ease;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin-top: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: currentColor;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
 }
 
 .collapse-toggle:hover {
-  opacity: 1;
+    opacity: 1;
 }
 
 .collapse-toggle.collapsed {
-  transform: rotate(-90deg);
+    transform: rotate(-90deg);
 }
 
 .block-bullet {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 4px;
-  font-size: 12px;
-  opacity: 0.5;
-  user-select: none;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4px;
+    font-size: 12px;
+    opacity: 0.5;
+    user-select: none;
 }
 
 .block-content-wrapper {
-  flex: 1;
-  min-width: 0;
+    flex: 1;
+    min-width: 0;
 }
 
 .block-editor {
-  width: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  resize: none;
-  padding: 0;
-  margin: 0;
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    resize: none;
+    padding: 0;
+    margin: 0;
 }
 
 .block-editor:focus {
-  outline: none;
+    outline: none;
+}
+
+.zoom-button {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin-top: 4px;
+    margin-left: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: currentColor;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    border-radius: 4px;
+}
+
+.zoom-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.zoom-button:active {
+    background-color: rgba(0, 0, 0, 0.1);
 }

@@ -1,6 +1,7 @@
 import React, { memo, useCallback } from "react";
 import { useBlock, useChildrenIds, useBlockStore } from "../stores/blockStore";
 import { useDebouncedBlockUpdate } from "../hooks/useDebouncedBlockUpdate";
+import { useViewStore } from "../stores/viewStore";
 import { Editor } from "../components/Editor";
 import "./BlockComponent.css";
 
@@ -23,6 +24,7 @@ export const BlockComponent = memo(function BlockComponent({
   const indentBlock = useBlockStore((state) => state.indentBlock);
   const outdentBlock = useBlockStore((state) => state.outdentBlock);
   const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
+  const { zoomIntoBlock } = useViewStore();
 
   const { debouncedUpdate, flushUpdate } = useDebouncedBlockUpdate(blockId);
 
@@ -71,6 +73,14 @@ export const BlockComponent = memo(function BlockComponent({
     flushUpdate();
   }, [flushUpdate]);
 
+  const handleZoomIn = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      zoomIntoBlock(blockId);
+    },
+    [blockId, zoomIntoBlock],
+  );
+
   if (!block) return null;
 
   return (
@@ -110,6 +120,18 @@ export const BlockComponent = memo(function BlockComponent({
             }}
           />
         </div>
+
+        {/* Zoom In Button */}
+        {hasChildren && !block.isCollapsed && (
+          <button
+            className="zoom-button"
+            onClick={handleZoomIn}
+            aria-label="Zoom into block"
+            title="Focus on this block"
+          >
+            ⌕
+          </button>
+        )}
       </div>
     </div>
   );

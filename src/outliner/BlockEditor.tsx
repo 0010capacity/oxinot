@@ -1,6 +1,7 @@
 import { useMemo, useEffect } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { useBlockStore } from "../stores/blockStore";
+import { useFocusedBlockId } from "../stores/viewStore";
 import { BlockRow } from "./BlockRow";
 
 interface BlockEditorProps {
@@ -11,6 +12,7 @@ export function BlockEditor({ pageId }: BlockEditorProps) {
   const loadPage = useBlockStore((state) => state.loadPage);
   const isLoading = useBlockStore((state) => state.isLoading);
   const error = useBlockStore((state) => state.error);
+  const focusedBlockId = useFocusedBlockId();
 
   useEffect(() => {
     if (pageId) {
@@ -26,15 +28,17 @@ export function BlockEditor({ pageId }: BlockEditorProps) {
     return <div style={{ padding: "16px", color: "red" }}>Error: {error}</div>;
   }
 
-  return <BlockList parentId={null} />;
+  // When zoomed into a block, show the block itself and its children
+  // When not zoomed, show all root blocks
+  return <BlockList focusedBlockId={focusedBlockId} />;
 }
 
 interface BlockListProps {
-  parentId: string | null;
+  focusedBlockId: string | null;
 }
 
-function BlockList({ parentId }: BlockListProps) {
-  const flattenedBlocks = useFlattenedBlocks(parentId);
+function BlockList({ focusedBlockId }: BlockListProps) {
+  const flattenedBlocks = useFlattenedBlocks(focusedBlockId);
 
   if (flattenedBlocks.length === 0) {
     return (
@@ -61,14 +65,30 @@ interface FlatBlock {
   depth: number;
 }
 
-function useFlattenedBlocks(rootParentId: string | null): FlatBlock[] {
+function useFlattenedBlocks(focusedBlockId: string | null): FlatBlock[] {
   const blocksById = useBlockStore((state) => state.blocksById);
   const childrenMap = useBlockStore((state) => state.childrenMap);
 
   return useMemo(() => {
     const result: FlatBlock[] = [];
 
-    function traverse(parentId: string | null, depth: number) {
+    if (focusedBlockId) {
+      // When zoomed in, show the focused block at depth 0
+      const focusedBlock = blocksById[focusedBlockId];
+      if (focusedBlock) {
+        result.push({ id: focusedBlockId, depth: 0 });
+
+        // Then show its children
+        if (!focusedBlock.isCollapsed) {
+          traverseChildren(focusedBlockId, 1);
+        }
+      }
+    } else {
+      // When not zoomed, show all root blocks
+      traverseChildren(null, 0);
+    }
+
+    function traverseChildren(parentId: string | null, depth: number) {
       const key = parentId ?? "root";
       const childIds = childrenMap[key] ?? [];
 
@@ -79,13 +99,12 @@ function useFlattenedBlocks(rootParentId: string | null): FlatBlock[] {
 
           // If not collapsed, traverse children
           if (!block.isCollapsed) {
-            traverse(id, depth + 1);
+            traverseChildren(id, depth + 1);
           }
         }
       }
     }
 
-    traverse(rootParentId, 0);
     return result;
-  }, [blocksById, childrenMap, rootParentId]);
+  }, [blocksById, childrenMap, focusedBlockId]);
 }
