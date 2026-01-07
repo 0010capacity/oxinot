@@ -8,6 +8,21 @@
     position: relative;
 }
 
+/* Indent guides */
+.indent-guide {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: rgba(0, 0, 0, 0.06);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.theme-dark .indent-guide {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
 .block-row {
     display: flex;
     align-items: flex-start;
@@ -18,22 +33,13 @@
     transition: background-color 0.15s ease;
 }
 
-/* Subtle hover effect */
-.block-row:hover {
-    background-color: rgba(0, 0, 0, 0.02);
-}
-
-.theme-dark .block-row:hover {
-    background-color: rgba(255, 255, 255, 0.02);
-}
-
 /* Collapse/Expand Toggle - show only on hover */
 .collapse-toggle {
     flex-shrink: 0;
     width: 20px;
     height: 20px;
     padding: 0;
-    margin: 2px 0 0 0;
+    margin: 2px 0 0 5px;
     background: none;
     border: none;
     cursor: pointer;
@@ -47,6 +53,8 @@
         opacity 0.15s ease,
         background-color 0.15s ease;
     border-radius: 3px;
+    position: relative;
+    z-index: 1;
 }
 
 .block-row:hover .collapse-toggle {
@@ -105,7 +113,6 @@
 
 .block-bullet-wrapper:hover .block-bullet {
     background-color: rgba(0, 0, 0, 0.7);
-    transform: scale(1.5);
 }
 
 .theme-dark .block-bullet-wrapper:hover .block-bullet {
@@ -115,7 +122,6 @@
 /* Focused block bullet highlight - more prominent */
 .block-row:has(.block-editor .cm-focused) .block-bullet {
     background-color: rgba(0, 0, 0, 0.85);
-    transform: scale(1.6);
 }
 
 .theme-dark .block-row:has(.block-editor .cm-focused) .block-bullet {

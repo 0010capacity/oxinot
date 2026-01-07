@@ -10,11 +10,15 @@ import {
   Stack,
   Text,
   Button,
+  Modal,
+  Switch,
+  Title,
 } from "@mantine/core";
 import { IconSun, IconMoon, IconSettings } from "@tabler/icons-react";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
 import { usePageStore } from "./stores/pageStore";
+import { useOutlinerSettingsStore } from "./stores/outlinerSettingsStore";
 import { MigrationDialog } from "./components/MigrationDialog";
 import { Breadcrumb } from "./components/Breadcrumb";
 import { FileTreeIndex } from "./components/FileTreeIndex";
@@ -59,9 +63,17 @@ function AppContent({ workspacePath }: AppContentProps) {
   const breadcrumb = useBreadcrumb();
   const { showIndex, setWorkspaceName } = useViewStore();
 
+  const showIndentGuides = useOutlinerSettingsStore(
+    (state) => state.showIndentGuides,
+  );
+  const toggleIndentGuides = useOutlinerSettingsStore(
+    (state) => state.toggleIndentGuides,
+  );
+
   const [showMigration, setShowMigration] = useState(false);
   const [dbInitialized, setDbInitialized] = useState(false);
   const [checkingDb, setCheckingDb] = useState(true);
+  const [settingsOpened, setSettingsOpened] = useState(false);
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
@@ -165,7 +177,12 @@ function AppContent({ workspacePath }: AppContentProps) {
               >
                 {isDark ? <IconSun size={16} /> : <IconMoon size={16} />}
               </ActionIcon>
-              <ActionIcon variant="subtle" size="sm" title="Settings">
+              <ActionIcon
+                variant="subtle"
+                size="sm"
+                title="Settings"
+                onClick={() => setSettingsOpened(true)}
+              >
                 <IconSettings size={16} />
               </ActionIcon>
             </Group>
@@ -202,6 +219,27 @@ function AppContent({ workspacePath }: AppContentProps) {
         onComplete={handleMigrationComplete}
         onCancel={handleMigrationCancel}
       />
+
+      <Modal
+        opened={settingsOpened}
+        onClose={() => setSettingsOpened(false)}
+        title={<Title order={3}>Settings</Title>}
+        size="md"
+      >
+        <Stack gap="lg">
+          <div>
+            <Title order={5} mb="xs">
+              Outliner
+            </Title>
+            <Switch
+              label="Show indent guides"
+              description="Display vertical lines to show indentation levels"
+              checked={showIndentGuides}
+              onChange={toggleIndentGuides}
+            />
+          </div>
+        </Stack>
+      </Modal>
     </>
   );
 }

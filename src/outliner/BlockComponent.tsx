@@ -8,6 +8,7 @@ import {
 } from "../stores/blockStore";
 import { useDebouncedBlockUpdate } from "../hooks/useDebouncedBlockUpdate";
 import { useViewStore } from "../stores/viewStore";
+import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import { Editor, EditorRef } from "../components/Editor";
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
@@ -27,6 +28,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const childIds = useChildrenIds(blockId);
     const hasChildren = childIds.length > 0;
     const focusedBlockId = useFocusedBlockId();
+    const showIndentGuides = useOutlinerSettingsStore(
+      (state) => state.showIndentGuides,
+    );
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
     const createBlock = useBlockStore((state) => state.createBlock);
@@ -298,8 +302,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     if (!block) return null;
 
+    // Render only one indent guide at this block's depth level
+    const indentGuide =
+      showIndentGuides && depth > 0 ? (
+        <div
+          className="indent-guide"
+          style={{
+            left: `${depth * 24 + 14}px`, // Align with collapse toggle center (20px width / 2 + 4px margin)
+          }}
+        />
+      ) : null;
+
     return (
       <div className="block-component">
+        {indentGuide}
         <div className="block-row" style={{ paddingLeft: `${depth * 24}px` }}>
           {/* Collapse/Expand Toggle */}
           {hasChildren ? (
