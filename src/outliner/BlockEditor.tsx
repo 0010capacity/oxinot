@@ -10,15 +10,33 @@ interface BlockEditorProps {
 
 export function BlockEditor({ pageId }: BlockEditorProps) {
   const loadPage = useBlockStore((state) => state.loadPage);
+  const createBlock = useBlockStore((state) => state.createBlock);
   const isLoading = useBlockStore((state) => state.isLoading);
   const error = useBlockStore((state) => state.error);
   const focusedBlockId = useFocusedBlockId();
+  const blocksById = useBlockStore((state) => state.blocksById);
+  const childrenMap = useBlockStore((state) => state.childrenMap);
 
   useEffect(() => {
     if (pageId) {
       loadPage(pageId);
     }
   }, [pageId, loadPage]);
+
+  // Auto-create first block if page is empty
+  useEffect(() => {
+    if (!isLoading && !error && pageId) {
+      const rootBlocks = childrenMap["root"] || [];
+      const hasBlocks = rootBlocks.length > 0;
+
+      if (!hasBlocks) {
+        // Create first block automatically
+        createBlock(null, "").catch((err) => {
+          console.error("Failed to create initial block:", err);
+        });
+      }
+    }
+  }, [isLoading, error, pageId, childrenMap, blocksById, createBlock]);
 
   if (isLoading) {
     return <div style={{ padding: "16px" }}>Loading...</div>;
@@ -42,9 +60,7 @@ function BlockList({ focusedBlockId }: BlockListProps) {
 
   if (flattenedBlocks.length === 0) {
     return (
-      <div style={{ padding: "16px", color: "#999" }}>
-        No blocks yet. Click to add one.
-      </div>
+      <div style={{ padding: "16px", color: "#999" }}>Initializing...</div>
     );
   }
 

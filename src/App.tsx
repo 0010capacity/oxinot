@@ -172,7 +172,7 @@ function AppContent({ workspacePath }: AppContentProps) {
           </Group>
 
           {/* Main Content Panel */}
-          <div style={{ flex: 1, overflow: "auto" }}>
+          <div style={{ flex: 1, overflow: "hidden" }}>
             {!dbInitialized ? (
               <Container size="sm" py="xl" mt={50}>
                 <Text ta="center" c="dimmed">
@@ -182,7 +182,9 @@ function AppContent({ workspacePath }: AppContentProps) {
             ) : viewMode === "index" ? (
               <FileTreeIndex />
             ) : currentPageId ? (
-              <BlockEditor pageId={currentPageId} />
+              <div style={{ height: "100%", overflow: "auto" }}>
+                <BlockEditor pageId={currentPageId} />
+              </div>
             ) : (
               <Container size="sm" py="xl" mt={50}>
                 <Text ta="center" c="dimmed">
