@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
-import { invoke } from '@tauri-apps/api/core';
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
+import { invoke } from "@tauri-apps/api/core";
 
 // ============ Types ============
 
@@ -11,7 +11,7 @@ export interface BlockData {
   content: string;
   orderWeight: number;
   isCollapsed: boolean;
-  blockType: 'bullet' | 'code' | 'fence';
+  blockType: "bullet" | "code" | "fence";
   language?: string;
   createdAt: string;
   updatedAt: string;
@@ -38,19 +38,30 @@ interface BlockActions {
   clearPage: () => void;
 
   // 블록 CRUD
-  createBlock: (afterBlockId: string | null, content?: string) => Promise<string>;
+  createBlock: (
+    afterBlockId: string | null,
+    content?: string,
+  ) => Promise<string>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
 
   // 블록 조작
   indentBlock: (id: string) => Promise<void>;
   outdentBlock: (id: string) => Promise<void>;
-  moveBlock: (id: string, newParentId: string | null, afterBlockId: string | null) => Promise<void>;
+  moveBlock: (
+    id: string,
+    newParentId: string | null,
+    afterBlockId: string | null,
+  ) => Promise<void>;
   toggleCollapse: (id: string) => Promise<void>;
 
   // 선택/포커스
   setFocusedBlock: (id: string | null) => void;
   setSelectedBlocks: (ids: string[]) => void;
+
+  // 키보드 네비게이션
+  getPreviousBlock: (id: string) => string | null;
+  getNextBlock: (id: string) => string | null;
 
   // 셀렉터
   getBlock: (id: string) => BlockData | undefined;
@@ -82,7 +93,7 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
-        const blocks: BlockData[] = await invoke('get_page_blocks', { pageId });
+        const blocks: BlockData[] = await invoke("get_page_blocks", { pageId });
 
         // 정규화
         const blocksById: Record<string, BlockData> = {};
@@ -91,7 +102,7 @@ export const useBlockStore = create<BlockStore>()(
         for (const block of blocks) {
           blocksById[block.id] = block;
 
-          const parentKey = block.parentId ?? 'root';
+          const parentKey = block.parentId ?? "root";
           if (!childrenMap[parentKey]) {
             childrenMap[parentKey] = [];
           }
@@ -113,7 +124,8 @@ export const useBlockStore = create<BlockStore>()(
         });
       } catch (error) {
         set((state) => {
-          state.error = error instanceof Error ? error.message : 'Failed to load page';
+          state.error =
+            error instanceof Error ? error.message : "Failed to load page";
           state.isLoading = false;
         });
       }
@@ -133,7 +145,7 @@ export const useBlockStore = create<BlockStore>()(
 
     createBlock: async (afterBlockId: string | null, content?: string) => {
       const { currentPageId, blocksById } = get();
-      if (!currentPageId) throw new Error('No page loaded');
+      if (!currentPageId) throw new Error("No page loaded");
 
       // 부모 결정
       let parentId: string | null = null;
@@ -147,17 +159,17 @@ export const useBlockStore = create<BlockStore>()(
         id: tempId,
         pageId: currentPageId,
         parentId,
-        content: content ?? '',
+        content: content ?? "",
         orderWeight: Date.now(),
         isCollapsed: false,
-        blockType: 'bullet',
+        blockType: "bullet",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
       set((state) => {
         state.blocksById[tempId] = tempBlock;
-        const parentKey = parentId ?? 'root';
+        const parentKey = parentId ?? "root";
         if (!state.childrenMap[parentKey]) {
           state.childrenMap[parentKey] = [];
         }
@@ -174,7 +186,7 @@ export const useBlockStore = create<BlockStore>()(
 
       try {
         // 실제 생성
-        const newBlock: BlockData = await invoke('create_block', {
+        const newBlock: BlockData = await invoke("create_block", {
           request: {
             pageId: currentPageId,
             parentId,
@@ -188,7 +200,7 @@ export const useBlockStore = create<BlockStore>()(
           delete state.blocksById[tempId];
           state.blocksById[newBlock.id] = newBlock;
 
-          const parentKey = parentId ?? 'root';
+          const parentKey = parentId ?? "root";
           const tempIndex = state.childrenMap[parentKey].indexOf(tempId);
           if (tempIndex !== -1) {
             state.childrenMap[parentKey][tempIndex] = newBlock.id;
@@ -202,9 +214,9 @@ export const useBlockStore = create<BlockStore>()(
         // 롤백
         set((state) => {
           delete state.blocksById[tempId];
-          const parentKey = parentId ?? 'root';
+          const parentKey = parentId ?? "root";
           state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-            (id) => id !== tempId
+            (id) => id !== tempId,
           );
         });
         throw error;
@@ -226,7 +238,7 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
-        await invoke('update_block', {
+        await invoke("update_block", {
           request: { id, content },
         });
       } catch (error) {
@@ -248,21 +260,21 @@ export const useBlockStore = create<BlockStore>()(
       // 백업 (롤백용)
       const backup = {
         block: { ...block },
-        parentKey: block.parentId ?? 'root',
-        index: childrenMap[block.parentId ?? 'root']?.indexOf(id) ?? -1,
+        parentKey: block.parentId ?? "root",
+        index: childrenMap[block.parentId ?? "root"]?.indexOf(id) ?? -1,
       };
 
       // Optimistic Delete
       set((state) => {
         delete state.blocksById[id];
-        const parentKey = block.parentId ?? 'root';
-        state.childrenMap[parentKey] = state.childrenMap[parentKey]?.filter(
-          (childId) => childId !== id
-        ) ?? [];
+        const parentKey = block.parentId ?? "root";
+        state.childrenMap[parentKey] =
+          state.childrenMap[parentKey]?.filter((childId) => childId !== id) ??
+          [];
       });
 
       try {
-        await invoke('delete_block', { blockId: id });
+        await invoke("delete_block", { blockId: id });
       } catch (error) {
         // 롤백
         set((state) => {
@@ -270,7 +282,11 @@ export const useBlockStore = create<BlockStore>()(
           if (!state.childrenMap[backup.parentKey]) {
             state.childrenMap[backup.parentKey] = [];
           }
-          state.childrenMap[backup.parentKey].splice(backup.index, 0, backup.block.id);
+          state.childrenMap[backup.parentKey].splice(
+            backup.index,
+            0,
+            backup.block.id,
+          );
         });
         throw error;
       }
@@ -283,7 +299,7 @@ export const useBlockStore = create<BlockStore>()(
       const block = blocksById[id];
       if (!block) return;
 
-      const parentKey = block.parentId ?? 'root';
+      const parentKey = block.parentId ?? "root";
       const siblings = childrenMap[parentKey] ?? [];
       const index = siblings.indexOf(id);
 
@@ -294,7 +310,7 @@ export const useBlockStore = create<BlockStore>()(
       // Optimistic
       set((state) => {
         state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-          (childId) => childId !== id
+          (childId) => childId !== id,
         );
 
         if (!state.childrenMap[prevSiblingId]) {
@@ -305,7 +321,9 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
-        const updatedBlock: BlockData = await invoke('indent_block', { blockId: id });
+        const updatedBlock: BlockData = await invoke("indent_block", {
+          blockId: id,
+        });
         set((state) => {
           state.blocksById[id] = updatedBlock;
         });
@@ -325,12 +343,14 @@ export const useBlockStore = create<BlockStore>()(
       if (!parent) return;
 
       set((state) => {
-        state.childrenMap[block.parentId!] = state.childrenMap[block.parentId!]?.filter(
-          (childId) => childId !== id
-        ) ?? [];
+        state.childrenMap[block.parentId!] =
+          state.childrenMap[block.parentId!]?.filter(
+            (childId) => childId !== id,
+          ) ?? [];
 
-        const grandparentKey = parent.parentId ?? 'root';
-        const parentIndex = state.childrenMap[grandparentKey]?.indexOf(block.parentId!) ?? -1;
+        const grandparentKey = parent.parentId ?? "root";
+        const parentIndex =
+          state.childrenMap[grandparentKey]?.indexOf(block.parentId!) ?? -1;
 
         if (!state.childrenMap[grandparentKey]) {
           state.childrenMap[grandparentKey] = [];
@@ -340,7 +360,9 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
-        const updatedBlock: BlockData = await invoke('outdent_block', { blockId: id });
+        const updatedBlock: BlockData = await invoke("outdent_block", {
+          blockId: id,
+        });
         set((state) => {
           state.blocksById[id] = updatedBlock;
         });
@@ -351,9 +373,13 @@ export const useBlockStore = create<BlockStore>()(
       }
     },
 
-    moveBlock: async (id: string, newParentId: string | null, afterBlockId: string | null) => {
+    moveBlock: async (
+      id: string,
+      newParentId: string | null,
+      afterBlockId: string | null,
+    ) => {
       try {
-        await invoke('move_block', {
+        await invoke("move_block", {
           request: { id, newParentId, afterBlockId },
         });
 
@@ -375,11 +401,12 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
-        await invoke('toggle_collapse', { blockId: id });
+        await invoke("toggle_collapse", { blockId: id });
       } catch (error) {
         set((state) => {
           if (state.blocksById[id]) {
-            state.blocksById[id].isCollapsed = !state.blocksById[id].isCollapsed;
+            state.blocksById[id].isCollapsed =
+              !state.blocksById[id].isCollapsed;
           }
         });
         throw error;
@@ -405,21 +432,97 @@ export const useBlockStore = create<BlockStore>()(
     getBlock: (id: string) => get().blocksById[id],
 
     getChildren: (parentId: string | null) => {
-      const key = parentId ?? 'root';
+      const key = parentId ?? "root";
       return get().childrenMap[key] ?? [];
     },
 
-    getRootBlockIds: () => get().childrenMap['root'] ?? [],
-  }))
+    getRootBlockIds: () => get().childrenMap["root"] ?? [],
+
+    // ============ Keyboard Navigation ============
+
+    getPreviousBlock: (id: string) => {
+      const { blocksById, childrenMap } = get();
+      const block = blocksById[id];
+      if (!block) return null;
+
+      const parentKey = block.parentId ?? "root";
+      const siblings = childrenMap[parentKey] ?? [];
+      const index = siblings.indexOf(id);
+
+      if (index > 0) {
+        // 이전 형제가 있으면, 그 형제의 마지막 보이는 자손으로 이동
+        const prevSibling = siblings[index - 1];
+        const prevBlock = blocksById[prevSibling];
+
+        if (!prevBlock) return null;
+
+        // 접혀있지 않고 자식이 있으면 마지막 자식의 마지막 자손으로
+        let lastVisibleId = prevSibling;
+        let currentChildren = childrenMap[lastVisibleId] ?? [];
+
+        while (
+          currentChildren.length > 0 &&
+          !blocksById[lastVisibleId]?.isCollapsed
+        ) {
+          lastVisibleId = currentChildren[currentChildren.length - 1];
+          currentChildren = childrenMap[lastVisibleId] ?? [];
+        }
+
+        return lastVisibleId;
+      } else if (block.parentId) {
+        // 첫 번째 형제면 부모로
+        return block.parentId;
+      }
+
+      return null;
+    },
+
+    getNextBlock: (id: string) => {
+      const { blocksById, childrenMap } = get();
+      const block = blocksById[id];
+      if (!block) return null;
+
+      // 접혀있지 않고 자식이 있으면 첫 번째 자식으로
+      const children = childrenMap[id] ?? [];
+      if (children.length > 0 && !block.isCollapsed) {
+        return children[0];
+      }
+
+      // 자식이 없으면 다음 형제 찾기
+      let currentId: string | null = id;
+      let currentBlock = block;
+
+      while (currentId) {
+        const parentKey = currentBlock.parentId ?? "root";
+        const siblings = childrenMap[parentKey] ?? [];
+        const index = siblings.indexOf(currentId);
+
+        if (index < siblings.length - 1) {
+          // 다음 형제가 있으면 반환
+          return siblings[index + 1];
+        }
+
+        // 부모의 다음 형제 찾기
+        currentId = currentBlock.parentId;
+        if (!currentId) break;
+        currentBlock = blocksById[currentId];
+        if (!currentBlock) break;
+      }
+
+      return null;
+    },
+  })),
 );
 
 // ============ Selector Hooks ============
 
-export const useBlock = (id: string) => useBlockStore((state) => state.blocksById[id]);
+export const useBlock = (id: string) =>
+  useBlockStore((state) => state.blocksById[id]);
 
 export const useChildrenIds = (parentId: string | null) =>
-  useBlockStore((state) => state.childrenMap[parentId ?? 'root'] ?? []);
+  useBlockStore((state) => state.childrenMap[parentId ?? "root"] ?? []);
 
-export const useFocusedBlockId = () => useBlockStore((state) => state.focusedBlockId);
+export const useFocusedBlockId = () =>
+  useBlockStore((state) => state.focusedBlockId);
 
 export const useBlocksLoading = () => useBlockStore((state) => state.isLoading);

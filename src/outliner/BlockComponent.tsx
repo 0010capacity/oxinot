@@ -118,11 +118,82 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           key: "Backspace",
           run: (view: EditorView) => {
             const content = view.state.doc.toString();
+            const cursor = view.state.selection.main.head;
+
             if (content === "") {
+              // Empty block - delete and move to previous
+              const prevBlockId = useBlockStore
+                .getState()
+                .getPreviousBlock(blockId);
               deleteBlock(blockId);
-              return true; // Prevent default
+              if (prevBlockId) {
+                setFocusedBlock(prevBlockId);
+              }
+              return true;
+            } else if (cursor === 0) {
+              // At start of non-empty block - merge with previous
+              const prevBlockId = useBlockStore
+                .getState()
+                .getPreviousBlock(blockId);
+              if (prevBlockId) {
+                const prevBlock = useBlockStore
+                  .getState()
+                  .getBlock(prevBlockId);
+                if (prevBlock) {
+                  // Merge current content into previous block
+                  const newContent = prevBlock.content + content;
+                  flushUpdate();
+                  useBlockStore
+                    .getState()
+                    .updateBlockContent(prevBlockId, newContent);
+                  deleteBlock(blockId);
+                  setFocusedBlock(prevBlockId);
+                  return true;
+                }
+              }
             }
             return false; // Allow default backspace behavior
+          },
+        },
+        {
+          key: "ArrowUp",
+          run: (view: EditorView) => {
+            const cursor = view.state.selection.main.head;
+            const line = view.state.doc.lineAt(cursor);
+
+            // Only navigate if on first line
+            if (line.number === 1) {
+              const prevBlockId = useBlockStore
+                .getState()
+                .getPreviousBlock(blockId);
+              if (prevBlockId) {
+                flushUpdate();
+                setFocusedBlock(prevBlockId);
+                return true;
+              }
+            }
+            return false; // Allow default behavior
+          },
+        },
+        {
+          key: "ArrowDown",
+          run: (view: EditorView) => {
+            const cursor = view.state.selection.main.head;
+            const line = view.state.doc.lineAt(cursor);
+            const lastLine = view.state.doc.lines;
+
+            // Only navigate if on last line
+            if (line.number === lastLine) {
+              const nextBlockId = useBlockStore
+                .getState()
+                .getNextBlock(blockId);
+              if (nextBlockId) {
+                flushUpdate();
+                setFocusedBlock(nextBlockId);
+                return true;
+              }
+            }
+            return false; // Allow default behavior
           },
         },
         {
@@ -151,6 +222,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       deleteBlock,
       indentBlock,
       outdentBlock,
+      setFocusedBlock,
     ]);
 
     if (!block) return null;
