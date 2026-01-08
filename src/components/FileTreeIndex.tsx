@@ -581,25 +581,17 @@ export function FileTreeIndex() {
 
   // Build hierarchical structure
   const buildTree = useCallback(
-    (parentId: string | undefined): PageData[] => {
+    (parentId: string | undefined | null): PageData[] => {
       console.log("[buildTree] Building tree for parentId:", parentId);
-      console.log("[buildTree] Total pages:", pages.length);
-      console.log(
-        "[buildTree] Pages with parentId === undefined:",
-        pages.filter((p) => p.parentId === undefined).length,
-      );
-      console.log(
-        "[buildTree] Pages with parentId === null:",
-        pages.filter((p) => p.parentId === null).length,
-      );
-      console.log(
-        "[buildTree] Sample page parentIds:",
-        pages
-          .slice(0, 5)
-          .map((p) => ({ title: p.title, parentId: p.parentId })),
-      );
 
-      const filtered = pages.filter((p) => p.parentId === parentId);
+      // Treat both null and undefined as root (no parent)
+      const filtered = pages.filter((p) => {
+        if (parentId === undefined || parentId === null) {
+          return p.parentId === undefined || p.parentId === null;
+        }
+        return p.parentId === parentId;
+      });
+
       console.log(
         "[buildTree] Filtered pages for parentId",
         parentId,
@@ -728,7 +720,7 @@ export function FileTreeIndex() {
     );
   }
 
-  const rootPages = buildTree(undefined);
+  const rootPages = buildTree(null);
 
   // Force re-render when pages change
   console.log("[FileTreeIndex] Rendering with pages.length:", pages.length);
