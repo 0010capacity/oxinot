@@ -445,10 +445,7 @@ export function FileTreeIndex() {
       // Reload pages to update UI
       console.log("[FileTreeIndex] Reloading pages...");
       await loadPages();
-      console.log(
-        "[FileTreeIndex] Pages reloaded. Total pages:",
-        pageIds.length,
-      );
+      console.log("[FileTreeIndex] Pages reloaded. Total pages:", pages.length);
 
       setNewPageTitle("");
       setIsCreating(false);
@@ -585,9 +582,32 @@ export function FileTreeIndex() {
   // Build hierarchical structure
   const buildTree = useCallback(
     (parentId: string | undefined): PageData[] => {
-      return pages
-        .filter((p) => p.parentId === parentId)
-        .sort((a, b) => a.title.localeCompare(b.title));
+      console.log("[buildTree] Building tree for parentId:", parentId);
+      console.log("[buildTree] Total pages:", pages.length);
+      console.log(
+        "[buildTree] Pages with parentId === undefined:",
+        pages.filter((p) => p.parentId === undefined).length,
+      );
+      console.log(
+        "[buildTree] Pages with parentId === null:",
+        pages.filter((p) => p.parentId === null).length,
+      );
+      console.log(
+        "[buildTree] Sample page parentIds:",
+        pages
+          .slice(0, 5)
+          .map((p) => ({ title: p.title, parentId: p.parentId })),
+      );
+
+      const filtered = pages.filter((p) => p.parentId === parentId);
+      console.log(
+        "[buildTree] Filtered pages for parentId",
+        parentId,
+        ":",
+        filtered.length,
+      );
+
+      return filtered.sort((a, b) => a.title.localeCompare(b.title));
     },
     [pages],
   );
