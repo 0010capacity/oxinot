@@ -40,6 +40,11 @@ async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, Strin
     if let Some(folder_path) = folder {
         let path_str = folder_path.to_string();
 
+        // Initialize workspace metadata (.md-outliner folder)
+        commands::workspace::initialize_workspace(path_str.clone())
+            .await
+            .map_err(|e| format!("Failed to initialize workspace: {}", e))?;
+
         // Check if workspace is empty and create Welcome.md if needed
         match fs::read_dir(&path_str) {
             Ok(entries) => {
@@ -354,6 +359,7 @@ pub fn run() {
             // Mirror commands
             commands::block::queue_mirror,
             // Workspace commands
+            commands::workspace::initialize_workspace,
             commands::workspace::init_workspace_db,
             commands::workspace::migrate_workspace,
             commands::workspace::set_workspace_path,

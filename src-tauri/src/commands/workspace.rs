@@ -14,6 +14,105 @@ pub struct MigrationResult {
     pub blocks: usize,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceSettings {
+    pub version: String,
+    pub workspace_name: String,
+    pub created_at: String,
+    pub last_opened: String,
+}
+
+/// Get or create workspace metadata directory
+fn get_workspace_metadata_dir(workspace_path: &str) -> Result<PathBuf, String> {
+    let workspace = PathBuf::from(workspace_path);
+    let metadata_dir = workspace.join(".md-outliner");
+
+    if !metadata_dir.exists() {
+        fs::create_dir_all(&metadata_dir)
+            .map_err(|e| format!("Failed to create metadata directory: {}", e))?;
+    }
+
+    Ok(metadata_dir)
+}
+
+/// Get workspace database path
+pub fn get_workspace_db_path(workspace_path: &str) -> Result<PathBuf, String> {
+    let metadata_dir = get_workspace_metadata_dir(workspace_path)?;
+    Ok(metadata_dir.join("outliner.db"))
+}
+
+/// Get workspace settings path
+fn get_workspace_settings_path(workspace_path: &str) -> Result<PathBuf, String> {
+    let metadata_dir = get_workspace_metadata_dir(workspace_path)?;
+    Ok(metadata_dir.join("settings.json"))
+}
+
+/// Initialize or load workspace settings
+fn init_workspace_settings(workspace_path: &str) -> Result<WorkspaceSettings, String> {
+    let settings_path = get_workspace_settings_path(workspace_path)?;
+
+    if settings_path.exists() {
+        // Load existing settings
+        let content = fs::read_to_string(&settings_path)
+            .map_err(|e| format!("Failed to read settings: {}", e))?;
+        let mut settings: WorkspaceSettings = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse settings: {}", e))?;
+
+        // Update last_opened
+        settings.last_opened = Utc::now().to_rfc3339();
+        save_workspace_settings(workspace_path, &settings)?;
+
+        Ok(settings)
+    } else {
+        // Create new settings
+        let workspace_name = PathBuf::from(workspace_path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Workspace")
+            .to_string();
+
+        let now = Utc::now().to_rfc3339();
+        let settings = WorkspaceSettings {
+            version: "0.1.0".to_string(),
+            workspace_name,
+            created_at: now.clone(),
+            last_opened: now,
+        };
+
+        save_workspace_settings(workspace_path, &settings)?;
+
+        Ok(settings)
+    }
+}
+
+/// Save workspace settings
+fn save_workspace_settings(
+    workspace_path: &str,
+    settings: &WorkspaceSettings,
+) -> Result<(), String> {
+    let settings_path = get_workspace_settings_path(workspace_path)?;
+    let json = serde_json::to_string_pretty(settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+
+    fs::write(&settings_path, json).map_err(|e| format!("Failed to write settings: {}", e))?;
+
+    Ok(())
+}
+
+/// Initialize workspace: create metadata directory, DB, and settings
+#[tauri::command]
+pub async fn initialize_workspace(workspace_path: String) -> Result<WorkspaceSettings, String> {
+    // Create metadata directory
+    let _metadata_dir = get_workspace_metadata_dir(&workspace_path)?;
+
+    // Initialize settings
+    let settings = init_workspace_settings(&workspace_path)?;
+
+    // DB will be initialized by the connection manager
+
+    Ok(settings)
+}
+
 /// Initialize database for a workspace
 #[tauri::command]
 pub async fn init_workspace_db(
