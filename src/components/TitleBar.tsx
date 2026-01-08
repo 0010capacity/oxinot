@@ -47,8 +47,7 @@ export function TitleBar({ onSettingsClick }: TitleBarProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        backgroundColor: isDark ? "#1a1b1e" : "#f8f9fa",
-        borderBottom: `1px solid ${isDark ? "#2c2e33" : "#dee2e6"}`,
+        backgroundColor: isDark ? "#1a1a1a" : "#ffffff",
         userSelect: "none",
         WebkitUserSelect: "none",
         paddingLeft: isMacOS ? "78px" : "16px", // Space for macOS traffic lights
