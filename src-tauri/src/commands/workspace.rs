@@ -271,3 +271,228 @@ pub async fn set_workspace_path(
 
     Ok(true)
 }
+
+/// Sync workspace: scan all markdown files and sync with database
+/// This is the source of truth - filesystem drives the database
+#[tauri::command]
+pub async fn sync_workspace(
+    db: tauri::State<'_, Arc<std::sync::Mutex<rusqlite::Connection>>>,
+    workspace_path: String,
+) -> Result<MigrationResult, String> {
+    let conn = db.lock().map_err(|e| e.to_string())?;
+
+    // Get all existing pages from DB
+    let mut existing_pages: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    {
+        let mut stmt = conn
+            .prepare("SELECT id, file_path FROM pages WHERE file_path IS NOT NULL")
+            .map_err(|e| e.to_string())?;
+
+        let pages = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|e| e.to_string())?;
+
+        for page in pages {
+            let (id, path) = page.map_err(|e| e.to_string())?;
+            existing_pages.insert(path, id);
+        }
+    }
+
+    let mut synced_pages = 0;
+    let mut synced_blocks = 0;
+    let workspace_root = PathBuf::from(&workspace_path);
+
+    // Scan filesystem
+    let mut found_files = std::collections::HashSet::new();
+    sync_directory(
+        &conn,
+        &workspace_root,
+        &workspace_root,
+        None,
+        &mut existing_pages,
+        &mut found_files,
+        &mut synced_pages,
+        &mut synced_blocks,
+    )?;
+
+    // Delete pages from DB that no longer exist in filesystem
+    for (file_path, page_id) in existing_pages.iter() {
+        if !found_files.contains(file_path) {
+            println!("Deleting orphaned page from DB: {}", file_path);
+            conn.execute("DELETE FROM pages WHERE id = ?", [page_id])
+                .map_err(|e| e.to_string())?;
+        }
+    }
+
+    Ok(MigrationResult {
+        pages: synced_pages,
+        blocks: synced_blocks,
+    })
+}
+
+/// Recursively sync directory with database
+fn sync_directory(
+    conn: &rusqlite::Connection,
+    workspace_root: &Path,
+    current_dir: &Path,
+    parent_page_id: Option<&str>,
+    existing_pages: &mut std::collections::HashMap<String, String>,
+    found_files: &mut std::collections::HashSet<String>,
+    synced_pages: &mut usize,
+    synced_blocks: &mut usize,
+) -> Result<(), String> {
+    let entries = fs::read_dir(current_dir)
+        .map_err(|e| format!("Error reading directory {}: {}", current_dir.display(), e))?;
+
+    let mut items: Vec<_> = entries.filter_map(|e| e.ok()).collect();
+    items.sort_by(|a, b| {
+        let a_name = a.file_name();
+        let b_name = b.file_name();
+        a_name.cmp(&b_name)
+    });
+
+    for entry in items {
+        let path = entry.path();
+        let metadata = entry
+            .metadata()
+            .map_err(|e| format!("Error reading metadata: {}", e))?;
+
+        if metadata.is_file() {
+            if let Some(ext) = path.extension() {
+                if ext == "md" {
+                    let file_path_str = path.to_string_lossy().to_string();
+                    found_files.insert(file_path_str.clone());
+
+                    sync_or_create_file(
+                        conn,
+                        workspace_root,
+                        &path,
+                        parent_page_id,
+                        false,
+                        existing_pages,
+                        synced_pages,
+                        synced_blocks,
+                    )?;
+                }
+            }
+        } else if metadata.is_dir() {
+            let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            let folder_note_path = path.join(format!("{}.md", dir_name));
+
+            let page_id = if folder_note_path.exists() {
+                let file_path_str = folder_note_path.to_string_lossy().to_string();
+                found_files.insert(file_path_str.clone());
+
+                let id = sync_or_create_file(
+                    conn,
+                    workspace_root,
+                    &folder_note_path,
+                    parent_page_id,
+                    true,
+                    existing_pages,
+                    synced_pages,
+                    synced_blocks,
+                )?;
+                Some(id)
+            } else {
+                None
+            };
+
+            sync_directory(
+                conn,
+                workspace_root,
+                &path,
+                page_id.as_deref().or(parent_page_id),
+                existing_pages,
+                found_files,
+                synced_pages,
+                synced_blocks,
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Sync or create a file in database
+fn sync_or_create_file(
+    conn: &rusqlite::Connection,
+    _workspace_root: &Path,
+    file_path: &Path,
+    parent_page_id: Option<&str>,
+    is_directory: bool,
+    existing_pages: &mut std::collections::HashMap<String, String>,
+    synced_pages: &mut usize,
+    synced_blocks: &mut usize,
+) -> Result<String, String> {
+    let file_path_str = file_path.to_string_lossy().to_string();
+    let file_name = file_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("Untitled");
+
+    // Check if page already exists in DB
+    if let Some(page_id) = existing_pages.get(&file_path_str) {
+        println!("Page already exists in DB: {} -> {}", file_name, page_id);
+
+        // Update parent_id and is_directory if needed
+        conn.execute(
+            "UPDATE pages SET parent_id = ?, is_directory = ? WHERE id = ?",
+            params![parent_page_id, if is_directory { 1 } else { 0 }, page_id],
+        )
+        .map_err(|e| e.to_string())?;
+
+        return Ok(page_id.clone());
+    }
+
+    // Create new page
+    println!("Creating new page in DB: {}", file_name);
+    let content = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
+    let page_id = Uuid::new_v4().to_string();
+    let now = Utc::now().to_rfc3339();
+
+    conn.execute(
+        "INSERT INTO pages (id, title, parent_id, file_path, is_directory, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)",
+        params![
+            &page_id,
+            file_name,
+            parent_page_id,
+            &file_path_str,
+            if is_directory { 1 } else { 0 },
+            &now,
+            &now
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // Parse and create blocks
+    let blocks = markdown_to_blocks(&content, &page_id);
+
+    for block in &blocks {
+        conn.execute(
+            "INSERT INTO blocks (id, page_id, parent_id, content, order_weight,
+                                block_type, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            params![
+                &block.id,
+                &block.page_id,
+                &block.parent_id,
+                &block.content,
+                block.order_weight,
+                block_type_to_string(&block.block_type),
+                &block.created_at,
+                &block.updated_at
+            ],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    *synced_pages += 1;
+    *synced_blocks += blocks.len();
+
+    Ok(page_id)
+}

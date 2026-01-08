@@ -91,11 +91,22 @@ function AppContent({ workspacePath }: AppContentProps) {
         // Set workspace path in database first
         await invoke("set_workspace_path", { workspacePath });
 
+        // Sync filesystem with database (filesystem is source of truth)
+        console.log("[App] Syncing workspace with filesystem...");
+        const syncResult = await invoke<{ pages: number; blocks: number }>(
+          "sync_workspace",
+          { workspacePath },
+        );
+        console.log(
+          `[App] Workspace synced: ${syncResult.pages} pages, ${syncResult.blocks} blocks`,
+        );
+
         await loadPages();
         setDbInitialized(true);
         setShowMigration(false);
         setWorkspaceName(workspaceName);
       } catch (error) {
+        console.error("[App] Failed to sync workspace:", error);
         setDbInitialized(false);
         setShowMigration(true);
       } finally {
@@ -109,8 +120,9 @@ function AppContent({ workspacePath }: AppContentProps) {
   const handleMigrationComplete = async () => {
     setShowMigration(false);
     setDbInitialized(true);
-    // Set workspace path after migration
+    // Set workspace path and sync after migration
     await invoke("set_workspace_path", { workspacePath });
+    await invoke("sync_workspace", { workspacePath });
     await loadPages();
     setWorkspaceName(workspaceName);
     showIndex();
