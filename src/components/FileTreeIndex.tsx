@@ -390,7 +390,10 @@ export function FileTreeIndex() {
   const [dragOverPageId, setDragOverPageId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadPages();
+    console.log("[FileTreeIndex] Initial load pages");
+    loadPages().then(() => {
+      console.log("[FileTreeIndex] Initial pages loaded:", pageIds.length);
+    });
   }, [loadPages]);
 
   // Reset drag state on drag end
@@ -409,10 +412,25 @@ export function FileTreeIndex() {
 
     setIsSubmitting(true);
     try {
-      await createPage(newPageTitle.trim(), creatingParentId || undefined);
+      console.log(
+        "[FileTreeIndex] Creating page:",
+        newPageTitle.trim(),
+        "parent:",
+        creatingParentId,
+      );
+      const newPageId = await createPage(
+        newPageTitle.trim(),
+        creatingParentId || undefined,
+      );
+      console.log("[FileTreeIndex] Page created with ID:", newPageId);
 
       // Reload pages to update UI
+      console.log("[FileTreeIndex] Reloading pages...");
       await loadPages();
+      console.log(
+        "[FileTreeIndex] Pages reloaded. Total pages:",
+        pageIds.length,
+      );
 
       setNewPageTitle("");
       setIsCreating(false);

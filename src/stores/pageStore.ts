@@ -101,14 +101,13 @@ export const usePageStore = create<PageStore>()(
           request: { title, parentId: parentId || null },
         });
 
-        set((state) => {
-          state.pagesById[newPage.id] = newPage;
-          state.pageIds.push(newPage.id);
-          state.currentPageId = newPage.id;
-        });
+        console.log("[PageStore] Page created:", newPage);
 
+        // Don't manually update store - let loadPages handle it
+        // This prevents race conditions and ensures consistency
         return newPage.id;
       } catch (error) {
+        console.error("[PageStore] Failed to create page:", error);
         throw error;
       }
     },
