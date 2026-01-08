@@ -90,9 +90,6 @@ function AppContent({ workspacePath }: AppContentProps) {
     const checkDatabase = async () => {
       setCheckingDb(true);
       try {
-        // Set workspace path in database first
-        await invoke("set_workspace_path", { workspacePath });
-
         // Sync filesystem with database (filesystem is source of truth)
         console.log("[App] Syncing workspace with filesystem...");
         const syncResult = await invoke<{ pages: number; blocks: number }>(
@@ -122,8 +119,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   const handleMigrationComplete = async () => {
     setShowMigration(false);
     setDbInitialized(true);
-    // Set workspace path and sync after migration
-    await invoke("set_workspace_path", { workspacePath });
+    // Sync after migration
     await invoke("sync_workspace", { workspacePath });
     await loadPages();
     setWorkspaceName(workspaceName);

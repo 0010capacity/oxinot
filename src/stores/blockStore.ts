@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { invoke } from "@tauri-apps/api/core";
+import { useWorkspaceStore } from "./workspaceStore";
 
 // ============ Types ============
 
@@ -98,7 +99,15 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
-        const blocks: BlockData[] = await invoke("get_page_blocks", { pageId });
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
+        const blocks: BlockData[] = await invoke("get_page_blocks", {
+          workspacePath,
+          pageId,
+        });
 
         // 정규화
         const blocksById: Record<string, BlockData> = {};
@@ -191,7 +200,13 @@ export const useBlockStore = create<BlockStore>()(
 
       try {
         // 실제 생성
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
         const newBlock: BlockData = await invoke("create_block", {
+          workspacePath,
           request: {
             pageId: currentPageId,
             parentId,
@@ -243,7 +258,13 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
         await invoke("update_block", {
+          workspacePath,
           request: { id, content },
         });
       } catch (error) {
@@ -279,7 +300,12 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
-        await invoke("delete_block", { blockId: id });
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
+        await invoke("delete_block", { workspacePath, blockId: id });
       } catch (error) {
         // 롤백
         set((state) => {
@@ -326,7 +352,13 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
         const updatedBlock: BlockData = await invoke("indent_block", {
+          workspacePath,
           blockId: id,
         });
         set((state) => {
@@ -365,7 +397,13 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
         const updatedBlock: BlockData = await invoke("outdent_block", {
+          workspacePath,
           blockId: id,
         });
         set((state) => {
@@ -384,7 +422,13 @@ export const useBlockStore = create<BlockStore>()(
       afterBlockId: string | null,
     ) => {
       try {
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
         await invoke("move_block", {
+          workspacePath,
           request: { id, newParentId, afterBlockId },
         });
 
@@ -406,7 +450,12 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
-        await invoke("toggle_collapse", { blockId: id });
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
+        await invoke("toggle_collapse", { workspacePath, blockId: id });
       } catch (error) {
         set((state) => {
           if (state.blocksById[id]) {

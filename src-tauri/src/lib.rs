@@ -334,8 +334,6 @@ pub fn run() {
             commands::page::move_page,
             commands::page::convert_page_to_directory,
             commands::page::debug_db_state,
-            // Mirror commands
-            commands::block::queue_mirror,
             // Workspace commands
             commands::workspace::initialize_workspace,
             commands::workspace::sync_workspace,

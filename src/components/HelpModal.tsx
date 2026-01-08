@@ -1,4 +1,4 @@
-import { Modal, Stack, Box, ScrollArea } from "@mantine/core";
+import { Modal, Box, ScrollArea } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
 import { useMemo } from "react";
 import MarkdownIt from "markdown-it";

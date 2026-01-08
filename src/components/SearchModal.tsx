@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useMantineColorScheme } from "@mantine/core";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 
 interface SearchResult {
   id: string;
@@ -27,8 +28,9 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const { setCurrentPageId } = usePageStore();
-  const { showPage } = useViewStore();
+  const setCurrentPageId = usePageStore((state) => state.setCurrentPageId);
+  const showPage = useViewStore((state) => state.showPage);
+  const workspacePath = useWorkspaceStore((state) => state.workspacePath);
 
   const performSearch = useCallback(async (searchQuery: string) => {
     if (searchQuery.trim().length === 0) {
@@ -36,9 +38,15 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
       return;
     }
 
+    if (!workspacePath) {
+      setResults([]);
+      return;
+    }
+
     setIsSearching(true);
     try {
       const searchResults = await invoke<SearchResult[]>("search_content", {
+        workspacePath,
         query: searchQuery,
       });
       setResults(searchResults);

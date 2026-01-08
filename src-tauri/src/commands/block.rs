@@ -1,22 +1,20 @@
 use chrono::Utc;
 use rusqlite::{params, Connection};
-use std::sync::Arc;
-use tauri::State;
 use uuid::Uuid;
 
+use crate::commands::workspace::open_workspace_db;
 use crate::models::block::{
     Block, BlockType, CreateBlockRequest, MoveBlockRequest, UpdateBlockRequest,
 };
-use crate::services::MarkdownMirrorService;
 use crate::utils::fractional_index;
 
 /// Get all blocks for a page
 #[tauri::command]
 pub async fn get_page_blocks(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
+    workspace_path: String,
     page_id: String,
 ) -> Result<Vec<Block>, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+    let conn = open_workspace_db(&workspace_path)?;
 
     let mut stmt = conn
         .prepare(
@@ -53,10 +51,10 @@ pub async fn get_page_blocks(
 /// Create a new block
 #[tauri::command]
 pub async fn create_block(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
+    workspace_path: String,
     request: CreateBlockRequest,
 ) -> Result<Block, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+    let conn = open_workspace_db(&workspace_path)?;
 
     // Calculate order_weight
     let order_weight = calculate_new_order_weight(
@@ -93,10 +91,10 @@ pub async fn create_block(
 /// Update a block
 #[tauri::command]
 pub async fn update_block(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
+    workspace_path: String,
     request: UpdateBlockRequest,
 ) -> Result<Block, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+    let conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
 
     let block = get_block_by_id(&conn, &request.id)?;
@@ -124,11 +122,8 @@ pub async fn update_block(
 
 /// Delete a block (and all descendants)
 #[tauri::command]
-pub async fn delete_block(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
-    block_id: String,
-) -> Result<Vec<String>, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Vec<String>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
 
     // Collect all descendant IDs
     let deleted_ids = collect_descendant_ids(&conn, &block_id)?;
@@ -143,10 +138,10 @@ pub async fn delete_block(
 /// Move a block (change parent and/or position)
 #[tauri::command]
 pub async fn move_block(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
+    workspace_path: String,
     request: MoveBlockRequest,
 ) -> Result<Block, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+    let conn = open_workspace_db(&workspace_path)?;
 
     let block = get_block_by_id(&conn, &request.id)?;
 
@@ -171,11 +166,8 @@ pub async fn move_block(
 
 /// Indent a block (make it a child of previous sibling)
 #[tauri::command]
-pub async fn indent_block(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
-    block_id: String,
-) -> Result<Block, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+pub async fn indent_block(workspace_path: String, block_id: String) -> Result<Block, String> {
+    let conn = open_workspace_db(&workspace_path)?;
     let block = get_block_by_id(&conn, &block_id)?;
 
     // Find previous sibling
@@ -203,11 +195,8 @@ pub async fn indent_block(
 
 /// Outdent a block (make it a sibling of its parent)
 #[tauri::command]
-pub async fn outdent_block(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
-    block_id: String,
-) -> Result<Block, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+pub async fn outdent_block(workspace_path: String, block_id: String) -> Result<Block, String> {
+    let conn = open_workspace_db(&workspace_path)?;
     let block = get_block_by_id(&conn, &block_id)?;
 
     let parent_id = block
@@ -238,11 +227,8 @@ pub async fn outdent_block(
 
 /// Toggle collapse state of a block
 #[tauri::command]
-pub async fn toggle_collapse(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
-    block_id: String,
-) -> Result<Block, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+pub async fn toggle_collapse(workspace_path: String, block_id: String) -> Result<Block, String> {
+    let conn = open_workspace_db(&workspace_path)?;
     let block = get_block_by_id(&conn, &block_id)?;
 
     let now = Utc::now().to_rfc3339();
@@ -393,14 +379,4 @@ pub fn block_type_to_string(bt: &BlockType) -> String {
         BlockType::Code => "code".to_string(),
         BlockType::Fence => "fence".to_string(),
     }
-}
-
-/// Queue a page for markdown mirroring
-#[tauri::command]
-pub async fn queue_mirror(
-    mirror_service: State<'_, MarkdownMirrorService>,
-    page_id: String,
-) -> Result<bool, String> {
-    mirror_service.queue_mirror(page_id);
-    Ok(true)
 }

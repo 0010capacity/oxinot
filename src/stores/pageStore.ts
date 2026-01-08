@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { invoke } from "@tauri-apps/api/core";
+import { useWorkspaceStore } from "./workspaceStore";
 
 // ============ Types ============
 
@@ -38,6 +39,7 @@ interface PageActions {
 
   // 페이지 선택
   selectPage: (id: string) => void;
+  setCurrentPageId: (id: string | null) => void;
   clearPages: () => void;
 
   // 셀렉터
@@ -67,7 +69,12 @@ export const usePageStore = create<PageStore>()(
       });
 
       try {
-        const pages: PageData[] = await invoke("get_pages");
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
+        const pages: PageData[] = await invoke("get_pages", { workspacePath });
         console.log("[PageStore] Received pages from backend:", pages.length);
 
         set((state) => {
@@ -102,7 +109,13 @@ export const usePageStore = create<PageStore>()(
 
     createPage: async (title: string, parentId?: string) => {
       try {
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
         const newPage: PageData = await invoke("create_page", {
+          workspacePath,
           request: { title, parentId: parentId || null },
         });
 
@@ -131,7 +144,13 @@ export const usePageStore = create<PageStore>()(
       });
 
       try {
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
         await invoke("update_page", {
+          workspacePath,
           request: { id, title },
         });
       } catch (error) {
@@ -160,7 +179,12 @@ export const usePageStore = create<PageStore>()(
       });
 
       try {
-        await invoke("delete_page", { pageId: id });
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
+        await invoke("delete_page", { workspacePath, pageId: id });
       } catch (error) {
         set((state) => {
           state.pagesById[backup.id] = backup;
@@ -171,6 +195,12 @@ export const usePageStore = create<PageStore>()(
     },
 
     selectPage: (id: string) => {
+      set((state) => {
+        state.currentPageId = id;
+      });
+    },
+
+    setCurrentPageId: (id: string | null) => {
       set((state) => {
         state.currentPageId = id;
       });
@@ -198,7 +228,13 @@ export const usePageStore = create<PageStore>()(
       });
 
       try {
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
         await invoke("move_page", {
+          workspacePath,
           request: { id, newParentId },
         });
       } catch (error) {
@@ -213,9 +249,15 @@ export const usePageStore = create<PageStore>()(
 
     convertToDirectory: async (id: string) => {
       try {
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
         const updatedPage: PageData = await invoke(
           "convert_page_to_directory",
           {
+            workspacePath,
             pageId: id,
           },
         );

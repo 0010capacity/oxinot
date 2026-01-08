@@ -431,7 +431,7 @@ export function FileTreeIndex() {
   const { loadPages, createPage, updatePageTitle, deletePage, movePage } =
     usePageStore();
   const isLoading = usePageStore((state) => state.isLoading);
-  const { showIndex } = useViewStore();
+  // const { showIndex } = useViewStore();
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const workspaceName = workspacePath?.split("/").pop() || "Workspace";
   const showIndentGuides = useOutlinerSettingsStore(

@@ -18,6 +18,7 @@ interface NavigationState {
 interface ViewState extends NavigationState {
   // Actions
   showIndex: () => void;
+  showPage: (pageId: string) => void;
   openNote: (
     notePath: string,
     noteName: string,
@@ -54,6 +55,15 @@ export const useViewStore = create<ViewState>()(
         state.zoomPath = [];
         state.breadcrumb = state.workspaceName ? [state.workspaceName] : [];
         state.pagePathIds = [];
+      });
+    },
+
+    showPage: (pageId: string) => {
+      set((state) => {
+        state.mode = "note";
+        state.currentNotePath = pageId;
+        state.focusedBlockId = null;
+        state.zoomPath = [];
       });
     },
 

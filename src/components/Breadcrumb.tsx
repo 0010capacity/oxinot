@@ -12,7 +12,7 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({
   workspaceName,
-  pageName,
+
   onNavigateHome,
 }: BreadcrumbProps) {
   const zoomPath = useZoomPath();
@@ -50,7 +50,7 @@ export function Breadcrumb({
 
   // Use breadcrumb array from store which includes all parent pages
   const breadcrumbItems = breadcrumb.length > 0 ? breadcrumb : [workspaceName];
-  const isInPage = breadcrumbItems.length > 1;
+  // const isInPage = breadcrumbItems.length > 1;
 
   return (
     <Group gap="xs" wrap="nowrap">

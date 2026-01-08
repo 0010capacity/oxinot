@@ -1,7 +1,6 @@
-use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tauri::State;
+
+use crate::commands::workspace::open_workspace_db;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResult {
@@ -14,15 +13,12 @@ pub struct SearchResult {
 }
 
 #[tauri::command]
-pub fn search_content(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
-    query: String,
-) -> Result<Vec<SearchResult>, String> {
+pub fn search_content(workspace_path: String, query: String) -> Result<Vec<SearchResult>, String> {
     if query.trim().is_empty() {
         return Ok(vec![]);
     }
 
-    let conn = db.lock().map_err(|e| e.to_string())?;
+    let conn = open_workspace_db(&workspace_path)?;
     let mut results = Vec::new();
 
     // Search query pattern for LIKE

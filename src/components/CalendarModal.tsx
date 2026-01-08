@@ -3,7 +3,6 @@ import { useMantineColorScheme } from "@mantine/core";
 import { useState } from "react";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
-import { invoke } from "@tauri-apps/api/core";
 
 interface CalendarModalProps {
   opened: boolean;
@@ -14,8 +13,11 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
   const [currentDate, setCurrentDate] = useState(new Date());
-  const { pages, createPage, setCurrentPageId } = usePageStore();
-  const { showPage } = useViewStore();
+  const pagesById = usePageStore((state) => state.pagesById);
+  const pageIds = usePageStore((state) => state.pageIds);
+  const createPage = usePageStore((state) => state.createPage);
+  const setCurrentPageId = usePageStore((state) => state.setCurrentPageId);
+  const showPage = useViewStore((state) => state.showPage);
 
   const monthNames = [
     "January",
@@ -53,14 +55,16 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
 
   const getDailyNotePage = (date: Date) => {
     const dateStr = formatDateForPage(date);
-    return pages.find((p) => p.title === dateStr);
+    return pageIds.find((id) => pagesById[id]?.title === dateStr)
+      ? pagesById[pageIds.find((id) => pagesById[id]?.title === dateStr)!]
+      : undefined;
   };
 
   const handleDayClick = async (day: number) => {
     const selectedDate = new Date(
       currentDate.getFullYear(),
       currentDate.getMonth(),
-      day
+      day,
     );
     const dateStr = formatDateForPage(selectedDate);
 
@@ -70,10 +74,7 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
     if (!page) {
       // Create new daily note page
       try {
-        const newPageId = await createPage({
-          title: dateStr,
-          parentId: null,
-        });
+        const newPageId = await createPage(dateStr, undefined);
         setCurrentPageId(newPageId);
         showPage(newPageId);
       } catch (error) {
@@ -90,13 +91,13 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
 
   const handlePrevMonth = () => {
     setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
+      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1),
     );
   };
 
   const handleNextMonth = () => {
     setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
+      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
     );
   };
 
@@ -118,7 +119,7 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
             aspectRatio: "1",
             padding: "8px",
           }}
-        />
+        />,
       );
     }
 
@@ -132,7 +133,7 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
       const date = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth(),
-        day
+        day,
       );
       const isToday = isCurrentMonth && day === today.getDate();
       const hasNote = !!getDailyNotePage(date);
@@ -175,7 +176,7 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
           }}
         >
           <Text size="sm">{day}</Text>
-        </Box>
+        </Box>,
       );
     }
 

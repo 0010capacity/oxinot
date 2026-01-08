@@ -392,11 +392,8 @@ pub async fn set_workspace_path(
 /// Sync workspace: scan all markdown files and sync with database
 /// This is the source of truth - filesystem drives the database
 #[tauri::command]
-pub async fn sync_workspace(
-    db: tauri::State<'_, Arc<std::sync::Mutex<rusqlite::Connection>>>,
-    workspace_path: String,
-) -> Result<MigrationResult, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+pub async fn sync_workspace(workspace_path: String) -> Result<MigrationResult, String> {
+    let conn = open_workspace_db(&workspace_path)?;
 
     // Get all existing pages from DB
     let mut existing_pages: std::collections::HashMap<String, String> =
