@@ -58,6 +58,8 @@ pub async fn get_pages(
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
+    println!("[get_pages] Returning {} pages", pages.len());
+
     Ok(pages)
 }
 
@@ -72,6 +74,11 @@ pub async fn create_page(
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
 
+    println!(
+        "[create_page] Creating page: id={}, title={}, parent_id={:?}",
+        id, request.title, request.parent_id
+    );
+
     conn.execute(
         "INSERT INTO pages (id, title, parent_id, file_path, is_directory, created_at, updated_at)
          VALUES (?, ?, ?, ?, 0, ?, ?)",
@@ -84,7 +91,9 @@ pub async fn create_page(
             &now
         ],
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| format!("Failed to insert page: {}", e))?;
+
+    println!("[create_page] Page inserted into DB successfully");
 
     // Get workspace path
     let workspace_path: Option<String> = conn
@@ -116,7 +125,12 @@ pub async fn create_page(
     )
     .map_err(|e| e.to_string())?;
 
-    get_page_by_id(&conn, &id)
+    println!("[create_page] File created at: {}", file_path);
+    println!("[create_page] Updated file_path in DB");
+
+    let page = get_page_by_id(&conn, &id)?;
+    println!("[create_page] Returning page: {:?}", page);
+    Ok(page)
 }
 
 /// Update a page

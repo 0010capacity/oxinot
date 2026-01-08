@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   Stack,
   Text,
@@ -20,6 +21,7 @@ import {
 import { useViewStore } from "../stores/viewStore";
 import { usePageStore, type PageData } from "../stores/pageStore";
 import { useBlockStore } from "../stores/blockStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 
 interface PageTreeItemProps {
   page: PageData;
@@ -423,6 +425,13 @@ export function FileTreeIndex() {
         creatingParentId || undefined,
       );
       console.log("[FileTreeIndex] Page created with ID:", newPageId);
+
+      // Sync workspace to ensure file is in DB
+      const { workspacePath } = useWorkspaceStore.getState();
+      if (workspacePath) {
+        console.log("[FileTreeIndex] Syncing workspace after page creation...");
+        await invoke("sync_workspace", { workspacePath });
+      }
 
       // Reload pages to update UI
       console.log("[FileTreeIndex] Reloading pages...");
