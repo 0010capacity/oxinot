@@ -92,25 +92,8 @@ pub async fn create_page(
 
     println!("[create_page] Page inserted into DB successfully");
 
-    // Get workspace path
-    let workspace_path: Option<String> = conn
-        .query_row(
-            "SELECT path FROM workspace WHERE id = 'default'",
-            [],
-            |row| row.get(0),
-        )
-        .ok();
-
-    if workspace_path.is_none() {
-        return Err(
-            "Workspace path not configured. Please migrate your workspace first.".to_string(),
-        );
-    }
-
-    let workspace_path = workspace_path.unwrap();
-
-    // Create file in file system
-    let file_sync = FileSyncService::new(workspace_path);
+    // Create file in file system (workspace_path is passed as parameter)
+    let file_sync = FileSyncService::new(workspace_path.clone());
     let file_path = file_sync
         .create_page_file(&conn, &id, &request.title)
         .map_err(|e| format!("Failed to create page file: {}", e))?;
@@ -144,15 +127,6 @@ pub async fn update_page(
     let new_title = request.title.clone().unwrap_or(page.title.clone());
     let new_parent_id = request.parent_id.or(page.parent_id.clone());
     let new_file_path = request.file_path.clone().or(page.file_path.clone());
-
-    // Get workspace path
-    let workspace_path: String = conn
-        .query_row(
-            "SELECT path FROM workspace WHERE id = 'default'",
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|e| format!("Failed to get workspace path: {}", e))?;
 
     // If title changed, rename file
     if let Some(title) = &request.title {
@@ -193,17 +167,8 @@ pub async fn update_page(
 pub async fn delete_page(workspace_path: String, page_id: String) -> Result<bool, String> {
     let conn = open_workspace_db(&workspace_path)?;
 
-    // Get workspace path
-    let workspace_path: String = conn
-        .query_row(
-            "SELECT path FROM workspace WHERE id = 'default'",
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|e| format!("Failed to get workspace path: {}", e))?;
-
     // Delete file from file system
-    let file_sync = FileSyncService::new(workspace_path);
+    let file_sync = FileSyncService::new(workspace_path.clone());
     file_sync
         .delete_page_file(&conn, &page_id)
         .map_err(|e| format!("Failed to delete page file: {}", e))?;
@@ -245,15 +210,6 @@ pub async fn move_page(
 ) -> Result<Page, String> {
     let conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
-
-    // Get workspace path
-    let workspace_path: String = conn
-        .query_row(
-            "SELECT path FROM workspace WHERE id = 'default'",
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|e| format!("Failed to get workspace path: {}", e))?;
 
     // If moving to a parent, ensure parent is a directory
     if let Some(parent_id) = &request.new_parent_id {
@@ -302,17 +258,8 @@ pub async fn convert_page_to_directory(
     let conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
 
-    // Get workspace path
-    let workspace_path: String = conn
-        .query_row(
-            "SELECT path FROM workspace WHERE id = 'default'",
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|e| format!("Failed to get workspace path: {}", e))?;
-
     // Convert file to directory structure
-    let file_sync = FileSyncService::new(workspace_path);
+    let file_sync = FileSyncService::new(workspace_path.clone());
     let new_path = file_sync
         .convert_page_to_directory(&conn, &page_id)
         .map_err(|e| format!("Failed to convert to directory: {}", e))?;
