@@ -433,7 +433,8 @@ export function FileTreeIndex() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
       handleCreatePage();
     } else if (e.key === "Escape") {
       handleCancelCreate();
@@ -581,6 +582,11 @@ export function FileTreeIndex() {
           paddingTop: "4px",
           paddingBottom: "4px",
           paddingRight: "8px",
+          backgroundColor: isDark
+            ? "rgba(77, 171, 247, 0.08)"
+            : "rgba(28, 126, 214, 0.08)",
+          borderRadius: "4px",
+          border: `1px solid ${isDark ? "rgba(77, 171, 247, 0.2)" : "rgba(28, 126, 214, 0.2)"}`,
         }}
       >
         <div style={{ width: "16px" }} />
@@ -598,10 +604,16 @@ export function FileTreeIndex() {
           •
         </Text>
         <TextInput
-          placeholder="Page title..."
+          placeholder="Type page name and press Enter..."
           value={newPageTitle}
           onChange={(e) => setNewPageTitle(e.currentTarget.value)}
           onKeyDown={handleKeyDown}
+          onBlur={() => {
+            // Auto-submit on blur if there's content
+            if (newPageTitle.trim() && !isSubmitting) {
+              handleCreatePage();
+            }
+          }}
           disabled={isSubmitting}
           autoFocus
           style={{ flex: 1 }}
@@ -609,28 +621,18 @@ export function FileTreeIndex() {
           styles={{
             input: {
               border: "none",
-              backgroundColor: isDark
-                ? "rgba(255, 255, 255, 0.05)"
-                : "rgba(0, 0, 0, 0.05)",
+              backgroundColor: "transparent",
+              fontWeight: 500,
             },
           }}
         />
+        {isSubmitting && <Loader size="xs" />}
         <ActionIcon
-          color="green"
-          variant="light"
-          onClick={handleCreatePage}
-          disabled={!newPageTitle.trim() || isSubmitting}
-          loading={isSubmitting}
-          size="xs"
-        >
-          <IconCheck size={12} />
-        </ActionIcon>
-        <ActionIcon
-          color="red"
-          variant="light"
+          variant="subtle"
           onClick={handleCancelCreate}
           disabled={isSubmitting}
           size="xs"
+          style={{ opacity: 0.5 }}
         >
           <IconX size={12} />
         </ActionIcon>
@@ -652,8 +654,8 @@ export function FileTreeIndex() {
   const rootPages = buildTree(undefined);
 
   return (
-    <Stack gap={0} p="md">
-      {/* Header with New Page Button */}
+    <Stack gap={0} p="md" style={{ position: "relative", height: "100%" }}>
+      {/* Header */}
       <Group
         justify="space-between"
         mb="md"
@@ -665,20 +667,7 @@ export function FileTreeIndex() {
         <Text size="sm" fw={600} c="dimmed">
           PAGES
         </Text>
-        {!isCreating && (
-          <ActionIcon
-            size="sm"
-            variant="subtle"
-            onClick={() => setIsCreating(true)}
-            title="New Page"
-          >
-            <IconPlus size={16} />
-          </ActionIcon>
-        )}
       </Group>
-
-      {/* New Page Input (root level only) */}
-      {isCreating && !creatingParentId && renderNewPageInput(0)}
 
       {/* Pages Tree */}
       {rootPages.length === 0 && !isCreating ? (
@@ -686,10 +675,57 @@ export function FileTreeIndex() {
           <Text size="sm" c="dimmed">
             No pages found. Create your first page!
           </Text>
+          <ActionIcon
+            size="lg"
+            variant="light"
+            onClick={() => setIsCreating(true)}
+            title="New Page"
+            style={{ marginTop: "8px" }}
+          >
+            <IconPlus size={20} />
+          </ActionIcon>
         </Stack>
       ) : (
-        <Stack gap={0}>
+        <Stack gap={0} style={{ flex: 1 }}>
           {rootPages.map((page) => renderPageTree(page, 0))}
+
+          {/* New Page Input at bottom */}
+          {isCreating && !creatingParentId && (
+            <div style={{ marginTop: "8px" }}>{renderNewPageInput(0)}</div>
+          )}
+
+          {/* Floating New Page Button */}
+          {!isCreating && (
+            <Group
+              gap="xs"
+              wrap="nowrap"
+              style={{
+                paddingLeft: "36px",
+                paddingTop: "8px",
+                paddingBottom: "4px",
+                cursor: "pointer",
+                borderRadius: "4px",
+                transition: "background-color 0.15s ease",
+                opacity: 0.6,
+              }}
+              onClick={() => setIsCreating(true)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = "1";
+                e.currentTarget.style.backgroundColor = isDark
+                  ? "rgba(255, 255, 255, 0.03)"
+                  : "rgba(0, 0, 0, 0.02)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = "0.6";
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              <IconPlus size={16} style={{ opacity: 0.5 }} />
+              <Text size="sm" c="dimmed" style={{ userSelect: "none" }}>
+                New page
+              </Text>
+            </Group>
+          )}
         </Stack>
       )}
     </Stack>

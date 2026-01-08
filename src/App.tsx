@@ -15,6 +15,7 @@ import {
   Title,
 } from "@mantine/core";
 import { IconSun, IconMoon, IconSettings } from "@tabler/icons-react";
+import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
 import { usePageStore } from "./stores/pageStore";
@@ -87,6 +88,9 @@ function AppContent({ workspacePath }: AppContentProps) {
     const checkDatabase = async () => {
       setCheckingDb(true);
       try {
+        // Set workspace path in database first
+        await invoke("set_workspace_path", { workspacePath });
+
         await loadPages();
         setDbInitialized(true);
         setShowMigration(false);
@@ -105,6 +109,8 @@ function AppContent({ workspacePath }: AppContentProps) {
   const handleMigrationComplete = async () => {
     setShowMigration(false);
     setDbInitialized(true);
+    // Set workspace path after migration
+    await invoke("set_workspace_path", { workspacePath });
     await loadPages();
     setWorkspaceName(workspaceName);
     showIndex();

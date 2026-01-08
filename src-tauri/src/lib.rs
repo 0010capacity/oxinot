@@ -355,6 +355,7 @@ pub fn run() {
             // Workspace commands
             commands::workspace::init_workspace_db,
             commands::workspace::migrate_workspace,
+            commands::workspace::set_workspace_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

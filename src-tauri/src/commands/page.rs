@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
 
+use crate::db::DbConnection;
 use crate::models::page::{CreatePageRequest, Page, UpdatePageRequest};
 use crate::services::FileSyncService;
 
@@ -13,6 +14,25 @@ pub async fn get_pages(
     db: State<'_, Arc<std::sync::Mutex<Connection>>>,
 ) -> Result<Vec<Page>, String> {
     let conn = db.lock().map_err(|e| e.to_string())?;
+
+    // Ensure workspace path exists in database (for backward compatibility)
+    let has_workspace: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM workspace WHERE id = 'default'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if !has_workspace {
+        // Create default workspace entry without path (will be set later)
+        conn.execute(
+            "INSERT OR IGNORE INTO workspace (id, created_at) VALUES ('default', ?)",
+            [chrono::Utc::now().to_rfc3339()],
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
     let mut stmt = conn
         .prepare(
@@ -67,13 +87,21 @@ pub async fn create_page(
     .map_err(|e| e.to_string())?;
 
     // Get workspace path
-    let workspace_path: String = conn
+    let workspace_path: Option<String> = conn
         .query_row(
             "SELECT path FROM workspace WHERE id = 'default'",
             [],
             |row| row.get(0),
         )
-        .map_err(|e| format!("Failed to get workspace path: {}", e))?;
+        .ok();
+
+    if workspace_path.is_none() {
+        return Err(
+            "Workspace path not configured. Please migrate your workspace first.".to_string(),
+        );
+    }
+
+    let workspace_path = workspace_path.unwrap();
 
     // Create file in file system
     let file_sync = FileSyncService::new(workspace_path);

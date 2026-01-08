@@ -251,3 +251,23 @@ fn block_type_to_string(bt: &BlockType) -> String {
         BlockType::Fence => "fence".to_string(),
     }
 }
+
+/// Set workspace path (called when workspace is selected)
+#[tauri::command]
+pub async fn set_workspace_path(
+    db: tauri::State<'_, Arc<std::sync::Mutex<rusqlite::Connection>>>,
+    workspace_path: String,
+) -> Result<bool, String> {
+    let conn = db.lock().map_err(|e| e.to_string())?;
+    let now = Utc::now().to_rfc3339();
+
+    // Insert or update workspace path
+    conn.execute(
+        "INSERT INTO workspace (id, path, created_at) VALUES ('default', ?, ?)
+         ON CONFLICT(id) DO UPDATE SET path = excluded.path",
+        params![&workspace_path, &now],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(true)
+}
