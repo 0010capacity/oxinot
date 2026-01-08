@@ -554,6 +554,27 @@ export const hybridRenderingTheme = EditorView.theme({
     borderBottom: "none !important",
   },
 
+  // Ensure markdown markers (like '#') never inherit underline from any surrounding styles
+  ".cm-dim-marker": {
+    opacity: "0.4",
+    textDecoration: "none !important",
+    borderBottom: "none !important",
+  },
+
+  ".cm-hidden-marker": {
+    fontSize: "0.85em",
+    opacity: "0.4",
+    textDecoration: "none !important",
+    borderBottom: "none !important",
+  },
+
+  ".cm-hidden": {
+    opacity: "0",
+    fontSize: "0.01em",
+    textDecoration: "none !important",
+    borderBottom: "none !important",
+  },
+
   // Heading text specific styling
   ".cm-heading-text": {
     textDecoration: "none !important",
@@ -597,21 +618,13 @@ export const hybridRenderingTheme = EditorView.theme({
   },
 
   // Hidden markers (completely hidden)
-  ".cm-hidden": {
-    opacity: "0",
-    fontSize: "0.01em",
-  },
+  // (moved above with explicit textDecoration/borderBottom reset)
 
   // Hidden markers that show on cursor line
-  ".cm-hidden-marker": {
-    fontSize: "0.85em",
-    opacity: "0.4",
-  },
+  // (moved above with explicit textDecoration/borderBottom reset)
 
   // Dimmed markers
-  ".cm-dim-marker": {
-    opacity: "0.4",
-  },
+  // (moved above with explicit textDecoration/borderBottom reset)
 
   // Emphasis (italic)
   ".cm-emphasis": {

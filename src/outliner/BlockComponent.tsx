@@ -275,7 +275,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           key: "Tab",
           preventDefault: true,
           run: () => {
+            // Preserve current cursor position inside the editor when indenting.
+            // Without this, the block re-parenting can cause the cursor to jump to the start.
+            const view = editorRef.current?.getView();
+            const cursorPos = view?.state.selection.main.head ?? null;
+
             flushUpdate();
+            if (cursorPos !== null) {
+              setFocusedBlock(blockId, cursorPos);
+            }
             indentBlock(blockId);
             return true;
           },
@@ -284,7 +292,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           key: "Shift-Tab",
           preventDefault: true,
           run: () => {
+            // Preserve current cursor position inside the editor when outdenting.
+            const view = editorRef.current?.getView();
+            const cursorPos = view?.state.selection.main.head ?? null;
+
             flushUpdate();
+            if (cursorPos !== null) {
+              setFocusedBlock(blockId, cursorPos);
+            }
             outdentBlock(blockId);
             return true;
           },

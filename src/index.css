@@ -243,12 +243,26 @@ span[class*="heading"],
     display: none !important;
     opacity: 0 !important;
     font-size: 0.01em !important;
+    text-decoration: none !important;
+    text-decoration-line: none !important;
+    border-bottom: none !important;
 }
 
 .cm-dim-marker {
     opacity: 0.4 !important;
     font-size: 0.85em !important;
     color: rgba(127, 127, 127, 0.6) !important;
+    text-decoration: none !important;
+    text-decoration-line: none !important;
+    border-bottom: none !important;
+}
+
+/* Token spans inside markers can get their own generated classes (e.g. .c7) that re-apply underline.
+   Force-disable underline for anything inside the marker wrapper. */
+.cm-dim-marker * {
+    text-decoration: none !important;
+    text-decoration-line: none !important;
+    border-bottom: none !important;
 }
 
 /* Selection Styles */
