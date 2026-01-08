@@ -12,12 +12,18 @@ interface NavigationState {
   focusedBlockId: string | null;
   zoomPath: string[]; // Array of block IDs from root to current zoom level
   breadcrumb: string[];
+  pagePathIds: string[]; // Array of page IDs from workspace to current page
 }
 
 interface ViewState extends NavigationState {
   // Actions
   showIndex: () => void;
-  openNote: (notePath: string, noteName: string) => void;
+  openNote: (
+    notePath: string,
+    noteName: string,
+    parentNames?: string[],
+    pagePathIds?: string[],
+  ) => void;
   zoomIntoBlock: (blockId: string) => void;
   zoomOut: () => void;
   zoomOutToNote: () => void;
@@ -33,6 +39,7 @@ const initialState: NavigationState = {
   focusedBlockId: null,
   zoomPath: [],
   breadcrumb: [],
+  pagePathIds: [],
 };
 
 export const useViewStore = create<ViewState>()(
@@ -46,18 +53,34 @@ export const useViewStore = create<ViewState>()(
         state.focusedBlockId = null;
         state.zoomPath = [];
         state.breadcrumb = state.workspaceName ? [state.workspaceName] : [];
+        state.pagePathIds = [];
       });
     },
 
-    openNote: (notePath: string, noteName: string) => {
+    openNote: (
+      notePath: string,
+      noteName: string,
+      parentNames?: string[],
+      pagePathIds?: string[],
+    ) => {
       set((state) => {
         state.mode = "note";
         state.currentNotePath = notePath;
         state.focusedBlockId = null;
         state.zoomPath = [];
-        state.breadcrumb = state.workspaceName
-          ? [state.workspaceName, noteName]
-          : [noteName];
+
+        // Build breadcrumb: workspace > parent pages > current page
+        const crumbs: string[] = [];
+        if (state.workspaceName) {
+          crumbs.push(state.workspaceName);
+        }
+        if (parentNames && parentNames.length > 0) {
+          crumbs.push(...parentNames);
+        }
+        crumbs.push(noteName);
+
+        state.breadcrumb = crumbs;
+        state.pagePathIds = pagePathIds || [];
       });
     },
 

@@ -8,12 +8,15 @@ import {
   useMantineColorScheme,
   ActionIcon,
   TextInput,
+  Modal,
+  Button,
 } from "@mantine/core";
 import {
   IconPlus,
   IconCheck,
   IconX,
   IconFolderPlus,
+  IconEdit,
 } from "@tabler/icons-react";
 import { useViewStore } from "../stores/viewStore";
 import { usePageStore, type PageData } from "../stores/pageStore";
@@ -83,9 +86,40 @@ function PageTreeItem({
     if (isEditing) return;
 
     console.log("[PageTreeItem] Page clicked:", page.title);
+    console.log("[PageTreeItem] Page parentId:", page.parentId);
+
+    // Build parent path for breadcrumb
+    const parentNames: string[] = [];
+    const pagePathIds: string[] = [];
+    let currentParentId = page.parentId;
+    const { pagesById } = usePageStore.getState();
+
+    console.log("[PageTreeItem] Starting parent path build...");
+    while (currentParentId) {
+      const parentPage = pagesById[currentParentId];
+      console.log(
+        "[PageTreeItem] Found parent:",
+        parentPage?.title,
+        "ID:",
+        currentParentId,
+      );
+      if (parentPage) {
+        parentNames.unshift(parentPage.title);
+        pagePathIds.unshift(currentParentId);
+        currentParentId = parentPage.parentId;
+      } else {
+        break;
+      }
+    }
+
+    // Add current page ID at the end
+    pagePathIds.push(page.id);
+
+    console.log("[PageTreeItem] Final parent names:", parentNames);
+
     await selectPage(page.id);
     await loadPage(page.id);
-    openNote(page.id, page.title);
+    openNote(page.id, page.title, parentNames, pagePathIds);
   };
 
   const handleBulletClick = (e: React.MouseEvent) => {
@@ -126,7 +160,7 @@ function PageTreeItem({
           opacity: isDragging ? 0.5 : 1,
           transition: "opacity 0.2s ease",
           cursor: isEditing ? "default" : "pointer",
-          userSelect: "none",
+          userSelect: isDragging ? "none" : "auto",
         }}
       >
         {/* Drop indicator */}
@@ -160,6 +194,7 @@ function PageTreeItem({
             position: "relative",
             borderRadius: "3px",
             transition: "background-color 0.15s ease",
+            userSelect: "none",
           }}
         >
           {/* Collapse/Expand Toggle - like BlockComponent */}
@@ -370,21 +405,15 @@ function PageTreeItem({
                     }}
                     title="Rename"
                   >
-                    ✏️
+                    <IconEdit size={14} />
                   </ActionIcon>
                   <ActionIcon
                     variant="subtle"
                     size="xs"
                     color="red"
-                    onClick={async (e) => {
+                    onClick={(e) => {
                       e.stopPropagation();
-                      if (
-                        window.confirm(
-                          `Delete "${page.title}"? This will delete all content and cannot be undone.`,
-                        )
-                      ) {
-                        onDelete(page.id);
-                      }
+                      onDelete(page.id);
                     }}
                     title="Delete"
                   >
@@ -411,6 +440,9 @@ export function FileTreeIndex() {
   const { loadPages, createPage, updatePageTitle, deletePage, movePage } =
     usePageStore();
   const isLoading = usePageStore((state) => state.isLoading);
+  const { showIndex } = useViewStore();
+  const workspacePath = useWorkspaceStore((state) => state.workspacePath);
+  const workspaceName = workspacePath?.split("/").pop() || "Workspace";
 
   // Use single selector to ensure atomic updates
   const pages = usePageStore((state) =>
@@ -433,6 +465,9 @@ export function FileTreeIndex() {
     startY: 0,
   });
 
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [pageToDelete, setPageToDelete] = useState<PageData | null>(null);
+
   useEffect(() => {
     console.log("[FileTreeIndex] Initial load pages");
     loadPages().then(() => {
@@ -449,6 +484,9 @@ export function FileTreeIndex() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragState.isDragging) return;
+
+      // Prevent text selection while dragging
+      e.preventDefault();
 
       // Find element under cursor
       const elements = document.elementsFromPoint(e.clientX, e.clientY);
@@ -597,10 +635,22 @@ export function FileTreeIndex() {
     setEditValue("");
   };
 
-  const handleDeletePage = async (pageId: string) => {
+  const handleDeletePage = (pageId: string) => {
+    const page = pages.find((p) => p.id === pageId);
+    if (!page) return;
+
+    setPageToDelete(page);
+    setDeleteModalOpened(true);
+  };
+
+  const confirmDeletePage = async () => {
+    if (!pageToDelete) return;
+
     try {
-      await deletePage(pageId);
+      await deletePage(pageToDelete.id);
       await loadPages();
+      setDeleteModalOpened(false);
+      setPageToDelete(null);
     } catch (error) {
       console.error("Failed to delete page:", error);
       alert(`Failed to delete page: ${error}`);
@@ -640,6 +690,18 @@ export function FileTreeIndex() {
     }
 
     console.log("[FileTreeIndex] Starting drag:", pageId);
+
+    // Prevent text selection during drag
+    e.preventDefault();
+
+    // Clear any existing text selection
+    if (window.getSelection) {
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+      }
+    }
+
     setDragState({
       isDragging: true,
       draggedPageId: pageId,
@@ -812,21 +874,26 @@ export function FileTreeIndex() {
           paddingBottom: "200px",
         }}
       >
-        <Stack gap={0}>
-          {/* Header */}
-          <Group
-            justify="space-between"
-            mb="md"
+        {/* Workspace Title */}
+        <div
+          style={{
+            marginBottom: "32px",
+            paddingBottom: "16px",
+            borderBottom: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
+          }}
+        >
+          <div
             style={{
-              paddingBottom: "8px",
-              borderBottom: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
+              fontSize: "24px",
+              fontWeight: 600,
+              color: isDark ? "#e0e0e0" : "#1a1a1a",
             }}
           >
-            <Text size="sm" fw={600} c="dimmed">
-              PAGES ({pages.length})
-            </Text>
-          </Group>
+            {workspaceName}
+          </div>
+        </div>
 
+        <Stack gap={0}>
           {/* Pages Tree */}
           {rootPages.length === 0 && !isCreating ? (
             <Stack align="center" justify="center" h="200px">
@@ -888,6 +955,38 @@ export function FileTreeIndex() {
           )}
         </Stack>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={deleteModalOpened}
+        onClose={() => {
+          setDeleteModalOpened(false);
+          setPageToDelete(null);
+        }}
+        title="Delete Page"
+        centered
+        size="sm"
+      >
+        <Stack gap="lg">
+          <Text size="sm">
+            Delete <strong>{pageToDelete?.title}</strong>?
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              onClick={() => {
+                setDeleteModalOpened(false);
+                setPageToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button color="red" onClick={confirmDeletePage}>
+              Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </div>
   );
 }

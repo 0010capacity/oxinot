@@ -3,13 +3,22 @@ import { useMantineColorScheme } from "@mantine/core";
 import { useBlockStore } from "../stores/blockStore";
 import { useViewStore } from "../stores/viewStore";
 import { BlockComponent } from "./BlockComponent";
+import { Breadcrumb } from "../components/Breadcrumb";
 import "./BlockEditor.css";
 
 interface BlockEditorProps {
   pageId: string;
+  workspaceName?: string;
+  pageName?: string;
+  onNavigateHome?: () => void;
 }
 
-export function BlockEditor({ pageId }: BlockEditorProps) {
+export function BlockEditor({
+  pageId,
+  workspaceName,
+  pageName,
+  onNavigateHome,
+}: BlockEditorProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -79,6 +88,24 @@ export function BlockEditor({ pageId }: BlockEditorProps) {
     <div
       className={`block-editor-container ${isDark ? "theme-dark" : "theme-light"}`}
     >
+      {/* Breadcrumb */}
+      {workspaceName && onNavigateHome && (
+        <div
+          style={{
+            maxWidth: "800px",
+            margin: "0 auto 32px",
+            paddingBottom: "16px",
+            borderBottom: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
+          }}
+        >
+          <Breadcrumb
+            workspaceName={workspaceName}
+            pageName={pageName}
+            onNavigateHome={onNavigateHome}
+          />
+        </div>
+      )}
+
       <div className="blocks-list">
         {blocksToShow.length === 0 ? (
           <div className="empty-state">

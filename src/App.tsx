@@ -166,26 +166,12 @@ function AppContent({ workspacePath }: AppContentProps) {
         <AppShell.Main>
           {/* Top Control Bar */}
           <Group
-            justify="space-between"
+            justify="flex-end"
             p="xs"
             style={{
               borderBottom: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
             }}
           >
-            <div style={{ flex: 1 }}>
-              {dbInitialized && breadcrumb.length > 0 && (
-                <Breadcrumb
-                  workspaceName={workspaceName}
-                  pageName={
-                    breadcrumb[breadcrumb.length - 1] !== workspaceName
-                      ? breadcrumb[breadcrumb.length - 1]
-                      : undefined
-                  }
-                  onNavigateHome={showIndex}
-                />
-              )}
-            </div>
-
             <Group gap="xs">
               <ActionIcon
                 variant="subtle"
@@ -218,7 +204,17 @@ function AppContent({ workspacePath }: AppContentProps) {
               <FileTreeIndex />
             ) : currentPageId ? (
               <div style={{ height: "100%", overflow: "auto" }}>
-                <BlockEditor pageId={currentPageId} />
+                <BlockEditor
+                  pageId={currentPageId}
+                  workspaceName={workspaceName}
+                  pageName={
+                    breadcrumb.length > 0 &&
+                    breadcrumb[breadcrumb.length - 1] !== workspaceName
+                      ? breadcrumb[breadcrumb.length - 1]
+                      : undefined
+                  }
+                  onNavigateHome={showIndex}
+                />
               </div>
             ) : (
               <Container size="sm" py="xl" mt={50}>
