@@ -37,6 +37,8 @@ interface PageTreeItemProps {
   onEditCancel: () => void;
   collapsed: Record<string, boolean>;
   onToggleCollapse: (pageId: string) => void;
+  draggedPageId: string | null;
+  dragOverPageId: string | null;
   children?: React.ReactNode;
 }
 
@@ -56,6 +58,8 @@ function PageTreeItem({
   onEditCancel,
   collapsed,
   onToggleCollapse,
+  draggedPageId,
+  dragOverPageId,
   children,
 }: PageTreeItemProps) {
   const { colorScheme } = useMantineColorScheme();
@@ -105,6 +109,8 @@ function PageTreeItem({
 
   const indentSize = 24;
   const paddingLeft = depth * indentSize;
+  const isDraggedOver = dragOverPageId === page.id;
+  const isDragging = draggedPageId === page.id;
 
   return (
     <div
@@ -112,6 +118,7 @@ function PageTreeItem({
       onDragStart={(e) => {
         if (!isEditing) {
           e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", page.id);
           onDragStart(page.id);
         }
       }}
@@ -122,10 +129,17 @@ function PageTreeItem({
       }}
       onDrop={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         onDrop(e, page.id);
+      }}
+      onDragLeave={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
       }}
       style={{
         position: "relative",
+        opacity: isDragging ? 0.5 : 1,
+        transition: "opacity 0.15s ease",
       }}
     >
       <Group
@@ -140,16 +154,36 @@ function PageTreeItem({
           paddingRight: "8px",
           cursor: isEditing ? "default" : "pointer",
           borderRadius: "4px",
-          transition: "background-color 0.15s ease",
+          transition: "background-color 0.15s ease, border 0.15s ease",
           backgroundColor:
             isHovered && !isEditing
               ? isDark
                 ? "rgba(255, 255, 255, 0.05)"
                 : "rgba(0, 0, 0, 0.03)"
               : "transparent",
+          border: isDraggedOver
+            ? `2px solid ${isDark ? "#4dabf7" : "#1c7ed6"}`
+            : "2px solid transparent",
+          position: "relative",
         }}
         onClick={isEditing ? undefined : handlePageClick}
       >
+        {isDraggedOver && (
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              backgroundColor: isDark
+                ? "rgba(77, 171, 247, 0.1)"
+                : "rgba(28, 126, 214, 0.1)",
+              borderRadius: "4px",
+              pointerEvents: "none",
+            }}
+          />
+        )}
         {/* Drag Handle - visible on hover */}
         <div
           style={{
@@ -357,6 +391,17 @@ export function FileTreeIndex() {
     loadPages();
   }, [loadPages]);
 
+  // Reset drag state on drag end
+  useEffect(() => {
+    const handleDragEnd = () => {
+      setDraggedPageId(null);
+      setDragOverPageId(null);
+    };
+
+    document.addEventListener("dragend", handleDragEnd);
+    return () => document.removeEventListener("dragend", handleDragEnd);
+  }, []);
+
   const handleCreatePage = async () => {
     if (!newPageTitle.trim()) return;
 
@@ -509,6 +554,8 @@ export function FileTreeIndex() {
           onEditCancel={handleEditCancel}
           collapsed={collapsed}
           onToggleCollapse={handleToggleCollapse}
+          draggedPageId={draggedPageId}
+          dragOverPageId={dragOverPageId}
         >
           {hasChildren &&
             children.map((child) => renderPageTree(child, depth + 1))}
