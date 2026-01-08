@@ -433,6 +433,10 @@ export function FileTreeIndex() {
         await invoke("sync_workspace", { workspacePath });
       }
 
+      // Debug: Check DB state
+      const dbState = await invoke<string>("debug_db_state");
+      console.log("[FileTreeIndex] DB state after sync:\n", dbState);
+
       // Reload pages to update UI
       console.log("[FileTreeIndex] Reloading pages...");
       await loadPages();
@@ -715,6 +719,18 @@ export function FileTreeIndex() {
         <Text size="sm" fw={600} c="dimmed">
           PAGES
         </Text>
+        <ActionIcon
+          size="xs"
+          variant="subtle"
+          onClick={async () => {
+            const dbState = await invoke<string>("debug_db_state");
+            console.log("=== DB STATE ===\n", dbState);
+            alert(dbState);
+          }}
+          title="Debug DB State"
+        >
+          🔍
+        </ActionIcon>
       </Group>
 
       {/* Pages Tree */}

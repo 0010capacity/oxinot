@@ -60,6 +60,7 @@ export const usePageStore = create<PageStore>()(
     // ============ Page Operations ============
 
     loadPages: async () => {
+      console.log("[PageStore] loadPages called");
       set((state) => {
         state.isLoading = true;
         state.error = null;
@@ -67,6 +68,7 @@ export const usePageStore = create<PageStore>()(
 
       try {
         const pages: PageData[] = await invoke("get_pages");
+        console.log("[PageStore] Received pages from backend:", pages.length);
 
         set((state) => {
           const pagesById: Record<string, PageData> = {};
@@ -77,6 +79,7 @@ export const usePageStore = create<PageStore>()(
             pageIds.push(page.id);
           }
 
+          console.log("[PageStore] Setting state with pages:", pageIds.length);
           state.pagesById = pagesById;
           state.pageIds = pageIds;
           state.isLoading = false;
@@ -86,7 +89,9 @@ export const usePageStore = create<PageStore>()(
             state.currentPageId = pageIds[0];
           }
         });
+        console.log("[PageStore] State updated successfully");
       } catch (error) {
+        console.error("[PageStore] Error loading pages:", error);
         set((state) => {
           state.error =
             error instanceof Error ? error.message : "Failed to load pages";

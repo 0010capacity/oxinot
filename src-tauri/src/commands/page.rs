@@ -332,3 +332,44 @@ pub async fn convert_page_to_directory(
 
     get_page_by_id(&conn, &page_id)
 }
+
+/// Debug: Check database state
+#[tauri::command]
+pub async fn debug_db_state(
+    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
+) -> Result<String, String> {
+    let conn = db.lock().map_err(|e| e.to_string())?;
+
+    let count: i32 = conn
+        .query_row("SELECT COUNT(*) FROM pages", [], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare("SELECT id, title, file_path FROM pages ORDER BY created_at DESC LIMIT 5")
+        .map_err(|e| e.to_string())?;
+
+    let mut result = format!("Total pages in DB: {}\n\nRecent pages:\n", count);
+
+    let pages = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+
+    for (i, page) in pages.enumerate() {
+        let (id, title, file_path) = page.map_err(|e| e.to_string())?;
+        result.push_str(&format!(
+            "{}. {} (id: {}, path: {:?})\n",
+            i + 1,
+            title,
+            id,
+            file_path
+        ));
+    }
+
+    Ok(result)
+}
