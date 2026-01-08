@@ -22,6 +22,7 @@ import { useViewStore } from "../stores/viewStore";
 import { usePageStore, type PageData } from "../stores/pageStore";
 import { useBlockStore } from "../stores/blockStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
+import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 
 interface DragState {
   isDragging: boolean;
@@ -198,7 +199,7 @@ function PageTreeItem({
           }}
         >
           {/* Collapse/Expand Toggle - like BlockComponent */}
-          {hasChildren ? (
+          {hasChildren && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -241,13 +242,13 @@ function PageTreeItem({
             >
               {isCollapsed ? "▶" : "▼"}
             </button>
-          ) : (
+          )}
+          {!hasChildren && (
             <div
               style={{
                 flexShrink: 0,
                 width: "20px",
                 height: "20px",
-                margin: "2px 0 0 8px",
               }}
             />
           )}
@@ -272,24 +273,14 @@ function PageTreeItem({
           >
             <div
               style={{
-                width: "4px",
-                height: "4px",
+                width: "6px",
+                height: "6px",
                 borderRadius: "50%",
                 backgroundColor: isDark
                   ? "rgba(255, 255, 255, 0.4)"
                   : "rgba(0, 0, 0, 0.4)",
                 transition: "all 0.2s ease",
                 display: "block",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = isDark
-                  ? "rgba(255, 255, 255, 0.7)"
-                  : "rgba(0, 0, 0, 0.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = isDark
-                  ? "rgba(255, 255, 255, 0.4)"
-                  : "rgba(0, 0, 0, 0.4)";
               }}
             />
           </div>
@@ -443,6 +434,9 @@ export function FileTreeIndex() {
   const { showIndex } = useViewStore();
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const workspaceName = workspacePath?.split("/").pop() || "Workspace";
+  const showIndentGuides = useOutlinerSettingsStore(
+    (state) => state.showIndentGuides,
+  );
 
   // Use single selector to ensure atomic updates
   const pages = usePageStore((state) =>
@@ -731,6 +725,23 @@ export function FileTreeIndex() {
 
     return (
       <React.Fragment key={page.id}>
+        {/* Indent guide */}
+        {showIndentGuides && depth > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              left: `${depth * 24 + 18}px`,
+              top: 0,
+              bottom: 0,
+              width: "1px",
+              backgroundColor: isDark
+                ? "rgba(255, 255, 255, 0.06)"
+                : "rgba(0, 0, 0, 0.06)",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          />
+        )}
         <PageTreeItem
           page={page}
           depth={depth}
@@ -893,7 +904,7 @@ export function FileTreeIndex() {
           </div>
         </div>
 
-        <Stack gap={0}>
+        <Stack gap={0} style={{ position: "relative" }}>
           {/* Pages Tree */}
           {rootPages.length === 0 && !isCreating ? (
             <Stack align="center" justify="center" h="200px">
