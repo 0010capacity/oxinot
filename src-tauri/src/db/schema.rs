@@ -3,7 +3,6 @@ pub const SCHEMA_SQL: &str = r#"
 -- 워크스페이스 설정
 CREATE TABLE IF NOT EXISTS workspace (
     id TEXT PRIMARY KEY DEFAULT 'default',
-    path TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -19,9 +18,6 @@ CREATE TABLE IF NOT EXISTS pages (
 
     FOREIGN KEY (parent_id) REFERENCES pages(id) ON DELETE CASCADE
 );
-
--- 페이지 인덱스
-CREATE INDEX IF NOT EXISTS idx_pages_parent ON pages(parent_id);
 
 -- 블록 (핵심 테이블)
 CREATE TABLE IF NOT EXISTS blocks (
@@ -64,5 +60,68 @@ CREATE INDEX IF NOT EXISTS idx_refs_to ON block_refs(to_block_id);
 /// Initialize the database schema
 pub fn init_schema(conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
     conn.execute_batch(SCHEMA_SQL)?;
+
+    // Run migrations
+    migrate_schema(conn)?;
+
+    Ok(())
+}
+
+/// Run database migrations
+fn migrate_schema(conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
+    // Check if parent_id column exists in pages table
+    let has_parent_id: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('pages') WHERE name='parent_id'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if !has_parent_id {
+        // Add parent_id column
+        conn.execute("ALTER TABLE pages ADD COLUMN parent_id TEXT", [])?;
+
+        // Add foreign key index (can't add FK constraint to existing table)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_pages_parent ON pages(parent_id)",
+            [],
+        )?;
+    }
+
+    // Check if is_directory column exists in pages table
+    let has_is_directory: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('pages') WHERE name='is_directory'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if !has_is_directory {
+        // Add is_directory column
+        conn.execute(
+            "ALTER TABLE pages ADD COLUMN is_directory INTEGER DEFAULT 0",
+            [],
+        )?;
+    }
+
+    // Check if path column exists in workspace table
+    let has_path: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('workspace') WHERE name='path'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if !has_path {
+        // Add path column
+        conn.execute("ALTER TABLE workspace ADD COLUMN path TEXT", [])?;
+    }
+
     Ok(())
 }
