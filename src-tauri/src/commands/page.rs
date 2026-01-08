@@ -5,6 +5,7 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::models::page::{CreatePageRequest, Page, UpdatePageRequest};
+use crate::services::FileSyncService;
 
 /// Get all pages
 #[tauri::command]
@@ -65,6 +66,28 @@ pub async fn create_page(
     )
     .map_err(|e| e.to_string())?;
 
+    // Get workspace path
+    let workspace_path: String = conn
+        .query_row(
+            "SELECT path FROM workspace WHERE id = 'default'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to get workspace path: {}", e))?;
+
+    // Create file in file system
+    let file_sync = FileSyncService::new(workspace_path);
+    let file_path = file_sync
+        .create_page_file(&conn, &id, &request.title)
+        .map_err(|e| format!("Failed to create page file: {}", e))?;
+
+    // Update file_path in database
+    conn.execute(
+        "UPDATE pages SET file_path = ? WHERE id = ?",
+        params![&file_path, &id],
+    )
+    .map_err(|e| e.to_string())?;
+
     get_page_by_id(&conn, &id)
 }
 
@@ -79,9 +102,37 @@ pub async fn update_page(
 
     let page = get_page_by_id(&conn, &request.id)?;
 
-    let new_title = request.title.unwrap_or(page.title);
-    let new_parent_id = request.parent_id.or(page.parent_id);
-    let new_file_path = request.file_path.or(page.file_path);
+    let new_title = request.title.clone().unwrap_or(page.title.clone());
+    let new_parent_id = request.parent_id.or(page.parent_id.clone());
+    let new_file_path = request.file_path.clone().or(page.file_path.clone());
+
+    // Get workspace path
+    let workspace_path: String = conn
+        .query_row(
+            "SELECT path FROM workspace WHERE id = 'default'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to get workspace path: {}", e))?;
+
+    // If title changed, rename file
+    if let Some(title) = &request.title {
+        if title != &page.title {
+            let file_sync = FileSyncService::new(workspace_path.clone());
+            let new_path = file_sync
+                .rename_page_file(&conn, &request.id, title)
+                .map_err(|e| format!("Failed to rename page file: {}", e))?;
+
+            // Update the new_file_path to use the renamed path
+            conn.execute(
+                "UPDATE pages SET title = ?, file_path = ?, updated_at = ? WHERE id = ?",
+                params![&new_title, &new_path, &now, &request.id],
+            )
+            .map_err(|e| e.to_string())?;
+
+            return get_page_by_id(&conn, &request.id);
+        }
+    }
 
     conn.execute(
         "UPDATE pages SET title = ?, parent_id = ?, file_path = ?, updated_at = ? WHERE id = ?",
@@ -105,6 +156,21 @@ pub async fn delete_page(
     page_id: String,
 ) -> Result<bool, String> {
     let conn = db.lock().map_err(|e| e.to_string())?;
+
+    // Get workspace path
+    let workspace_path: String = conn
+        .query_row(
+            "SELECT path FROM workspace WHERE id = 'default'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to get workspace path: {}", e))?;
+
+    // Delete file from file system
+    let file_sync = FileSyncService::new(workspace_path);
+    file_sync
+        .delete_page_file(&conn, &page_id)
+        .map_err(|e| format!("Failed to delete page file: {}", e))?;
 
     // CASCADE will automatically delete all blocks
     conn.execute("DELETE FROM pages WHERE id = ?", [&page_id])
@@ -144,9 +210,47 @@ pub async fn move_page(
     let conn = db.lock().map_err(|e| e.to_string())?;
     let now = Utc::now().to_rfc3339();
 
+    // Get workspace path
+    let workspace_path: String = conn
+        .query_row(
+            "SELECT path FROM workspace WHERE id = 'default'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to get workspace path: {}", e))?;
+
+    // If moving to a parent, ensure parent is a directory
+    if let Some(parent_id) = &request.new_parent_id {
+        let parent = get_page_by_id(&conn, parent_id)?;
+        if !parent.is_directory {
+            // Convert parent to directory first
+            let file_sync = FileSyncService::new(workspace_path.clone());
+            let new_path = file_sync
+                .convert_page_to_directory(&conn, parent_id)
+                .map_err(|e| format!("Failed to convert parent to directory: {}", e))?;
+
+            conn.execute(
+                "UPDATE pages SET is_directory = 1, file_path = ?, updated_at = ? WHERE id = ?",
+                params![&new_path, &now, parent_id],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    // Move file in file system
+    let file_sync = FileSyncService::new(workspace_path);
+    let new_path = file_sync
+        .move_page_file(
+            &conn,
+            &request.id,
+            request.new_parent_id.as_ref().map(|s| s.as_str()),
+        )
+        .map_err(|e| format!("Failed to move page file: {}", e))?;
+
+    // Update database
     conn.execute(
-        "UPDATE pages SET parent_id = ?, updated_at = ? WHERE id = ?",
-        params![&request.new_parent_id, &now, &request.id],
+        "UPDATE pages SET parent_id = ?, file_path = ?, updated_at = ? WHERE id = ?",
+        params![&request.new_parent_id, &new_path, &now, &request.id],
     )
     .map_err(|e| e.to_string())?;
 
@@ -162,9 +266,25 @@ pub async fn convert_page_to_directory(
     let conn = db.lock().map_err(|e| e.to_string())?;
     let now = Utc::now().to_rfc3339();
 
+    // Get workspace path
+    let workspace_path: String = conn
+        .query_row(
+            "SELECT path FROM workspace WHERE id = 'default'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to get workspace path: {}", e))?;
+
+    // Convert file to directory structure
+    let file_sync = FileSyncService::new(workspace_path);
+    let new_path = file_sync
+        .convert_page_to_directory(&conn, &page_id)
+        .map_err(|e| format!("Failed to convert to directory: {}", e))?;
+
+    // Update database
     conn.execute(
-        "UPDATE pages SET is_directory = 1, updated_at = ? WHERE id = ?",
-        params![&now, &page_id],
+        "UPDATE pages SET is_directory = 1, file_path = ?, updated_at = ? WHERE id = ?",
+        params![&new_path, &now, &page_id],
     )
     .map_err(|e| e.to_string())?;
 
