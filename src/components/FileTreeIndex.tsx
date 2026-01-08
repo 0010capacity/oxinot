@@ -15,6 +15,7 @@ import {
   IconGripVertical,
   IconChevronRight,
   IconChevronDown,
+  IconFolderPlus,
 } from "@tabler/icons-react";
 import { useViewStore } from "../stores/viewStore";
 import { usePageStore, type PageData } from "../stores/pageStore";
@@ -25,6 +26,7 @@ interface PageTreeItemProps {
   depth: number;
   onEdit: (pageId: string) => void;
   onDelete: (pageId: string) => void;
+  onAddChild: (parentId: string) => void;
   onDragStart: (pageId: string) => void;
   onDragOver: (e: React.DragEvent, pageId: string) => void;
   onDrop: (e: React.DragEvent, pageId: string) => void;
@@ -43,6 +45,7 @@ function PageTreeItem({
   depth,
   onEdit,
   onDelete,
+  onAddChild,
   onDragStart,
   onDragOver,
   onDrop,
@@ -253,6 +256,17 @@ function PageTreeItem({
               variant="subtle"
               onClick={(e) => {
                 e.stopPropagation();
+                onAddChild(page.id);
+              }}
+              title="Add child page"
+            >
+              <IconFolderPlus size={12} />
+            </ActionIcon>
+            <ActionIcon
+              size="xs"
+              variant="subtle"
+              onClick={(e) => {
+                e.stopPropagation();
                 onEdit(page.id);
               }}
               title="Rename"
@@ -328,6 +342,7 @@ export function FileTreeIndex() {
   const isLoading = usePageStore((state) => state.isLoading);
 
   const [isCreating, setIsCreating] = useState(false);
+  const [creatingParentId, setCreatingParentId] = useState<string | null>(null);
   const [newPageTitle, setNewPageTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -347,9 +362,18 @@ export function FileTreeIndex() {
 
     setIsSubmitting(true);
     try {
-      await createPage(newPageTitle.trim());
+      await createPage(newPageTitle.trim(), creatingParentId || undefined);
       setNewPageTitle("");
       setIsCreating(false);
+      setCreatingParentId(null);
+
+      // Expand parent if creating child
+      if (creatingParentId) {
+        setCollapsed((prev) => ({
+          ...prev,
+          [creatingParentId]: false,
+        }));
+      }
     } catch (error) {
       console.error("Failed to create page:", error);
     } finally {
@@ -360,6 +384,7 @@ export function FileTreeIndex() {
   const handleCancelCreate = () => {
     setNewPageTitle("");
     setIsCreating(false);
+    setCreatingParentId(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -401,6 +426,16 @@ export function FileTreeIndex() {
     } catch (error) {
       console.error("Failed to delete page:", error);
     }
+  };
+
+  const handleAddChild = (parentId: string) => {
+    setCreatingParentId(parentId);
+    setIsCreating(true);
+    // Expand parent to show new child input
+    setCollapsed((prev) => ({
+      ...prev,
+      [parentId]: false,
+    }));
   };
 
   const handleToggleCollapse = (pageId: string) => {
@@ -454,28 +489,102 @@ export function FileTreeIndex() {
   const renderPageTree = (page: PageData, depth: number): React.ReactNode => {
     const children = buildTree(page.id);
     const hasChildren = children.length > 0;
+    const isCreatingChild = isCreating && creatingParentId === page.id;
 
     return (
-      <PageTreeItem
-        key={page.id}
-        page={page}
-        depth={depth}
-        onEdit={handleEditPage}
-        onDelete={handleDeletePage}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        isEditing={editingPageId === page.id}
-        editValue={editValue}
-        onEditChange={setEditValue}
-        onEditSubmit={handleEditSubmit}
-        onEditCancel={handleEditCancel}
-        collapsed={collapsed}
-        onToggleCollapse={handleToggleCollapse}
+      <div key={page.id}>
+        <PageTreeItem
+          page={page}
+          depth={depth}
+          onEdit={handleEditPage}
+          onDelete={handleDeletePage}
+          onAddChild={handleAddChild}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          isEditing={editingPageId === page.id}
+          editValue={editValue}
+          onEditChange={setEditValue}
+          onEditSubmit={handleEditSubmit}
+          onEditCancel={handleEditCancel}
+          collapsed={collapsed}
+          onToggleCollapse={handleToggleCollapse}
+        >
+          {hasChildren &&
+            children.map((child) => renderPageTree(child, depth + 1))}
+          {isCreatingChild && renderNewPageInput(depth + 1)}
+        </PageTreeItem>
+      </div>
+    );
+  };
+
+  const renderNewPageInput = (depth: number) => {
+    const indentSize = 24;
+    const paddingLeft = depth * indentSize;
+
+    return (
+      <Group
+        gap="xs"
+        wrap="nowrap"
+        style={{
+          paddingLeft: `${paddingLeft}px`,
+          paddingTop: "4px",
+          paddingBottom: "4px",
+          paddingRight: "8px",
+        }}
       >
-        {hasChildren &&
-          children.map((child) => renderPageTree(child, depth + 1))}
-      </PageTreeItem>
+        <div style={{ width: "16px" }} />
+        <Text
+          size="sm"
+          style={{
+            fontFamily: "monospace",
+            fontSize: "18px",
+            opacity: 0.4,
+            userSelect: "none",
+            width: "20px",
+            textAlign: "center",
+          }}
+        >
+          •
+        </Text>
+        <TextInput
+          placeholder="Page title..."
+          value={newPageTitle}
+          onChange={(e) => setNewPageTitle(e.currentTarget.value)}
+          onKeyDown={handleKeyDown}
+          disabled={isSubmitting}
+          autoFocus
+          style={{ flex: 1 }}
+          size="xs"
+          styles={{
+            input: {
+              border: "none",
+              backgroundColor: isDark
+                ? "rgba(255, 255, 255, 0.05)"
+                : "rgba(0, 0, 0, 0.05)",
+            },
+          }}
+        />
+        <ActionIcon
+          color="green"
+          variant="light"
+          onClick={handleCreatePage}
+          disabled={!newPageTitle.trim() || isSubmitting}
+          loading={isSubmitting}
+          size="xs"
+        >
+          <IconCheck size={12} />
+        </ActionIcon>
+        <ActionIcon
+          color="red"
+          variant="light"
+          onClick={handleCancelCreate}
+          disabled={isSubmitting}
+          size="xs"
+        >
+          <IconX size={12} />
+        </ActionIcon>
+      </Group>
     );
   };
 
@@ -518,69 +627,8 @@ export function FileTreeIndex() {
         )}
       </Group>
 
-      {/* New Page Input */}
-      {isCreating && (
-        <Group
-          gap="xs"
-          wrap="nowrap"
-          mb="sm"
-          style={{
-            paddingLeft: "36px",
-            paddingRight: "8px",
-          }}
-        >
-          <Text
-            size="sm"
-            style={{
-              fontFamily: "monospace",
-              fontSize: "18px",
-              opacity: 0.4,
-              userSelect: "none",
-              width: "20px",
-              textAlign: "center",
-            }}
-          >
-            •
-          </Text>
-          <TextInput
-            placeholder="Page title..."
-            value={newPageTitle}
-            onChange={(e) => setNewPageTitle(e.currentTarget.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isSubmitting}
-            autoFocus
-            style={{ flex: 1 }}
-            size="xs"
-            styles={{
-              input: {
-                border: "none",
-                backgroundColor: isDark
-                  ? "rgba(255, 255, 255, 0.05)"
-                  : "rgba(0, 0, 0, 0.05)",
-              },
-            }}
-          />
-          <ActionIcon
-            color="green"
-            variant="light"
-            onClick={handleCreatePage}
-            disabled={!newPageTitle.trim() || isSubmitting}
-            loading={isSubmitting}
-            size="xs"
-          >
-            <IconCheck size={12} />
-          </ActionIcon>
-          <ActionIcon
-            color="red"
-            variant="light"
-            onClick={handleCancelCreate}
-            disabled={isSubmitting}
-            size="xs"
-          >
-            <IconX size={12} />
-          </ActionIcon>
-        </Group>
-      )}
+      {/* New Page Input (root level only) */}
+      {isCreating && !creatingParentId && renderNewPageInput(0)}
 
       {/* Pages Tree */}
       {rootPages.length === 0 && !isCreating ? (
