@@ -358,6 +358,8 @@ pub fn run() {
             commands::workspace::migrate_workspace,
             commands::workspace::set_workspace_path,
             commands::workspace::sync_workspace,
+            // Search commands
+            commands::search::search_content,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

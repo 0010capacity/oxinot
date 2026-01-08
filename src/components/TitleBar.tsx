@@ -6,15 +6,29 @@ import {
   IconMinus,
   IconSquare,
   IconX,
+  IconFolderOpen,
+  IconSearch,
+  IconHelp,
+  IconCalendar,
 } from "@tabler/icons-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
 
 interface TitleBarProps {
   onSettingsClick: () => void;
+  onWorkspaceChange: () => void;
+  onSearchClick?: () => void;
+  onHelpClick?: () => void;
+  onCalendarClick?: () => void;
 }
 
-export function TitleBar({ onSettingsClick }: TitleBarProps) {
+export function TitleBar({
+  onSettingsClick,
+  onWorkspaceChange,
+  onSearchClick,
+  onHelpClick,
+  onCalendarClick,
+}: TitleBarProps) {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
   const appWindow = getCurrentWindow();
@@ -69,6 +83,78 @@ export function TitleBar({ onSettingsClick }: TitleBarProps) {
 
       {/* Control buttons */}
       <Group gap={6} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          title="Change workspace"
+          onClick={onWorkspaceChange}
+          styles={{
+            root: {
+              color: isDark ? "#c1c2c5" : "#495057",
+              "&:hover": {
+                backgroundColor: isDark
+                  ? "rgba(255, 255, 255, 0.08)"
+                  : "rgba(0, 0, 0, 0.05)",
+              },
+            },
+          }}
+        >
+          <IconFolderOpen size={16} />
+        </ActionIcon>
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          title="Search"
+          onClick={onSearchClick}
+          styles={{
+            root: {
+              color: isDark ? "#c1c2c5" : "#495057",
+              "&:hover": {
+                backgroundColor: isDark
+                  ? "rgba(255, 255, 255, 0.08)"
+                  : "rgba(0, 0, 0, 0.05)",
+              },
+            },
+          }}
+        >
+          <IconSearch size={16} />
+        </ActionIcon>
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          title="Calendar"
+          onClick={onCalendarClick}
+          styles={{
+            root: {
+              color: isDark ? "#c1c2c5" : "#495057",
+              "&:hover": {
+                backgroundColor: isDark
+                  ? "rgba(255, 255, 255, 0.08)"
+                  : "rgba(0, 0, 0, 0.05)",
+              },
+            },
+          }}
+        >
+          <IconCalendar size={16} />
+        </ActionIcon>
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          title="Help"
+          onClick={onHelpClick}
+          styles={{
+            root: {
+              color: isDark ? "#c1c2c5" : "#495057",
+              "&:hover": {
+                backgroundColor: isDark
+                  ? "rgba(255, 255, 255, 0.08)"
+                  : "rgba(0, 0, 0, 0.05)",
+              },
+            },
+          }}
+        >
+          <IconHelp size={16} />
+        </ActionIcon>
         <ActionIcon
           variant="subtle"
           onClick={toggleColorScheme}

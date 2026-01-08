@@ -20,6 +20,7 @@ import { MigrationDialog } from "./components/MigrationDialog";
 import { TitleBar } from "./components/TitleBar";
 import { FileTreeIndex } from "./components/FileTreeIndex";
 import { BlockEditor } from "./outliner/BlockEditor";
+import { SearchModal } from "./components/SearchModal";
 
 const theme = createTheme({
   fontFamily:
@@ -71,6 +72,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   const [dbInitialized, setDbInitialized] = useState(false);
   const [checkingDb, setCheckingDb] = useState(true);
   const [settingsOpened, setSettingsOpened] = useState(false);
+  const [searchOpened, setSearchOpened] = useState(false);
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
@@ -161,7 +163,13 @@ function AppContent({ workspacePath }: AppContentProps) {
       >
         <AppShell.Main>
           {/* Custom Title Bar */}
-          <TitleBar onSettingsClick={() => setSettingsOpened(true)} />
+          <TitleBar
+            onSettingsClick={() => setSettingsOpened(true)}
+            onWorkspaceChange={selectWorkspace}
+            onSearchClick={() => setSearchOpened(true)}
+            onHelpClick={() => console.log("Help clicked")}
+            onCalendarClick={() => console.log("Calendar clicked")}
+          />
 
           {/* Main Content Panel */}
           <div style={{ flex: 1, overflow: "hidden" }}>
@@ -203,6 +211,11 @@ function AppContent({ workspacePath }: AppContentProps) {
         isOpen={showMigration}
         onComplete={handleMigrationComplete}
         onCancel={handleMigrationCancel}
+      />
+
+      <SearchModal
+        opened={searchOpened}
+        onClose={() => setSearchOpened(false)}
       />
 
       <Modal
