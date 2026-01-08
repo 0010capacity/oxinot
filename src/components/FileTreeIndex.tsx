@@ -1,56 +1,353 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Stack,
   Text,
   Group,
   Loader,
   useMantineColorScheme,
-  Button,
-  TextInput,
   ActionIcon,
+  TextInput,
 } from "@mantine/core";
-import { IconPlus, IconCheck, IconX } from "@tabler/icons-react";
+import {
+  IconPlus,
+  IconCheck,
+  IconX,
+  IconGripVertical,
+  IconChevronRight,
+  IconChevronDown,
+} from "@tabler/icons-react";
 import { useViewStore } from "../stores/viewStore";
-import { usePageStore } from "../stores/pageStore";
+import { usePageStore, type PageData } from "../stores/pageStore";
 import { useBlockStore } from "../stores/blockStore";
+
+interface PageTreeItemProps {
+  page: PageData;
+  depth: number;
+  onEdit: (pageId: string) => void;
+  onDelete: (pageId: string) => void;
+  onDragStart: (pageId: string) => void;
+  onDragOver: (e: React.DragEvent, pageId: string) => void;
+  onDrop: (e: React.DragEvent, pageId: string) => void;
+  isEditing: boolean;
+  editValue: string;
+  onEditChange: (value: string) => void;
+  onEditSubmit: () => void;
+  onEditCancel: () => void;
+  collapsed: Record<string, boolean>;
+  onToggleCollapse: (pageId: string) => void;
+  children?: React.ReactNode;
+}
+
+function PageTreeItem({
+  page,
+  depth,
+  onEdit,
+  onDelete,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  isEditing,
+  editValue,
+  onEditChange,
+  onEditSubmit,
+  onEditCancel,
+  collapsed,
+  onToggleCollapse,
+  children,
+}: PageTreeItemProps) {
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === "dark";
+  const { openNote } = useViewStore();
+  const { selectPage } = usePageStore();
+  const { loadPage } = useBlockStore();
+
+  const [isHovered, setIsHovered] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const hasChildren = !!children;
+  const isCollapsed = collapsed[page.id] || false;
+
+  const handlePageClick = async () => {
+    if (isEditing) return;
+    try {
+      selectPage(page.id);
+      await loadPage(page.id);
+      openNote(page.id, page.title);
+    } catch (error) {
+      console.error("Failed to open page:", error);
+    }
+  };
+
+  const handleBulletClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasChildren) {
+      onToggleCollapse(page.id);
+    }
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      onEditSubmit();
+    } else if (e.key === "Escape") {
+      onEditCancel();
+    }
+  };
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const indentSize = 24;
+  const paddingLeft = depth * indentSize;
+
+  return (
+    <div
+      draggable={!isEditing}
+      onDragStart={(e) => {
+        if (!isEditing) {
+          e.dataTransfer.effectAllowed = "move";
+          onDragStart(page.id);
+        }
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        onDragOver(e, page.id);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop(e, page.id);
+      }}
+      style={{
+        position: "relative",
+      }}
+    >
+      <Group
+        gap="xs"
+        wrap="nowrap"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        style={{
+          paddingLeft: `${paddingLeft}px`,
+          paddingTop: "4px",
+          paddingBottom: "4px",
+          paddingRight: "8px",
+          cursor: isEditing ? "default" : "pointer",
+          borderRadius: "4px",
+          transition: "background-color 0.15s ease",
+          backgroundColor:
+            isHovered && !isEditing
+              ? isDark
+                ? "rgba(255, 255, 255, 0.05)"
+                : "rgba(0, 0, 0, 0.03)"
+              : "transparent",
+        }}
+        onClick={isEditing ? undefined : handlePageClick}
+      >
+        {/* Drag Handle - visible on hover */}
+        <div
+          style={{
+            width: "16px",
+            opacity: isHovered && !isEditing ? 0.4 : 0,
+            transition: "opacity 0.15s ease",
+            cursor: "grab",
+          }}
+        >
+          <IconGripVertical size={16} />
+        </div>
+
+        {/* Bullet/Collapse Icon */}
+        <div
+          onClick={handleBulletClick}
+          style={{
+            width: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: hasChildren ? "pointer" : "default",
+          }}
+        >
+          {hasChildren ? (
+            isCollapsed ? (
+              <IconChevronRight
+                size={14}
+                style={{
+                  opacity: 0.6,
+                  transition: "transform 0.15s ease",
+                }}
+              />
+            ) : (
+              <IconChevronDown
+                size={14}
+                style={{
+                  opacity: 0.6,
+                  transition: "transform 0.15s ease",
+                }}
+              />
+            )
+          ) : (
+            <Text
+              size="sm"
+              style={{
+                fontFamily: "monospace",
+                fontSize: "18px",
+                opacity: 0.4,
+                userSelect: "none",
+              }}
+            >
+              •
+            </Text>
+          )}
+        </div>
+
+        {/* Page Title or Edit Input */}
+        {isEditing ? (
+          <TextInput
+            ref={inputRef}
+            value={editValue}
+            onChange={(e) => onEditChange(e.currentTarget.value)}
+            onKeyDown={handleEditKeyDown}
+            size="xs"
+            style={{ flex: 1 }}
+            styles={{
+              input: {
+                border: "none",
+                backgroundColor: isDark
+                  ? "rgba(255, 255, 255, 0.05)"
+                  : "rgba(0, 0, 0, 0.05)",
+              },
+            }}
+          />
+        ) : (
+          <Text
+            size="sm"
+            style={{
+              flex: 1,
+              color: isDark ? "#4dabf7" : "#1c7ed6",
+              userSelect: "none",
+            }}
+          >
+            {page.title}
+            {page.isDirectory && (
+              <Text
+                component="span"
+                size="xs"
+                c="dimmed"
+                ml={4}
+                style={{ opacity: 0.5 }}
+              >
+                ({children ? React.Children.count(children) : 0})
+              </Text>
+            )}
+          </Text>
+        )}
+
+        {/* Action Buttons - visible on hover */}
+        {isHovered && !isEditing && (
+          <Group gap={4}>
+            <ActionIcon
+              size="xs"
+              variant="subtle"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(page.id);
+              }}
+              title="Rename"
+            >
+              <IconCheck size={12} />
+            </ActionIcon>
+            <ActionIcon
+              size="xs"
+              variant="subtle"
+              color="red"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (
+                  window.confirm(
+                    `Delete "${page.title}"? This action cannot be undone.`,
+                  )
+                ) {
+                  onDelete(page.id);
+                }
+              }}
+              title="Delete"
+            >
+              <IconX size={12} />
+            </ActionIcon>
+          </Group>
+        )}
+
+        {/* Edit Confirmation Buttons */}
+        {isEditing && (
+          <Group gap={4}>
+            <ActionIcon
+              size="xs"
+              color="green"
+              variant="light"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditSubmit();
+              }}
+            >
+              <IconCheck size={12} />
+            </ActionIcon>
+            <ActionIcon
+              size="xs"
+              color="red"
+              variant="light"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditCancel();
+              }}
+            >
+              <IconX size={12} />
+            </ActionIcon>
+          </Group>
+        )}
+      </Group>
+
+      {/* Children */}
+      {hasChildren && !isCollapsed && (
+        <div style={{ position: "relative" }}>{children}</div>
+      )}
+    </div>
+  );
+}
 
 export function FileTreeIndex() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
-  const { openNote } = useViewStore();
-  const { loadPages, selectPage, createPage } = usePageStore();
+  const { loadPages, createPage, updatePageTitle, deletePage, movePage } =
+    usePageStore();
   const pages = usePageStore((state) =>
     state.pageIds.map((id) => state.pagesById[id]),
   );
   const isLoading = usePageStore((state) => state.isLoading);
-  const { loadPage } = useBlockStore();
 
   const [isCreating, setIsCreating] = useState(false);
   const [newPageTitle, setNewPageTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
+  const [dragOverPageId, setDragOverPageId] = useState<string | null>(null);
+
   useEffect(() => {
     loadPages();
   }, [loadPages]);
-
-  const handlePageClick = async (pageId: string, pageTitle: string) => {
-    try {
-      selectPage(pageId);
-      await loadPage(pageId);
-      openNote(pageId, pageTitle);
-    } catch (error) {
-      console.error("Failed to open page:", error);
-    }
-  };
 
   const handleCreatePage = async () => {
     if (!newPageTitle.trim()) return;
 
     setIsSubmitting(true);
     try {
-      const newPageId = await createPage(newPageTitle.trim());
-      await loadPage(newPageId);
-      openNote(newPageId, newPageTitle.trim());
+      await createPage(newPageTitle.trim());
       setNewPageTitle("");
       setIsCreating(false);
     } catch (error) {
@@ -73,6 +370,115 @@ export function FileTreeIndex() {
     }
   };
 
+  const handleEditPage = (pageId: string) => {
+    const page = pages.find((p) => p.id === pageId);
+    if (page) {
+      setEditingPageId(pageId);
+      setEditValue(page.title);
+    }
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingPageId || !editValue.trim()) return;
+
+    try {
+      await updatePageTitle(editingPageId, editValue.trim());
+      setEditingPageId(null);
+      setEditValue("");
+    } catch (error) {
+      console.error("Failed to update page title:", error);
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditingPageId(null);
+    setEditValue("");
+  };
+
+  const handleDeletePage = async (pageId: string) => {
+    try {
+      await deletePage(pageId);
+    } catch (error) {
+      console.error("Failed to delete page:", error);
+    }
+  };
+
+  const handleToggleCollapse = (pageId: string) => {
+    setCollapsed((prev) => ({
+      ...prev,
+      [pageId]: !prev[pageId],
+    }));
+  };
+
+  const handleDragStart = (pageId: string) => {
+    setDraggedPageId(pageId);
+  };
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, pageId: string) => {
+      if (draggedPageId !== pageId) {
+        setDragOverPageId(pageId);
+      }
+    },
+    [draggedPageId],
+  );
+
+  const handleDrop = async (e: React.DragEvent, targetPageId: string) => {
+    e.stopPropagation();
+
+    if (!draggedPageId || draggedPageId === targetPageId) {
+      setDraggedPageId(null);
+      setDragOverPageId(null);
+      return;
+    }
+
+    try {
+      // Move the dragged page to be a child of the target page
+      await movePage(draggedPageId, targetPageId);
+      await loadPages();
+    } catch (error) {
+      console.error("Failed to move page:", error);
+    } finally {
+      setDraggedPageId(null);
+      setDragOverPageId(null);
+    }
+  };
+
+  // Build hierarchical structure
+  const buildTree = (parentId: string | undefined): PageData[] => {
+    return pages
+      .filter((p) => p.parentId === parentId)
+      .sort((a, b) => a.title.localeCompare(b.title));
+  };
+
+  const renderPageTree = (page: PageData, depth: number): React.ReactNode => {
+    const children = buildTree(page.id);
+    const hasChildren = children.length > 0;
+
+    return (
+      <PageTreeItem
+        key={page.id}
+        page={page}
+        depth={depth}
+        onEdit={handleEditPage}
+        onDelete={handleDeletePage}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        isEditing={editingPageId === page.id}
+        editValue={editValue}
+        onEditChange={setEditValue}
+        onEditSubmit={handleEditSubmit}
+        onEditCancel={handleEditCancel}
+        collapsed={collapsed}
+        onToggleCollapse={handleToggleCollapse}
+      >
+        {hasChildren &&
+          children.map((child) => renderPageTree(child, depth + 1))}
+      </PageTreeItem>
+    );
+  };
+
   if (isLoading) {
     return (
       <Stack align="center" justify="center" h="100%" p="xl">
@@ -84,28 +490,58 @@ export function FileTreeIndex() {
     );
   }
 
+  const rootPages = buildTree(undefined);
+
   return (
-    <Stack gap="md" p="md">
-      {/* New Page Button */}
-      <Group justify="space-between">
-        <Text size="lg" fw={600}>
-          Pages
+    <Stack gap={0} p="md">
+      {/* Header with New Page Button */}
+      <Group
+        justify="space-between"
+        mb="md"
+        style={{
+          paddingBottom: "8px",
+          borderBottom: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
+        }}
+      >
+        <Text size="sm" fw={600} c="dimmed">
+          PAGES
         </Text>
         {!isCreating && (
-          <Button
-            size="xs"
-            variant="light"
-            leftSection={<IconPlus size={14} />}
+          <ActionIcon
+            size="sm"
+            variant="subtle"
             onClick={() => setIsCreating(true)}
+            title="New Page"
           >
-            New Page
-          </Button>
+            <IconPlus size={16} />
+          </ActionIcon>
         )}
       </Group>
 
       {/* New Page Input */}
       {isCreating && (
-        <Group gap="xs" wrap="nowrap">
+        <Group
+          gap="xs"
+          wrap="nowrap"
+          mb="sm"
+          style={{
+            paddingLeft: "36px",
+            paddingRight: "8px",
+          }}
+        >
+          <Text
+            size="sm"
+            style={{
+              fontFamily: "monospace",
+              fontSize: "18px",
+              opacity: 0.4,
+              userSelect: "none",
+              width: "20px",
+              textAlign: "center",
+            }}
+          >
+            •
+          </Text>
           <TextInput
             placeholder="Page title..."
             value={newPageTitle}
@@ -114,7 +550,15 @@ export function FileTreeIndex() {
             disabled={isSubmitting}
             autoFocus
             style={{ flex: 1 }}
-            size="sm"
+            size="xs"
+            styles={{
+              input: {
+                border: "none",
+                backgroundColor: isDark
+                  ? "rgba(255, 255, 255, 0.05)"
+                  : "rgba(0, 0, 0, 0.05)",
+              },
+            }}
           />
           <ActionIcon
             color="green"
@@ -122,78 +566,32 @@ export function FileTreeIndex() {
             onClick={handleCreatePage}
             disabled={!newPageTitle.trim() || isSubmitting}
             loading={isSubmitting}
-            size="lg"
+            size="xs"
           >
-            <IconCheck size={16} />
+            <IconCheck size={12} />
           </ActionIcon>
           <ActionIcon
             color="red"
             variant="light"
             onClick={handleCancelCreate}
             disabled={isSubmitting}
-            size="lg"
+            size="xs"
           >
-            <IconX size={16} />
+            <IconX size={12} />
           </ActionIcon>
         </Group>
       )}
 
-      {/* Pages List */}
-      {pages.length === 0 ? (
+      {/* Pages Tree */}
+      {rootPages.length === 0 && !isCreating ? (
         <Stack align="center" justify="center" h="200px">
           <Text size="sm" c="dimmed">
-            No pages found. Create your first page to get started!
+            No pages found. Create your first page!
           </Text>
         </Stack>
       ) : (
         <Stack gap={0}>
-          {pages.map((page) => (
-            <Group
-              key={page.id}
-              gap="xs"
-              wrap="nowrap"
-              style={{
-                paddingLeft: "0px",
-                paddingTop: "6px",
-                paddingBottom: "6px",
-                cursor: "pointer",
-                borderRadius: "4px",
-                transition: "background-color 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = isDark
-                  ? "rgba(255, 255, 255, 0.05)"
-                  : "rgba(0, 0, 0, 0.03)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-              }}
-              onClick={() => handlePageClick(page.id, page.title)}
-            >
-              <Text
-                size="sm"
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "18px",
-                  opacity: 0.4,
-                  userSelect: "none",
-                  width: "20px",
-                  textAlign: "center",
-                }}
-              >
-                •
-              </Text>
-              <Text
-                size="sm"
-                style={{
-                  flex: 1,
-                  color: isDark ? "#4dabf7" : "#1c7ed6",
-                }}
-              >
-                {page.title}
-              </Text>
-            </Group>
-          ))}
+          {rootPages.map((page) => renderPageTree(page, 0))}
         </Stack>
       )}
     </Stack>
