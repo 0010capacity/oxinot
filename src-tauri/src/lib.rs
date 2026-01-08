@@ -294,29 +294,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
-            // Initialize database
-            let app_data_dir = app.path().app_data_dir().map_err(|e| {
-                tauri::Error::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to get app data directory: {}", e),
-                ))
-            })?;
-
-            let db_path = db::get_db_path(app_data_dir);
-            let db_path_str = db_path.to_string_lossy().to_string();
-            let db = db::DbConnection::new(db_path).map_err(|e| {
-                tauri::Error::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to initialize database: {}", e),
-                ))
-            })?;
-
-            // Register database connection as Tauri state
-            app.manage(db.get());
-
-            // Initialize markdown mirror service
-            let mirror_service = services::MarkdownMirrorService::new(db_path_str);
-            app.manage(mirror_service);
+            // No global DB - each command will open workspace-specific DB as needed
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -360,9 +338,6 @@ pub fn run() {
             commands::block::queue_mirror,
             // Workspace commands
             commands::workspace::initialize_workspace,
-            commands::workspace::init_workspace_db,
-            commands::workspace::migrate_workspace,
-            commands::workspace::set_workspace_path,
             commands::workspace::sync_workspace,
             // Search commands
             commands::search::search_content,

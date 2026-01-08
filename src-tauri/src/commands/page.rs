@@ -1,19 +1,16 @@
 use chrono::Utc;
 use rusqlite::{params, Connection};
-use std::sync::Arc;
-use tauri::State;
+
+use crate::commands::workspace::open_workspace_db;
 use uuid::Uuid;
 
-use crate::db::DbConnection;
 use crate::models::page::{CreatePageRequest, Page, UpdatePageRequest};
 use crate::services::FileSyncService;
 
 /// Get all pages
 #[tauri::command]
-pub async fn get_pages(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
-) -> Result<Vec<Page>, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+pub async fn get_pages(workspace_path: String) -> Result<Vec<Page>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
 
     // Ensure workspace path exists in database (for backward compatibility)
     let has_workspace: bool = conn
@@ -66,10 +63,10 @@ pub async fn get_pages(
 /// Create a new page
 #[tauri::command]
 pub async fn create_page(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
+    workspace_path: String,
     request: CreatePageRequest,
 ) -> Result<Page, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+    let conn = open_workspace_db(&workspace_path)?;
 
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
@@ -136,10 +133,10 @@ pub async fn create_page(
 /// Update a page
 #[tauri::command]
 pub async fn update_page(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
+    workspace_path: String,
     request: UpdatePageRequest,
 ) -> Result<Page, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+    let conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
 
     let page = get_page_by_id(&conn, &request.id)?;
@@ -193,11 +190,8 @@ pub async fn update_page(
 
 /// Delete a page (and all its blocks)
 #[tauri::command]
-pub async fn delete_page(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
-    page_id: String,
-) -> Result<bool, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+pub async fn delete_page(workspace_path: String, page_id: String) -> Result<bool, String> {
+    let conn = open_workspace_db(&workspace_path)?;
 
     // Get workspace path
     let workspace_path: String = conn
@@ -246,10 +240,10 @@ fn get_page_by_id(conn: &Connection, id: &str) -> Result<Page, String> {
 /// Move a page to a new parent
 #[tauri::command]
 pub async fn move_page(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
+    workspace_path: String,
     request: crate::models::page::MovePageRequest,
 ) -> Result<Page, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+    let conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
 
     // Get workspace path
@@ -302,10 +296,10 @@ pub async fn move_page(
 /// Convert a page to directory (when adding first child)
 #[tauri::command]
 pub async fn convert_page_to_directory(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
+    workspace_path: String,
     page_id: String,
 ) -> Result<Page, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+    let conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
 
     // Get workspace path
@@ -335,10 +329,8 @@ pub async fn convert_page_to_directory(
 
 /// Debug: Check database state
 #[tauri::command]
-pub async fn debug_db_state(
-    db: State<'_, Arc<std::sync::Mutex<Connection>>>,
-) -> Result<String, String> {
-    let conn = db.lock().map_err(|e| e.to_string())?;
+pub async fn debug_db_state(workspace_path: String) -> Result<String, String> {
+    let conn = open_workspace_db(&workspace_path)?;
 
     let count: i32 = conn
         .query_row("SELECT COUNT(*) FROM pages", [], |row| row.get(0))

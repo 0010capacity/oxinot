@@ -1,7 +1,7 @@
 use crate::models::block::BlockType;
 use crate::services::markdown_to_blocks;
 use chrono::Utc;
-use rusqlite::params;
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -20,6 +20,24 @@ pub struct WorkspaceSettings {
     pub workspace_name: String,
     pub created_at: String,
     pub last_opened: String,
+}
+
+/// Helper function to open workspace-specific DB connection
+pub fn open_workspace_db(workspace_path: &str) -> Result<Connection, String> {
+    let db_path = get_workspace_db_path(workspace_path)?;
+
+    let conn = Connection::open(&db_path)
+        .map_err(|e| format!("Failed to open workspace database: {}", e))?;
+
+    // Enable foreign keys
+    conn.execute("PRAGMA foreign_keys = ON", [])
+        .map_err(|e| format!("Failed to enable foreign keys: {}", e))?;
+
+    // Initialize schema
+    crate::db::schema::init_schema(&conn)
+        .map_err(|e| format!("Failed to initialize schema: {}", e))?;
+
+    Ok(conn)
 }
 
 /// Get or create workspace metadata directory
