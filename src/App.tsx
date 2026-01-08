@@ -21,6 +21,7 @@ import { TitleBar } from "./components/TitleBar";
 import { FileTreeIndex } from "./components/FileTreeIndex";
 import { BlockEditor } from "./outliner/BlockEditor";
 import { SearchModal } from "./components/SearchModal";
+import { CalendarModal } from "./components/CalendarModal";
 
 const theme = createTheme({
   fontFamily:
@@ -73,6 +74,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   const [checkingDb, setCheckingDb] = useState(true);
   const [settingsOpened, setSettingsOpened] = useState(false);
   const [searchOpened, setSearchOpened] = useState(false);
+  const [calendarOpened, setCalendarOpened] = useState(false);
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
@@ -168,7 +170,7 @@ function AppContent({ workspacePath }: AppContentProps) {
             onWorkspaceChange={selectWorkspace}
             onSearchClick={() => setSearchOpened(true)}
             onHelpClick={() => console.log("Help clicked")}
-            onCalendarClick={() => console.log("Calendar clicked")}
+            onCalendarClick={() => setCalendarOpened(true)}
           />
 
           {/* Main Content Panel */}
@@ -216,6 +218,11 @@ function AppContent({ workspacePath }: AppContentProps) {
       <SearchModal
         opened={searchOpened}
         onClose={() => setSearchOpened(false)}
+      />
+
+      <CalendarModal
+        opened={calendarOpened}
+        onClose={() => setCalendarOpened(false)}
       />
 
       <Modal
