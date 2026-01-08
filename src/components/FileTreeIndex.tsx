@@ -13,9 +13,6 @@ import {
   IconPlus,
   IconCheck,
   IconX,
-  IconGripVertical,
-  IconChevronRight,
-  IconChevronDown,
   IconFolderPlus,
 } from "@tabler/icons-react";
 import { useViewStore } from "../stores/viewStore";
@@ -23,15 +20,20 @@ import { usePageStore, type PageData } from "../stores/pageStore";
 import { useBlockStore } from "../stores/blockStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 
+interface DragState {
+  isDragging: boolean;
+  draggedPageId: string | null;
+  dragOverPageId: string | null;
+  startY: number;
+}
+
 interface PageTreeItemProps {
   page: PageData;
   depth: number;
   onEdit: (pageId: string) => void;
   onDelete: (pageId: string) => void;
   onAddChild: (parentId: string) => void;
-  onDragStart: (pageId: string) => void;
-  onDragOver: (e: React.DragEvent, pageId: string) => void;
-  onDrop: (e: React.DragEvent, pageId: string) => void;
+  onMouseDown: (e: React.MouseEvent, pageId: string) => void;
   isEditing: boolean;
   editValue: string;
   onEditChange: (value: string) => void;
@@ -50,9 +52,7 @@ function PageTreeItem({
   onEdit,
   onDelete,
   onAddChild,
-  onDragStart,
-  onDragOver,
-  onDrop,
+  onMouseDown,
   isEditing,
   editValue,
   onEditChange,
@@ -66,25 +66,26 @@ function PageTreeItem({
 }: PageTreeItemProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
-  const { openNote } = useViewStore();
-  const { selectPage } = usePageStore();
-  const { loadPage } = useBlockStore();
+  const openNote = useViewStore((state) => state.openNote);
+  const selectPage = usePageStore((state) => state.selectPage);
+  const loadPage = useBlockStore((state) => state.loadPage);
 
   const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const hasChildren = !!children;
-  const isCollapsed = collapsed[page.id] || false;
+  const isCollapsed = collapsed[page.id];
+  const isDraggedOver = dragOverPageId === page.id;
+  const isDragging = draggedPageId === page.id;
 
-  const handlePageClick = async () => {
+  const handlePageClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (isEditing) return;
-    try {
-      selectPage(page.id);
-      await loadPage(page.id);
-      openNote(page.id, page.title);
-    } catch (error) {
-      console.error("Failed to open page:", error);
-    }
+
+    console.log("[PageTreeItem] Page clicked:", page.title);
+    await selectPage(page.id);
+    await loadPage(page.id);
+    openNote(page.id, page.title);
   };
 
   const handleBulletClick = (e: React.MouseEvent) => {
@@ -95,7 +96,8 @@ function PageTreeItem({
   };
 
   const handleEditKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
       onEditSubmit();
     } else if (e.key === "Escape") {
       onEditCancel();
@@ -109,68 +111,26 @@ function PageTreeItem({
     }
   }, [isEditing]);
 
-  const indentSize = 24;
-  const paddingLeft = depth * indentSize;
-  const isDraggedOver = dragOverPageId === page.id;
-  const isDragging = draggedPageId === page.id;
-
   return (
-    <div
-      draggable={!isEditing}
-      onDragStart={(e) => {
-        if (!isEditing) {
-          e.dataTransfer.effectAllowed = "move";
-          e.dataTransfer.setData("text/plain", page.id);
-          onDragStart(page.id);
-        }
-      }}
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        onDragOver(e, page.id);
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onDrop(e, page.id);
-      }}
-      onDragLeave={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-      style={{
-        position: "relative",
-        opacity: isDragging ? 0.5 : 1,
-        transition: "opacity 0.15s ease",
-      }}
-    >
-      <Group
-        gap="xs"
-        wrap="nowrap"
+    <div>
+      <div
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        style={{
-          paddingLeft: `${paddingLeft}px`,
-          paddingTop: "4px",
-          paddingBottom: "4px",
-          paddingRight: "8px",
-          cursor: isEditing ? "default" : "pointer",
-          borderRadius: "4px",
-          transition: "background-color 0.15s ease, border 0.15s ease",
-          backgroundColor:
-            isHovered && !isEditing
-              ? isDark
-                ? "rgba(255, 255, 255, 0.05)"
-                : "rgba(0, 0, 0, 0.03)"
-              : "transparent",
-          border: isDraggedOver
-            ? `2px solid ${isDark ? "#4dabf7" : "#1c7ed6"}`
-            : "2px solid transparent",
-          position: "relative",
+        onMouseDown={(e) => {
+          if (!isEditing && e.button === 0) {
+            onMouseDown(e, page.id);
+          }
         }}
-        onClick={isEditing ? undefined : handlePageClick}
+        style={{
+          position: "relative",
+          opacity: isDragging ? 0.5 : 1,
+          transition: "opacity 0.2s ease",
+          cursor: isEditing ? "default" : "pointer",
+          userSelect: "none",
+        }}
       >
-        {isDraggedOver && (
+        {/* Drop indicator */}
+        {isDraggedOver && draggedPageId !== page.id && (
           <div
             style={{
               position: "absolute",
@@ -179,188 +139,266 @@ function PageTreeItem({
               top: 0,
               bottom: 0,
               backgroundColor: isDark
-                ? "rgba(77, 171, 247, 0.1)"
-                : "rgba(28, 126, 214, 0.1)",
-              borderRadius: "4px",
+                ? "rgba(99, 102, 241, 0.15)"
+                : "rgba(99, 102, 241, 0.1)",
+              borderRadius: "3px",
               pointerEvents: "none",
+              zIndex: 1,
             }}
           />
         )}
-        {/* Drag Handle - visible on hover */}
-        <div
-          style={{
-            width: "16px",
-            opacity: isHovered && !isEditing ? 0.4 : 0,
-            transition: "opacity 0.15s ease",
-            cursor: "grab",
-          }}
-        >
-          <IconGripVertical size={16} />
-        </div>
 
-        {/* Bullet/Collapse Icon */}
         <div
-          onClick={handleBulletClick}
+          data-page-id={page.id}
           style={{
-            width: "20px",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: hasChildren ? "pointer" : "default",
+            alignItems: "flex-start",
+            gap: "6px",
+            paddingLeft: `${depth * 24}px`,
+            paddingTop: "2px",
+            paddingBottom: "2px",
+            position: "relative",
+            borderRadius: "3px",
+            transition: "background-color 0.15s ease",
           }}
         >
+          {/* Collapse/Expand Toggle - like BlockComponent */}
           {hasChildren ? (
-            isCollapsed ? (
-              <IconChevronRight
-                size={14}
-                style={{
-                  opacity: 0.6,
-                  transition: "transform 0.15s ease",
-                }}
-              />
-            ) : (
-              <IconChevronDown
-                size={14}
-                style={{
-                  opacity: 0.6,
-                  transition: "transform 0.15s ease",
-                }}
-              />
-            )
-          ) : (
-            <Text
-              size="sm"
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCollapse(page.id);
+              }}
               style={{
-                fontFamily: "monospace",
-                fontSize: "18px",
-                opacity: 0.4,
-                userSelect: "none",
+                flexShrink: 0,
+                width: "20px",
+                height: "20px",
+                padding: 0,
+                margin: "2px 0 0 8px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "currentColor",
+                fontSize: "10px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: isCollapsed ? 0.3 : isHovered ? 0.5 : 0,
+                transition: "opacity 0.15s ease, background-color 0.15s ease",
+                borderRadius: "3px",
+                position: "relative",
+                zIndex: 2,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = "1";
+                e.currentTarget.style.backgroundColor = isDark
+                  ? "rgba(255, 255, 255, 0.08)"
+                  : "rgba(0, 0, 0, 0.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = isCollapsed
+                  ? "0.3"
+                  : isHovered
+                    ? "0.5"
+                    : "0";
+                e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
-              •
-            </Text>
+              {isCollapsed ? "▶" : "▼"}
+            </button>
+          ) : (
+            <div
+              style={{
+                flexShrink: 0,
+                width: "20px",
+                height: "20px",
+                margin: "2px 0 0 8px",
+              }}
+            />
           )}
-        </div>
 
-        {/* Page Title or Edit Input */}
-        {isEditing ? (
-          <TextInput
-            ref={inputRef}
-            value={editValue}
-            onChange={(e) => onEditChange(e.currentTarget.value)}
-            onKeyDown={handleEditKeyDown}
-            size="xs"
-            style={{ flex: 1 }}
-            styles={{
-              input: {
-                border: "none",
-                backgroundColor: isDark
-                  ? "rgba(255, 255, 255, 0.05)"
-                  : "rgba(0, 0, 0, 0.05)",
-              },
+          {/* Bullet Point - exactly like BlockComponent */}
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              handleBulletClick(e);
             }}
-          />
-        ) : (
-          <Text
-            size="sm"
             style={{
-              flex: 1,
-              color: isDark ? "#4dabf7" : "#1c7ed6",
-              userSelect: "none",
+              flexShrink: 0,
+              width: "24px",
+              height: "24px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: 0,
+              position: "relative",
+              cursor: hasChildren ? "pointer" : "default",
             }}
           >
-            {page.title}
-            {page.isDirectory && (
-              <Text
-                component="span"
+            <div
+              style={{
+                width: "4px",
+                height: "4px",
+                borderRadius: "50%",
+                backgroundColor: isDark
+                  ? "rgba(255, 255, 255, 0.4)"
+                  : "rgba(0, 0, 0, 0.4)",
+                transition: "all 0.2s ease",
+                display: "block",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = isDark
+                  ? "rgba(255, 255, 255, 0.7)"
+                  : "rgba(0, 0, 0, 0.7)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = isDark
+                  ? "rgba(255, 255, 255, 0.4)"
+                  : "rgba(0, 0, 0, 0.4)";
+              }}
+            />
+          </div>
+
+          {/* Page Title or Edit Input */}
+          {isEditing ? (
+            <Group gap={4} wrap="nowrap" style={{ flex: 1 }}>
+              <TextInput
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => onEditChange(e.currentTarget.value)}
+                onKeyDown={handleEditKeyDown}
+                onClick={(e) => e.stopPropagation()}
                 size="xs"
-                c="dimmed"
-                ml={4}
-                style={{ opacity: 0.5 }}
+                styles={{
+                  input: {
+                    border: "none",
+                    backgroundColor: isDark
+                      ? "rgba(255, 255, 255, 0.05)"
+                      : "rgba(0, 0, 0, 0.03)",
+                    fontSize: "14px",
+                    lineHeight: "1.5",
+                  },
+                }}
+                style={{
+                  flex: 1,
+                }}
+              />
+
+              <Group gap={4}>
+                <ActionIcon
+                  variant="subtle"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditSubmit();
+                  }}
+                  size="xs"
+                  color="green"
+                  title="Save"
+                >
+                  <IconCheck size={12} />
+                </ActionIcon>
+                <ActionIcon
+                  variant="subtle"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditCancel();
+                  }}
+                  size="xs"
+                  color="red"
+                  title="Cancel"
+                >
+                  <IconX size={12} />
+                </ActionIcon>
+              </Group>
+            </Group>
+          ) : (
+            <>
+              <Text
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePageClick(e);
+                }}
+                style={{
+                  flex: 1,
+                  color: isDark ? "#e0e0e0" : "#1a1a1a",
+                  userSelect: "none",
+                  fontSize: "14px",
+                  lineHeight: "24px",
+                  paddingTop: "2px",
+                  paddingBottom: "2px",
+                  paddingLeft: "4px",
+                  paddingRight: "8px",
+                  cursor: "pointer",
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(page.id);
+                }}
               >
-                ({children ? React.Children.count(children) : 0})
+                {page.title}
               </Text>
-            )}
-          </Text>
-        )}
 
-        {/* Action Buttons - visible on hover */}
-        {isHovered && !isEditing && (
-          <Group gap={4}>
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddChild(page.id);
-              }}
-              title="Add child page"
-            >
-              <IconFolderPlus size={12} />
-            </ActionIcon>
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(page.id);
-              }}
-              title="Rename"
-            >
-              <IconCheck size={12} />
-            </ActionIcon>
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              color="red"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (
-                  window.confirm(
-                    `Delete "${page.title}"? This action cannot be undone.`,
-                  )
-                ) {
-                  onDelete(page.id);
-                }
-              }}
-              title="Delete"
-            >
-              <IconX size={12} />
-            </ActionIcon>
-          </Group>
-        )}
-
-        {/* Edit Confirmation Buttons */}
-        {isEditing && (
-          <Group gap={4}>
-            <ActionIcon
-              size="xs"
-              color="green"
-              variant="light"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditSubmit();
-              }}
-            >
-              <IconCheck size={12} />
-            </ActionIcon>
-            <ActionIcon
-              size="xs"
-              color="red"
-              variant="light"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditCancel();
-              }}
-            >
-              <IconX size={12} />
-            </ActionIcon>
-          </Group>
-        )}
-      </Group>
+              {/* Action buttons */}
+              {isHovered && !isEditing && (
+                <Group
+                  gap={4}
+                  wrap="nowrap"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    opacity: isHovered ? 1 : 0,
+                    transition: "opacity 0.2s ease",
+                  }}
+                >
+                  <ActionIcon
+                    variant="subtle"
+                    size="xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddChild(page.id);
+                    }}
+                    title="Add child page"
+                  >
+                    <IconFolderPlus size={14} />
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="subtle"
+                    size="xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(page.id);
+                    }}
+                    title="Rename"
+                  >
+                    ✏️
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="subtle"
+                    size="xs"
+                    color="red"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (
+                        window.confirm(
+                          `Delete "${page.title}"? This will delete all content and cannot be undone.`,
+                        )
+                      ) {
+                        onDelete(page.id);
+                      }
+                    }}
+                    title="Delete"
+                  >
+                    <IconX size={14} />
+                  </ActionIcon>
+                </Group>
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Children */}
-      {hasChildren && !isCollapsed && (
+      {!isCollapsed && children && (
         <div style={{ position: "relative" }}>{children}</div>
       )}
     </div>
@@ -388,8 +426,12 @@ export function FileTreeIndex() {
   const [editValue, setEditValue] = useState("");
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
-  const [dragOverPageId, setDragOverPageId] = useState<string | null>(null);
+  const [dragState, setDragState] = useState<DragState>({
+    isDragging: false,
+    draggedPageId: null,
+    dragOverPageId: null,
+    startY: 0,
+  });
 
   useEffect(() => {
     console.log("[FileTreeIndex] Initial load pages");
@@ -403,16 +445,69 @@ export function FileTreeIndex() {
     console.log("[FileTreeIndex] pages changed! New length:", pages.length);
   }, [pages.length]);
 
-  // Reset drag state on drag end
+  // Mouse-based drag and drop
   useEffect(() => {
-    const handleDragEnd = () => {
-      setDraggedPageId(null);
-      setDragOverPageId(null);
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragState.isDragging) return;
+
+      // Find element under cursor
+      const elements = document.elementsFromPoint(e.clientX, e.clientY);
+      const pageElement = elements.find((el) =>
+        el.getAttribute("data-page-id"),
+      );
+
+      if (pageElement) {
+        const pageId = pageElement.getAttribute("data-page-id");
+        if (pageId && pageId !== dragState.draggedPageId) {
+          setDragState((prev) => ({ ...prev, dragOverPageId: pageId }));
+        }
+      } else {
+        setDragState((prev) => ({ ...prev, dragOverPageId: null }));
+      }
     };
 
-    document.addEventListener("dragend", handleDragEnd);
-    return () => document.removeEventListener("dragend", handleDragEnd);
-  }, []);
+    const handleMouseUp = async () => {
+      if (!dragState.isDragging) return;
+
+      const { draggedPageId, dragOverPageId } = dragState;
+
+      // Reset drag state
+      setDragState({
+        isDragging: false,
+        draggedPageId: null,
+        dragOverPageId: null,
+        startY: 0,
+      });
+
+      // Perform drop if valid
+      if (draggedPageId && dragOverPageId && draggedPageId !== dragOverPageId) {
+        console.log(
+          `[FileTreeIndex] Dropping ${draggedPageId} on ${dragOverPageId}`,
+        );
+        try {
+          await movePage(draggedPageId, dragOverPageId);
+          await loadPages();
+          setCollapsed((prev) => ({
+            ...prev,
+            [dragOverPageId]: false,
+          }));
+          console.log("[FileTreeIndex] Page moved successfully");
+        } catch (error) {
+          console.error("Failed to move page:", error);
+          alert(`Failed to move page: ${error}`);
+        }
+      }
+    };
+
+    if (dragState.isDragging) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [dragState, movePage, loadPages]);
 
   const handleCreatePage = async () => {
     if (!newPageTitle.trim()) return;
@@ -437,10 +532,6 @@ export function FileTreeIndex() {
         console.log("[FileTreeIndex] Syncing workspace after page creation...");
         await invoke("sync_workspace", { workspacePath });
       }
-
-      // Debug: Check DB state
-      const dbState = await invoke<string>("debug_db_state");
-      console.log("[FileTreeIndex] DB state after sync:\n", dbState);
 
       // Reload pages to update UI
       console.log("[FileTreeIndex] Reloading pages...");
@@ -493,14 +584,11 @@ export function FileTreeIndex() {
 
     try {
       await updatePageTitle(editingPageId, editValue.trim());
-
-      // Reload pages to update UI
       await loadPages();
-
       setEditingPageId(null);
       setEditValue("");
     } catch (error) {
-      console.error("Failed to update page title:", error);
+      console.error("Failed to update page:", error);
     }
   };
 
@@ -512,18 +600,18 @@ export function FileTreeIndex() {
   const handleDeletePage = async (pageId: string) => {
     try {
       await deletePage(pageId);
-
-      // Reload pages to update UI
       await loadPages();
     } catch (error) {
       console.error("Failed to delete page:", error);
+      alert(`Failed to delete page: ${error}`);
     }
   };
 
   const handleAddChild = (parentId: string) => {
     setCreatingParentId(parentId);
     setIsCreating(true);
-    // Expand parent to show new child input
+
+    // Expand parent when adding child
     setCollapsed((prev) => ({
       ...prev,
       [parentId]: false,
@@ -537,89 +625,57 @@ export function FileTreeIndex() {
     }));
   };
 
-  const handleDragStart = (pageId: string) => {
-    setDraggedPageId(pageId);
-  };
+  const handleMouseDown = (e: React.MouseEvent, pageId: string) => {
+    // Only start drag on left mouse button and if not clicking on interactive elements
+    if (e.button !== 0) return;
 
-  const handleDragOver = useCallback(
-    (e: React.DragEvent, pageId: string) => {
-      if (draggedPageId !== pageId) {
-        setDragOverPageId(pageId);
-      }
-    },
-    [draggedPageId],
-  );
-
-  const handleDrop = async (e: React.DragEvent, targetPageId: string) => {
-    e.stopPropagation();
-
-    if (!draggedPageId || draggedPageId === targetPageId) {
-      setDraggedPageId(null);
-      setDragOverPageId(null);
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === "BUTTON" ||
+      target.tagName === "INPUT" ||
+      target.closest("button") ||
+      target.closest("input")
+    ) {
       return;
     }
 
-    try {
-      // Move the dragged page to be a child of the target page
-      await movePage(draggedPageId, targetPageId);
-
-      // Reload pages to update UI
-      await loadPages();
-
-      // Expand target to show moved child
-      setCollapsed((prev) => ({
-        ...prev,
-        [targetPageId]: false,
-      }));
-    } catch (error) {
-      console.error("Failed to move page:", error);
-    } finally {
-      setDraggedPageId(null);
-      setDragOverPageId(null);
-    }
+    console.log("[FileTreeIndex] Starting drag:", pageId);
+    setDragState({
+      isDragging: true,
+      draggedPageId: pageId,
+      dragOverPageId: null,
+      startY: e.clientY,
+    });
   };
 
-  // Build hierarchical structure
+  // Build hierarchical tree
   const buildTree = useCallback(
-    (parentId: string | undefined | null): PageData[] => {
-      console.log("[buildTree] Building tree for parentId:", parentId);
-
-      // Treat both null and undefined as root (no parent)
-      const filtered = pages.filter((p) => {
-        if (parentId === undefined || parentId === null) {
-          return p.parentId === undefined || p.parentId === null;
-        }
-        return p.parentId === parentId;
-      });
-
-      console.log(
-        "[buildTree] Filtered pages for parentId",
-        parentId,
-        ":",
-        filtered.length,
-      );
-
-      return filtered.sort((a, b) => a.title.localeCompare(b.title));
+    (parentId: string | null): PageData[] => {
+      return pages
+        .filter((page) => {
+          const pageParentId = page.parentId ?? null;
+          return pageParentId === parentId;
+        })
+        .sort((a, b) => a.title.localeCompare(b.title));
     },
     [pages],
   );
 
+  // Render page tree recursively
   const renderPageTree = (page: PageData, depth: number): React.ReactNode => {
     const children = buildTree(page.id);
     const hasChildren = children.length > 0;
     const isCreatingChild = isCreating && creatingParentId === page.id;
 
     return (
-      <div key={page.id}>
+      <React.Fragment key={page.id}>
         <PageTreeItem
           page={page}
           depth={depth}
           onEdit={handleEditPage}
           onDelete={handleDeletePage}
           onAddChild={handleAddChild}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
+          onMouseDown={handleMouseDown}
           isEditing={editingPageId === page.id}
           editValue={editValue}
           onEditChange={setEditValue}
@@ -627,85 +683,102 @@ export function FileTreeIndex() {
           onEditCancel={handleEditCancel}
           collapsed={collapsed}
           onToggleCollapse={handleToggleCollapse}
-          draggedPageId={draggedPageId}
-          dragOverPageId={dragOverPageId}
+          draggedPageId={dragState.draggedPageId}
+          dragOverPageId={dragState.dragOverPageId}
         >
           {hasChildren &&
+            !collapsed[page.id] &&
             children.map((child) => renderPageTree(child, depth + 1))}
+
           {isCreatingChild && renderNewPageInput(depth + 1)}
         </PageTreeItem>
-      </div>
+      </React.Fragment>
     );
   };
 
   const renderNewPageInput = (depth: number) => {
-    const indentSize = 24;
-    const paddingLeft = depth * indentSize;
-
     return (
-      <Group
-        gap="xs"
-        wrap="nowrap"
+      <div
         style={{
-          paddingLeft: `${paddingLeft}px`,
-          paddingTop: "4px",
-          paddingBottom: "4px",
-          paddingRight: "8px",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "6px",
+          paddingLeft: `${depth * 24}px`,
+          paddingTop: "2px",
+          paddingBottom: "2px",
           backgroundColor: isDark
-            ? "rgba(77, 171, 247, 0.08)"
-            : "rgba(28, 126, 214, 0.08)",
-          borderRadius: "4px",
-          border: `1px solid ${isDark ? "rgba(77, 171, 247, 0.2)" : "rgba(28, 126, 214, 0.2)"}`,
+            ? "rgba(255, 255, 255, 0.03)"
+            : "rgba(0, 0, 0, 0.02)",
+          borderRadius: "3px",
+          border: `1px solid ${isDark ? "rgba(99, 102, 241, 0.3)" : "rgba(99, 102, 241, 0.2)"}`,
+          margin: "2px 0",
         }}
       >
-        <div style={{ width: "16px" }} />
-        <Text
-          size="sm"
+        <div style={{ width: "20px", height: "20px", margin: "2px 0 0 8px" }} />
+        <div
           style={{
-            fontFamily: "monospace",
-            fontSize: "18px",
-            opacity: 0.4,
-            userSelect: "none",
-            width: "20px",
-            textAlign: "center",
+            flexShrink: 0,
+            width: "24px",
+            height: "24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          •
-        </Text>
-        <TextInput
-          placeholder="Type page name and press Enter..."
-          value={newPageTitle}
-          onChange={(e) => setNewPageTitle(e.currentTarget.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={() => {
-            // Auto-submit on blur if there's content
-            if (newPageTitle.trim() && !isSubmitting) {
-              handleCreatePage();
-            }
-          }}
-          disabled={isSubmitting}
-          autoFocus
-          style={{ flex: 1 }}
-          size="xs"
-          styles={{
-            input: {
-              border: "none",
-              backgroundColor: "transparent",
-              fontWeight: 500,
-            },
-          }}
-        />
-        {isSubmitting && <Loader size="xs" />}
-        <ActionIcon
-          variant="subtle"
-          onClick={handleCancelCreate}
-          disabled={isSubmitting}
-          size="xs"
-          style={{ opacity: 0.5 }}
-        >
-          <IconX size={12} />
-        </ActionIcon>
-      </Group>
+          <div
+            style={{
+              width: "4px",
+              height: "4px",
+              borderRadius: "50%",
+              backgroundColor: isDark
+                ? "rgba(255, 255, 255, 0.3)"
+                : "rgba(0, 0, 0, 0.3)",
+            }}
+          />
+        </div>
+
+        <Group gap={4} wrap="nowrap" style={{ flex: 1, paddingRight: "8px" }}>
+          <TextInput
+            value={newPageTitle}
+            onChange={(e) => setNewPageTitle(e.currentTarget.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="New page title..."
+            autoFocus
+            size="xs"
+            disabled={isSubmitting}
+            styles={{
+              input: {
+                border: "none",
+                backgroundColor: "transparent",
+                fontWeight: 500,
+                fontSize: "14px",
+                lineHeight: "24px",
+              },
+            }}
+            style={{ flex: 1 }}
+          />
+
+          <ActionIcon
+            variant="subtle"
+            onClick={handleCreatePage}
+            disabled={isSubmitting || !newPageTitle.trim()}
+            size="xs"
+            color="green"
+            style={{ opacity: newPageTitle.trim() ? 1 : 0.3 }}
+          >
+            <IconCheck size={12} />
+          </ActionIcon>
+          <ActionIcon
+            variant="subtle"
+            onClick={handleCancelCreate}
+            disabled={isSubmitting}
+            size="xs"
+            style={{ opacity: 0.5 }}
+          >
+            <IconX size={12} />
+          </ActionIcon>
+        </Group>
+      </div>
     );
   };
 
@@ -722,102 +795,99 @@ export function FileTreeIndex() {
 
   const rootPages = buildTree(null);
 
-  // Force re-render when pages change
-  console.log("[FileTreeIndex] Rendering with pages.length:", pages.length);
-  console.log("[FileTreeIndex] rootPages.length:", rootPages.length);
-
   return (
-    <Stack
-      gap={0}
-      p="md"
-      style={{ position: "relative", height: "100%" }}
-      key={`pages-${pages.length}`}
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        padding: "40px 20px",
+        overflowY: "auto",
+        backgroundColor: isDark ? "#1a1a1a" : "#ffffff",
+      }}
     >
-      {/* Header */}
-      <Group
-        justify="space-between"
-        mb="md"
+      <div
         style={{
-          paddingBottom: "8px",
-          borderBottom: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
+          maxWidth: "800px",
+          margin: "0 auto",
+          paddingBottom: "200px",
         }}
       >
-        <Text size="sm" fw={600} c="dimmed">
-          PAGES ({pages.length})
-        </Text>
-        <ActionIcon
-          size="xs"
-          variant="subtle"
-          onClick={async () => {
-            const dbState = await invoke<string>("debug_db_state");
-            console.log("=== DB STATE ===\n", dbState);
-            alert(dbState);
-          }}
-          title="Debug DB State"
-        >
-          🔍
-        </ActionIcon>
-      </Group>
-
-      {/* Pages Tree */}
-      {rootPages.length === 0 && !isCreating ? (
-        <Stack align="center" justify="center" h="200px">
-          <Text size="sm" c="dimmed">
-            No pages found. Create your first page!
-          </Text>
-          <ActionIcon
-            size="lg"
-            variant="light"
-            onClick={() => setIsCreating(true)}
-            title="New Page"
-            style={{ marginTop: "8px" }}
+        <Stack gap={0}>
+          {/* Header */}
+          <Group
+            justify="space-between"
+            mb="md"
+            style={{
+              paddingBottom: "8px",
+              borderBottom: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
+            }}
           >
-            <IconPlus size={20} />
-          </ActionIcon>
-        </Stack>
-      ) : (
-        <Stack gap={0} style={{ flex: 1 }} key={`tree-${pages.length}`}>
-          {rootPages.map((page) => renderPageTree(page, 0))}
+            <Text size="sm" fw={600} c="dimmed">
+              PAGES ({pages.length})
+            </Text>
+          </Group>
 
-          {/* New Page Input at bottom */}
-          {isCreating && !creatingParentId && (
-            <div style={{ marginTop: "8px" }}>{renderNewPageInput(0)}</div>
-          )}
-
-          {/* Floating New Page Button */}
-          {!isCreating && (
-            <Group
-              gap="xs"
-              wrap="nowrap"
-              style={{
-                paddingLeft: "36px",
-                paddingTop: "8px",
-                paddingBottom: "4px",
-                cursor: "pointer",
-                borderRadius: "4px",
-                transition: "background-color 0.15s ease",
-                opacity: 0.6,
-              }}
-              onClick={() => setIsCreating(true)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = "1";
-                e.currentTarget.style.backgroundColor = isDark
-                  ? "rgba(255, 255, 255, 0.03)"
-                  : "rgba(0, 0, 0, 0.02)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = "0.6";
-                e.currentTarget.style.backgroundColor = "transparent";
-              }}
-            >
-              <IconPlus size={16} style={{ opacity: 0.5 }} />
-              <Text size="sm" c="dimmed" style={{ userSelect: "none" }}>
-                New page
+          {/* Pages Tree */}
+          {rootPages.length === 0 && !isCreating ? (
+            <Stack align="center" justify="center" h="200px">
+              <Text size="sm" c="dimmed">
+                No pages found. Create your first page!
               </Text>
-            </Group>
+              <ActionIcon
+                size="lg"
+                variant="light"
+                onClick={() => setIsCreating(true)}
+                title="New Page"
+                style={{ marginTop: "8px" }}
+              >
+                <IconPlus size={20} />
+              </ActionIcon>
+            </Stack>
+          ) : (
+            <Stack gap={0} style={{ flex: 1 }}>
+              {rootPages.map((page) => renderPageTree(page, 0))}
+
+              {/* New Page Input at bottom */}
+              {isCreating && !creatingParentId && (
+                <div style={{ marginTop: "8px" }}>{renderNewPageInput(0)}</div>
+              )}
+
+              {/* Floating New Page Button */}
+              {!isCreating && (
+                <Group
+                  gap="xs"
+                  wrap="nowrap"
+                  style={{
+                    paddingLeft: "56px",
+                    paddingTop: "8px",
+                    paddingBottom: "4px",
+                    cursor: "pointer",
+                    borderRadius: "4px",
+                    transition: "background-color 0.15s ease",
+                    opacity: 0.6,
+                  }}
+                  onClick={() => setIsCreating(true)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = "1";
+                    e.currentTarget.style.backgroundColor = isDark
+                      ? "rgba(255, 255, 255, 0.03)"
+                      : "rgba(0, 0, 0, 0.02)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = "0.6";
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  <IconPlus size={16} style={{ opacity: 0.5 }} />
+                  <Text size="sm" c="dimmed" style={{ userSelect: "none" }}>
+                    New page
+                  </Text>
+                </Group>
+              )}
+            </Stack>
           )}
         </Stack>
-      )}
-    </Stack>
+      </div>
+    </div>
   );
 }

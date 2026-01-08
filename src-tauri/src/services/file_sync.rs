@@ -89,8 +89,17 @@ impl FileSyncService {
             self.get_page_file_path(conn, page_id)?
         };
 
+        // If old file doesn't exist, create it first
         if !old_path.exists() {
-            return Err("Original file does not exist".to_string());
+            // Ensure parent directory exists
+            if let Some(parent) = old_path.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to create parent directory: {}", e))?;
+            }
+            // Create file with basic content
+            let initial_content = format!("# {}\n\n", page.title);
+            fs::write(&old_path, initial_content)
+                .map_err(|e| format!("Failed to create file: {}", e))?;
         }
 
         let parent = old_path.parent().ok_or("Cannot get parent directory")?;
@@ -141,8 +150,17 @@ impl FileSyncService {
             self.get_page_file_path(conn, page_id)?
         };
 
+        // If old file doesn't exist, create it first
         if !old_path.exists() {
-            return Err("Original file does not exist".to_string());
+            // Ensure parent directory exists
+            if let Some(parent) = old_path.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to create parent directory: {}", e))?;
+            }
+            // Create file with basic content
+            let initial_content = format!("# {}\n\n", page.title);
+            fs::write(&old_path, initial_content)
+                .map_err(|e| format!("Failed to create file: {}", e))?;
         }
 
         // Calculate new parent directory
@@ -203,13 +221,12 @@ impl FileSyncService {
             self.get_page_file_path(conn, page_id)?
         };
 
-        if !old_file_path.exists() {
-            return Err("Original file does not exist".to_string());
-        }
-
-        // Read existing content
-        let content = fs::read_to_string(&old_file_path)
-            .map_err(|e| format!("Failed to read file: {}", e))?;
+        // Read existing content if file exists, otherwise use default
+        let content = if old_file_path.exists() {
+            fs::read_to_string(&old_file_path).map_err(|e| format!("Failed to read file: {}", e))?
+        } else {
+            format!("# {}\n\n", page.title)
+        };
 
         let parent = old_file_path
             .parent()
@@ -224,8 +241,11 @@ impl FileSyncService {
         let new_file_path = dir_path.join(format!("{}.md", file_stem.to_string_lossy()));
         fs::write(&new_file_path, content).map_err(|e| format!("Failed to write file: {}", e))?;
 
-        // Remove old file
-        fs::remove_file(&old_file_path).map_err(|e| format!("Failed to remove old file: {}", e))?;
+        // Remove old file if it exists
+        if old_file_path.exists() {
+            fs::remove_file(&old_file_path)
+                .map_err(|e| format!("Failed to remove old file: {}", e))?;
+        }
 
         Ok(new_file_path.to_string_lossy().to_string())
     }
