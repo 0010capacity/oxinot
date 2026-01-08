@@ -372,12 +372,12 @@ export function FileTreeIndex() {
   const isDark = colorScheme === "dark";
   const { loadPages, createPage, updatePageTitle, deletePage, movePage } =
     usePageStore();
-  const pageIds = usePageStore((state) => state.pageIds);
-  const pagesById = usePageStore((state) => state.pagesById);
   const isLoading = usePageStore((state) => state.isLoading);
 
-  // Build pages array from separate selectors for proper reactivity
-  const pages = pageIds.map((id) => pagesById[id]).filter(Boolean);
+  // Use single selector to ensure atomic updates
+  const pages = usePageStore((state) =>
+    state.pageIds.map((id) => state.pagesById[id]).filter(Boolean),
+  );
 
   const [isCreating, setIsCreating] = useState(false);
   const [creatingParentId, setCreatingParentId] = useState<string | null>(null);
@@ -394,9 +394,14 @@ export function FileTreeIndex() {
   useEffect(() => {
     console.log("[FileTreeIndex] Initial load pages");
     loadPages().then(() => {
-      console.log("[FileTreeIndex] Initial pages loaded:", pageIds.length);
+      console.log("[FileTreeIndex] Initial pages loaded");
     });
   }, [loadPages]);
+
+  // Monitor pages changes
+  useEffect(() => {
+    console.log("[FileTreeIndex] pages changed! New length:", pages.length);
+  }, [pages.length]);
 
   // Reset drag state on drag end
   useEffect(() => {
@@ -705,8 +710,17 @@ export function FileTreeIndex() {
 
   const rootPages = buildTree(undefined);
 
+  // Force re-render when pages change
+  console.log("[FileTreeIndex] Rendering with pages.length:", pages.length);
+  console.log("[FileTreeIndex] rootPages.length:", rootPages.length);
+
   return (
-    <Stack gap={0} p="md" style={{ position: "relative", height: "100%" }}>
+    <Stack
+      gap={0}
+      p="md"
+      style={{ position: "relative", height: "100%" }}
+      key={`pages-${pages.length}`}
+    >
       {/* Header */}
       <Group
         justify="space-between"
@@ -717,7 +731,7 @@ export function FileTreeIndex() {
         }}
       >
         <Text size="sm" fw={600} c="dimmed">
-          PAGES
+          PAGES ({pages.length})
         </Text>
         <ActionIcon
           size="xs"
@@ -750,7 +764,7 @@ export function FileTreeIndex() {
           </ActionIcon>
         </Stack>
       ) : (
-        <Stack gap={0} style={{ flex: 1 }}>
+        <Stack gap={0} style={{ flex: 1 }} key={`tree-${pages.length}`}>
           {rootPages.map((page) => renderPageTree(page, 0))}
 
           {/* New Page Input at bottom */}
