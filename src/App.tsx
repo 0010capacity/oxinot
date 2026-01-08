@@ -22,6 +22,7 @@ import { FileTreeIndex } from "./components/FileTreeIndex";
 import { BlockEditor } from "./outliner/BlockEditor";
 import { SearchModal } from "./components/SearchModal";
 import { CalendarModal } from "./components/CalendarModal";
+import { HelpModal } from "./components/HelpModal";
 
 const theme = createTheme({
   fontFamily:
@@ -75,6 +76,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   const [settingsOpened, setSettingsOpened] = useState(false);
   const [searchOpened, setSearchOpened] = useState(false);
   const [calendarOpened, setCalendarOpened] = useState(false);
+  const [helpOpened, setHelpOpened] = useState(false);
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
@@ -169,7 +171,7 @@ function AppContent({ workspacePath }: AppContentProps) {
             onSettingsClick={() => setSettingsOpened(true)}
             onWorkspaceChange={selectWorkspace}
             onSearchClick={() => setSearchOpened(true)}
-            onHelpClick={() => console.log("Help clicked")}
+            onHelpClick={() => setHelpOpened(true)}
             onCalendarClick={() => setCalendarOpened(true)}
           />
 
@@ -224,6 +226,8 @@ function AppContent({ workspacePath }: AppContentProps) {
         opened={calendarOpened}
         onClose={() => setCalendarOpened(false)}
       />
+
+      <HelpModal opened={helpOpened} onClose={() => setHelpOpened(false)} />
 
       <Modal
         opened={settingsOpened}
