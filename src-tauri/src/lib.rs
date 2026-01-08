@@ -206,6 +206,56 @@ async fn rename_path(old_path: String, new_name: String) -> Result<String, Strin
 }
 
 #[tauri::command]
+async fn move_path(source_path: String, target_parent_path: String) -> Result<String, String> {
+    let source = Path::new(&source_path);
+    let file_name = source
+        .file_name()
+        .ok_or_else(|| "Cannot get file name".to_string())?;
+
+    let target_parent = Path::new(&target_parent_path);
+    if !target_parent.exists() {
+        return Err("Target parent directory does not exist".to_string());
+    }
+
+    let new_path = target_parent.join(file_name);
+
+    fs::rename(source, &new_path).map_err(|e| format!("Error moving: {}", e))?;
+
+    Ok(new_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+async fn convert_file_to_directory(file_path: String) -> Result<String, String> {
+    let file = Path::new(&file_path);
+
+    // Read the file content first
+    let content = fs::read_to_string(file).map_err(|e| format!("Error reading file: {}", e))?;
+
+    // Get the file name without extension
+    let file_stem = file
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| "Invalid file name".to_string())?;
+
+    let parent = file
+        .parent()
+        .ok_or_else(|| "Cannot get parent directory".to_string())?;
+
+    // Create directory with the same name as the file (without .md)
+    let dir_path = parent.join(file_stem);
+    fs::create_dir_all(&dir_path).map_err(|e| format!("Error creating directory: {}", e))?;
+
+    // Move the content to a file inside the directory with the same name
+    let new_file_path = dir_path.join(format!("{}.md", file_stem));
+    fs::write(&new_file_path, content).map_err(|e| format!("Error writing file: {}", e))?;
+
+    // Delete the original file
+    fs::remove_file(file).map_err(|e| format!("Error removing original file: {}", e))?;
+
+    Ok(dir_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 async fn get_path_info(target_path: String) -> Result<PathInfo, String> {
     let metadata =
         fs::metadata(&target_path).map_err(|e| format!("Error getting path info: {}", e))?;
@@ -281,6 +331,8 @@ pub fn run() {
             create_directory,
             delete_path,
             rename_path,
+            move_path,
+            convert_file_to_directory,
             get_path_info,
             // Block commands
             commands::block::get_page_blocks,

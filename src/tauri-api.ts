@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 
 export interface FileSystemItem {
   name: string;
@@ -19,39 +19,53 @@ export interface PathInfo {
 export const tauriAPI = {
   // Workspace operations
   selectWorkspace: async (): Promise<string | null> => {
-    return await invoke<string | null>('select_workspace');
+    return await invoke<string | null>("select_workspace");
   },
 
   // File system operations
   readDirectory: async (dirPath: string): Promise<FileSystemItem[]> => {
-    return await invoke<FileSystemItem[]>('read_directory', { dirPath });
+    return await invoke<FileSystemItem[]>("read_directory", { dirPath });
   },
 
   readFile: async (filePath: string): Promise<string> => {
-    return await invoke<string>('read_file', { filePath });
+    return await invoke<string>("read_file", { filePath });
   },
 
   writeFile: async (filePath: string, content: string): Promise<boolean> => {
-    return await invoke<boolean>('write_file', { filePath, content });
+    return await invoke<boolean>("write_file", { filePath, content });
   },
 
   createFile: async (dirPath: string, fileName: string): Promise<string> => {
-    return await invoke<string>('create_file', { dirPath, fileName });
+    return await invoke<string>("create_file", { dirPath, fileName });
   },
 
-  createDirectory: async (parentPath: string, dirName: string): Promise<string> => {
-    return await invoke<string>('create_directory', { parentPath, dirName });
+  createDirectory: async (
+    parentPath: string,
+    dirName: string,
+  ): Promise<string> => {
+    return await invoke<string>("create_directory", { parentPath, dirName });
   },
 
   deletePath: async (targetPath: string): Promise<boolean> => {
-    return await invoke<boolean>('delete_path', { targetPath });
+    return await invoke<boolean>("delete_path", { targetPath });
   },
 
   renamePath: async (oldPath: string, newName: string): Promise<string> => {
-    return await invoke<string>('rename_path', { oldPath, newName });
+    return await invoke<string>("rename_path", { oldPath, newName });
+  },
+
+  movePath: async (
+    sourcePath: string,
+    targetParentPath: string,
+  ): Promise<string> => {
+    return await invoke<string>("move_path", { sourcePath, targetParentPath });
+  },
+
+  convertFileToDirectory: async (filePath: string): Promise<string> => {
+    return await invoke<string>("convert_file_to_directory", { filePath });
   },
 
   getPathInfo: async (targetPath: string): Promise<PathInfo> => {
-    return await invoke<PathInfo>('get_path_info', { targetPath });
+    return await invoke<PathInfo>("get_path_info", { targetPath });
   },
 };
