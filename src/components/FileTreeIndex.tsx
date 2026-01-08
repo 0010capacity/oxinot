@@ -370,10 +370,12 @@ export function FileTreeIndex() {
   const isDark = colorScheme === "dark";
   const { loadPages, createPage, updatePageTitle, deletePage, movePage } =
     usePageStore();
-  const pages = usePageStore((state) =>
-    state.pageIds.map((id) => state.pagesById[id]),
-  );
+  const pageIds = usePageStore((state) => state.pageIds);
+  const pagesById = usePageStore((state) => state.pagesById);
   const isLoading = usePageStore((state) => state.isLoading);
+
+  // Build pages array from separate selectors for proper reactivity
+  const pages = pageIds.map((id) => pagesById[id]).filter(Boolean);
 
   const [isCreating, setIsCreating] = useState(false);
   const [creatingParentId, setCreatingParentId] = useState<string | null>(null);
@@ -408,6 +410,10 @@ export function FileTreeIndex() {
     setIsSubmitting(true);
     try {
       await createPage(newPageTitle.trim(), creatingParentId || undefined);
+
+      // Reload pages to update UI
+      await loadPages();
+
       setNewPageTitle("");
       setIsCreating(false);
       setCreatingParentId(null);
@@ -454,6 +460,10 @@ export function FileTreeIndex() {
 
     try {
       await updatePageTitle(editingPageId, editValue.trim());
+
+      // Reload pages to update UI
+      await loadPages();
+
       setEditingPageId(null);
       setEditValue("");
     } catch (error) {
@@ -469,6 +479,9 @@ export function FileTreeIndex() {
   const handleDeletePage = async (pageId: string) => {
     try {
       await deletePage(pageId);
+
+      // Reload pages to update UI
+      await loadPages();
     } catch (error) {
       console.error("Failed to delete page:", error);
     }
@@ -516,7 +529,15 @@ export function FileTreeIndex() {
     try {
       // Move the dragged page to be a child of the target page
       await movePage(draggedPageId, targetPageId);
+
+      // Reload pages to update UI
       await loadPages();
+
+      // Expand target to show moved child
+      setCollapsed((prev) => ({
+        ...prev,
+        [targetPageId]: false,
+      }));
     } catch (error) {
       console.error("Failed to move page:", error);
     } finally {
