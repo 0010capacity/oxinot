@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   Stack,
   Text,
@@ -525,11 +525,14 @@ export function FileTreeIndex() {
   };
 
   // Build hierarchical structure
-  const buildTree = (parentId: string | undefined): PageData[] => {
-    return pages
-      .filter((p) => p.parentId === parentId)
-      .sort((a, b) => a.title.localeCompare(b.title));
-  };
+  const buildTree = useCallback(
+    (parentId: string | undefined): PageData[] => {
+      return pages
+        .filter((p) => p.parentId === parentId)
+        .sort((a, b) => a.title.localeCompare(b.title));
+    },
+    [pages],
+  );
 
   const renderPageTree = (page: PageData, depth: number): React.ReactNode => {
     const children = buildTree(page.id);

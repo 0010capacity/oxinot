@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::models::page::Page;
 
@@ -42,13 +42,13 @@ impl FileSyncService {
             for part in &path_parts {
                 full_path = full_path.join(sanitize_filename(part));
             }
-            full_path.join(format!("{}.md", sanitize_filename(&page.title)))
+            Ok(full_path.join(format!("{}.md", sanitize_filename(&page.title))))
         } else {
             // Regular file
             for part in &path_parts[..path_parts.len() - 1] {
                 full_path = full_path.join(sanitize_filename(part));
             }
-            full_path.join(format!("{}.md", sanitize_filename(&page.title)))
+            Ok(full_path.join(format!("{}.md", sanitize_filename(&page.title))))
         }
     }
 
@@ -59,7 +59,6 @@ impl FileSyncService {
         page_id: &str,
         title: &str,
     ) -> Result<String, String> {
-        let page = self.get_page_from_db(conn, page_id)?;
         let file_path = self.get_page_file_path(conn, page_id)?;
 
         // Ensure parent directory exists
