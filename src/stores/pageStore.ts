@@ -7,7 +7,9 @@ import { invoke } from "@tauri-apps/api/core";
 export interface PageData {
   id: string;
   title: string;
+  parentId?: string;
   filePath?: string;
+  isDirectory: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,9 +30,11 @@ interface PageActions {
   loadPages: () => Promise<void>;
 
   // 페이지 CRUD
-  createPage: (title: string) => Promise<string>;
+  createPage: (title: string, parentId?: string) => Promise<string>;
   updatePageTitle: (id: string, title: string) => Promise<void>;
   deletePage: (id: string) => Promise<void>;
+  movePage: (id: string, newParentId: string | null) => Promise<void>;
+  convertToDirectory: (id: string) => Promise<void>;
 
   // 페이지 선택
   selectPage: (id: string) => void;
@@ -91,10 +95,10 @@ export const usePageStore = create<PageStore>()(
       }
     },
 
-    createPage: async (title: string) => {
+    createPage: async (title: string, parentId?: string) => {
       try {
         const newPage: PageData = await invoke("create_page", {
-          request: { title },
+          request: { title, parentId: parentId || null },
         });
 
         set((state) => {
@@ -174,6 +178,52 @@ export const usePageStore = create<PageStore>()(
         state.pageIds = [];
         state.currentPageId = null;
       });
+    },
+
+    movePage: async (id: string, newParentId: string | null) => {
+      const page = get().pagesById[id];
+      if (!page) return;
+
+      const previousParentId = page.parentId;
+
+      set((state) => {
+        if (state.pagesById[id]) {
+          state.pagesById[id].parentId = newParentId || undefined;
+          state.pagesById[id].updatedAt = new Date().toISOString();
+        }
+      });
+
+      try {
+        await invoke("move_page", {
+          request: { id, newParentId },
+        });
+      } catch (error) {
+        set((state) => {
+          if (state.pagesById[id]) {
+            state.pagesById[id].parentId = previousParentId;
+          }
+        });
+        throw error;
+      }
+    },
+
+    convertToDirectory: async (id: string) => {
+      try {
+        const updatedPage: PageData = await invoke(
+          "convert_page_to_directory",
+          {
+            pageId: id,
+          },
+        );
+
+        set((state) => {
+          if (state.pagesById[id]) {
+            state.pagesById[id] = updatedPage;
+          }
+        });
+      } catch (error) {
+        throw error;
+      }
     },
 
     // ============ Selectors ============

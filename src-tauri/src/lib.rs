@@ -296,6 +296,8 @@ pub fn run() {
             commands::page::create_page,
             commands::page::update_page,
             commands::page::delete_page,
+            commands::page::move_page,
+            commands::page::convert_page_to_directory,
             // Mirror commands
             commands::block::queue_mirror,
             // Workspace commands

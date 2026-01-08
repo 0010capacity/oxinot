@@ -11,10 +11,17 @@ CREATE TABLE IF NOT EXISTS workspace (
 CREATE TABLE IF NOT EXISTS pages (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
+    parent_id TEXT,  -- NULL = 루트 레벨 페이지
     file_path TEXT,  -- 미러링될 마크다운 파일 경로
+    is_directory INTEGER DEFAULT 0,  -- 1 = 폴더로 전환됨 (하위 페이지 있음)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (parent_id) REFERENCES pages(id) ON DELETE CASCADE
 );
+
+-- 페이지 인덱스
+CREATE INDEX IF NOT EXISTS idx_pages_parent ON pages(parent_id);
 
 -- 블록 (핵심 테이블)
 CREATE TABLE IF NOT EXISTS blocks (
