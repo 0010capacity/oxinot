@@ -4,6 +4,12 @@ A modern markdown outliner application built with Tauri, React, and TypeScript. 
 
 ## 🌟 Features
 
+### Modern Desktop UI
+- **Custom titlebar** - Native-looking titlebar with integrated breadcrumb navigation
+- **OS-aware window controls** - macOS traffic lights or Windows/Linux controls
+- **Minimal design** - All controls in the titlebar for maximum content space
+- **Draggable titlebar** - Move the window naturally from the title area
+
 ### Unique File Tree Integration
 - **No separate file explorer sidebar** - Navigate your workspace directly in the main outliner view
 - **Folder notes** - Every folder automatically gets its own markdown note
@@ -19,7 +25,7 @@ A modern markdown outliner application built with Tauri, React, and TypeScript. 
 - **Built with Tauri** - Lightweight desktop app powered by Rust
 - **Direct file system access** - Work with real `.md` files on your computer
 - **Auto-save** - Changes are automatically saved to disk
-- **No database** - Just plain markdown files you own
+- **SQLite + Filesystem** - Database for quick navigation, markdown files as source of truth
 
 ## 🚀 Getting Started
 
@@ -81,24 +87,27 @@ Every folder automatically has a folder note (e.g., `MyFolder/MyFolder.md`). Thi
 ## 🎨 UI Design
 
 The interface is inspired by modern note-taking apps with a clean, minimal design:
-- **Dark mode by default** (light mode available)
-- **Material Symbols icons** for a consistent look
+- **Custom titlebar** - Native window controls integrated with breadcrumb navigation
+- **Dark mode by default** (light mode available via titlebar toggle)
+- **Tabler icons** for a consistent, modern look
 - **Inter font** for excellent readability
 - **Hover interactions** - Controls appear when you need them
-- **No clutter** - Focus on your content
+- **No clutter** - All controls in titlebar, maximum space for content
 
 ## 🛠️ Technology Stack
 
 ### Frontend
-- **React 18** - UI framework
+- **React 19** - UI framework
 - **TypeScript** - Type safety
 - **Mantine UI** - Component library
+- **Zustand** - State management
 - **CodeMirror 6** - Advanced text editing
 - **Vite** - Fast build tool
 
 ### Backend
-- **Tauri 2** - Desktop app framework
+- **Tauri 2** - Desktop app framework with custom titlebar
 - **Rust** - File system operations
+- **SQLite** - Fast metadata storage and search
 - **Native dialogs** - Folder selection
 
 ### Markdown Processing

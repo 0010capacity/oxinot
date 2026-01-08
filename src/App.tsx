@@ -3,8 +3,6 @@ import {
   MantineProvider,
   AppShell,
   Container,
-  Group,
-  ActionIcon,
   useMantineColorScheme,
   createTheme,
   Stack,
@@ -12,16 +10,14 @@ import {
   Button,
   Modal,
   Switch,
-  Title,
 } from "@mantine/core";
-import { IconSun, IconMoon, IconSettings } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
 import { usePageStore } from "./stores/pageStore";
 import { useOutlinerSettingsStore } from "./stores/outlinerSettingsStore";
 import { MigrationDialog } from "./components/MigrationDialog";
-import { Breadcrumb } from "./components/Breadcrumb";
+import { TitleBar } from "./components/TitleBar";
 import { FileTreeIndex } from "./components/FileTreeIndex";
 import { BlockEditor } from "./outliner/BlockEditor";
 
@@ -55,7 +51,7 @@ interface AppContentProps {
 }
 
 function AppContent({ workspacePath }: AppContentProps) {
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
+  const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
   const { selectWorkspace } = useWorkspaceStore();
   const { loadPages } = usePageStore();
@@ -164,33 +160,8 @@ function AppContent({ workspacePath }: AppContentProps) {
         }}
       >
         <AppShell.Main>
-          {/* Top Control Bar */}
-          <Group
-            justify="flex-end"
-            p="xs"
-            style={{
-              borderBottom: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
-            }}
-          >
-            <Group gap="xs">
-              <ActionIcon
-                variant="subtle"
-                onClick={() => toggleColorScheme()}
-                size="sm"
-                title="Toggle theme"
-              >
-                {isDark ? <IconSun size={16} /> : <IconMoon size={16} />}
-              </ActionIcon>
-              <ActionIcon
-                variant="subtle"
-                size="sm"
-                title="Settings"
-                onClick={() => setSettingsOpened(true)}
-              >
-                <IconSettings size={16} />
-              </ActionIcon>
-            </Group>
-          </Group>
+          {/* Custom Title Bar */}
+          <TitleBar onSettingsClick={() => setSettingsOpened(true)} />
 
           {/* Main Content Panel */}
           <div style={{ flex: 1, overflow: "hidden" }}>
@@ -237,14 +208,12 @@ function AppContent({ workspacePath }: AppContentProps) {
       <Modal
         opened={settingsOpened}
         onClose={() => setSettingsOpened(false)}
-        title={<Title order={3}>Settings</Title>}
+        title="Settings"
         size="md"
       >
         <Stack gap="lg">
           <div>
-            <Title order={5} mb="xs">
-              Outliner
-            </Title>
+            <h3 style={{ margin: 0, marginBottom: 8 }}>Outliner</h3>
             <Switch
               label="Show indent guides"
               description="Display vertical lines to show indentation levels"
