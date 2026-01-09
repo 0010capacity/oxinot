@@ -117,7 +117,12 @@ export function PageTreeItem({
   }, [isEditing]);
 
   return (
-    <div>
+    <div style={{ position: "relative" }}>
+      {/* Indent guides */}
+      {showIndentGuides && depth > 0 && (
+        <IndentGuide depth={depth} show={true} />
+      )}
+
       <div
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -134,17 +139,12 @@ export function PageTreeItem({
           userSelect: isDragging ? "none" : "auto",
         }}
       >
-        {/* Indent guides */}
-        {showIndentGuides && depth > 0 && (
-          <IndentGuide depth={depth} show={true} />
-        )}
-
         {/* Drop indicator */}
         {isDraggedOver && draggedPageId !== page.id && (
           <div
             style={{
               position: "absolute",
-              left: 0,
+              left: `${depth * 24}px`,
               right: 0,
               top: 0,
               bottom: 0,
@@ -332,9 +332,7 @@ export function PageTreeItem({
       </div>
 
       {/* Children */}
-      {!isCollapsed && children && (
-        <div style={{ position: "relative" }}>{children}</div>
-      )}
+      {!isCollapsed && children}
     </div>
   );
 }
