@@ -1,9 +1,7 @@
-import React, { useState } from "react";
 import {
   Menu,
   Text,
   Group,
-  ActionIcon,
   UnstyledButton,
   Divider,
   ScrollArea,
@@ -14,10 +12,7 @@ import {
   IconCheck,
   IconChevronDown,
 } from "@tabler/icons-react";
-import {
-  useWorkspaceStore,
-  type WorkspaceInfo,
-} from "../stores/workspaceStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useMantineColorScheme } from "@mantine/core";
 
 interface WorkspacePickerProps {

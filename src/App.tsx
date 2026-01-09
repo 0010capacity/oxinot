@@ -7,7 +7,6 @@ import {
   createTheme,
   Stack,
   Text,
-  Button,
   Modal,
   Switch,
   Select,

@@ -1,9 +1,9 @@
 import { Modal, TextInput, Stack, Text, Box, Loader } from "@mantine/core";
-import { IconSearch } from "@tabler/icons-react";
-import { useState, useEffect, useCallback } from "react";
+import { IconSearch, IconFolder, IconFile } from "@tabler/icons-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useMantineColorScheme } from "@mantine/core";
-import { usePageStore } from "../stores/pageStore";
+import { usePageStore, type PageData } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 
@@ -21,6 +21,12 @@ interface SearchModalProps {
   onClose: () => void;
 }
 
+interface FlatPageItem {
+  page: PageData;
+  depth: number;
+  hasChildren: boolean;
+}
+
 export function SearchModal({ opened, onClose }: SearchModalProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
@@ -28,42 +34,50 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const setCurrentPageId = usePageStore((state) => state.setCurrentPageId);
   const showPage = useViewStore((state) => state.showPage);
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
+  const pageIds = usePageStore((state) => state.pageIds);
+  const pagesById = usePageStore((state) => state.pagesById);
+  const pages = pageIds.map((id) => pagesById[id]);
 
-  const performSearch = useCallback(async (searchQuery: string) => {
-    if (searchQuery.trim().length === 0) {
-      setResults([]);
-      return;
-    }
+  const performSearch = useCallback(
+    async (searchQuery: string) => {
+      if (searchQuery.trim().length === 0) {
+        setResults([]);
+        return;
+      }
 
-    if (!workspacePath) {
-      setResults([]);
-      return;
-    }
+      if (!workspacePath) {
+        setResults([]);
+        return;
+      }
 
-    setIsSearching(true);
-    try {
-      const searchResults = await invoke<SearchResult[]>("search_content", {
-        workspacePath,
-        query: searchQuery,
-      });
-      setResults(searchResults);
-      setSelectedIndex(0);
-    } catch (error) {
-      console.error("Search error:", error);
-      setResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
+      setIsSearching(true);
+      try {
+        const searchResults = await invoke<SearchResult[]>("search_content", {
+          workspacePath,
+          query: searchQuery,
+        });
+        setResults(searchResults);
+        setSelectedIndex(0);
+      } catch (error) {
+        console.error("Search error:", error);
+        setResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [workspacePath],
+  );
 
   useEffect(() => {
     if (opened) {
       setQuery("");
       setResults([]);
       setSelectedIndex(0);
+      setCollapsed(new Set());
     }
   }, [opened]);
 
@@ -75,22 +89,95 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
     return () => clearTimeout(timeoutId);
   }, [query, performSearch]);
 
+  // Build flat list of pages for keyboard navigation
+  const flatPageList = useMemo(() => {
+    const buildTree = (parentId: string | null): PageData[] => {
+      return pages
+        .filter((page: PageData) => {
+          const pageParentId = page.parentId ?? null;
+          return pageParentId === parentId;
+        })
+        .sort((a: PageData, b: PageData) => a.title.localeCompare(b.title));
+    };
+
+    const flattenTree = (
+      parentId: string | null,
+      depth: number,
+      result: FlatPageItem[] = [],
+    ): FlatPageItem[] => {
+      const children = buildTree(parentId);
+      for (const page of children) {
+        const hasChildren = pages.some((p: PageData) => p.parentId === page.id);
+        result.push({ page, depth, hasChildren });
+
+        // Only add children if not collapsed
+        if (hasChildren && !collapsed.has(page.id)) {
+          flattenTree(page.id, depth + 1, result);
+        }
+      }
+      return result;
+    };
+
+    return flattenTree(null, 0);
+  }, [pages, collapsed]);
+
   const handleResultClick = (result: SearchResult) => {
     setCurrentPageId(result.page_id);
     showPage(result.page_id);
     onClose();
   };
 
+  const handlePageClick = (pageId: string) => {
+    setCurrentPageId(pageId);
+    showPage(pageId);
+    onClose();
+  };
+
+  const handleToggleCollapse = (pageId: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(pageId)) {
+        next.delete(pageId);
+      } else {
+        next.add(pageId);
+      }
+      return next;
+    });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Determine if we're showing file tree or search results
+    const showingFileTree = query.trim().length === 0;
+    const items = showingFileTree ? flatPageList : results;
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1));
+      setSelectedIndex((prev) => Math.min(prev + 1, items.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSelectedIndex((prev) => Math.max(prev - 1, 0));
-    } else if (e.key === "Enter" && results.length > 0) {
+    } else if (e.key === "Enter" && items.length > 0) {
       e.preventDefault();
-      handleResultClick(results[selectedIndex]);
+      if (showingFileTree) {
+        const selectedItem = flatPageList[selectedIndex];
+        if (selectedItem) {
+          handlePageClick(selectedItem.page.id);
+        }
+      } else {
+        handleResultClick(results[selectedIndex]);
+      }
+    } else if (e.key === "ArrowRight" && showingFileTree) {
+      e.preventDefault();
+      const selectedItem = flatPageList[selectedIndex];
+      if (selectedItem?.hasChildren && collapsed.has(selectedItem.page.id)) {
+        handleToggleCollapse(selectedItem.page.id);
+      }
+    } else if (e.key === "ArrowLeft" && showingFileTree) {
+      e.preventDefault();
+      const selectedItem = flatPageList[selectedIndex];
+      if (selectedItem?.hasChildren && !collapsed.has(selectedItem.page.id)) {
+        handleToggleCollapse(selectedItem.page.id);
+      }
     }
   };
 
@@ -118,6 +205,187 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
           return <span key={index}>{part}</span>;
         })}
       </span>
+    );
+  };
+
+  const renderFileTree = () => {
+    if (pages.length === 0) {
+      return (
+        <Text size="sm" c="dimmed" ta="center" py="xl">
+          No pages in workspace
+        </Text>
+      );
+    }
+
+    return (
+      <Box
+        style={{
+          maxHeight: "400px",
+          overflowY: "auto",
+        }}
+      >
+        <Stack gap={2}>
+          {flatPageList.map((item, index) => {
+            const { page, depth, hasChildren } = item;
+            const isSelected = selectedIndex === index;
+            const isCollapsed = collapsed.has(page.id);
+
+            return (
+              <Box
+                key={page.id}
+                onClick={() => handlePageClick(page.id)}
+                style={{
+                  padding: "8px 12px",
+                  paddingLeft: `${12 + depth * 20}px`,
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  backgroundColor: isSelected
+                    ? isDark
+                      ? "rgba(255, 255, 255, 0.08)"
+                      : "rgba(0, 0, 0, 0.05)"
+                    : "transparent",
+                  border: `1px solid ${
+                    isSelected
+                      ? isDark
+                        ? "#373A40"
+                        : "#dee2e6"
+                      : "transparent"
+                  }`,
+                  transition: "all 0.15s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+                onMouseEnter={() => setSelectedIndex(index)}
+              >
+                {hasChildren && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleCollapse(page.id);
+                    }}
+                    style={{
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      fontSize: "0.8rem",
+                      userSelect: "none",
+                      width: "16px",
+                    }}
+                  >
+                    {isCollapsed ? "▸" : "▾"}
+                  </span>
+                )}
+                {!hasChildren && (
+                  <span style={{ width: "16px", display: "inline-block" }} />
+                )}
+                {page.isDirectory ? (
+                  <IconFolder size={16} opacity={0.7} />
+                ) : (
+                  <IconFile size={16} opacity={0.7} />
+                )}
+                <Text
+                  size="sm"
+                  style={{
+                    color: isDark ? "#c1c2c5" : "#495057",
+                    flex: 1,
+                  }}
+                >
+                  {page.title}
+                </Text>
+              </Box>
+            );
+          })}
+        </Stack>
+      </Box>
+    );
+  };
+
+  const renderSearchResults = () => {
+    if (results.length === 0 && !isSearching) {
+      return (
+        <Text size="sm" c="dimmed" ta="center" py="xl">
+          No results found
+        </Text>
+      );
+    }
+
+    return (
+      <Box
+        style={{
+          maxHeight: "400px",
+          overflowY: "auto",
+        }}
+      >
+        <Stack gap="xs">
+          {results.map((result, index) => (
+            <Box
+              key={`${result.result_type}-${result.id}`}
+              onClick={() => handleResultClick(result)}
+              style={{
+                padding: "12px",
+                borderRadius: "6px",
+                cursor: "pointer",
+                backgroundColor:
+                  selectedIndex === index
+                    ? isDark
+                      ? "rgba(255, 255, 255, 0.08)"
+                      : "rgba(0, 0, 0, 0.05)"
+                    : "transparent",
+                border: `1px solid ${
+                  selectedIndex === index
+                    ? isDark
+                      ? "#373A40"
+                      : "#dee2e6"
+                    : "transparent"
+                }`,
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={() => setSelectedIndex(index)}
+            >
+              <Stack gap={4}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <Text
+                    size="xs"
+                    c="dimmed"
+                    style={{
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      fontSize: "0.7rem",
+                    }}
+                  >
+                    {result.result_type}
+                  </Text>
+                  <Text
+                    size="sm"
+                    fw={500}
+                    style={{
+                      color: isDark ? "#c1c2c5" : "#495057",
+                    }}
+                  >
+                    {result.page_title}
+                  </Text>
+                </div>
+                <Text
+                  size="sm"
+                  style={{
+                    color: isDark ? "#909296" : "#868e96",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {renderSnippet(result.snippet)}
+                </Text>
+              </Stack>
+            </Box>
+          ))}
+        </Stack>
+      </Box>
     );
   };
 
@@ -150,91 +418,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
           }}
         />
 
-        {query.trim().length === 0 ? (
-          <Text size="sm" c="dimmed" ta="center" py="xl">
-            Type to search in pages and blocks
-          </Text>
-        ) : results.length === 0 && !isSearching ? (
-          <Text size="sm" c="dimmed" ta="center" py="xl">
-            No results found
-          </Text>
-        ) : (
-          <Box
-            style={{
-              maxHeight: "400px",
-              overflowY: "auto",
-            }}
-          >
-            <Stack gap="xs">
-              {results.map((result, index) => (
-                <Box
-                  key={`${result.result_type}-${result.id}`}
-                  onClick={() => handleResultClick(result)}
-                  style={{
-                    padding: "12px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    backgroundColor:
-                      selectedIndex === index
-                        ? isDark
-                          ? "rgba(255, 255, 255, 0.08)"
-                          : "rgba(0, 0, 0, 0.05)"
-                        : "transparent",
-                    border: `1px solid ${
-                      selectedIndex === index
-                        ? isDark
-                          ? "#373A40"
-                          : "#dee2e6"
-                        : "transparent"
-                    }`,
-                    transition: "all 0.15s ease",
-                  }}
-                  onMouseEnter={() => setSelectedIndex(index)}
-                >
-                  <Stack gap={4}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      <Text
-                        size="xs"
-                        c="dimmed"
-                        style={{
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                          fontSize: "0.7rem",
-                        }}
-                      >
-                        {result.result_type}
-                      </Text>
-                      <Text
-                        size="sm"
-                        fw={500}
-                        style={{
-                          color: isDark ? "#c1c2c5" : "#495057",
-                        }}
-                      >
-                        {result.page_title}
-                      </Text>
-                    </div>
-                    <Text
-                      size="sm"
-                      style={{
-                        color: isDark ? "#909296" : "#868e96",
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {renderSnippet(result.snippet)}
-                    </Text>
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-        )}
+        {query.trim().length === 0 ? renderFileTree() : renderSearchResults()}
       </Stack>
     </Modal>
   );

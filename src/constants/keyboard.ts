@@ -36,17 +36,23 @@ export const MODIFIER_KEYS = {
 /**
  * Check if running on Mac
  */
-export const IS_MAC = typeof window !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+export const IS_MAC =
+  typeof window !== "undefined" &&
+  /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
 /**
  * Primary modifier key (Cmd on Mac, Ctrl on others)
  */
-export const PRIMARY_MODIFIER = IS_MAC ? MODIFIER_KEYS.META : MODIFIER_KEYS.CTRL;
+export const PRIMARY_MODIFIER = IS_MAC
+  ? MODIFIER_KEYS.META
+  : MODIFIER_KEYS.CTRL;
 
 /**
  * Secondary modifier key (Ctrl on Mac, Alt on others)
  */
-export const SECONDARY_MODIFIER = IS_MAC ? MODIFIER_KEYS.CTRL : MODIFIER_KEYS.ALT;
+export const SECONDARY_MODIFIER = IS_MAC
+  ? MODIFIER_KEYS.CTRL
+  : MODIFIER_KEYS.ALT;
 
 /**
  * Block editor keyboard shortcuts
@@ -181,7 +187,7 @@ export function matchesShortcut(
     shift?: boolean;
     alt?: boolean;
     [key: string]: any;
-  }
+  },
 ): boolean {
   const key = event.key.toLowerCase();
   const shortcutKey = shortcut.key.toLowerCase();
@@ -194,10 +200,16 @@ export function matchesShortcut(
   const shiftPressed = event.shiftKey;
   const metaPressed = event.metaKey;
 
-  const ctrlRequired = shortcut.Control || shortcut[PRIMARY_MODIFIER] === MODIFIER_KEYS.CTRL;
+  const ctrlRequired =
+    shortcut.Control ||
+    (shortcut[PRIMARY_MODIFIER] === true &&
+      PRIMARY_MODIFIER === MODIFIER_KEYS.CTRL);
   const altRequired = shortcut.Alt || shortcut.alt;
   const shiftRequired = shortcut.Shift || shortcut.shift;
-  const metaRequired = shortcut.Meta || shortcut[PRIMARY_MODIFIER] === MODIFIER_KEYS.META;
+  const metaRequired =
+    shortcut.Meta ||
+    (shortcut[PRIMARY_MODIFIER] === true &&
+      PRIMARY_MODIFIER === MODIFIER_KEYS.META);
 
   // All modifiers must match
   if (ctrlRequired && !ctrlPressed) return false;
@@ -247,11 +259,23 @@ export function formatShortcut(shortcut: {
  */
 export const KEY_COMBINATIONS = {
   MOD_ENTER: { key: KEY_CODES.ENTER, [PRIMARY_MODIFIER]: true },
-  MOD_SHIFT_ENTER: { key: KEY_CODES.ENTER, [PRIMARY_MODIFIER]: true, shift: true },
+  MOD_SHIFT_ENTER: {
+    key: KEY_CODES.ENTER,
+    [PRIMARY_MODIFIER]: true,
+    shift: true,
+  },
   SHIFT_ENTER: { key: KEY_CODES.ENTER, shift: true },
   MOD_BACKSPACE: { key: KEY_CODES.BACKSPACE, [PRIMARY_MODIFIER]: true },
   ALT_ARROW_UP: { key: KEY_CODES.ARROW_UP, alt: true },
   ALT_ARROW_DOWN: { key: KEY_CODES.ARROW_DOWN, alt: true },
-  MOD_ALT_ARROW_UP: { key: KEY_CODES.ARROW_UP, [PRIMARY_MODIFIER]: true, alt: true },
-  MOD_ALT_ARROW_DOWN: { key: KEY_CODES.ARROW_DOWN, [PRIMARY_MODIFIER]: true, alt: true },
+  MOD_ALT_ARROW_UP: {
+    key: KEY_CODES.ARROW_UP,
+    [PRIMARY_MODIFIER]: true,
+    alt: true,
+  },
+  MOD_ALT_ARROW_DOWN: {
+    key: KEY_CODES.ARROW_DOWN,
+    [PRIMARY_MODIFIER]: true,
+    alt: true,
+  },
 } as const;
