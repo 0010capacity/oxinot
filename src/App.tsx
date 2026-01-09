@@ -14,6 +14,8 @@ import {
   Group,
   NumberInput,
 } from "@mantine/core";
+import { Notifications, notifications } from "@mantine/notifications";
+import "@mantine/notifications/styles.css";
 
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "./stores/workspaceStore";
@@ -129,7 +131,58 @@ function AppContent({ workspacePath }: AppContentProps) {
   const handleGitCommit = async () => {
     if (!workspacePath || !hasGitChanges) return;
     const timestamp = new Date().toLocaleString();
-    await gitCommit(workspacePath, `Update: ${timestamp}`);
+    try {
+      const result = await gitCommit(workspacePath, `Update: ${timestamp}`);
+      if (result.success) {
+        notifications.show({
+          message: "Committed",
+          position: "bottom-right",
+          autoClose: 1500,
+          withCloseButton: false,
+          styles: {
+            root: {
+              backgroundColor: isDark
+                ? "rgba(44, 46, 51, 0.95)"
+                : "rgba(241, 243, 245, 0.95)",
+              backdropFilter: "blur(8px)",
+              border: "none",
+              boxShadow: "none",
+              padding: "8px 12px",
+              minHeight: "auto",
+            },
+            description: {
+              color: isDark ? "#909296" : "#868e96",
+              fontSize: "0.75rem",
+              margin: 0,
+            },
+          },
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        message: "Commit failed",
+        position: "bottom-right",
+        autoClose: 2000,
+        withCloseButton: false,
+        styles: {
+          root: {
+            backgroundColor: isDark
+              ? "rgba(44, 46, 51, 0.95)"
+              : "rgba(241, 243, 245, 0.95)",
+            backdropFilter: "blur(8px)",
+            border: "none",
+            boxShadow: "none",
+            padding: "8px 12px",
+            minHeight: "auto",
+          },
+          description: {
+            color: isDark ? "#fa5252" : "#c92a2a",
+            fontSize: "0.75rem",
+            margin: 0,
+          },
+        },
+      });
+    }
   };
 
   // Initialize git repo check and status on workspace load
@@ -531,6 +584,7 @@ function App() {
   if (!workspacePath) {
     return (
       <MantineProvider theme={theme} defaultColorScheme="dark">
+        <Notifications />
         <ThemeProvider>
           <WorkspaceSelector />
         </ThemeProvider>
@@ -540,6 +594,7 @@ function App() {
 
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
+      <Notifications />
       <ThemeProvider>
         <AppContent workspacePath={workspacePath} />
       </ThemeProvider>
