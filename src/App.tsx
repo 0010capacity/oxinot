@@ -16,7 +16,7 @@ import {
   ThemeIcon,
   Box,
 } from "@mantine/core";
-import { IconFolder, IconFileText, IconSparkles } from "@tabler/icons-react";
+import { IconFolder, IconFileText } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
@@ -49,47 +49,46 @@ function WorkspaceSelector() {
   const isDark = colorScheme === "dark";
 
   return (
-    <Container size="lg" py="xl">
-      <Stack align="center" gap="xl" style={{ marginTop: "10vh" }}>
+    <Container size="sm" py="xl">
+      <Stack align="center" gap="xl" style={{ marginTop: "15vh" }}>
         {/* Logo/Icon Section */}
         <Box style={{ textAlign: "center" }}>
           <ThemeIcon
-            size={120}
+            size={100}
             radius="xl"
             variant="gradient"
             gradient={{ from: "indigo", to: "cyan", deg: 45 }}
             style={{ margin: "0 auto", marginBottom: 24 }}
           >
-            <IconFileText size={64} stroke={1.5} />
+            <IconFileText size={56} stroke={1.5} />
           </ThemeIcon>
-          <Text size="32px" fw={700} mb={8}>
+          <Text size="28px" fw={700} mb={8}>
             MD Outliner
           </Text>
-          <Text size="lg" c="dimmed" maw={500} style={{ margin: "0 auto" }}>
-            A powerful markdown editor with outliner capabilities
+          <Text size="md" c="dimmed">
+            Markdown editor with outliner capabilities
           </Text>
         </Box>
 
         {/* Main Card */}
         <Paper
-          shadow="xl"
+          shadow="md"
           p="xl"
-          radius="md"
+          radius="lg"
           style={{
             width: "100%",
-            maxWidth: 600,
+            maxWidth: 480,
             backgroundColor: isDark ? "#25262b" : "#fff",
             border: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
           }}
         >
           <Stack gap="lg">
             <div style={{ textAlign: "center" }}>
-              <Text size="xl" fw={600} mb={8}>
-                Welcome! 👋
+              <Text size="lg" fw={600} mb={8}>
+                Welcome 👋
               </Text>
               <Text size="sm" c="dimmed">
-                Get started by selecting a workspace folder where your markdown
-                files are stored
+                Select a workspace folder to get started
               </Text>
             </div>
 
@@ -101,60 +100,15 @@ function WorkspaceSelector() {
               variant="gradient"
               gradient={{ from: "indigo", to: "cyan", deg: 45 }}
             >
-              Select Workspace Folder
+              Open Workspace
             </Button>
 
-            {/* Features */}
-            <Stack gap="md" mt="md">
-              <Group gap="sm" wrap="nowrap">
-                <ThemeIcon color="blue" variant="light" size={36} radius="md">
-                  <IconFileText size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text size="sm" fw={500}>
-                    Outliner Mode
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    Organize your thoughts in hierarchical bullet points
-                  </Text>
-                </div>
-              </Group>
-
-              <Group gap="sm" wrap="nowrap">
-                <ThemeIcon color="cyan" variant="light" size={36} radius="md">
-                  <IconSparkles size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text size="sm" fw={500}>
-                    Rich Markdown Support
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    Full markdown syntax with live preview
-                  </Text>
-                </div>
-              </Group>
-
-              <Group gap="sm" wrap="nowrap">
-                <ThemeIcon color="indigo" variant="light" size={36} radius="md">
-                  <IconFolder size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text size="sm" fw={500}>
-                    File-Based Storage
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    Your files, your way - stored as plain markdown
-                  </Text>
-                </div>
-              </Group>
-            </Stack>
+            <Text size="xs" c="dimmed" ta="center" mt="xs">
+              Your markdown files will be organized and editable in outliner
+              mode
+            </Text>
           </Stack>
         </Paper>
-
-        {/* Footer */}
-        <Text size="xs" c="dimmed" mt="xl">
-          Tip: You can change workspace anytime from the menu
-        </Text>
       </Stack>
     </Container>
   );
