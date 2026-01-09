@@ -1,10 +1,9 @@
 .block-component {
     display: flex;
     flex-direction: column;
-    font-family:
-        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
     position: relative;
 }
 
@@ -14,32 +13,28 @@
     top: 0;
     bottom: 0;
     width: 1px;
-    background-color: rgba(0, 0, 0, 0.06);
+    background-color: var(--color-indent-guide);
     pointer-events: none;
     z-index: 0;
-}
-
-.theme-dark .indent-guide {
-    background-color: rgba(255, 255, 255, 0.06);
 }
 
 .block-row {
     display: flex;
     align-items: flex-start;
-    gap: 6px;
+    gap: var(--spacing-sm);
     padding: 2px 0;
     position: relative;
-    border-radius: 3px;
-    transition: background-color 0.15s ease;
+    border-radius: var(--radius-sm);
+    transition: background-color var(--transition-normal);
 }
 
 /* Collapse/Expand Toggle - show only on hover */
 .collapse-toggle {
     flex-shrink: 0;
-    width: 20px;
-    height: 20px;
+    width: var(--layout-collapse-toggle-size);
+    height: var(--layout-collapse-toggle-size);
     padding: 0;
-    margin: 2px 0 0 8px;
+    margin: 2px 0 0 var(--spacing-sm);
     background: none;
     border: none;
     cursor: pointer;
@@ -50,47 +45,43 @@
     justify-content: center;
     opacity: 0;
     transition:
-        opacity 0.15s ease,
-        background-color 0.15s ease;
-    border-radius: 3px;
+        opacity var(--transition-normal),
+        background-color var(--transition-normal);
+    border-radius: var(--radius-sm);
     position: relative;
     z-index: 1;
 }
 
 .block-row:hover .collapse-toggle {
-    opacity: 0.5;
+    opacity: var(--opacity-dimmed);
 }
 
 .collapse-toggle:hover {
     opacity: 1 !important;
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-.theme-dark .collapse-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--color-interactive-hover);
 }
 
 .collapse-toggle.collapsed {
-    opacity: 0.3;
+    opacity: var(--opacity-disabled);
 }
 
 .block-row:hover .collapse-toggle.collapsed {
-    opacity: 0.5;
+    opacity: var(--opacity-dimmed);
 }
 
 /* Placeholder for alignment when no toggle */
 .collapse-toggle-placeholder {
     flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    margin: 2px 0 0 8px;
+    width: var(--layout-collapse-toggle-size);
+    height: var(--layout-collapse-toggle-size);
+    margin: 2px 0 0 var(--spacing-sm);
 }
 
 /* Bullet Point Wrapper */
 .block-bullet-wrapper {
     flex-shrink: 0;
-    width: 24px;
-    height: 24px;
+    width: var(--layout-bullet-container-size);
+    height: var(--layout-bullet-container-size);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -100,33 +91,21 @@
 
 /* Clean bullet point */
 .block-bullet {
-    width: 4px;
-    height: 4px;
+    width: var(--layout-bullet-size);
+    height: var(--layout-bullet-size);
     border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.4);
-    transition: all 0.2s ease;
+    background-color: var(--color-bullet-default);
+    transition: all var(--transition-slow);
     display: block;
 }
 
-.theme-dark .block-bullet {
-    background-color: rgba(255, 255, 255, 0.4);
-}
-
 .block-bullet-wrapper:hover .block-bullet {
-    background-color: rgba(0, 0, 0, 0.7);
-}
-
-.theme-dark .block-bullet-wrapper:hover .block-bullet {
-    background-color: rgba(255, 255, 255, 0.7);
+    background-color: var(--color-bullet-hover);
 }
 
 /* Focused block bullet highlight - more prominent */
 .block-row:has(.block-editor .cm-focused) .block-bullet {
-    background-color: rgba(0, 0, 0, 0.85);
-}
-
-.theme-dark .block-row:has(.block-editor .cm-focused) .block-bullet {
-    background-color: rgba(255, 255, 255, 0.85);
+    background-color: var(--color-bullet-active);
 }
 
 /* Content Wrapper */
@@ -172,13 +151,13 @@
 }
 
 .block-editor .cm-content {
-    padding: 2px 4px !important;
+    padding: 2px var(--spacing-xs) !important;
     background: transparent !important;
 }
 
 .block-editor .cm-line {
     padding: 0 !important;
-    line-height: 24px !important;
+    line-height: var(--layout-bullet-container-size) !important;
 }
 
 /* Ensure active line background is transparent */

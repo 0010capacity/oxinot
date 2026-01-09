@@ -1,6 +1,11 @@
 /* Import Material Symbols Font */
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200");
 
+/* Import Theme System Styles */
+@import "./styles/variables.css";
+@import "./styles/layout.css";
+@import "./styles/utilities.css";
+
 /* Titlebar Drag Region */
 [data-tauri-drag-region] {
     -webkit-app-region: drag;
