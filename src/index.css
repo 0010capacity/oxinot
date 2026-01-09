@@ -3,7 +3,9 @@
 
 /* Import Theme System Styles */
 @import "./styles/variables.css";
+@import "./styles/base.css";
 @import "./styles/layout.css";
+@import "./styles/components.css";
 @import "./styles/utilities.css";
 
 /* Titlebar Drag Region */
@@ -29,33 +31,7 @@
     app-region: no-drag;
 }
 
-/* Global Styles */
-* {
-    box-sizing: border-box;
-}
-
-/* macOS-style rounded window container
-   - Works well with Tauri's transparent titlebar + hidden decorations
-   - Keeps content clipped to the rounded corners */
-html,
-body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-    /* Use a non-transparent backdrop so the rounded app corners are visible */
-    background: #0b0c0f;
-}
-
-#root {
-    height: 100%;
-    border-radius: 14px;
-    overflow: hidden;
-    background: var(--mantine-color-body, #1a1b1e);
-    box-shadow:
-        0 20px 50px rgba(0, 0, 0, 0.35),
-        0 2px 8px rgba(0, 0, 0, 0.25);
-}
+/* Note: Global styles, box-sizing, html, body, and #root styles moved to styles/base.css */
 
 /* Material Symbols Icon */
 .material-symbols-outlined {
@@ -77,6 +53,7 @@ body {
 }
 
 /* Utility Classes */
+/* Utility class to hide scrollbars */
 .no-scrollbar::-webkit-scrollbar {
     display: none;
 }
@@ -86,15 +63,7 @@ body {
     scrollbar-width: none;
 }
 
-[contenteditable]:empty:before {
-    content: attr(placeholder);
-    color: #9ca3af;
-    pointer-events: none;
-}
-
-[contenteditable]:focus {
-    outline: none;
-}
+/* Note: Content editable styles moved to styles/base.css */
 
 /* NUCLEAR OPTION: Remove ALL heading underlines with maximum specificity */
 h1,
@@ -305,18 +274,18 @@ span[class*="heading"],
 }
 
 /* Selection Styles */
-::selection {
-    background: #b3d4fc;
-}
+/* Note: Selection styles moved to styles/base.css */
 
 /* Smooth Transitions */
 .cm-line {
     transition: padding 0.1s ease;
 }
 
-/* Print Styles */
+/* Print Styles - CodeMirror specific */
 @media print {
     .cm-gutters {
         display: none;
     }
+
+    /* Additional print styles in styles/base.css */
 }

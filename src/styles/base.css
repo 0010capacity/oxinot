@@ -1,0 +1,313 @@
+/**
+ * Base styles and CSS reset
+ * Provides a consistent foundation across browsers
+ */
+
+/* ============================================================================
+   CSS Reset and Normalization
+   ============================================================================ */
+
+/* Box sizing reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Remove default margin and padding */
+* {
+  margin: 0;
+  padding: 0;
+}
+
+/* HTML and Body */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "liga", "kern";
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  /* Use a non-transparent backdrop so the rounded app corners are visible */
+  background: #0b0c0f;
+}
+
+body {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+}
+
+/* Root container */
+#root {
+  height: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--color-bg-primary);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* ============================================================================
+   Typography Reset
+   ============================================================================ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  padding: 0;
+  font-weight: 600;
+  line-height: var(--line-height-tight);
+  text-decoration: none !important;
+  border-bottom: none !important;
+  border-top: none !important;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--color-text-link);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-accent);
+}
+
+a:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   List Reset
+   ============================================================================ */
+
+ul,
+ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================================================
+   Form Elements Reset
+   ============================================================================ */
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  margin: 0;
+}
+
+button,
+[type="button"],
+[type="reset"],
+[type="submit"] {
+  -webkit-appearance: button;
+  cursor: pointer;
+}
+
+button:disabled,
+[disabled] {
+  cursor: not-allowed;
+  opacity: var(--opacity-disabled);
+}
+
+input,
+textarea,
+select {
+  background-color: transparent;
+  border: none;
+  outline: none;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+}
+
+/* ============================================================================
+   Interactive Elements
+   ============================================================================ */
+
+button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* ============================================================================
+   Content Editable
+   ============================================================================ */
+
+[contenteditable]:empty:before {
+  content: attr(placeholder);
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+  opacity: var(--opacity-dimmed);
+}
+
+[contenteditable]:focus {
+  outline: none;
+}
+
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ============================================================================
+   Selection Styles
+   ============================================================================ */
+
+::selection {
+  background: var(--color-interactive-selected);
+  color: var(--color-text-primary);
+}
+
+::-moz-selection {
+  background: var(--color-interactive-selected);
+  color: var(--color-text-primary);
+}
+
+/* ============================================================================
+   Scrollbar Styles
+   ============================================================================ */
+
+/* WebKit scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-secondary);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-primary);
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-secondary) var(--color-bg-secondary);
+}
+
+/* ============================================================================
+   Focus Visible
+   ============================================================================ */
+
+*:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* Remove outline for mouse interactions */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ============================================================================
+   Print Styles
+   ============================================================================ */
+
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  #root {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* Hide non-essential elements when printing */
+  button,
+  [role="button"],
+  nav,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Ensure content is visible */
+  * {
+    color: black !important;
+    background: white !important;
+  }
+
+  /* Page breaks */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    page-break-after: avoid;
+  }
+
+  p,
+  blockquote,
+  pre {
+    page-break-inside: avoid;
+  }
+}
+
+/* ============================================================================
+   Reduced Motion
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================================
+   High Contrast Mode
+   ============================================================================ */
+
+@media (prefers-contrast: high) {
+  * {
+    border-color: currentColor !important;
+  }
+
+  a {
+    text-decoration: underline;
+  }
+}
