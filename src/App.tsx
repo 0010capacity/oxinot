@@ -136,7 +136,7 @@ function AppContent({ workspacePath }: AppContentProps) {
       if (result.success) {
         notifications.show({
           message: "Committed",
-          position: "bottom-right",
+          position: "bottom-center",
           autoClose: 1500,
           withCloseButton: false,
           styles: {
@@ -161,7 +161,7 @@ function AppContent({ workspacePath }: AppContentProps) {
     } catch (error) {
       notifications.show({
         message: "Commit failed",
-        position: "bottom-right",
+        position: "bottom-center",
         autoClose: 2000,
         withCloseButton: false,
         styles: {
@@ -193,6 +193,17 @@ function AppContent({ workspacePath }: AppContentProps) {
       });
     }
   }, [workspacePath, initGit, checkGitStatus]);
+
+  // Periodic Git status check (every 3 seconds)
+  useEffect(() => {
+    if (!workspacePath || !isGitRepo) return;
+
+    const intervalId = setInterval(() => {
+      checkGitStatus(workspacePath);
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [workspacePath, isGitRepo, checkGitStatus]);
 
   // Auto-commit interval
   useEffect(() => {

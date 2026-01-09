@@ -6,6 +6,7 @@ use crate::commands::workspace::open_workspace_db;
 use crate::models::block::{
     Block, BlockType, CreateBlockRequest, MoveBlockRequest, UpdateBlockRequest,
 };
+use crate::services::markdown_mirror::blocks_to_markdown;
 use crate::utils::fractional_index;
 
 /// Get all blocks for a page
@@ -85,7 +86,12 @@ pub async fn create_block(
     )
     .map_err(|e| e.to_string())?;
 
-    get_block_by_id(&conn, &id)
+    let created_block = get_block_by_id(&conn, &id)?;
+
+    // Sync to markdown file
+    sync_page_to_markdown(&conn, &workspace_path, &created_block.page_id)?;
+
+    Ok(created_block)
 }
 
 /// Update a block
@@ -117,13 +123,27 @@ pub async fn update_block(
     )
     .map_err(|e| e.to_string())?;
 
-    get_block_by_id(&conn, &request.id)
+    let updated_block = get_block_by_id(&conn, &request.id)?;
+
+    // Sync to markdown file
+    sync_page_to_markdown(&conn, &workspace_path, &updated_block.page_id)?;
+
+    Ok(updated_block)
 }
 
 /// Delete a block (and all descendants)
 #[tauri::command]
 pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Vec<String>, String> {
     let conn = open_workspace_db(&workspace_path)?;
+
+    // Get page_id before deletion
+    let page_id: String = conn
+        .query_row(
+            "SELECT page_id FROM blocks WHERE id = ?",
+            [&block_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
 
     // Collect all descendant IDs
     let deleted_ids = collect_descendant_ids(&conn, &block_id)?;
@@ -132,7 +152,77 @@ pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Ve
     conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
         .map_err(|e| e.to_string())?;
 
+    // Sync to markdown file
+    sync_page_to_markdown(&conn, &workspace_path, &page_id)?;
+
     Ok(deleted_ids)
+}
+
+/// Helper function to sync a page's blocks to its markdown file
+fn sync_page_to_markdown(
+    conn: &rusqlite::Connection,
+    workspace_path: &str,
+    page_id: &str,
+) -> Result<(), String> {
+    // Get file path for this page
+    let file_path: Option<String> = conn
+        .query_row(
+            "SELECT file_path FROM pages WHERE id = ?",
+            [page_id],
+            |row| row.get(0),
+        )
+        .ok();
+
+    if file_path.is_none() {
+        return Ok(()); // No file path, skip
+    }
+
+    // Get all blocks for this page
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, page_id, parent_id, content, order_weight,
+                is_collapsed, block_type, language, created_at, updated_at
+         FROM blocks WHERE page_id = ? ORDER BY order_weight",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let blocks: Vec<Block> = stmt
+        .query_map([page_id], |row| {
+            Ok(Block {
+                id: row.get(0)?,
+                page_id: row.get(1)?,
+                parent_id: row.get(2)?,
+                content: row.get(3)?,
+                order_weight: row.get(4)?,
+                is_collapsed: row.get::<_, i32>(5)? != 0,
+                block_type: string_to_block_type(&row.get::<_, String>(6)?),
+                language: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    // Convert blocks to markdown
+    let markdown = blocks_to_markdown(&blocks);
+
+    // Write to file
+    if let Some(path) = file_path {
+        let full_path = std::path::Path::new(workspace_path).join(path);
+        std::fs::write(&full_path, markdown).map_err(|e| format!("Failed to write file: {}", e))?;
+    }
+
+    Ok(())
+}
+
+fn string_to_block_type(s: &str) -> BlockType {
+    match s.to_lowercase().as_str() {
+        "code" => BlockType::Code,
+        "fence" => BlockType::Fence,
+        _ => BlockType::Bullet,
+    }
 }
 
 /// Move a block (change parent and/or position)
@@ -161,7 +251,12 @@ pub async fn move_block(
     )
     .map_err(|e| e.to_string())?;
 
-    get_block_by_id(&conn, &request.id)
+    let moved_block = get_block_by_id(&conn, &request.id)?;
+
+    // Sync to markdown file
+    sync_page_to_markdown(&conn, &workspace_path, &moved_block.page_id)?;
+
+    Ok(moved_block)
 }
 
 /// Indent a block (make it a child of previous sibling)
@@ -190,7 +285,12 @@ pub async fn indent_block(workspace_path: String, block_id: String) -> Result<Bl
     )
     .map_err(|e| e.to_string())?;
 
-    get_block_by_id(&conn, &block_id)
+    let updated_block = get_block_by_id(&conn, &block_id)?;
+
+    // Sync to markdown file
+    sync_page_to_markdown(&conn, &workspace_path, &updated_block.page_id)?;
+
+    Ok(updated_block)
 }
 
 /// Outdent a block (make it a sibling of its parent)
@@ -222,7 +322,12 @@ pub async fn outdent_block(workspace_path: String, block_id: String) -> Result<B
     )
     .map_err(|e| e.to_string())?;
 
-    get_block_by_id(&conn, &block_id)
+    let updated_block = get_block_by_id(&conn, &block_id)?;
+
+    // Sync to markdown file
+    sync_page_to_markdown(&conn, &workspace_path, &updated_block.page_id)?;
+
+    Ok(updated_block)
 }
 
 /// Toggle collapse state of a block
@@ -239,7 +344,12 @@ pub async fn toggle_collapse(workspace_path: String, block_id: String) -> Result
     )
     .map_err(|e| e.to_string())?;
 
-    get_block_by_id(&conn, &block_id)
+    let updated_block = get_block_by_id(&conn, &block_id)?;
+
+    // Sync to markdown file
+    sync_page_to_markdown(&conn, &workspace_path, &updated_block.page_id)?;
+
+    Ok(updated_block)
 }
 
 // ============ Helper Functions ============
