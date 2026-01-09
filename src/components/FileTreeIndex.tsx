@@ -24,7 +24,6 @@ import { ContentWrapper } from "./layout/ContentWrapper";
 import { PageHeader } from "./layout/PageHeader";
 import { PageTreeItem } from "./fileTree/PageTreeItem";
 import { NewPageInput } from "./fileTree/NewPageInput";
-import { IndentGuide } from "./common/IndentGuide";
 
 interface DragState {
   isDragging: boolean;
@@ -52,7 +51,8 @@ const MemoizedPageTreeItem = memo(PageTreeItem, (prev, next) => {
     prev.editValue === next.editValue &&
     prev.collapsed[prev.page.id] === next.collapsed[next.page.id] &&
     prev.draggedPageId === next.draggedPageId &&
-    prev.dragOverPageId === next.dragOverPageId
+    prev.dragOverPageId === next.dragOverPageId &&
+    prev.showIndentGuides === next.showIndentGuides
   );
 });
 
@@ -351,9 +351,6 @@ export function FileTreeIndex() {
 
       return (
         <React.Fragment key={page.id}>
-          {/* Indent guides for nested levels */}
-          <IndentGuide depth={depth} show={showIndentGuides} />
-
           <MemoizedPageTreeItem
             page={page}
             depth={depth}
@@ -370,6 +367,7 @@ export function FileTreeIndex() {
             onToggleCollapse={handleToggleCollapse}
             draggedPageId={draggedPageId}
             dragOverPageId={dragOverPageId}
+            showIndentGuides={showIndentGuides}
           >
             {hasChildren || isCreatingChild ? (
               <>
@@ -392,7 +390,6 @@ export function FileTreeIndex() {
       pages,
       isCreating,
       creatingParentId,
-      showIndentGuides,
       handleEditPage,
       handleDeletePage,
       handleAddChild,
@@ -408,6 +405,7 @@ export function FileTreeIndex() {
       handleCreatePage,
       handleCancelCreate,
       isSubmitting,
+      showIndentGuides,
     ],
   );
 

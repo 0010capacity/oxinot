@@ -31,7 +31,7 @@ export function IndentGuide({
           className={`indent-guide ${className}`}
           style={{
             position: "absolute",
-            left: `${index * indentSize + 18}px`,
+            left: `${index * indentSize + 11}px`,
             top: 0,
             bottom: 0,
             width: "1px",

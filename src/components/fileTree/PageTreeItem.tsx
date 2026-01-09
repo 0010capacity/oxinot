@@ -11,6 +11,7 @@ import { usePageStore, type PageData } from "../../stores/pageStore";
 import { useBlockStore } from "../../stores/blockStore";
 import { CollapseToggle } from "../common/CollapseToggle";
 import { BulletPoint } from "../common/BulletPoint";
+import { IndentGuide } from "../common/IndentGuide";
 
 interface PageTreeItemProps {
   page: PageData;
@@ -28,6 +29,7 @@ interface PageTreeItemProps {
   onToggleCollapse: (pageId: string) => void;
   draggedPageId: string | null;
   dragOverPageId: string | null;
+  showIndentGuides?: boolean;
   children?: React.ReactNode;
 }
 
@@ -47,6 +49,7 @@ export function PageTreeItem({
   onToggleCollapse,
   draggedPageId,
   dragOverPageId,
+  showIndentGuides = true,
   children,
 }: PageTreeItemProps) {
   const openNote = useViewStore((state) => state.openNote);
@@ -131,6 +134,11 @@ export function PageTreeItem({
           userSelect: isDragging ? "none" : "auto",
         }}
       >
+        {/* Indent guides */}
+        {showIndentGuides && depth > 0 && (
+          <IndentGuide depth={depth} show={true} />
+        )}
+
         {/* Drop indicator */}
         {isDraggedOver && draggedPageId !== page.id && (
           <div
@@ -143,7 +151,7 @@ export function PageTreeItem({
               backgroundColor: "var(--color-interactive-selected)",
               borderRadius: "var(--radius-sm)",
               pointerEvents: "none",
-              zIndex: 0,
+              zIndex: 1,
             }}
           />
         )}
@@ -161,6 +169,7 @@ export function PageTreeItem({
             borderRadius: "var(--radius-sm)",
             transition: "background-color var(--transition-normal)",
             userSelect: "none",
+            zIndex: 2,
           }}
         >
           {/* Collapse/Expand Toggle */}
