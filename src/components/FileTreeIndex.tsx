@@ -6,15 +6,7 @@ import React, {
   useMemo,
   memo,
 } from "react";
-import {
-  Stack,
-  Text,
-  Group,
-  Loader,
-  ActionIcon,
-  Modal,
-  Button,
-} from "@mantine/core";
+import { Stack, Text, Group, Loader, Modal, Button } from "@mantine/core";
 import { IconPlus } from "@tabler/icons-react";
 import { usePageStore, type PageData } from "../stores/pageStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
@@ -430,103 +422,86 @@ export function FileTreeIndex() {
 
         <Stack gap={0} style={{ position: "relative" }}>
           {/* Pages Tree */}
-          {rootPages.length === 0 && !isCreating ? (
-            <Stack align="center" justify="center" h="200px">
-              <Text size="sm" c="dimmed">
-                No pages found. Create your first page!
-              </Text>
-              <ActionIcon
-                size="lg"
-                variant="light"
+          <Stack gap={0} style={{ flex: 1 }}>
+            {rootPages.map((page) => renderPageTree(page, 0))}
+
+            {/* New Page Input at bottom */}
+            {isCreating && !creatingParentId && (
+              <div style={{ marginTop: "8px" }}>
+                <NewPageInput
+                  depth={0}
+                  onSubmit={handleCreatePage}
+                  onCancel={handleCancelCreate}
+                  isSubmitting={isSubmitting}
+                />
+              </div>
+            )}
+
+            {/* Floating New Page Button */}
+            {!isCreating && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--spacing-sm)",
+                  paddingLeft: "0px",
+                  paddingTop: "8px",
+                  paddingBottom: "4px",
+                  cursor: "pointer",
+                  borderRadius: "var(--radius-sm)",
+                  transition: "background-color var(--transition-normal)",
+                  opacity: "var(--opacity-hover)",
+                }}
                 onClick={() => setIsCreating(true)}
-                title="New Page"
-                style={{ marginTop: "8px" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = "1";
+                  e.currentTarget.style.backgroundColor =
+                    "var(--color-interactive-hover)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = "var(--opacity-hover)";
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
               >
-                <IconPlus size={20} />
-              </ActionIcon>
-            </Stack>
-          ) : (
-            <Stack gap={0} style={{ flex: 1 }}>
-              {rootPages.map((page) => renderPageTree(page, 0))}
-
-              {/* New Page Input at bottom */}
-              {isCreating && !creatingParentId && (
-                <div style={{ marginTop: "8px" }}>
-                  <NewPageInput
-                    depth={0}
-                    onSubmit={handleCreatePage}
-                    onCancel={handleCancelCreate}
-                    isSubmitting={isSubmitting}
-                  />
-                </div>
-              )}
-
-              {/* Floating New Page Button */}
-              {!isCreating && (
+                {/* Spacer for collapse toggle */}
                 <div
                   style={{
+                    flexShrink: 0,
+                    width: "var(--layout-collapse-toggle-size)",
+                    height: "var(--layout-collapse-toggle-size)",
+                  }}
+                />
+
+                {/* Plus icon at bullet position */}
+                <div
+                  style={{
+                    flexShrink: 0,
+                    width: "var(--layout-bullet-container-size)",
+                    height: "var(--layout-bullet-container-size)",
                     display: "flex",
                     alignItems: "center",
-                    gap: "var(--spacing-sm)",
-                    paddingLeft: "0px",
-                    paddingTop: "8px",
-                    paddingBottom: "4px",
-                    cursor: "pointer",
-                    borderRadius: "var(--radius-sm)",
-                    transition: "background-color var(--transition-normal)",
-                    opacity: "var(--opacity-hover)",
-                  }}
-                  onClick={() => setIsCreating(true)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = "1";
-                    e.currentTarget.style.backgroundColor =
-                      "var(--color-interactive-hover)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = "var(--opacity-hover)";
-                    e.currentTarget.style.backgroundColor = "transparent";
+                    justifyContent: "center",
                   }}
                 >
-                  {/* Spacer for collapse toggle */}
-                  <div
-                    style={{
-                      flexShrink: 0,
-                      width: "var(--layout-collapse-toggle-size)",
-                      height: "var(--layout-collapse-toggle-size)",
-                    }}
+                  <IconPlus
+                    size={16}
+                    style={{ opacity: "var(--opacity-dimmed)" }}
                   />
-
-                  {/* Plus icon at bullet position */}
-                  <div
-                    style={{
-                      flexShrink: 0,
-                      width: "var(--layout-bullet-container-size)",
-                      height: "var(--layout-bullet-container-size)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <IconPlus
-                      size={16}
-                      style={{ opacity: "var(--opacity-dimmed)" }}
-                    />
-                  </div>
-
-                  <Text
-                    size="sm"
-                    c="dimmed"
-                    style={{
-                      userSelect: "none",
-                      paddingLeft: "4px",
-                    }}
-                  >
-                    New page
-                  </Text>
                 </div>
-              )}
-            </Stack>
-          )}
+
+                <Text
+                  size="sm"
+                  c="dimmed"
+                  style={{
+                    userSelect: "none",
+                    paddingLeft: "4px",
+                  }}
+                >
+                  New page
+                </Text>
+              </div>
+            )}
+          </Stack>
         </Stack>
       </ContentWrapper>
 
