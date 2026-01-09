@@ -110,6 +110,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   // Git state
   const hasGitChanges = useGitStore((state) => state.hasChanges);
   const isGitRepo = useGitStore((state) => state.isRepo);
+  const initGit = useGitStore((state) => state.initGit);
   const checkGitStatus = useGitStore((state) => state.checkStatus);
   const gitCommit = useGitStore((state) => state.commit);
   const autoCommitEnabled = useGitStore((state) => state.autoCommitEnabled);
@@ -133,12 +134,14 @@ function AppContent({ workspacePath }: AppContentProps) {
     }
   };
 
-  // Check git status on workspace load
+  // Initialize git repo check and status on workspace load
   useEffect(() => {
-    if (workspacePath && isGitRepo) {
-      checkGitStatus(workspacePath);
+    if (workspacePath) {
+      initGit(workspacePath).then(() => {
+        checkGitStatus(workspacePath);
+      });
     }
-  }, [workspacePath, isGitRepo, checkGitStatus]);
+  }, [workspacePath, initGit, checkGitStatus]);
 
   // Auto-commit interval
   useEffect(() => {
@@ -261,9 +264,7 @@ function AppContent({ workspacePath }: AppContentProps) {
             onSearchClick={() => setSearchOpened(true)}
             onHelpClick={() => setHelpOpened(true)}
             onCalendarClick={() => setCalendarOpened(true)}
-            onGitCommitClick={handleGitCommit}
             onCommandPaletteClick={() => setCommandPaletteOpened(true)}
-            hasGitChanges={hasGitChanges}
             currentWorkspacePath={workspacePath}
           />
 
@@ -299,6 +300,75 @@ function AppContent({ workspacePath }: AppContentProps) {
               </Container>
             )}
           </div>
+
+          {/* Git Status Bar - Bottom Right */}
+          {isGitRepo && (
+            <div
+              style={{
+                position: "fixed",
+                bottom: "8px",
+                right: "8px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "6px 12px",
+                backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                borderRadius: "6px",
+                border: `1px solid ${isDark ? "#373A40" : "#dee2e6"}`,
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                zIndex: 50,
+              }}
+              onClick={handleGitCommit}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = isDark
+                  ? "#373A40"
+                  : "#e9ecef";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = isDark
+                  ? "#2C2E33"
+                  : "#F1F3F5";
+              }}
+              title={
+                hasGitChanges
+                  ? "Click to commit changes"
+                  : "No changes to commit"
+              }
+            >
+              <div
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  backgroundColor: hasGitChanges
+                    ? isDark
+                      ? "#ffd43b"
+                      : "#fab005"
+                    : isDark
+                      ? "#5c5f66"
+                      : "#adb5bd",
+                  transition: "background-color 0.15s ease",
+                }}
+              />
+              <Text
+                size="xs"
+                style={{
+                  color: hasGitChanges
+                    ? isDark
+                      ? "#ffd43b"
+                      : "#fab005"
+                    : isDark
+                      ? "#909296"
+                      : "#868e96",
+                  fontSize: "0.75rem",
+                  fontWeight: 500,
+                }}
+              >
+                {hasGitChanges ? "Changes" : "Clean"}
+              </Text>
+            </div>
+          )}
         </AppShell.Main>
       </AppShell>
 

@@ -65,13 +65,27 @@ export const useGitStore = create<GitState>()(
 
       initGit: async (workspacePath: string) => {
         try {
+          // First check if it's already a repo
+          const isRepo = await invoke<boolean>("git_is_repo", {
+            workspacePath,
+          });
+
+          if (isRepo) {
+            set({ isRepo: true });
+            await get().checkStatus(workspacePath);
+            return true;
+          }
+
+          // If not, try to init
           const result = await invoke<boolean>("git_init", { workspacePath });
           if (result) {
+            set({ isRepo: true });
             await get().checkStatus(workspacePath);
           }
           return result;
         } catch (error) {
           console.error("[GitStore] Failed to init git:", error);
+          set({ isRepo: false });
           return false;
         }
       },
