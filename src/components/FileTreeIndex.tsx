@@ -465,11 +465,12 @@ export function FileTreeIndex() {
 
               {/* Floating New Page Button */}
               {!isCreating && (
-                <Group
-                  gap="xs"
-                  wrap="nowrap"
+                <div
                   style={{
-                    paddingLeft: "56px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--spacing-sm)",
+                    paddingLeft: "0px",
                     paddingTop: "8px",
                     paddingBottom: "4px",
                     cursor: "pointer",
@@ -488,14 +489,36 @@ export function FileTreeIndex() {
                     e.currentTarget.style.backgroundColor = "transparent";
                   }}
                 >
-                  <IconPlus
-                    size={16}
-                    style={{ opacity: "var(--opacity-dimmed)" }}
+                  {/* Spacer for collapse toggle */}
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      width: "var(--layout-collapse-toggle-size)",
+                      height: "var(--layout-collapse-toggle-size)",
+                    }}
                   />
+
+                  {/* Plus icon at bullet position */}
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      width: "var(--layout-bullet-container-size)",
+                      height: "var(--layout-bullet-container-size)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <IconPlus
+                      size={16}
+                      style={{ opacity: "var(--opacity-dimmed)" }}
+                    />
+                  </div>
+
                   <Text size="sm" c="dimmed" style={{ userSelect: "none" }}>
                     New page
                   </Text>
-                </Group>
+                </div>
               )}
             </Stack>
           )}
