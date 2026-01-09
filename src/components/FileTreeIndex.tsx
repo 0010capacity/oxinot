@@ -558,13 +558,6 @@ export function FileTreeIndex() {
       );
       console.log("[FileTreeIndex] Page created with ID:", newPageId);
 
-      // Sync workspace to ensure file is in DB
-      const { workspacePath } = useWorkspaceStore.getState();
-      if (workspacePath) {
-        console.log("[FileTreeIndex] Syncing workspace after page creation...");
-        await invoke("sync_workspace", { workspacePath });
-      }
-
       // Reload pages to update UI
       console.log("[FileTreeIndex] Reloading pages...");
       await loadPages();

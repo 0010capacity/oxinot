@@ -395,6 +395,11 @@ pub async fn set_workspace_path(
 pub async fn sync_workspace(workspace_path: String) -> Result<MigrationResult, String> {
     let conn = open_workspace_db(&workspace_path)?;
 
+    println!(
+        "[sync_workspace] Starting sync for workspace: {}",
+        workspace_path
+    );
+
     // Get all existing pages from DB
     let mut existing_pages: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
@@ -411,9 +416,18 @@ pub async fn sync_workspace(workspace_path: String) -> Result<MigrationResult, S
 
         for page in pages {
             let (id, path) = page.map_err(|e| e.to_string())?;
+            println!(
+                "[sync_workspace] Found page in DB: id={}, path={}",
+                id, path
+            );
             existing_pages.insert(path, id);
         }
     }
+
+    println!(
+        "[sync_workspace] Total pages in DB: {}",
+        existing_pages.len()
+    );
 
     let mut synced_pages = 0;
     let mut synced_blocks = 0;
@@ -432,14 +446,29 @@ pub async fn sync_workspace(workspace_path: String) -> Result<MigrationResult, S
         &mut synced_blocks,
     )?;
 
+    println!(
+        "[sync_workspace] Found {} files in filesystem",
+        found_files.len()
+    );
+
     // Delete pages from DB that no longer exist in filesystem
+    let mut deleted_count = 0;
     for (file_path, page_id) in existing_pages.iter() {
         if !found_files.contains(file_path) {
-            println!("Deleting orphaned page from DB: {}", file_path);
+            println!(
+                "[sync_workspace] DELETING orphaned page from DB: id={}, path={}",
+                page_id, file_path
+            );
             conn.execute("DELETE FROM pages WHERE id = ?", [page_id])
                 .map_err(|e| e.to_string())?;
+            deleted_count += 1;
         }
     }
+
+    println!(
+        "[sync_workspace] Sync complete: {} pages synced, {} blocks synced, {} pages deleted",
+        synced_pages, synced_blocks, deleted_count
+    );
 
     Ok(MigrationResult {
         pages: synced_pages,
@@ -470,6 +499,14 @@ fn sync_directory(
 
     for entry in items {
         let path = entry.path();
+
+        // Skip .md-outliner directory
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            if name == ".md-outliner" {
+                continue;
+            }
+        }
+
         let metadata = entry
             .metadata()
             .map_err(|e| format!("Error reading metadata: {}", e))?;
@@ -478,6 +515,7 @@ fn sync_directory(
             if let Some(ext) = path.extension() {
                 if ext == "md" {
                     let file_path_str = path.to_string_lossy().to_string();
+                    println!("[sync_directory] Found markdown file: {}", file_path_str);
                     found_files.insert(file_path_str.clone());
 
                     sync_or_create_file(

@@ -12,24 +12,10 @@ use crate::services::FileSyncService;
 pub async fn get_pages(workspace_path: String) -> Result<Vec<Page>, String> {
     let conn = open_workspace_db(&workspace_path)?;
 
-    // Ensure workspace path exists in database (for backward compatibility)
-    let has_workspace: bool = conn
-        .query_row(
-            "SELECT COUNT(*) FROM workspace WHERE id = 'default'",
-            [],
-            |row| row.get::<_, i32>(0),
-        )
-        .map(|count| count > 0)
-        .unwrap_or(false);
-
-    if !has_workspace {
-        // Create default workspace entry without path (will be set later)
-        conn.execute(
-            "INSERT OR IGNORE INTO workspace (id, created_at) VALUES ('default', ?)",
-            [chrono::Utc::now().to_rfc3339()],
-        )
-        .map_err(|e| e.to_string())?;
-    }
+    println!(
+        "[get_pages] Getting pages from workspace: {}",
+        workspace_path
+    );
 
     let mut stmt = conn
         .prepare(
@@ -41,7 +27,7 @@ pub async fn get_pages(workspace_path: String) -> Result<Vec<Page>, String> {
 
     let pages = stmt
         .query_map([], |row| {
-            Ok(Page {
+            let page = Page {
                 id: row.get(0)?,
                 title: row.get(1)?,
                 parent_id: row.get(2)?,
@@ -49,13 +35,18 @@ pub async fn get_pages(workspace_path: String) -> Result<Vec<Page>, String> {
                 is_directory: row.get::<_, i32>(4)? != 0,
                 created_at: row.get(5)?,
                 updated_at: row.get(6)?,
-            })
+            };
+            println!(
+                "[get_pages] Found page: id={}, title={}, parent={:?}",
+                page.id, page.title, page.parent_id
+            );
+            Ok(page)
         })
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    println!("[get_pages] Returning {} pages", pages.len());
+    println!("[get_pages] Returning {} pages from DB", pages.len());
 
     Ok(pages)
 }
