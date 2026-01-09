@@ -94,6 +94,7 @@ export function BlockEditor({
           style={{
             maxWidth: "800px",
             margin: "0 auto 32px",
+            paddingLeft: "8px",
             paddingBottom: "16px",
             borderBottom: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
           }}
