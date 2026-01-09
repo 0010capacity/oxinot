@@ -3,7 +3,6 @@ import {
   IconSun,
   IconMoon,
   IconSettings,
-  IconFolderOpen,
   IconSearch,
   IconHelp,
   IconCalendar,
@@ -12,19 +11,17 @@ import { useMantineColorScheme } from "@mantine/core";
 
 interface ActionIconsProps {
   onSettingsClick: () => void;
-  onWorkspaceChange: () => void;
   onSearchClick?: () => void;
   onHelpClick?: () => void;
   onCalendarClick?: () => void;
 }
 
 /**
- * Action icons in the title bar (workspace, search, calendar, help, theme, settings).
+ * Action icons in the title bar (search, calendar, help, theme, settings).
  * Extracted for better organization and maintainability.
  */
 export function ActionIcons({
   onSettingsClick,
-  onWorkspaceChange,
   onSearchClick,
   onHelpClick,
   onCalendarClick,
@@ -43,16 +40,6 @@ export function ActionIcons({
 
   return (
     <Group gap={6} wrap="nowrap" style={{ flexShrink: 0 }}>
-      <ActionIcon
-        variant="subtle"
-        size="md"
-        title="Change workspace"
-        onClick={onWorkspaceChange}
-        styles={iconButtonStyles}
-      >
-        <IconFolderOpen size={16} />
-      </ActionIcon>
-
       <ActionIcon
         variant="subtle"
         size="md"

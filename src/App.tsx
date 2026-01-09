@@ -12,7 +12,7 @@ import {
   Switch,
   Select,
 } from "@mantine/core";
-import { IconFolder } from "@tabler/icons-react";
+
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
@@ -29,7 +29,7 @@ import { BlockEditor } from "./outliner/BlockEditor";
 import { SearchModal } from "./components/SearchModal";
 import { CalendarModal } from "./components/CalendarModal";
 import { HelpModal } from "./components/HelpModal";
-import { WorkspacePicker } from "./components/WorkspacePicker";
+
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { useThemeStore } from "./stores/themeStore";
 import { SegmentedControl } from "@mantine/core";
@@ -41,48 +41,27 @@ const theme = createTheme({
 });
 
 function WorkspaceSelector() {
-  const [workspacePickerOpened, setWorkspacePickerOpened] = useState(false);
+  const { selectWorkspace, openWorkspace, getWorkspaces } = useWorkspaceStore();
+
+  useEffect(() => {
+    const workspaces = getWorkspaces();
+    if (workspaces.length > 0) {
+      // Auto-open last workspace
+      openWorkspace(workspaces[0].path);
+    } else {
+      // No workspaces, open file picker
+      selectWorkspace();
+    }
+  }, []);
 
   return (
-    <>
-      <Container size="xs" py="xl">
-        <Stack align="center" gap="lg" style={{ marginTop: "25vh" }}>
-          <div style={{ textAlign: "center" }}>
-            <Text size="xl" fw={600} mb="xs">
-              MD Outliner
-            </Text>
-            <Text size="sm" c="dimmed" mb="xl">
-              Select a workspace to begin
-            </Text>
-          </div>
-
-          <Button
-            onClick={() => setWorkspacePickerOpened(true)}
-            size="md"
-            leftSection={<IconFolder size={18} />}
-            variant="light"
-          >
-            Open Workspace
-          </Button>
-        </Stack>
-      </Container>
-
-      <Modal
-        opened={workspacePickerOpened}
-        onClose={() => setWorkspacePickerOpened(false)}
-        title=""
-        size="lg"
-        padding={0}
-        styles={{
-          header: { display: "none" },
-          body: { padding: 0, height: "70vh" },
-        }}
-      >
-        <WorkspacePicker
-          onWorkspaceSelected={() => setWorkspacePickerOpened(false)}
-        />
-      </Modal>
-    </>
+    <Container size="xs" py="xl">
+      <Stack align="center" gap="lg" style={{ marginTop: "25vh" }}>
+        <Text size="sm" c="dimmed">
+          Opening workspace...
+        </Text>
+      </Stack>
+    </Container>
   );
 }
 
@@ -122,7 +101,6 @@ function AppContent({ workspacePath }: AppContentProps) {
   const [searchOpened, setSearchOpened] = useState(false);
   const [calendarOpened, setCalendarOpened] = useState(false);
   const [helpOpened, setHelpOpened] = useState(false);
-  const [workspacePickerOpened, setWorkspacePickerOpened] = useState(false);
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
@@ -217,10 +195,10 @@ function AppContent({ workspacePath }: AppContentProps) {
           {/* Custom Title Bar */}
           <TitleBar
             onSettingsClick={() => setSettingsOpened(true)}
-            onWorkspaceChange={() => setWorkspacePickerOpened(true)}
             onSearchClick={() => setSearchOpened(true)}
             onHelpClick={() => setHelpOpened(true)}
             onCalendarClick={() => setCalendarOpened(true)}
+            currentWorkspacePath={workspacePath}
           />
 
           {/* Main Content Panel */}
@@ -276,22 +254,6 @@ function AppContent({ workspacePath }: AppContentProps) {
       />
 
       <HelpModal opened={helpOpened} onClose={() => setHelpOpened(false)} />
-
-      <Modal
-        opened={workspacePickerOpened}
-        onClose={() => setWorkspacePickerOpened(false)}
-        title=""
-        size="lg"
-        padding={0}
-        styles={{
-          header: { display: "none" },
-          body: { padding: 0, height: "70vh" },
-        }}
-      >
-        <WorkspacePicker
-          onWorkspaceSelected={() => setWorkspacePickerOpened(false)}
-        />
-      </Modal>
 
       <Modal
         opened={settingsOpened}

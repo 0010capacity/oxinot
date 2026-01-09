@@ -1,58 +1,42 @@
 import React, { useState } from "react";
 import {
-  Stack,
+  Menu,
   Text,
-  Button,
   Group,
   ActionIcon,
-  Paper,
-  ScrollArea,
+  UnstyledButton,
   Divider,
-  Tooltip,
-  TextInput,
+  ScrollArea,
 } from "@mantine/core";
 import {
   IconFolder,
   IconPlus,
-  IconTrash,
-  IconFolderOpen,
-  IconClock,
+  IconCheck,
+  IconChevronDown,
 } from "@tabler/icons-react";
-import { useWorkspaceStore, type WorkspaceInfo } from "../stores/workspaceStore";
+import {
+  useWorkspaceStore,
+  type WorkspaceInfo,
+} from "../stores/workspaceStore";
 import { useMantineColorScheme } from "@mantine/core";
 
 interface WorkspacePickerProps {
-  onWorkspaceSelected?: () => void;
+  currentWorkspacePath: string | null;
 }
 
-export function WorkspacePicker({ onWorkspaceSelected }: WorkspacePickerProps) {
+export function WorkspacePicker({
+  currentWorkspacePath,
+}: WorkspacePickerProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
 
   const workspaces = useWorkspaceStore((state) => state.getWorkspaces());
   const openWorkspace = useWorkspaceStore((state) => state.openWorkspace);
   const selectWorkspace = useWorkspaceStore((state) => state.selectWorkspace);
-  const removeWorkspace = useWorkspaceStore((state) => state.removeWorkspace);
 
-  const [hoveredPath, setHoveredPath] = useState<string | null>(null);
-
-  const handleOpenWorkspace = async (path: string) => {
-    await openWorkspace(path);
-    onWorkspaceSelected?.();
-  };
-
-  const handleAddWorkspace = async () => {
-    await selectWorkspace();
-    onWorkspaceSelected?.();
-  };
-
-  const handleRemoveWorkspace = (
-    e: React.MouseEvent,
-    path: string,
-  ) => {
-    e.stopPropagation();
-    removeWorkspace(path);
-  };
+  const currentWorkspace = workspaces.find(
+    (w) => w.path === currentWorkspacePath,
+  );
 
   const formatLastAccessed = (timestamp: number) => {
     const now = Date.now();
@@ -69,126 +53,103 @@ export function WorkspacePicker({ onWorkspaceSelected }: WorkspacePickerProps) {
   };
 
   return (
-    <Stack gap="lg" style={{ height: "100%", padding: "24px" }}>
-      {/* Header */}
-      <div>
-        <Text size="xl" fw={700} mb={4}>
-          Workspaces
-        </Text>
-        <Text size="sm" c="dimmed">
-          Select a workspace to open or add a new one
-        </Text>
-      </div>
+    <Menu shadow="md" width={320} position="bottom-start" offset={8}>
+      <Menu.Target>
+        <UnstyledButton
+          style={{
+            padding: "6px 12px",
+            borderRadius: "6px",
+            transition: "background-color 0.15s ease",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = isDark
+              ? "rgba(255, 255, 255, 0.08)"
+              : "rgba(0, 0, 0, 0.05)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "transparent";
+          }}
+        >
+          <IconFolder size={16} style={{ flexShrink: 0 }} />
+          <Text size="sm" fw={500} style={{ maxWidth: "200px" }} truncate>
+            {currentWorkspace?.name || "Select Workspace"}
+          </Text>
+          <IconChevronDown size={14} style={{ flexShrink: 0, opacity: 0.6 }} />
+        </UnstyledButton>
+      </Menu.Target>
 
-      {/* Workspace List */}
-      <ScrollArea style={{ flex: 1 }} offsetScrollbars>
+      <Menu.Dropdown>
+        <Menu.Label>Recent Workspaces</Menu.Label>
+
         {workspaces.length === 0 ? (
-          <Stack
-            align="center"
-            justify="center"
-            gap="md"
-            style={{
-              height: "200px",
-              opacity: 0.6,
-            }}
-          >
-            <IconFolder size={48} stroke={1.5} />
-            <Text size="sm" c="dimmed" ta="center">
+          <Menu.Item disabled style={{ textAlign: "center", padding: "20px" }}>
+            <Text size="xs" c="dimmed">
               No workspaces yet
-              <br />
-              Add one to get started
             </Text>
-          </Stack>
+          </Menu.Item>
         ) : (
-          <Stack gap="xs">
+          <ScrollArea.Autosize mah={400} offsetScrollbars>
             {workspaces.map((workspace) => (
-              <Paper
+              <Menu.Item
                 key={workspace.path}
-                p="md"
-                radius="md"
+                onClick={() => openWorkspace(workspace.path)}
+                leftSection={
+                  currentWorkspacePath === workspace.path ? (
+                    <IconCheck size={16} />
+                  ) : (
+                    <IconFolder size={16} style={{ opacity: 0.6 }} />
+                  )
+                }
                 style={{
-                  cursor: "pointer",
                   backgroundColor:
-                    hoveredPath === workspace.path
+                    currentWorkspacePath === workspace.path
                       ? isDark
-                        ? "#2C2E33"
-                        : "#F8F9FA"
-                      : isDark
-                        ? "#25262b"
-                        : "#fff",
-                  border: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
-                  transition: "all 0.15s ease",
+                        ? "rgba(99, 102, 241, 0.15)"
+                        : "rgba(99, 102, 241, 0.1)"
+                      : undefined,
                 }}
-                onMouseEnter={() => setHoveredPath(workspace.path)}
-                onMouseLeave={() => setHoveredPath(null)}
-                onClick={() => handleOpenWorkspace(workspace.path)}
               >
-                <Group justify="space-between" wrap="nowrap">
-                  <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                    <IconFolderOpen
-                      size={20}
+                <div>
+                  <Text size="sm" fw={500}>
+                    {workspace.name}
+                  </Text>
+                  <Group gap={8} mt={2}>
+                    <Text
+                      size="xs"
+                      c="dimmed"
                       style={{
-                        flexShrink: 0,
-                        color: isDark ? "#748ffc" : "#5c7cfa",
+                        maxWidth: "200px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
-                    />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <Text size="sm" fw={500} truncate>
-                        {workspace.name}
-                      </Text>
-                      <Text
-                        size="xs"
-                        c="dimmed"
-                        truncate
-                        style={{ marginTop: 2 }}
-                      >
-                        {workspace.path}
-                      </Text>
-                    </div>
+                    >
+                      {workspace.path}
+                    </Text>
+                    <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                      • {formatLastAccessed(workspace.lastAccessed)}
+                    </Text>
                   </Group>
-                  <Group gap={4} wrap="nowrap">
-                    <Tooltip label={`Last accessed: ${formatLastAccessed(workspace.lastAccessed)}`}>
-                      <Group gap={4} style={{ flexShrink: 0 }}>
-                        <IconClock size={14} opacity={0.5} />
-                        <Text size="xs" c="dimmed">
-                          {formatLastAccessed(workspace.lastAccessed)}
-                        </Text>
-                      </Group>
-                    </Tooltip>
-                    <Tooltip label="Remove workspace">
-                      <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        color="red"
-                        onClick={(e) => handleRemoveWorkspace(e, workspace.path)}
-                        style={{
-                          opacity: hoveredPath === workspace.path ? 1 : 0,
-                          transition: "opacity 0.15s ease",
-                        }}
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Group>
-              </Paper>
+                </div>
+              </Menu.Item>
             ))}
-          </Stack>
+          </ScrollArea.Autosize>
         )}
-      </ScrollArea>
 
-      <Divider />
+        <Divider my={4} />
 
-      {/* Add Workspace Button */}
-      <Button
-        leftSection={<IconPlus size={18} />}
-        onClick={handleAddWorkspace}
-        variant="light"
-        fullWidth
-        size="md"
-      >
-        Add Workspace
-      </Button>
-    </Stack>
+        <Menu.Item
+          leftSection={<IconPlus size={16} />}
+          onClick={selectWorkspace}
+        >
+          <Text size="sm" fw={500}>
+            Add Workspace...
+          </Text>
+        </Menu.Item>
+      </Menu.Dropdown>
+    </Menu>
   );
 }
