@@ -139,6 +139,7 @@ function AppContent({ workspacePath }: AppContentProps) {
           position: "bottom-center",
           autoClose: 1500,
           withCloseButton: false,
+          withBorder: false,
           styles: {
             root: {
               backgroundColor: isDark
@@ -149,6 +150,9 @@ function AppContent({ workspacePath }: AppContentProps) {
               boxShadow: "none",
               padding: "8px 12px",
               minHeight: "auto",
+              "&::before": {
+                display: "none",
+              },
             },
             description: {
               color: isDark ? "#909296" : "#868e96",
@@ -164,6 +168,7 @@ function AppContent({ workspacePath }: AppContentProps) {
         position: "bottom-center",
         autoClose: 2000,
         withCloseButton: false,
+        withBorder: false,
         styles: {
           root: {
             backgroundColor: isDark
@@ -174,6 +179,9 @@ function AppContent({ workspacePath }: AppContentProps) {
             boxShadow: "none",
             padding: "8px 12px",
             minHeight: "auto",
+            "&::before": {
+              display: "none",
+            },
           },
           description: {
             color: isDark ? "#fa5252" : "#c92a2a",
