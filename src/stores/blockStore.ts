@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import { shallow } from "zustand/shallow";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "./workspaceStore";
 
@@ -581,7 +582,10 @@ export const useBlock = (id: string) =>
   useBlockStore((state) => state.blocksById[id]);
 
 export const useChildrenIds = (parentId: string | null) =>
-  useBlockStore((state) => state.childrenMap[parentId ?? "root"] ?? []);
+  useBlockStore(
+    (state) => state.childrenMap[parentId ?? "root"] ?? [],
+    shallow,
+  );
 
 export const useFocusedBlockId = () =>
   useBlockStore((state) => state.focusedBlockId);
