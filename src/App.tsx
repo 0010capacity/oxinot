@@ -10,12 +10,17 @@ import {
   Button,
   Modal,
   Switch,
+  Select,
 } from "@mantine/core";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
 import { usePageStore } from "./stores/pageStore";
-import { useOutlinerSettingsStore } from "./stores/outlinerSettingsStore";
+import {
+  useOutlinerSettingsStore,
+  FONT_OPTIONS,
+  type FontFamily,
+} from "./stores/outlinerSettingsStore";
 import { MigrationDialog } from "./components/MigrationDialog";
 import { TitleBar } from "./components/TitleBar";
 import { FileTreeIndex } from "./components/FileTreeIndex";
@@ -73,6 +78,11 @@ function AppContent({ workspacePath }: AppContentProps) {
   const toggleIndentGuides = useOutlinerSettingsStore(
     (state) => state.toggleIndentGuides,
   );
+  const fontFamily = useOutlinerSettingsStore((state) => state.fontFamily);
+  const setFontFamily = useOutlinerSettingsStore(
+    (state) => state.setFontFamily,
+  );
+  const getFontStack = useOutlinerSettingsStore((state) => state.getFontStack);
 
   const colorVariant = useThemeStore((state) => state.colorVariant);
   const setColorVariant = useThemeStore((state) => state.setColorVariant);
@@ -86,6 +96,12 @@ function AppContent({ workspacePath }: AppContentProps) {
   const [helpOpened, setHelpOpened] = useState(false);
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
+
+  // Apply saved font on mount
+  useEffect(() => {
+    const fontStack = getFontStack();
+    document.documentElement.style.setProperty("--font-family", fontStack);
+  }, [getFontStack]);
 
   useEffect(() => {
     if (!workspacePath) {
@@ -261,6 +277,30 @@ function AppContent({ workspacePath }: AppContentProps) {
                 Choose your preferred accent color theme
               </Text>
             </div>
+          </div>
+
+          <div>
+            <h3 style={{ margin: 0, marginBottom: 12 }}>Appearance</h3>
+            <Stack gap="md">
+              <div>
+                <Text size="sm" fw={500} mb={8}>
+                  Font Family
+                </Text>
+                <Select
+                  value={fontFamily}
+                  onChange={(value) => setFontFamily(value as FontFamily)}
+                  data={FONT_OPTIONS.map((opt) => ({
+                    label: opt.label,
+                    value: opt.value,
+                  }))}
+                  placeholder="Select font"
+                  searchable
+                />
+                <Text size="xs" c="dimmed" mt={4}>
+                  Choose the font used throughout the application
+                </Text>
+              </div>
+            </Stack>
           </div>
 
           <div>

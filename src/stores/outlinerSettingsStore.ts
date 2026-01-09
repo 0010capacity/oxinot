@@ -1,27 +1,130 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export type FontFamily =
+  | "Inter"
+  | "System"
+  | "SF Pro"
+  | "Helvetica Neue"
+  | "Arial"
+  | "Georgia"
+  | "Times New Roman"
+  | "Noto Sans"
+  | "Roboto"
+  | "Open Sans"
+  | "Lato"
+  | "Montserrat";
+
+export const FONT_OPTIONS: {
+  label: string;
+  value: FontFamily;
+  stack: string;
+}[] = [
+  {
+    label: "Inter (Default)",
+    value: "Inter",
+    stack: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  },
+  {
+    label: "System Default",
+    value: "System",
+    stack:
+      "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif",
+  },
+  {
+    label: "SF Pro (Apple)",
+    value: "SF Pro",
+    stack: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
+  },
+  {
+    label: "Helvetica Neue",
+    value: "Helvetica Neue",
+    stack: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+  },
+  {
+    label: "Arial",
+    value: "Arial",
+    stack: "Arial, Helvetica, sans-serif",
+  },
+  {
+    label: "Georgia (Serif)",
+    value: "Georgia",
+    stack: "Georgia, 'Times New Roman', Times, serif",
+  },
+  {
+    label: "Times New Roman (Serif)",
+    value: "Times New Roman",
+    stack: "'Times New Roman', Times, serif",
+  },
+  {
+    label: "Noto Sans",
+    value: "Noto Sans",
+    stack: "'Noto Sans', sans-serif",
+  },
+  {
+    label: "Roboto",
+    value: "Roboto",
+    stack: "Roboto, sans-serif",
+  },
+  {
+    label: "Open Sans",
+    value: "Open Sans",
+    stack: "'Open Sans', sans-serif",
+  },
+  {
+    label: "Lato",
+    value: "Lato",
+    stack: "Lato, sans-serif",
+  },
+  {
+    label: "Montserrat",
+    value: "Montserrat",
+    stack: "Montserrat, sans-serif",
+  },
+];
+
 interface OutlinerSettings {
   showIndentGuides: boolean;
+  fontFamily: FontFamily;
 }
 
 interface OutlinerSettingsStore extends OutlinerSettings {
   toggleIndentGuides: () => void;
   setShowIndentGuides: (value: boolean) => void;
+  setFontFamily: (font: FontFamily) => void;
+  getFontStack: () => string;
 }
 
 export const useOutlinerSettingsStore = create<OutlinerSettingsStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Default settings
       showIndentGuides: true,
+      fontFamily: "Inter",
 
       // Actions
       toggleIndentGuides: () =>
         set((state) => ({ showIndentGuides: !state.showIndentGuides })),
 
-      setShowIndentGuides: (value: boolean) =>
-        set({ showIndentGuides: value }),
+      setShowIndentGuides: (value: boolean) => set({ showIndentGuides: value }),
+
+      setFontFamily: (font: FontFamily) => {
+        set({ fontFamily: font });
+        // Update CSS variable
+        const fontOption = FONT_OPTIONS.find((opt) => opt.value === font);
+        if (fontOption) {
+          document.documentElement.style.setProperty(
+            "--font-family",
+            fontOption.stack,
+          );
+        }
+      },
+
+      getFontStack: () => {
+        const fontFamily = get().fontFamily;
+        const fontOption = FONT_OPTIONS.find((opt) => opt.value === fontFamily);
+        return fontOption?.stack || FONT_OPTIONS[0].stack;
+      },
     }),
     {
       name: "outliner-settings",
