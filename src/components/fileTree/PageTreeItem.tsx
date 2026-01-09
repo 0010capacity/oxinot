@@ -160,7 +160,7 @@ export function PageTreeItem({
           data-page-id={page.id}
           style={{
             display: "flex",
-            alignItems: "flex-start",
+            alignItems: "center",
             gap: "var(--spacing-sm)",
             paddingLeft: `${depth * 24}px`,
             paddingTop: "2px",

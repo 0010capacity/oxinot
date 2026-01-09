@@ -28,7 +28,7 @@ export function CollapseToggle({
         width: "var(--layout-collapse-toggle-size)",
         height: "var(--layout-collapse-toggle-size)",
         padding: 0,
-        margin: "2px 0 0 var(--spacing-sm)",
+        margin: 0,
         background: "none",
         border: "none",
         cursor: "pointer",
@@ -47,7 +47,8 @@ export function CollapseToggle({
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.opacity = "1";
-        e.currentTarget.style.backgroundColor = "var(--color-interactive-hover)";
+        e.currentTarget.style.backgroundColor =
+          "var(--color-interactive-hover)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.opacity = isCollapsed

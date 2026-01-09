@@ -37,7 +37,7 @@ export function NewPageInput({
     <div
       style={{
         display: "flex",
-        alignItems: "flex-start",
+        alignItems: "center",
         gap: "var(--spacing-sm)",
         paddingLeft: `${depth * 24}px`,
         paddingTop: "2px",
@@ -52,7 +52,7 @@ export function NewPageInput({
         style={{
           width: "var(--layout-collapse-toggle-size)",
           height: "var(--layout-collapse-toggle-size)",
-          margin: "2px 0 0 var(--spacing-sm)",
+          margin: 0,
         }}
       />
       <div
