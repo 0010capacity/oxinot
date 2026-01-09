@@ -515,7 +515,14 @@ export function FileTreeIndex() {
                     />
                   </div>
 
-                  <Text size="sm" c="dimmed" style={{ userSelect: "none" }}>
+                  <Text
+                    size="sm"
+                    c="dimmed"
+                    style={{
+                      userSelect: "none",
+                      paddingLeft: "4px",
+                    }}
+                  >
                     New page
                   </Text>
                 </div>
