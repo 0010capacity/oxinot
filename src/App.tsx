@@ -125,13 +125,11 @@ function AppContent({ workspacePath }: AppContentProps) {
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
-  // Git commit handler
+  // Git commit handler - immediate commit with timestamp
   const handleGitCommit = async () => {
     if (!workspacePath || !hasGitChanges) return;
-    const message = prompt("Commit message:");
-    if (message) {
-      await gitCommit(workspacePath, message);
-    }
+    const timestamp = new Date().toLocaleString();
+    await gitCommit(workspacePath, `Update: ${timestamp}`);
   };
 
   // Initialize git repo check and status on workspace load
@@ -301,45 +299,36 @@ function AppContent({ workspacePath }: AppContentProps) {
             )}
           </div>
 
-          {/* Git Status Bar - Bottom Right */}
+          {/* Git Status Indicator - Bottom Right */}
           {isGitRepo && (
             <div
               style={{
                 position: "fixed",
-                bottom: "8px",
-                right: "8px",
+                bottom: "12px",
+                right: "12px",
                 display: "flex",
                 alignItems: "center",
-                gap: "8px",
-                padding: "6px 12px",
-                backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                borderRadius: "6px",
-                border: `1px solid ${isDark ? "#373A40" : "#dee2e6"}`,
-                cursor: "pointer",
-                transition: "all 0.15s ease",
+                gap: "6px",
+                cursor: hasGitChanges ? "pointer" : "default",
+                opacity: hasGitChanges ? 1 : 0.4,
+                transition: "opacity 0.2s ease",
                 zIndex: 50,
               }}
               onClick={handleGitCommit}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = isDark
-                  ? "#373A40"
-                  : "#e9ecef";
+                if (hasGitChanges) {
+                  e.currentTarget.style.opacity = "0.7";
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = isDark
-                  ? "#2C2E33"
-                  : "#F1F3F5";
+                e.currentTarget.style.opacity = hasGitChanges ? "1" : "0.4";
               }}
-              title={
-                hasGitChanges
-                  ? "Click to commit changes"
-                  : "No changes to commit"
-              }
+              title={hasGitChanges ? "Click to commit changes" : "No changes"}
             >
               <div
                 style={{
-                  width: "6px",
-                  height: "6px",
+                  width: "8px",
+                  height: "8px",
                   borderRadius: "50%",
                   backgroundColor: hasGitChanges
                     ? isDark
@@ -348,24 +337,19 @@ function AppContent({ workspacePath }: AppContentProps) {
                     : isDark
                       ? "#5c5f66"
                       : "#adb5bd",
-                  transition: "background-color 0.15s ease",
+                  transition: "background-color 0.2s ease",
                 }}
               />
               <Text
                 size="xs"
                 style={{
-                  color: hasGitChanges
-                    ? isDark
-                      ? "#ffd43b"
-                      : "#fab005"
-                    : isDark
-                      ? "#909296"
-                      : "#868e96",
-                  fontSize: "0.75rem",
-                  fontWeight: 500,
+                  color: isDark ? "#909296" : "#868e96",
+                  fontSize: "0.7rem",
+                  fontWeight: 400,
+                  userSelect: "none",
                 }}
               >
-                {hasGitChanges ? "Changes" : "Clean"}
+                git
               </Text>
             </div>
           )}
