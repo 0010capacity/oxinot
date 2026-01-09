@@ -23,6 +23,7 @@ import { BlockEditor } from "./outliner/BlockEditor";
 import { SearchModal } from "./components/SearchModal";
 import { CalendarModal } from "./components/CalendarModal";
 import { HelpModal } from "./components/HelpModal";
+import { ThemeProvider } from "./theme/ThemeProvider";
 
 const theme = createTheme({
   fontFamily:
@@ -253,14 +254,18 @@ function App() {
   if (!workspacePath) {
     return (
       <MantineProvider theme={theme} defaultColorScheme="dark">
-        <WorkspaceSelector />
+        <ThemeProvider>
+          <WorkspaceSelector />
+        </ThemeProvider>
       </MantineProvider>
     );
   }
 
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
-      <AppContent workspacePath={workspacePath} />
+      <ThemeProvider>
+        <AppContent workspacePath={workspacePath} />
+      </ThemeProvider>
     </MantineProvider>
   );
 }

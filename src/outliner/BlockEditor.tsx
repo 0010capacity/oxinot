@@ -3,7 +3,9 @@ import { useMantineColorScheme } from "@mantine/core";
 import { useBlockStore } from "../stores/blockStore";
 import { useViewStore } from "../stores/viewStore";
 import { BlockComponent } from "./BlockComponent";
-import { Breadcrumb } from "../components/Breadcrumb";
+import { PageContainer } from "../components/layout/PageContainer";
+import { ContentWrapper } from "../components/layout/ContentWrapper";
+import { PageHeader } from "../components/layout/PageHeader";
 import "./BlockEditor.css";
 
 interface BlockEditorProps {
@@ -53,29 +55,31 @@ export function BlockEditor({
 
   if (isLoading) {
     return (
-      <div
-        className={`block-editor-container ${isDark ? "theme-dark" : "theme-light"}`}
-      >
-        <div
-          style={{
-            padding: "16px",
-            opacity: 0.5,
-            color: isDark ? "#909296" : "#868e96",
-          }}
-        >
-          Loading...
-        </div>
-      </div>
+      <PageContainer>
+        <ContentWrapper>
+          <div
+            style={{
+              padding: "16px",
+              opacity: "var(--opacity-dimmed)",
+              color: "var(--color-text-tertiary)",
+            }}
+          >
+            Loading...
+          </div>
+        </ContentWrapper>
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <div
-        className={`block-editor-container ${isDark ? "theme-dark" : "theme-light"}`}
-      >
-        <div style={{ padding: "16px", color: "#fa5252" }}>Error: {error}</div>
-      </div>
+      <PageContainer>
+        <ContentWrapper>
+          <div style={{ padding: "16px", color: "var(--color-error)" }}>
+            Error: {error}
+          </div>
+        </ContentWrapper>
+      </PageContainer>
     );
   }
 
@@ -85,41 +89,34 @@ export function BlockEditor({
     : childrenMap["root"] || [];
 
   return (
-    <div
-      className={`block-editor-container ${isDark ? "theme-dark" : "theme-light"}`}
-    >
-      {/* Breadcrumb */}
-      {workspaceName && onNavigateHome && (
-        <div
-          style={{
-            maxWidth: "800px",
-            margin: "0 auto 32px",
-            paddingLeft: "8px",
-            paddingBottom: "16px",
-            borderBottom: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
-          }}
-        >
-          <Breadcrumb
+    <PageContainer className={isDark ? "theme-dark" : "theme-light"}>
+      <ContentWrapper>
+        {/* Breadcrumb */}
+        {workspaceName && onNavigateHome && (
+          <PageHeader
+            showBreadcrumb
             workspaceName={workspaceName}
             pageName={pageName}
             onNavigateHome={onNavigateHome}
           />
-        </div>
-      )}
-
-      <div className="blocks-list">
-        {blocksToShow.length === 0 ? (
-          <div className="empty-state">
-            <div style={{ opacity: 0.5, padding: "20px" }}>
-              Start typing to create your first block...
-            </div>
-          </div>
-        ) : (
-          blocksToShow.map((blockId) => (
-            <BlockComponent key={blockId} blockId={blockId} depth={0} />
-          ))
         )}
-      </div>
-    </div>
+
+        <div className="blocks-list">
+          {blocksToShow.length === 0 ? (
+            <div className="empty-state">
+              <div
+                style={{ opacity: "var(--opacity-dimmed)", padding: "20px" }}
+              >
+                Start typing to create your first block...
+              </div>
+            </div>
+          ) : (
+            blocksToShow.map((blockId) => (
+              <BlockComponent key={blockId} blockId={blockId} depth={0} />
+            ))
+          )}
+        </div>
+      </ContentWrapper>
+    </PageContainer>
   );
 }

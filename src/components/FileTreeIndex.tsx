@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import {
   Stack,
   Text,
   Group,
   Loader,
-  useMantineColorScheme,
   ActionIcon,
   TextInput,
   Modal,
@@ -23,6 +21,9 @@ import { usePageStore, type PageData } from "../stores/pageStore";
 import { useBlockStore } from "../stores/blockStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
+import { PageContainer } from "./layout/PageContainer";
+import { ContentWrapper } from "./layout/ContentWrapper";
+import { PageHeader } from "./layout/PageHeader";
 
 interface DragState {
   isDragging: boolean;
@@ -68,8 +69,6 @@ function PageTreeItem({
   dragOverPageId,
   children,
 }: PageTreeItemProps) {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
   const openNote = useViewStore((state) => state.openNote);
   const selectPage = usePageStore((state) => state.selectPage);
   const loadPage = useBlockStore((state) => state.loadPage);
@@ -173,12 +172,10 @@ function PageTreeItem({
               right: 0,
               top: 0,
               bottom: 0,
-              backgroundColor: isDark
-                ? "rgba(99, 102, 241, 0.15)"
-                : "rgba(99, 102, 241, 0.1)",
-              borderRadius: "3px",
+              backgroundColor: "var(--color-interactive-selected)",
+              borderRadius: "var(--radius-sm)",
               pointerEvents: "none",
-              zIndex: 1,
+              zIndex: 0,
             }}
           />
         )}
@@ -193,8 +190,8 @@ function PageTreeItem({
             paddingTop: "2px",
             paddingBottom: "2px",
             position: "relative",
-            borderRadius: "3px",
-            transition: "background-color 0.15s ease",
+            borderRadius: "var(--radius-sm)",
+            transition: "background-color var(--transition-normal)",
             userSelect: "none",
           }}
         >
@@ -227,9 +224,8 @@ function PageTreeItem({
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.opacity = "1";
-                e.currentTarget.style.backgroundColor = isDark
-                  ? "rgba(255, 255, 255, 0.08)"
-                  : "rgba(0, 0, 0, 0.05)";
+                e.currentTarget.style.backgroundColor =
+                  "var(--color-interactive-hover)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.opacity = isCollapsed
@@ -273,13 +269,11 @@ function PageTreeItem({
           >
             <div
               style={{
-                width: "6px",
-                height: "6px",
+                width: "var(--layout-bullet-size)",
+                height: "var(--layout-bullet-size)",
                 borderRadius: "50%",
-                backgroundColor: isDark
-                  ? "rgba(255, 255, 255, 0.4)"
-                  : "rgba(0, 0, 0, 0.4)",
-                transition: "all 0.2s ease",
+                backgroundColor: "var(--color-bullet-default)",
+                transition: "all var(--transition-slow)",
                 display: "block",
               }}
             />
@@ -298,11 +292,9 @@ function PageTreeItem({
                 styles={{
                   input: {
                     border: "none",
-                    backgroundColor: isDark
-                      ? "rgba(255, 255, 255, 0.05)"
-                      : "rgba(0, 0, 0, 0.03)",
-                    fontSize: "14px",
-                    lineHeight: "1.5",
+                    backgroundColor: "var(--color-interactive-hover)",
+                    fontSize: "var(--font-size-sm)",
+                    lineHeight: "var(--line-height-normal)",
                   },
                 }}
                 style={{
@@ -347,9 +339,9 @@ function PageTreeItem({
                 }}
                 style={{
                   flex: 1,
-                  color: isDark ? "#e0e0e0" : "#1a1a1a",
+                  color: "var(--color-text-primary)",
                   userSelect: "none",
-                  fontSize: "14px",
+                  fontSize: "var(--font-size-sm)",
                   lineHeight: "24px",
                   paddingTop: "2px",
                   paddingBottom: "2px",
@@ -426,8 +418,6 @@ function PageTreeItem({
 }
 
 export function FileTreeIndex() {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
   const { loadPages, createPage, updatePageTitle, deletePage, movePage } =
     usePageStore();
   const isLoading = usePageStore((state) => state.isLoading);
@@ -727,9 +717,7 @@ export function FileTreeIndex() {
               top: 0,
               bottom: 0,
               width: "1px",
-              backgroundColor: isDark
-                ? "rgba(255, 255, 255, 0.06)"
-                : "rgba(0, 0, 0, 0.06)",
+              backgroundColor: "var(--color-indent-guide)",
               pointerEvents: "none",
               zIndex: 0,
             }}
@@ -772,11 +760,9 @@ export function FileTreeIndex() {
           paddingLeft: `${depth * 24}px`,
           paddingTop: "2px",
           paddingBottom: "2px",
-          backgroundColor: isDark
-            ? "rgba(255, 255, 255, 0.03)"
-            : "rgba(0, 0, 0, 0.02)",
-          borderRadius: "3px",
-          border: `1px solid ${isDark ? "rgba(99, 102, 241, 0.3)" : "rgba(99, 102, 241, 0.2)"}`,
+          backgroundColor: "var(--color-interactive-hover)",
+          borderRadius: "var(--radius-sm)",
+          border: `1px solid var(--color-interactive-focus)`,
           margin: "2px 0",
         }}
       >
@@ -796,9 +782,7 @@ export function FileTreeIndex() {
               width: "4px",
               height: "4px",
               borderRadius: "50%",
-              backgroundColor: isDark
-                ? "rgba(255, 255, 255, 0.3)"
-                : "rgba(0, 0, 0, 0.3)",
+              backgroundColor: "var(--color-bullet-hover)",
             }}
           />
         </div>
@@ -817,7 +801,7 @@ export function FileTreeIndex() {
                 border: "none",
                 backgroundColor: "transparent",
                 fontWeight: 500,
-                fontSize: "14px",
+                fontSize: "var(--font-size-sm)",
                 lineHeight: "24px",
               },
             }}
@@ -830,7 +814,9 @@ export function FileTreeIndex() {
             disabled={isSubmitting || !newPageTitle.trim()}
             size="xs"
             color="green"
-            style={{ opacity: newPageTitle.trim() ? 1 : 0.3 }}
+            style={{
+              opacity: newPageTitle.trim() ? 1 : "var(--opacity-disabled)",
+            }}
           >
             <IconCheck size={12} />
           </ActionIcon>
@@ -862,40 +848,10 @@ export function FileTreeIndex() {
   const rootPages = buildTree(null);
 
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        padding: "40px 20px",
-        overflowY: "auto",
-        backgroundColor: isDark ? "#1a1a1a" : "#ffffff",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "800px",
-          margin: "0 auto",
-          paddingBottom: "200px",
-        }}
-      >
+    <PageContainer>
+      <ContentWrapper>
         {/* Workspace Title */}
-        <div
-          style={{
-            marginBottom: "32px",
-            paddingBottom: "16px",
-            borderBottom: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
-          }}
-        >
-          <div
-            style={{
-              fontSize: "24px",
-              fontWeight: 600,
-              color: isDark ? "#e0e0e0" : "#1a1a1a",
-            }}
-          >
-            {workspaceName}
-          </div>
-        </div>
+        <PageHeader title={workspaceName} />
 
         <Stack gap={0} style={{ position: "relative" }}>
           {/* Pages Tree */}
@@ -933,23 +889,25 @@ export function FileTreeIndex() {
                     paddingTop: "8px",
                     paddingBottom: "4px",
                     cursor: "pointer",
-                    borderRadius: "4px",
-                    transition: "background-color 0.15s ease",
-                    opacity: 0.6,
+                    borderRadius: "var(--radius-sm)",
+                    transition: "background-color var(--transition-normal)",
+                    opacity: "var(--opacity-hover)",
                   }}
                   onClick={() => setIsCreating(true)}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.opacity = "1";
-                    e.currentTarget.style.backgroundColor = isDark
-                      ? "rgba(255, 255, 255, 0.03)"
-                      : "rgba(0, 0, 0, 0.02)";
+                    e.currentTarget.style.backgroundColor =
+                      "var(--color-interactive-hover)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = "0.6";
+                    e.currentTarget.style.opacity = "var(--opacity-hover)";
                     e.currentTarget.style.backgroundColor = "transparent";
                   }}
                 >
-                  <IconPlus size={16} style={{ opacity: 0.5 }} />
+                  <IconPlus
+                    size={16}
+                    style={{ opacity: "var(--opacity-dimmed)" }}
+                  />
                   <Text size="sm" c="dimmed" style={{ userSelect: "none" }}>
                     New page
                   </Text>
@@ -958,7 +916,7 @@ export function FileTreeIndex() {
             </Stack>
           )}
         </Stack>
-      </div>
+      </ContentWrapper>
 
       {/* Delete Confirmation Modal */}
       <Modal
@@ -991,6 +949,6 @@ export function FileTreeIndex() {
           </Group>
         </Stack>
       </Modal>
-    </div>
+    </PageContainer>
   );
 }
