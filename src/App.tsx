@@ -11,12 +11,8 @@ import {
   Modal,
   Switch,
   Select,
-  Paper,
-  Group,
-  ThemeIcon,
-  Box,
 } from "@mantine/core";
-import { IconFolder, IconFileText } from "@tabler/icons-react";
+import { IconFolder } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
@@ -46,69 +42,26 @@ const theme = createTheme({
 function WorkspaceSelector() {
   const { selectWorkspace } = useWorkspaceStore();
   const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
-
   return (
-    <Container size="sm" py="xl">
-      <Stack align="center" gap="xl" style={{ marginTop: "15vh" }}>
-        {/* Logo/Icon Section */}
-        <Box style={{ textAlign: "center" }}>
-          <ThemeIcon
-            size={100}
-            radius="xl"
-            variant="gradient"
-            gradient={{ from: "indigo", to: "cyan", deg: 45 }}
-            style={{ margin: "0 auto", marginBottom: 24 }}
-          >
-            <IconFileText size={56} stroke={1.5} />
-          </ThemeIcon>
-          <Text size="28px" fw={700} mb={8}>
+    <Container size="xs" py="xl">
+      <Stack align="center" gap="lg" style={{ marginTop: "25vh" }}>
+        <div style={{ textAlign: "center" }}>
+          <Text size="xl" fw={600} mb="xs">
             MD Outliner
           </Text>
-          <Text size="md" c="dimmed">
-            Markdown editor with outliner capabilities
+          <Text size="sm" c="dimmed" mb="xl">
+            Select a workspace to begin
           </Text>
-        </Box>
+        </div>
 
-        {/* Main Card */}
-        <Paper
-          shadow="md"
-          p="xl"
-          radius="lg"
-          style={{
-            width: "100%",
-            maxWidth: 480,
-            backgroundColor: isDark ? "#25262b" : "#fff",
-            border: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
-          }}
+        <Button
+          onClick={selectWorkspace}
+          size="md"
+          leftSection={<IconFolder size={18} />}
+          variant="light"
         >
-          <Stack gap="lg">
-            <div style={{ textAlign: "center" }}>
-              <Text size="lg" fw={600} mb={8}>
-                Welcome 👋
-              </Text>
-              <Text size="sm" c="dimmed">
-                Select a workspace folder to get started
-              </Text>
-            </div>
-
-            <Button
-              onClick={selectWorkspace}
-              size="lg"
-              leftSection={<IconFolder size={20} />}
-              fullWidth
-              variant="gradient"
-              gradient={{ from: "indigo", to: "cyan", deg: 45 }}
-            >
-              Open Workspace
-            </Button>
-
-            <Text size="xs" c="dimmed" ta="center" mt="xs">
-              Your markdown files will be organized and editable in outliner
-              mode
-            </Text>
-          </Stack>
-        </Paper>
+          Open Workspace
+        </Button>
       </Stack>
     </Container>
   );
