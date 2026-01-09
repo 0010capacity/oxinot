@@ -306,12 +306,19 @@ function AppContent({ workspacePath }: AppContentProps) {
                 position: "fixed",
                 bottom: "12px",
                 right: "12px",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                backgroundColor: hasGitChanges
+                  ? isDark
+                    ? "#ffd43b"
+                    : "#fab005"
+                  : isDark
+                    ? "#5c5f66"
+                    : "#adb5bd",
                 cursor: hasGitChanges ? "pointer" : "default",
                 opacity: hasGitChanges ? 1 : 0.4,
-                transition: "opacity 0.2s ease",
+                transition: "opacity 0.2s ease, background-color 0.2s ease",
                 zIndex: 50,
               }}
               onClick={handleGitCommit}
@@ -324,34 +331,7 @@ function AppContent({ workspacePath }: AppContentProps) {
                 e.currentTarget.style.opacity = hasGitChanges ? "1" : "0.4";
               }}
               title={hasGitChanges ? "Click to commit changes" : "No changes"}
-            >
-              <div
-                style={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  backgroundColor: hasGitChanges
-                    ? isDark
-                      ? "#ffd43b"
-                      : "#fab005"
-                    : isDark
-                      ? "#5c5f66"
-                      : "#adb5bd",
-                  transition: "background-color 0.2s ease",
-                }}
-              />
-              <Text
-                size="xs"
-                style={{
-                  color: isDark ? "#909296" : "#868e96",
-                  fontSize: "0.7rem",
-                  fontWeight: 400,
-                  userSelect: "none",
-                }}
-              >
-                git
-              </Text>
-            </div>
+            />
           )}
         </AppShell.Main>
       </AppShell>
