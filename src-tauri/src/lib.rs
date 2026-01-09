@@ -45,6 +45,9 @@ async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, Strin
             .await
             .map_err(|e| format!("Failed to initialize workspace: {}", e))?;
 
+        // Initialize git repository if not already initialized
+        let _ = commands::git::git_init(path_str.clone()).await;
+
         // Check if workspace is empty and create Welcome.md if needed
         match fs::read_dir(&path_str) {
             Ok(entries) => {
@@ -339,6 +342,14 @@ pub fn run() {
             commands::workspace::sync_workspace,
             // Search commands
             commands::search::search_content,
+            // Git commands
+            commands::git::git_init,
+            commands::git::git_is_repo,
+            commands::git::git_status,
+            commands::git::git_commit,
+            commands::git::git_push,
+            commands::git::git_pull,
+            commands::git::git_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

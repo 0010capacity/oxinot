@@ -9,6 +9,9 @@ interface TitleBarProps {
   onSearchClick?: () => void;
   onHelpClick?: () => void;
   onCalendarClick?: () => void;
+  onGitCommitClick?: () => void;
+  onCommandPaletteClick?: () => void;
+  hasGitChanges?: boolean;
   currentWorkspacePath: string | null;
 }
 
@@ -17,6 +20,9 @@ export function TitleBar({
   onSearchClick,
   onHelpClick,
   onCalendarClick,
+  onGitCommitClick,
+  onCommandPaletteClick,
+  hasGitChanges = false,
   currentWorkspacePath,
 }: TitleBarProps) {
   const [isMac, setIsMac] = useState(false);
@@ -65,6 +71,9 @@ export function TitleBar({
           onSearchClick={onSearchClick}
           onHelpClick={onHelpClick}
           onCalendarClick={onCalendarClick}
+          onGitCommitClick={onGitCommitClick}
+          onCommandPaletteClick={onCommandPaletteClick}
+          hasGitChanges={hasGitChanges}
         />
 
         {/* Window controls - only show on Windows/Linux */}

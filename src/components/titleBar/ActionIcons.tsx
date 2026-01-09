@@ -6,6 +6,8 @@ import {
   IconSearch,
   IconHelp,
   IconCalendar,
+  IconGitCommit,
+  IconCommand,
 } from "@tabler/icons-react";
 import { useMantineColorScheme } from "@mantine/core";
 
@@ -14,6 +16,9 @@ interface ActionIconsProps {
   onSearchClick?: () => void;
   onHelpClick?: () => void;
   onCalendarClick?: () => void;
+  onGitCommitClick?: () => void;
+  onCommandPaletteClick?: () => void;
+  hasGitChanges?: boolean;
 }
 
 /**
@@ -25,6 +30,9 @@ export function ActionIcons({
   onSearchClick,
   onHelpClick,
   onCalendarClick,
+  onGitCommitClick,
+  onCommandPaletteClick,
+  hasGitChanges = false,
 }: ActionIconsProps) {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
@@ -43,12 +51,41 @@ export function ActionIcons({
       <ActionIcon
         variant="subtle"
         size="md"
+        title="Command Palette (Cmd+K)"
+        onClick={onCommandPaletteClick}
+        styles={iconButtonStyles}
+      >
+        <IconCommand size={16} />
+      </ActionIcon>
+
+      <ActionIcon
+        variant="subtle"
+        size="md"
         title="Search"
         onClick={onSearchClick}
         styles={iconButtonStyles}
       >
         <IconSearch size={16} />
       </ActionIcon>
+
+      {hasGitChanges && (
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          title="Commit changes"
+          onClick={onGitCommitClick}
+          styles={{
+            root: {
+              color: isDark ? "#ffd43b" : "#fab005",
+              "&:hover": {
+                backgroundColor: "var(--color-interactive-hover)",
+              },
+            },
+          }}
+        >
+          <IconGitCommit size={16} />
+        </ActionIcon>
+      )}
 
       <ActionIcon
         variant="subtle"

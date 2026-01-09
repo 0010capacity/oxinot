@@ -10,6 +10,9 @@ import {
   Modal,
   Switch,
   Select,
+  Button,
+  Group,
+  NumberInput,
 } from "@mantine/core";
 
 import { invoke } from "@tauri-apps/api/core";
@@ -21,6 +24,7 @@ import {
   FONT_OPTIONS,
   type FontFamily,
 } from "./stores/outlinerSettingsStore";
+import { useGitStore } from "./stores/gitStore";
 import { MigrationDialog } from "./components/MigrationDialog";
 import { TitleBar } from "./components/TitleBar";
 import { FileTreeIndex } from "./components/FileTreeIndex";
@@ -28,6 +32,7 @@ import { BlockEditor } from "./outliner/BlockEditor";
 import { SearchModal } from "./components/SearchModal";
 import { CalendarModal } from "./components/CalendarModal";
 import { HelpModal } from "./components/HelpModal";
+import { CommandPalette } from "./components/CommandPalette";
 
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { useThemeStore } from "./stores/themeStore";
@@ -100,8 +105,67 @@ function AppContent({ workspacePath }: AppContentProps) {
   const [searchOpened, setSearchOpened] = useState(false);
   const [calendarOpened, setCalendarOpened] = useState(false);
   const [helpOpened, setHelpOpened] = useState(false);
+  const [commandPaletteOpened, setCommandPaletteOpened] = useState(false);
+
+  // Git state
+  const hasGitChanges = useGitStore((state) => state.hasChanges);
+  const isGitRepo = useGitStore((state) => state.isRepo);
+  const checkGitStatus = useGitStore((state) => state.checkStatus);
+  const gitCommit = useGitStore((state) => state.commit);
+  const autoCommitEnabled = useGitStore((state) => state.autoCommitEnabled);
+  const setAutoCommitEnabled = useGitStore(
+    (state) => state.setAutoCommitEnabled,
+  );
+  const autoCommitInterval = useGitStore((state) => state.autoCommitInterval);
+  const setAutoCommitInterval = useGitStore(
+    (state) => state.setAutoCommitInterval,
+  );
+  const autoCommit = useGitStore((state) => state.autoCommit);
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
+
+  // Git commit handler
+  const handleGitCommit = async () => {
+    if (!workspacePath || !hasGitChanges) return;
+    const message = prompt("Commit message:");
+    if (message) {
+      await gitCommit(workspacePath, message);
+    }
+  };
+
+  // Check git status on workspace load
+  useEffect(() => {
+    if (workspacePath && isGitRepo) {
+      checkGitStatus(workspacePath);
+    }
+  }, [workspacePath, isGitRepo, checkGitStatus]);
+
+  // Auto-commit interval
+  useEffect(() => {
+    if (!workspacePath || !autoCommitEnabled) return;
+
+    const intervalId = setInterval(
+      () => {
+        autoCommit(workspacePath);
+      },
+      autoCommitInterval * 60 * 1000,
+    );
+
+    return () => clearInterval(intervalId);
+  }, [workspacePath, autoCommitEnabled, autoCommitInterval, autoCommit]);
+
+  // Command Palette keyboard shortcut (Cmd+K or Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCommandPaletteOpened(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Apply saved font on mount
   useEffect(() => {
@@ -197,6 +261,9 @@ function AppContent({ workspacePath }: AppContentProps) {
             onSearchClick={() => setSearchOpened(true)}
             onHelpClick={() => setHelpOpened(true)}
             onCalendarClick={() => setCalendarOpened(true)}
+            onGitCommitClick={handleGitCommit}
+            onCommandPaletteClick={() => setCommandPaletteOpened(true)}
+            hasGitChanges={hasGitChanges}
             currentWorkspacePath={workspacePath}
           />
 
@@ -245,6 +312,15 @@ function AppContent({ workspacePath }: AppContentProps) {
       <SearchModal
         opened={searchOpened}
         onClose={() => setSearchOpened(false)}
+      />
+
+      <CommandPalette
+        opened={commandPaletteOpened}
+        onClose={() => setCommandPaletteOpened(false)}
+        onOpenSearch={() => setSearchOpened(true)}
+        onOpenCalendar={() => setCalendarOpened(true)}
+        onOpenSettings={() => setSettingsOpened(true)}
+        onOpenHelp={() => setHelpOpened(true)}
       />
 
       <CalendarModal
@@ -339,6 +415,76 @@ function AppContent({ workspacePath }: AppContentProps) {
               onChange={toggleIndentGuides}
             />
           </div>
+
+          {isGitRepo && (
+            <div>
+              <h3 style={{ margin: 0, marginBottom: 12 }}>
+                Git Version Control
+              </h3>
+              <Stack gap="md">
+                <Switch
+                  label="Auto-commit"
+                  description="Automatically commit changes at regular intervals"
+                  checked={autoCommitEnabled}
+                  onChange={(event) =>
+                    setAutoCommitEnabled(event.currentTarget.checked)
+                  }
+                />
+                {autoCommitEnabled && (
+                  <div>
+                    <Text size="sm" fw={500} mb={8}>
+                      Auto-commit Interval (minutes)
+                    </Text>
+                    <NumberInput
+                      value={autoCommitInterval}
+                      onChange={(value) =>
+                        setAutoCommitInterval(
+                          typeof value === "number" ? value : 5,
+                        )
+                      }
+                      min={1}
+                      max={60}
+                      step={1}
+                    />
+                    <Text size="xs" c="dimmed" mt={4}>
+                      Changes will be committed every {autoCommitInterval}{" "}
+                      minute
+                      {autoCommitInterval !== 1 ? "s" : ""}
+                    </Text>
+                  </div>
+                )}
+                <div>
+                  <Text size="sm" fw={500} mb={8}>
+                    Git Status
+                  </Text>
+                  <Group gap="xs">
+                    <Button
+                      size="xs"
+                      variant="light"
+                      onClick={handleGitCommit}
+                      disabled={!hasGitChanges}
+                    >
+                      Commit Changes
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      onClick={() =>
+                        workspacePath && checkGitStatus(workspacePath)
+                      }
+                    >
+                      Refresh Status
+                    </Button>
+                  </Group>
+                  <Text size="xs" c="dimmed" mt={8}>
+                    {hasGitChanges
+                      ? "You have uncommitted changes"
+                      : "No changes to commit"}
+                  </Text>
+                </div>
+              </Stack>
+            </div>
+          )}
         </Stack>
       </Modal>
     </>
