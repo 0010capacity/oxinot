@@ -29,6 +29,7 @@ import { BlockEditor } from "./outliner/BlockEditor";
 import { SearchModal } from "./components/SearchModal";
 import { CalendarModal } from "./components/CalendarModal";
 import { HelpModal } from "./components/HelpModal";
+import { WorkspacePicker } from "./components/WorkspacePicker";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { useThemeStore } from "./stores/themeStore";
 import { SegmentedControl } from "@mantine/core";
@@ -40,30 +41,48 @@ const theme = createTheme({
 });
 
 function WorkspaceSelector() {
-  const { selectWorkspace } = useWorkspaceStore();
-  const { colorScheme } = useMantineColorScheme();
-  return (
-    <Container size="xs" py="xl">
-      <Stack align="center" gap="lg" style={{ marginTop: "25vh" }}>
-        <div style={{ textAlign: "center" }}>
-          <Text size="xl" fw={600} mb="xs">
-            MD Outliner
-          </Text>
-          <Text size="sm" c="dimmed" mb="xl">
-            Select a workspace to begin
-          </Text>
-        </div>
+  const [workspacePickerOpened, setWorkspacePickerOpened] = useState(false);
 
-        <Button
-          onClick={selectWorkspace}
-          size="md"
-          leftSection={<IconFolder size={18} />}
-          variant="light"
-        >
-          Open Workspace
-        </Button>
-      </Stack>
-    </Container>
+  return (
+    <>
+      <Container size="xs" py="xl">
+        <Stack align="center" gap="lg" style={{ marginTop: "25vh" }}>
+          <div style={{ textAlign: "center" }}>
+            <Text size="xl" fw={600} mb="xs">
+              MD Outliner
+            </Text>
+            <Text size="sm" c="dimmed" mb="xl">
+              Select a workspace to begin
+            </Text>
+          </div>
+
+          <Button
+            onClick={() => setWorkspacePickerOpened(true)}
+            size="md"
+            leftSection={<IconFolder size={18} />}
+            variant="light"
+          >
+            Open Workspace
+          </Button>
+        </Stack>
+      </Container>
+
+      <Modal
+        opened={workspacePickerOpened}
+        onClose={() => setWorkspacePickerOpened(false)}
+        title=""
+        size="lg"
+        padding={0}
+        styles={{
+          header: { display: "none" },
+          body: { padding: 0, height: "70vh" },
+        }}
+      >
+        <WorkspacePicker
+          onWorkspaceSelected={() => setWorkspacePickerOpened(false)}
+        />
+      </Modal>
+    </>
   );
 }
 
@@ -103,6 +122,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   const [searchOpened, setSearchOpened] = useState(false);
   const [calendarOpened, setCalendarOpened] = useState(false);
   const [helpOpened, setHelpOpened] = useState(false);
+  const [workspacePickerOpened, setWorkspacePickerOpened] = useState(false);
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
@@ -197,7 +217,7 @@ function AppContent({ workspacePath }: AppContentProps) {
           {/* Custom Title Bar */}
           <TitleBar
             onSettingsClick={() => setSettingsOpened(true)}
-            onWorkspaceChange={selectWorkspace}
+            onWorkspaceChange={() => setWorkspacePickerOpened(true)}
             onSearchClick={() => setSearchOpened(true)}
             onHelpClick={() => setHelpOpened(true)}
             onCalendarClick={() => setCalendarOpened(true)}
@@ -256,6 +276,22 @@ function AppContent({ workspacePath }: AppContentProps) {
       />
 
       <HelpModal opened={helpOpened} onClose={() => setHelpOpened(false)} />
+
+      <Modal
+        opened={workspacePickerOpened}
+        onClose={() => setWorkspacePickerOpened(false)}
+        title=""
+        size="lg"
+        padding={0}
+        styles={{
+          header: { display: "none" },
+          body: { padding: 0, height: "70vh" },
+        }}
+      >
+        <WorkspacePicker
+          onWorkspaceSelected={() => setWorkspacePickerOpened(false)}
+        />
+      </Modal>
 
       <Modal
         opened={settingsOpened}
