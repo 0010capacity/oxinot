@@ -11,7 +11,12 @@ import {
   Modal,
   Switch,
   Select,
+  Paper,
+  Group,
+  ThemeIcon,
+  Box,
 } from "@mantine/core";
+import { IconFolder, IconFileText, IconSparkles } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
@@ -40,19 +45,116 @@ const theme = createTheme({
 
 function WorkspaceSelector() {
   const { selectWorkspace } = useWorkspaceStore();
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === "dark";
 
   return (
-    <Container size="sm" py="xl" mt={100}>
-      <Stack align="center" gap="lg">
-        <Text size="xl" fw={600}>
-          MD Outliner
+    <Container size="lg" py="xl">
+      <Stack align="center" gap="xl" style={{ marginTop: "10vh" }}>
+        {/* Logo/Icon Section */}
+        <Box style={{ textAlign: "center" }}>
+          <ThemeIcon
+            size={120}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: "indigo", to: "cyan", deg: 45 }}
+            style={{ margin: "0 auto", marginBottom: 24 }}
+          >
+            <IconFileText size={64} stroke={1.5} />
+          </ThemeIcon>
+          <Text size="32px" fw={700} mb={8}>
+            MD Outliner
+          </Text>
+          <Text size="lg" c="dimmed" maw={500} style={{ margin: "0 auto" }}>
+            A powerful markdown editor with outliner capabilities
+          </Text>
+        </Box>
+
+        {/* Main Card */}
+        <Paper
+          shadow="xl"
+          p="xl"
+          radius="md"
+          style={{
+            width: "100%",
+            maxWidth: 600,
+            backgroundColor: isDark ? "#25262b" : "#fff",
+            border: `1px solid ${isDark ? "#373A40" : "#e9ecef"}`,
+          }}
+        >
+          <Stack gap="lg">
+            <div style={{ textAlign: "center" }}>
+              <Text size="xl" fw={600} mb={8}>
+                Welcome! 👋
+              </Text>
+              <Text size="sm" c="dimmed">
+                Get started by selecting a workspace folder where your markdown
+                files are stored
+              </Text>
+            </div>
+
+            <Button
+              onClick={selectWorkspace}
+              size="lg"
+              leftSection={<IconFolder size={20} />}
+              fullWidth
+              variant="gradient"
+              gradient={{ from: "indigo", to: "cyan", deg: 45 }}
+            >
+              Select Workspace Folder
+            </Button>
+
+            {/* Features */}
+            <Stack gap="md" mt="md">
+              <Group gap="sm" wrap="nowrap">
+                <ThemeIcon color="blue" variant="light" size={36} radius="md">
+                  <IconFileText size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="sm" fw={500}>
+                    Outliner Mode
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Organize your thoughts in hierarchical bullet points
+                  </Text>
+                </div>
+              </Group>
+
+              <Group gap="sm" wrap="nowrap">
+                <ThemeIcon color="cyan" variant="light" size={36} radius="md">
+                  <IconSparkles size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="sm" fw={500}>
+                    Rich Markdown Support
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Full markdown syntax with live preview
+                  </Text>
+                </div>
+              </Group>
+
+              <Group gap="sm" wrap="nowrap">
+                <ThemeIcon color="indigo" variant="light" size={36} radius="md">
+                  <IconFolder size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="sm" fw={500}>
+                    File-Based Storage
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Your files, your way - stored as plain markdown
+                  </Text>
+                </div>
+              </Group>
+            </Stack>
+          </Stack>
+        </Paper>
+
+        {/* Footer */}
+        <Text size="xs" c="dimmed" mt="xl">
+          Tip: You can change workspace anytime from the menu
         </Text>
-        <Text size="sm" c="dimmed">
-          Select a workspace to begin
-        </Text>
-        <Button onClick={selectWorkspace} size="md">
-          Select Workspace
-        </Button>
       </Stack>
     </Container>
   );
