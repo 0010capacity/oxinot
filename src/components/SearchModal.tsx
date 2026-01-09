@@ -235,7 +235,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                 key={page.id}
                 onClick={() => handlePageClick(page.id)}
                 style={{
-                  padding: "8px 12px",
+                  padding: "6px 12px",
                   paddingLeft: `${12 + depth * 20}px`,
                   borderRadius: "6px",
                   cursor: "pointer",
@@ -258,41 +258,57 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                 }}
                 onMouseEnter={() => setSelectedIndex(index)}
               >
-                {hasChildren && (
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleCollapse(page.id);
-                    }}
-                    style={{
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      fontSize: "0.8rem",
-                      userSelect: "none",
-                      width: "16px",
-                    }}
-                  >
-                    {isCollapsed ? "▸" : "▾"}
-                  </span>
-                )}
-                {!hasChildren && (
-                  <span style={{ width: "16px", display: "inline-block" }} />
-                )}
-                {page.isDirectory ? (
-                  <IconFolder size={16} opacity={0.7} />
-                ) : (
-                  <IconFile size={16} opacity={0.7} />
-                )}
-                <Text
-                  size="sm"
+                <div
                   style={{
-                    color: isDark ? "#c1c2c5" : "#495057",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
                     flex: 1,
                   }}
                 >
-                  {page.title}
-                </Text>
+                  {hasChildren && (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleCollapse(page.id);
+                      }}
+                      style={{
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        fontSize: "0.7rem",
+                        userSelect: "none",
+                        width: "12px",
+                        color: isDark ? "#909296" : "#868e96",
+                      }}
+                    >
+                      {isCollapsed ? "▸" : "▾"}
+                    </span>
+                  )}
+                  {!hasChildren && (
+                    <span style={{ width: "12px", display: "inline-block" }} />
+                  )}
+                  {page.isDirectory ? (
+                    <IconFolder
+                      size={14}
+                      style={{ color: isDark ? "#909296" : "#868e96" }}
+                    />
+                  ) : (
+                    <IconFile
+                      size={14}
+                      style={{ color: isDark ? "#909296" : "#868e96" }}
+                    />
+                  )}
+                  <Text
+                    size="sm"
+                    style={{
+                      color: isDark ? "#c1c2c5" : "#495057",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    {page.title}
+                  </Text>
+                </div>
               </Box>
             );
           })}
@@ -317,13 +333,13 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
           overflowY: "auto",
         }}
       >
-        <Stack gap="xs">
+        <Stack gap={2}>
           {results.map((result, index) => (
             <Box
               key={`${result.result_type}-${result.id}`}
               onClick={() => handleResultClick(result)}
               style={{
-                padding: "12px",
+                padding: "6px 12px",
                 borderRadius: "6px",
                 cursor: "pointer",
                 backgroundColor:
@@ -343,45 +359,47 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
               }}
               onMouseEnter={() => setSelectedIndex(index)}
             >
-              <Stack gap={4}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                  }}
-                >
-                  <Text
-                    size="xs"
-                    c="dimmed"
-                    style={{
-                      textTransform: "uppercase",
-                      letterSpacing: "0.5px",
-                      fontSize: "0.7rem",
-                    }}
-                  >
-                    {result.result_type}
-                  </Text>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                {result.result_type === "page" ? (
+                  <IconFile
+                    size={14}
+                    style={{ color: isDark ? "#909296" : "#868e96" }}
+                  />
+                ) : (
+                  <IconFile
+                    size={14}
+                    style={{ color: isDark ? "#909296" : "#868e96" }}
+                  />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <Text
                     size="sm"
-                    fw={500}
                     style={{
                       color: isDark ? "#c1c2c5" : "#495057",
+                      fontSize: "0.9rem",
+                      marginBottom: "2px",
                     }}
                   >
                     {result.page_title}
                   </Text>
+                  <Text
+                    size="xs"
+                    style={{
+                      color: isDark ? "#909296" : "#868e96",
+                      lineHeight: 1.4,
+                      fontSize: "0.8rem",
+                    }}
+                  >
+                    {renderSnippet(result.snippet)}
+                  </Text>
                 </div>
-                <Text
-                  size="sm"
-                  style={{
-                    color: isDark ? "#909296" : "#868e96",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {renderSnippet(result.snippet)}
-                </Text>
-              </Stack>
+              </div>
             </Box>
           ))}
         </Stack>
