@@ -24,6 +24,9 @@ import { SearchModal } from "./components/SearchModal";
 import { CalendarModal } from "./components/CalendarModal";
 import { HelpModal } from "./components/HelpModal";
 import { ThemeProvider } from "./theme/ThemeProvider";
+import { useThemeStore } from "./stores/themeStore";
+import { SegmentedControl } from "@mantine/core";
+import type { ColorVariant } from "./theme/types";
 
 const theme = createTheme({
   fontFamily:
@@ -70,6 +73,9 @@ function AppContent({ workspacePath }: AppContentProps) {
   const toggleIndentGuides = useOutlinerSettingsStore(
     (state) => state.toggleIndentGuides,
   );
+
+  const colorVariant = useThemeStore((state) => state.colorVariant);
+  const setColorVariant = useThemeStore((state) => state.setColorVariant);
 
   const [showMigration, setShowMigration] = useState(false);
   const [dbInitialized, setDbInitialized] = useState(false);
@@ -233,6 +239,30 @@ function AppContent({ workspacePath }: AppContentProps) {
         size="md"
       >
         <Stack gap="lg">
+          <div>
+            <h3 style={{ margin: 0, marginBottom: 12 }}>Theme</h3>
+            <div style={{ marginBottom: 8 }}>
+              <Text size="sm" fw={500} mb={8}>
+                Color Variant
+              </Text>
+              <SegmentedControl
+                value={colorVariant}
+                onChange={(value) => setColorVariant(value as ColorVariant)}
+                data={[
+                  { label: "Default", value: "default" },
+                  { label: "Blue", value: "blue" },
+                  { label: "Purple", value: "purple" },
+                  { label: "Green", value: "green" },
+                  { label: "Amber", value: "amber" },
+                ]}
+                fullWidth
+              />
+              <Text size="xs" c="dimmed" mt={4}>
+                Choose your preferred accent color theme
+              </Text>
+            </div>
+          </div>
+
           <div>
             <h3 style={{ margin: 0, marginBottom: 8 }}>Outliner</h3>
             <Switch
