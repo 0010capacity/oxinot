@@ -299,6 +299,27 @@ function AppContent({ workspacePath }: AppContentProps) {
                 <Text size="xs" c="dimmed" mt={4}>
                   Choose the font used throughout the application
                 </Text>
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: 16,
+                    borderRadius: 6,
+                    backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                    fontFamily: getFontStack(),
+                  }}
+                >
+                  <Text size="sm" style={{ fontFamily: getFontStack() }}>
+                    The quick brown fox jumps over the lazy dog
+                  </Text>
+                  <Text
+                    size="xs"
+                    c="dimmed"
+                    mt={4}
+                    style={{ fontFamily: getFontStack() }}
+                  >
+                    Preview: This is how your text will appear
+                  </Text>
+                </div>
               </div>
             </Stack>
           </div>
