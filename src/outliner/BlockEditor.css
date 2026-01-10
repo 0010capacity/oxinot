@@ -23,7 +23,9 @@
 .blocks-list {
     max-width: var(--layout-max-content-width);
     margin: 0 auto;
-    padding-bottom: var(--layout-content-bottom-padding);
+    /* The global content wrapper uses a generous bottom padding for comfort,
+       but the outliner block list shouldn't create a large empty scroll area. */
+    padding-bottom: 24px;
     padding-left: var(--spacing-sm);
 }
 

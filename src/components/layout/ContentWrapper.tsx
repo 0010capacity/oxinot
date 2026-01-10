@@ -15,7 +15,7 @@ interface ContentWrapperProps {
 export function ContentWrapper({
   children,
   maxWidth = "var(--layout-max-content-width)",
-  paddingBottom = "var(--layout-content-bottom-padding)",
+  paddingBottom = "24px",
   className = "",
   style,
 }: ContentWrapperProps) {
