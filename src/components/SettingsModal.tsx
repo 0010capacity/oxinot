@@ -236,86 +236,59 @@ export function SettingsModal({
     }
   });
 
-  // Search functionality
-  const searchableContent = useMemo(() => {
-    return [
-      {
-        tab: "appearance",
-        keywords: ["font", "size", "typography", "line height", "editor"],
-      },
-      {
-        tab: "theme",
-        keywords: [
-          "color",
-          "variant",
-          "accent",
-          "blue",
-          "purple",
-          "green",
-          "amber",
-        ],
-      },
-      {
-        tab: "datetime",
-        keywords: [
-          "time",
-          "date",
-          "format",
-          "clock",
-          "12h",
-          "24h",
-          "separator",
-        ],
-      },
-      { tab: "daily", keywords: ["daily notes", "path", "folder"] },
-      {
-        tab: "homepage",
-        keywords: ["home", "start", "default", "index", "custom page"],
-      },
-      {
-        tab: "outliner",
-        keywords: ["indent", "guides", "blocks", "expand", "count"],
-      },
-      {
-        tab: "git",
-        keywords: [
-          "git",
-          "version",
-          "commit",
-          "repository",
-          "remote",
-          "push",
-          "pull",
-        ],
-      },
-      {
-        tab: "shortcuts",
-        keywords: ["keyboard", "hotkey", "shortcut", "keys"],
-      },
-      {
-        tab: "advanced",
-        keywords: ["update", "telemetry", "reset", "developer"],
-      },
-      { tab: "about", keywords: ["version", "changelog", "info", "beta"] },
-    ];
-  }, []);
+  // Search functionality - search within actual setting items
+  const matchesSearch = (text: string) => {
+    if (!searchQuery.trim()) return true;
+    return text.toLowerCase().includes(searchQuery.toLowerCase());
+  };
 
-  const filteredTabs = useMemo(() => {
-    if (!searchQuery.trim()) return null;
+  const hasMatchInTab = (tabValue: string) => {
+    if (!searchQuery.trim()) return true;
 
     const query = searchQuery.toLowerCase();
-    return searchableContent
-      .filter(
-        (item) =>
-          item.keywords.some((keyword) => keyword.includes(query)) ||
-          item.tab.includes(query),
-      )
-      .map((item) => item.tab);
-  }, [searchQuery, searchableContent]);
 
-  const shouldShowTab = (tabValue: string) => {
-    if (!searchQuery.trim()) return true;
-    return filteredTabs?.includes(tabValue) ?? false;
+    // Define searchable content for each tab
+    const tabContent: Record<string, string[]> = {
+      appearance: [
+        "font family", "editor font size", "line height", "typography",
+        "inter", "system", "roboto", "monospace", "preview"
+      ],
+      theme: [
+        "color variant", "accent color", "default", "blue", "purple",
+        "green", "amber", "dark mode"
+      ],
+      datetime: [
+        "time format", "24 hour", "12 hour", "date order", "date separator",
+        "mdy", "dmy", "ymd", "slash", "hyphen", "dot", "clock"
+      ],
+      daily: [
+        "daily notes path", "folder", "path", "daily"
+      ],
+      homepage: [
+        "homepage type", "daily note", "file tree", "index", "custom page",
+        "start page", "default"
+      ],
+      outliner: [
+        "indent guides", "auto expand", "block count", "blocks"
+      ],
+      git: [
+        "version control", "git", "repository", "commit", "auto commit",
+        "remote", "push", "pull", "interval", "status"
+      ],
+      shortcuts: [
+        "keyboard shortcuts", "hotkey", "command palette", "search",
+        "settings", "help", "toggle"
+      ],
+      advanced: [
+        "automatic updates", "beta updates", "check updates", "telemetry",
+        "developer", "reset settings", "danger"
+      ],
+      about: [
+        "version", "changelog", "beta", "oxinot", "info"
+      ]
+    };
+
+    return tabContent[tabValue]?.some(item => item.includes(query)) ?? false;
   };
 
   return (
@@ -384,7 +357,7 @@ export function SettingsModal({
             overflowY: "auto",
           }}
         >
-          {shouldShowTab("appearance") && (
+          {hasMatchInTab("appearance") && (
             <Tabs.Tab
               value="appearance"
               leftSection={<IconAppWindow size={16} />}
@@ -392,37 +365,37 @@ export function SettingsModal({
               Appearance
             </Tabs.Tab>
           )}
-          {shouldShowTab("theme") && (
+          {hasMatchInTab("theme") && (
             <Tabs.Tab value="theme" leftSection={<IconPalette size={16} />}>
               Theme
             </Tabs.Tab>
           )}
-          {shouldShowTab("datetime") && (
+          {hasMatchInTab("datetime") && (
             <Tabs.Tab value="datetime" leftSection={<IconClock size={16} />}>
               Date & Time
             </Tabs.Tab>
           )}
-          {shouldShowTab("daily") && (
+          {hasMatchInTab("daily") && (
             <Tabs.Tab value="daily" leftSection={<IconCalendar size={16} />}>
               Daily Notes
             </Tabs.Tab>
           )}
-          {shouldShowTab("homepage") && (
+          {hasMatchInTab("homepage") && (
             <Tabs.Tab value="homepage" leftSection={<IconHome size={16} />}>
               Homepage
             </Tabs.Tab>
           )}
-          {shouldShowTab("outliner") && (
+          {hasMatchInTab("outliner") && (
             <Tabs.Tab value="outliner" leftSection={<IconList size={16} />}>
               Outliner
             </Tabs.Tab>
           )}
-          {shouldShowTab("git") && (
+          {hasMatchInTab("git") && (
             <Tabs.Tab value="git" leftSection={<IconBrandGit size={16} />}>
               Version Control
             </Tabs.Tab>
           )}
-          {shouldShowTab("shortcuts") && (
+          {hasMatchInTab("shortcuts") && (
             <Tabs.Tab
               value="shortcuts"
               leftSection={<IconKeyboard size={16} />}
@@ -430,12 +403,12 @@ export function SettingsModal({
               Shortcuts
             </Tabs.Tab>
           )}
-          {shouldShowTab("advanced") && (
+          {hasMatchInTab("advanced") && (
             <Tabs.Tab value="advanced" leftSection={<IconSettings size={16} />}>
               Advanced
             </Tabs.Tab>
           )}
-          {shouldShowTab("about") && (
+          {hasMatchInTab("about") && (
             <Tabs.Tab value="about" leftSection={<IconInfoCircle size={16} />}>
               About
             </Tabs.Tab>
@@ -462,6 +435,7 @@ export function SettingsModal({
                 </Text>
 
                 <Stack gap="lg">
+                  {matchesSearch("Font Family") && (
                   <div>
                     <Text size="sm" fw={500} mb={8}>
                       Font Family
@@ -498,7 +472,9 @@ export function SettingsModal({
                       </Text>
                     </div>
                   </div>
+                  )}
 
+                  {matchesSearch("Editor Font Size") && (
                   <div>
                     <Text size="sm" fw={500} mb={8}>
                       Editor Font Size
@@ -530,7 +506,9 @@ export function SettingsModal({
                       Adjust the font size in the editor
                     </Text>
                   </div>
+                  )}
 
+                  {matchesSearch("Editor Line Height") && (
                   <div>
                     <Text size="sm" fw={500} mb={8}>
                       Editor Line Height
@@ -561,6 +539,7 @@ export function SettingsModal({
                       Adjust spacing between lines
                     </Text>
                   </div>
+                  )}
                 </Stack>
               </div>
             </Stack>
@@ -578,6 +557,7 @@ export function SettingsModal({
                 </Text>
 
                 <Stack gap="lg">
+                  {matchesSearch("Color Variant accent") && (
                   <div>
                     <Text size="sm" fw={500} mb={8}>
                       Color Variant
@@ -600,6 +580,7 @@ export function SettingsModal({
                       Choose your preferred accent color theme
                     </Text>
                   </div>
+                  )}
 
                   <Alert
                     icon={<IconInfoCircle size={16} />}
@@ -626,6 +607,7 @@ export function SettingsModal({
                 </Text>
 
                 <Stack gap="lg">
+                  {matchesSearch("Time Format 24 12 hour clock") && (
                   <div>
                     <Text size="sm" fw={500} mb={8}>
                       Time Format
@@ -640,7 +622,9 @@ export function SettingsModal({
                       placeholder="Select time format"
                     />
                   </div>
+                  )}
 
+                  {matchesSearch("Date Order MDY DMY YMD") && (
                   <div>
                     <Text size="sm" fw={500} mb={8}>
                       Date Order
@@ -659,7 +643,9 @@ export function SettingsModal({
                       Choose the order of year, month, and day
                     </Text>
                   </div>
+                  )}
 
+                  {matchesSearch("Date Separator slash hyphen dot") && (
                   <div>
                     <Text size="sm" fw={500} mb={8}>
                       Date Separator
@@ -677,7 +663,9 @@ export function SettingsModal({
                       placeholder="Select separator"
                     />
                   </div>
+                  )}
 
+                  {matchesSearch("preview") && (
                   <div
                     style={{
                       padding: 16,
@@ -693,6 +681,7 @@ export function SettingsModal({
                       {useClockFormatStore.getState().formatTime(new Date())}
                     </Text>
                   </div>
+                  )}
                 </Stack>
               </div>
             </Stack>
@@ -710,6 +699,7 @@ export function SettingsModal({
                 </Text>
 
                 <Stack gap="lg">
+                  {matchesSearch("Daily Notes Path folder") && (
                   <div>
                     <Text size="sm" fw={500} mb={8}>
                       Daily Notes Path
@@ -723,6 +713,7 @@ export function SettingsModal({
                       description="Path where daily notes will be created (e.g., 'Daily' or 'Notes/Daily')"
                     />
                   </div>
+                  )}
 
                   <Alert
                     icon={<IconInfoCircle size={16} />}
@@ -749,6 +740,7 @@ export function SettingsModal({
                 </Text>
 
                 <Stack gap="lg">
+                  {matchesSearch("Homepage Type start default") && (
                   <div>
                     <Text size="sm" fw={500} mb={8}>
                       Homepage Type
@@ -789,6 +781,7 @@ export function SettingsModal({
                       />
                     </div>
                   )}
+                  )}
                 </Stack>
               </div>
             </Stack>
@@ -806,13 +799,16 @@ export function SettingsModal({
                 </Text>
 
                 <Stack gap="lg">
+                  {matchesSearch("indent guides") && (
                   <Switch
                     label="Show indent guides"
                     description="Display vertical lines to show indentation levels"
                     checked={showIndentGuides}
                     onChange={toggleIndentGuides}
                   />
+                  )}
 
+                  {matchesSearch("auto expand blocks") && (
                   <Switch
                     label="Auto-expand blocks"
                     description="Automatically expand collapsed blocks when navigating"
@@ -821,7 +817,9 @@ export function SettingsModal({
                       setAutoExpandBlocks?.(event.currentTarget.checked)
                     }
                   />
+                  )}
 
+                  {matchesSearch("block count") && (
                   <Switch
                     label="Show block count"
                     description="Display the number of child blocks for each parent"
@@ -830,6 +828,7 @@ export function SettingsModal({
                       setShowBlockCount?.(event.currentTarget.checked)
                     }
                   />
+                  )}
                 </Stack>
               </div>
             </Stack>
@@ -848,6 +847,7 @@ export function SettingsModal({
 
                 <Stack gap="lg">
                   {!isGitRepo ? (
+                    matchesSearch("initialize git repository") && (
                     <>
                       <Alert
                         icon={<IconAlertTriangle size={16} />}
@@ -893,8 +893,10 @@ export function SettingsModal({
                         </Text>
                       </div>
                     </>
+                    )
                   ) : (
                     <>
+                      {matchesSearch("git repository tracked") && (
                       <Alert
                         icon={<IconInfoCircle size={16} />}
                         color="blue"
@@ -904,7 +906,9 @@ export function SettingsModal({
                         tracked locally and can be synced to remote
                         repositories.
                       </Alert>
+                      )}
 
+                      {matchesSearch("repository location path") && (
                       <div>
                         <Text size="sm" fw={500} mb={8}>
                           Repository Location
@@ -923,7 +927,9 @@ export function SettingsModal({
                           {workspacePath}
                         </Text>
                       </div>
+                      )}
 
+                      {matchesSearch("current status commit changes") && (
                       <div>
                         <Text size="sm" fw={500} mb={8}>
                           Current Status
@@ -954,7 +960,9 @@ export function SettingsModal({
                             : "✓ All changes committed"}
                         </Text>
                       </div>
+                      )}
 
+                      {matchesSearch("auto commit interval") && (
                       <div
                         style={{
                           padding: 16,
@@ -1001,7 +1009,9 @@ export function SettingsModal({
                           </>
                         )}
                       </div>
+                      )}
 
+                      {matchesSearch("remote repository url push pull") && (
                       <div
                         style={{
                           padding: 16,
@@ -1085,7 +1095,9 @@ export function SettingsModal({
                           </Button>
                         )}
                       </div>
+                      )}
 
+                      {matchesSearch("tip using git backup") && (
                       <Alert
                         icon={<IconInfoCircle size={16} />}
                         color="grape"
@@ -1106,6 +1118,7 @@ export function SettingsModal({
                           for quick commits
                         </Text>
                       </Alert>
+                      )}
                     </>
                   )}
                 </Stack>
@@ -1125,6 +1138,7 @@ export function SettingsModal({
                 </Text>
 
                 <Stack gap="md">
+                  {matchesSearch("keyboard shortcuts hotkey command") && (
                   <div
                     style={{
                       padding: 16,
@@ -1163,6 +1177,7 @@ export function SettingsModal({
                       <Badge variant="light">Cmd+\</Badge>
                     </Group>
                   </div>
+                  )}
 
                   <Alert
                     icon={<IconInfoCircle size={16} />}
@@ -1189,6 +1204,7 @@ export function SettingsModal({
                 </Text>
 
                 <Stack gap="lg">
+                  {matchesSearch("updates automatic beta check") && (
                   <div>
                     <Text size="sm" fw={500} mb={12}>
                       Updates
@@ -1248,7 +1264,9 @@ export function SettingsModal({
                       </Text>
                     </Stack>
                   </div>
+                  )}
 
+                  {matchesSearch("developer telemetry anonymous") && (
                   <div
                     style={{
                       padding: 16,
@@ -1279,7 +1297,9 @@ export function SettingsModal({
                       </Alert>
                     </Stack>
                   </div>
+                  )}
 
+                  {matchesSearch("reset settings danger") && (
                   <div
                     style={{
                       padding: 16,
@@ -1322,6 +1342,7 @@ export function SettingsModal({
                   </div>
                 </Stack>
               </div>
+              )}
             </Stack>
           </Tabs.Panel>
 
