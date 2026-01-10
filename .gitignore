@@ -38,3 +38,14 @@ out
 .cache
 .parcel-cache
 .eslintcache
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Tauri data
+src-tauri/target
+
+# App data
+.oxinot-data

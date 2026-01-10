@@ -16,7 +16,12 @@ use uuid::Uuid;
 fn compute_rel_path(abs_path: &Path, workspace_root: &Path) -> Result<String, String> {
     abs_path
         .strip_prefix(workspace_root)
-        .map_err(|_| format!("Path {:?} is not under workspace root {:?}", abs_path, workspace_root))
+        .map_err(|_| {
+            format!(
+                "Path {:?} is not under workspace root {:?}",
+                abs_path, workspace_root
+            )
+        })
         .and_then(|rel| {
             rel.to_str()
                 .map(|s| {
@@ -62,7 +67,7 @@ pub fn open_workspace_db(workspace_path: &str) -> Result<Connection, String> {
 /// Get or create workspace metadata directory
 fn get_workspace_metadata_dir(workspace_path: &str) -> Result<PathBuf, String> {
     let workspace = PathBuf::from(workspace_path);
-    let metadata_dir = workspace.join(".md-outliner");
+    let metadata_dir = workspace.join(".oxinot");
 
     if !metadata_dir.exists() {
         fs::create_dir_all(&metadata_dir)
@@ -541,7 +546,7 @@ fn sync_directory(
         a_name.cmp(&b_name)
     });
 
-    // Skip .md-outliner directory and separate files/dirs up-front
+    // Skip .oxinot directory and separate files/dirs up-front
     let mut file_entries: Vec<std::fs::DirEntry> = Vec::new();
     let mut dir_entries: Vec<std::fs::DirEntry> = Vec::new();
 
@@ -549,7 +554,7 @@ fn sync_directory(
         let path = entry.path();
 
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            if name == ".md-outliner" {
+            if name == ".oxinot" {
                 continue;
             }
         }

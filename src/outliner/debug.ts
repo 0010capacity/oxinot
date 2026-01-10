@@ -5,7 +5,7 @@
 /**
  * Enable debug mode by setting this to true or via localStorage
  */
-const DEBUG_KEY = "md-editor:debug";
+const DEBUG_KEY = "oxinot:debug";
 
 /**
  * Check if debug mode is enabled

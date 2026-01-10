@@ -50,7 +50,7 @@ pub async fn git_init(workspace_path: String) -> Result<bool, String> {
     // Create initial .gitignore
     let gitignore_path = path.join(".gitignore");
     if !gitignore_path.exists() {
-        std::fs::write(&gitignore_path, ".DS_Store\nnode_modules/\n.obsidian/\n")
+        std::fs::write(&gitignore_path, ".DS_Store\n.oxinot/\n")
             .map_err(|e| format!("Failed to create .gitignore: {}", e))?;
     }
 

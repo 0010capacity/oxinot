@@ -39,7 +39,7 @@ A modern markdown outliner application built with Tauri, React, and TypeScript. 
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd md-editor
+cd oxinot
 ```
 
 2. Install dependencies:
@@ -118,7 +118,7 @@ The interface is inspired by modern note-taking apps with a clean, minimal desig
 ## 📁 Project Structure
 
 ```
-md-editor/
+oxinot/
 ├── src/                      # React frontend
 │   ├── components/           # UI components
 │   │   └── FileTreeView.tsx  # File tree outliner view

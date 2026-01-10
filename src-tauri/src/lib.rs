@@ -39,7 +39,7 @@ async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, Strin
     if let Some(folder_path) = folder {
         let path_str = folder_path.to_string();
 
-        // Initialize workspace metadata (.md-outliner folder)
+        // Initialize workspace metadata (.oxinot folder)
         commands::workspace::initialize_workspace(path_str.clone())
             .await
             .map_err(|e| format!("Failed to initialize workspace: {}", e))?;
