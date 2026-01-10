@@ -35,6 +35,7 @@ import { SearchModal } from "./components/SearchModal";
 import { CalendarModal } from "./components/CalendarModal";
 import { HelpModal } from "./components/HelpModal";
 import { CommandPalette } from "./components/CommandPalette";
+import { SyncProgress } from "./components/SyncProgress";
 
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { useThemeStore } from "./stores/themeStore";
@@ -616,6 +617,7 @@ function App() {
       <Notifications />
       <ThemeProvider>
         <AppContent workspacePath={workspacePath} />
+        <SyncProgress />
       </ThemeProvider>
     </MantineProvider>
   );

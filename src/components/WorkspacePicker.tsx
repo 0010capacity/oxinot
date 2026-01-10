@@ -17,6 +17,7 @@ import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useMantineColorScheme } from "@mantine/core";
 import { tauriAPI } from "../tauri-api";
 import { notifications } from "@mantine/notifications";
+import { useSyncStore } from "../stores/syncStore";
 
 interface WorkspacePickerProps {
   currentWorkspacePath: string | null;
@@ -31,6 +32,8 @@ export function WorkspacePicker({
   const workspaces = useWorkspaceStore((state) => state.getWorkspaces());
   const openWorkspace = useWorkspaceStore((state) => state.openWorkspace);
   const selectWorkspace = useWorkspaceStore((state) => state.selectWorkspace);
+  const { startReindex, updateProgress, finishReindex, cancelReindex } =
+    useSyncStore();
 
   const handleReindex = async () => {
     if (!currentWorkspacePath) {
@@ -43,34 +46,33 @@ export function WorkspacePicker({
     }
 
     try {
-      notifications.show({
-        id: "reindex",
-        title: "Re-indexing workspace",
-        message: "This may take a moment...",
-        loading: true,
-        autoClose: false,
-      });
+      startReindex();
+      updateProgress(10, "Scanning workspace files...");
 
       const result = await tauriAPI.reindexWorkspace(currentWorkspacePath);
 
-      notifications.update({
-        id: "reindex",
-        title: "Re-index complete",
-        message: `Indexed ${result.pages} pages`,
-        color: "green",
-        loading: false,
-        autoClose: 3000,
-      });
+      updateProgress(90, "Finalizing...");
 
-      // Reload pages
-      window.location.reload();
+      setTimeout(() => {
+        finishReindex();
+        notifications.show({
+          title: "Re-index complete",
+          message: `Indexed ${result.pages} pages`,
+          color: "green",
+          autoClose: 3000,
+        });
+
+        // Reload pages after a short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      }, 200);
     } catch (error) {
-      notifications.update({
-        id: "reindex",
+      cancelReindex();
+      notifications.show({
         title: "Re-index failed",
         message: error instanceof Error ? error.message : "Unknown error",
         color: "red",
-        loading: false,
         autoClose: 5000,
       });
     }
