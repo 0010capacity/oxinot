@@ -147,6 +147,11 @@ function getVisibleLineRanges(
 }
 
 function isCursorOnLine(view: EditorView, lineFrom: number, lineTo: number) {
+  // Only consider cursor position if the editor is actually focused
+  // This prevents all block editors from thinking they have cursor focus
+  if (!view.hasFocus) {
+    return false;
+  }
   const head = view.state.selection.main.head;
   return head >= lineFrom && head <= lineTo;
 }
