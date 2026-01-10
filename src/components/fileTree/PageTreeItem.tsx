@@ -13,6 +13,17 @@ import { CollapseToggle } from "../common/CollapseToggle";
 import { BulletPoint } from "../common/BulletPoint";
 import { IndentGuide } from "../common/IndentGuide";
 
+// Extract basename from path (e.g., "A/B/C" -> "C")
+function getPageBasename(title: string): string {
+  const trimmed = (title ?? "").trim();
+  if (!trimmed) return "";
+  const parts = trimmed
+    .split("/")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : trimmed;
+}
+
 interface PageTreeItemProps {
   page: PageData;
   depth: number;
@@ -261,7 +272,7 @@ export function PageTreeItem({
                 }}
                 style={{
                   flex: 1,
-                  color: "var(--color-text-primary)",
+                  color: "#8b5cf6",
                   userSelect: "none",
                   fontSize: "var(--font-size-sm)",
                   lineHeight: "24px",
@@ -270,13 +281,14 @@ export function PageTreeItem({
                   paddingLeft: "4px",
                   paddingRight: "8px",
                   cursor: "pointer",
+                  fontWeight: 500,
                 }}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
                   onEdit(page.id);
                 }}
               >
-                {page.title}
+                {getPageBasename(page.title)}
               </Text>
 
               {/* Action buttons */}
