@@ -24,6 +24,8 @@ import {
   IconBrandGit,
   IconInfoCircle,
   IconKeyboard,
+  IconSettings,
+  IconDownload,
 } from "@tabler/icons-react";
 import { useThemeStore, type ColorVariant } from "../stores/themeStore";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
@@ -71,6 +73,12 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+
+  // Advanced settings (local state for now)
+  const [autoUpdate, setAutoUpdate] = useState(true);
+  const [checkUpdatesOnStartup, setCheckUpdatesOnStartup] = useState(true);
+  const [betaUpdates, setBetaUpdates] = useState(false);
+  const [telemetryEnabled, setTelemetryEnabled] = useState(false);
 
   // Theme
   const colorVariant = useThemeStore((state) => state.colorVariant);
@@ -212,6 +220,9 @@ export function SettingsModal({
           </Tabs.Tab>
           <Tabs.Tab value="shortcuts" leftSection={<IconKeyboard size={16} />}>
             Shortcuts
+          </Tabs.Tab>
+          <Tabs.Tab value="advanced" leftSection={<IconSettings size={16} />}>
+            Advanced
           </Tabs.Tab>
           <Tabs.Tab value="about" leftSection={<IconInfoCircle size={16} />}>
             About
@@ -812,6 +823,126 @@ export function SettingsModal({
                     Custom keyboard shortcuts will be available in a future
                     update
                   </Alert>
+                </Stack>
+              </div>
+            </Stack>
+          </Tabs.Panel>
+
+          {/* Advanced Tab */}
+          <Tabs.Panel value="advanced">
+            <Stack gap="xl">
+              <div>
+                <Text size="xl" fw={600} mb="lg">
+                  Advanced
+                </Text>
+                <Text size="sm" c="dimmed" mb="xl">
+                  Advanced settings and developer options
+                </Text>
+
+                <Stack gap="lg">
+                  <div>
+                    <Text size="sm" fw={500} mb={12}>
+                      Updates
+                    </Text>
+                    <Stack gap="md">
+                      <Switch
+                        label="Automatic updates"
+                        description="Automatically download and install updates"
+                        checked={autoUpdate}
+                        onChange={(event) =>
+                          setAutoUpdate(event.currentTarget.checked)
+                        }
+                      />
+
+                      <Switch
+                        label="Check for updates on startup"
+                        description="Check for new versions when the app starts"
+                        checked={checkUpdatesOnStartup}
+                        onChange={(event) =>
+                          setCheckUpdatesOnStartup(event.currentTarget.checked)
+                        }
+                      />
+
+                      <Switch
+                        label="Beta updates"
+                        description="Receive beta versions with experimental features"
+                        checked={betaUpdates}
+                        onChange={(event) =>
+                          setBetaUpdates(event.currentTarget.checked)
+                        }
+                      />
+
+                      <Group gap="xs">
+                        <Button
+                          size="sm"
+                          variant="light"
+                          leftSection={<IconDownload size={16} />}
+                        >
+                          Check for Updates
+                        </Button>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        Current version: 0.1.0 (Beta)
+                      </Text>
+                    </Stack>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: 16,
+                      borderRadius: 6,
+                      backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                      borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
+                    }}
+                  >
+                    <Text size="sm" fw={500} mb={12}>
+                      Developer Options
+                    </Text>
+                    <Stack gap="md">
+                      <Switch
+                        label="Anonymous telemetry"
+                        description="Help improve Oxinot by sending anonymous usage data"
+                        checked={telemetryEnabled}
+                        onChange={(event) =>
+                          setTelemetryEnabled(event.currentTarget.checked)
+                        }
+                      />
+                      <Alert
+                        icon={<IconInfoCircle size={16} />}
+                        color="gray"
+                        variant="light"
+                      >
+                        Telemetry is disabled by default. No personal data is
+                        collected.
+                      </Alert>
+                    </Stack>
+                  </div>
+
+                  <div>
+                    <Text size="sm" fw={500} mb={8}>
+                      Workspace Information
+                    </Text>
+                    <div
+                      style={{
+                        padding: 12,
+                        borderRadius: 6,
+                        backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                      }}
+                    >
+                      <Group gap="xs" mb={4}>
+                        <Text size="xs" c="dimmed" fw={500}>
+                          Path:
+                        </Text>
+                        <Text
+                          size="xs"
+                          c="dimmed"
+                          style={{ fontFamily: "monospace" }}
+                        >
+                          {workspacePath || "None"}
+                        </Text>
+                      </Group>
+                    </div>
+                  </div>
                 </Stack>
               </div>
             </Stack>
