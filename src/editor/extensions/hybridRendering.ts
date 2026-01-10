@@ -753,7 +753,27 @@ export const hybridRenderingTheme = EditorView.theme({
   // Obsidian features
   ".cm-wiki-link": {
     color: "#8b5cf6",
-    textDecoration: "none",
+    textDecoration: "none !important",
+  },
+  ".cm-content .cm-wiki-link": {
+    textDecoration: "none !important",
+  },
+  ".cm-line .cm-wiki-link": {
+    textDecoration: "none !important",
+  },
+  "span.cm-wiki-link": {
+    textDecoration: "none !important",
+  },
+  // Override any CodeMirror auto-generated classes
+  ".cm-line span[class*='cm-']": {
+    textDecoration: "inherit",
+  },
+  ".cm-line .cm-wiki-link[class]": {
+    textDecoration: "none !important",
+  },
+  // Extremely specific selector to override CodeMirror's generated classes
+  ".cm-content .cm-line span.cm-wiki-link": {
+    textDecoration: "none !important",
   },
 
   // Block references / embeds

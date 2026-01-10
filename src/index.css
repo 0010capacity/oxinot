@@ -237,6 +237,24 @@ span[class*="heading"],
     color: #339af0;
 }
 
+/* Wiki Link Styles - NUCLEAR OPTION: Override all possible CodeMirror classes */
+.cm-wiki-link,
+.cm-wiki-link *,
+span.cm-wiki-link,
+.cm-line .cm-wiki-link,
+.cm-content .cm-wiki-link,
+.cm-line span.cm-wiki-link,
+.cm-content .cm-line .cm-wiki-link,
+.cm-content .cm-line span.cm-wiki-link {
+    text-decoration: none !important;
+    text-decoration-line: none !important;
+    text-decoration-style: none !important;
+    text-decoration-color: transparent !important;
+    border-bottom: none !important;
+    border-bottom-width: 0 !important;
+    border-bottom-style: none !important;
+}
+
 /* Blockquote Styles */
 .cm-blockquote {
     border-left: 3px solid #ccc;

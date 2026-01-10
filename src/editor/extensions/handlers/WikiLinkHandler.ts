@@ -166,8 +166,8 @@ export class WikiLinkHandler extends BaseHandler {
       const start = lineFrom + match.index;
       const end = start + fullMatch.length;
 
-      // Opening [[
-      decorations.push(createHiddenMarker(start, start + 2, isOnCursorLine));
+      // Opening [[ - always hide (even when cursor is on line)
+      decorations.push(createHiddenMarker(start, start + 2, false));
 
       if (hasAlias) {
         // Format: [[note|alias]]
@@ -179,15 +179,11 @@ export class WikiLinkHandler extends BaseHandler {
         const aliasStart = pipePos + 1;
         const aliasEnd = aliasStart + aliasText.length;
 
-        // Hide the note name
-        decorations.push(
-          createHiddenMarker(noteStart, noteEnd, isOnCursorLine),
-        );
+        // Hide the note name - always hide
+        decorations.push(createHiddenMarker(noteStart, noteEnd, false));
 
-        // Hide the pipe |
-        decorations.push(
-          createHiddenMarker(pipePos, pipePos + 1, isOnCursorLine),
-        );
+        // Hide the pipe | - always hide
+        decorations.push(createHiddenMarker(pipePos, pipePos + 1, false));
 
         // Style the alias text as a wiki link
         decorations.push(
@@ -195,9 +191,9 @@ export class WikiLinkHandler extends BaseHandler {
             className: "cm-wiki-link",
             style: `
               color: #8b5cf6;
-              text-decoration: none;
               cursor: pointer;
               font-weight: 500;
+              text-decoration: none !important;
             `,
           }),
         );
@@ -219,11 +215,9 @@ export class WikiLinkHandler extends BaseHandler {
         const linkEnd =
           linkStart + (basename ? basename.length : noteName.length);
 
-        // Hide any leading path part (A/B/)
+        // Hide any leading path part (A/B/) - always hide
         if (linkStart > noteStart) {
-          decorations.push(
-            createHiddenMarker(noteStart, linkStart, isOnCursorLine),
-          );
+          decorations.push(createHiddenMarker(noteStart, linkStart, false));
         }
 
         decorations.push(
@@ -231,23 +225,21 @@ export class WikiLinkHandler extends BaseHandler {
             className: "cm-wiki-link",
             style: `
               color: #8b5cf6;
-              text-decoration: none;
               cursor: pointer;
               font-weight: 500;
+              text-decoration: none !important;
             `,
           }),
         );
 
-        // Hide any trailing part (unlikely, but keep safe)
+        // Hide any trailing part (unlikely, but keep safe) - always hide
         if (linkEnd < noteEnd) {
-          decorations.push(
-            createHiddenMarker(linkEnd, noteEnd, isOnCursorLine),
-          );
+          decorations.push(createHiddenMarker(linkEnd, noteEnd, false));
         }
       }
 
-      // Closing ]]
-      decorations.push(createHiddenMarker(end - 2, end, isOnCursorLine));
+      // Closing ]] - always hide (even when cursor is on line)
+      decorations.push(createHiddenMarker(end - 2, end, false));
     }
 
     return decorations;
