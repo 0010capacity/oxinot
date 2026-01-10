@@ -193,7 +193,7 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
   return (
     <Box
       style={{
-        margin: "6px 0",
+        margin: "0",
         position: "relative",
         border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
         borderRadius: "8px",

@@ -278,6 +278,20 @@ span.cm-wiki-link,
     pointer-events: auto !important;
 }
 
+/* Remove any backgrounds/borders from lines containing embed widgets */
+.cm-line:has(.cm-block-embed-subtree),
+.cm-line:has(.cm-page-embed) {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Also ensure the content wrapper doesn't add backgrounds */
+.cm-content:has(.cm-block-embed-subtree),
+.cm-content:has(.cm-page-embed) {
+    background: transparent !important;
+}
+
 /* Hidden/Dimmed Syntax Styles */
 /* IMPORTANT:
    Do NOT use display:none for CodeMirror "hidden" spans.
