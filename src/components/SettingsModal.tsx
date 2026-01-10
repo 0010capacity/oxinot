@@ -856,16 +856,46 @@ export function SettingsModal({
                       backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
                     }}
                   >
-                    <Text size="sm" fw={500} mb={8}>
-                      What's New
+                    <Text size="sm" fw={500} mb={12}>
+                      What's New in v0.1.0
+                    </Text>
+                    <Text size="sm" c="dimmed" mb={8}>
+                      <strong>Settings Redesign</strong>
+                    </Text>
+                    <Text size="sm" c="dimmed" mb={12}>
+                      • Modern tabbed interface with 10 categories
+                      <br />
+                      • Better organization and discoverability
+                      <br />• Beta badge to indicate development status
+                    </Text>
+                    <Text size="sm" c="dimmed" mb={8}>
+                      <strong>Appearance Enhancements</strong>
+                    </Text>
+                    <Text size="sm" c="dimmed" mb={12}>
+                      • Editor font size control (12-24px)
+                      <br />
+                      • Line height adjustment (1.2-2.0)
+                      <br />
+                      • 12 font family options including monospace
+                      <br />• Live preview for typography settings
+                    </Text>
+                    <Text size="sm" c="dimmed" mb={8}>
+                      <strong>Outliner Improvements</strong>
+                    </Text>
+                    <Text size="sm" c="dimmed" mb={12}>
+                      • Auto-expand blocks option
+                      <br />
+                      • Show block count toggle
+                      <br />• Enhanced indent guides
+                    </Text>
+                    <Text size="sm" c="dimmed" mb={8}>
+                      <strong>Keyboard Shortcuts</strong>
                     </Text>
                     <Text size="sm" c="dimmed">
-                      • Modern settings interface with categorized tabs
+                      • Cmd+, to open Settings
                       <br />
-                      • Enhanced appearance customization
-                      <br />
-                      • Improved Git integration
-                      <br />• Better outliner controls
+                      • Cmd+? to open Help
+                      <br />• Complete shortcuts reference in Settings
                     </Text>
                   </div>
 
