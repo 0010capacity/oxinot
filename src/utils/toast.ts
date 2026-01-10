@@ -10,8 +10,14 @@ interface ToastOptions {
  * Show a minimal, centered toast notification
  * Used for quick feedback like "Committed", "Saved", etc.
  */
-export function showToast({ message, type = "info", duration = 1500 }: ToastOptions) {
-  const isDark = document.documentElement.getAttribute("data-mantine-color-scheme") === "dark";
+export function showToast({
+  message,
+  type = "info",
+  duration = 1500,
+}: ToastOptions) {
+  const isDark =
+    document.documentElement.getAttribute("data-mantine-color-scheme") ===
+    "dark";
 
   const getColor = () => {
     switch (type) {
@@ -41,7 +47,10 @@ export function showToast({ message, type = "info", duration = 1500 }: ToastOpti
         padding: "8px 12px",
         minHeight: "auto",
         "&::before": {
-          display: "none",
+          display: "none !important",
+        },
+        "&::after": {
+          display: "none !important",
         },
       },
       description: {
@@ -49,7 +58,14 @@ export function showToast({ message, type = "info", duration = 1500 }: ToastOpti
         fontSize: "0.75rem",
         margin: 0,
       },
+      icon: {
+        display: "none !important",
+      },
+      loader: {
+        display: "none !important",
+      },
     },
+    unstyled: true,
   });
 }
 
@@ -68,7 +84,8 @@ export function showNotification({
   type?: "success" | "error" | "info";
   duration?: number;
 }) {
-  const color = type === "success" ? "green" : type === "error" ? "red" : "blue";
+  const color =
+    type === "success" ? "green" : type === "error" ? "red" : "blue";
 
   notifications.show({
     title,
