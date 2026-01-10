@@ -226,7 +226,7 @@ pub async fn migrate_workspace(
 
     // Recursively scan and migrate all markdown files
     let workspace_root = PathBuf::from(&workspace_path);
-    let result = scan_and_migrate_directory(
+    let _result = scan_and_migrate_directory(
         &conn,
         &workspace_root,
         &workspace_root,
@@ -319,7 +319,7 @@ fn scan_and_migrate_directory(
 /// Migrate a single markdown file to the database
 fn migrate_file(
     conn: &rusqlite::Connection,
-    workspace_root: &Path,
+    _workspace_root: &Path,
     file_path: &Path,
     parent_page_id: Option<&str>,
     is_directory: bool,
