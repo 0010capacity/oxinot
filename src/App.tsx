@@ -14,10 +14,11 @@ import {
   Group,
   NumberInput,
 } from "@mantine/core";
-import { Notifications, notifications } from "@mantine/notifications";
+import { Notifications } from "@mantine/notifications";
 import "@mantine/notifications/styles.css";
 
 import { invoke } from "@tauri-apps/api/core";
+import { showToast } from "./utils/toast";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
 import { usePageStore } from "./stores/pageStore";
@@ -135,62 +136,10 @@ function AppContent({ workspacePath }: AppContentProps) {
     try {
       const result = await gitCommit(workspacePath, `Update: ${timestamp}`);
       if (result.success) {
-        notifications.show({
-          message: "Committed",
-          position: "bottom-center",
-          autoClose: 1500,
-          withCloseButton: false,
-          withBorder: false,
-          styles: {
-            root: {
-              backgroundColor: isDark
-                ? "rgba(44, 46, 51, 0.95)"
-                : "rgba(241, 243, 245, 0.95)",
-              backdropFilter: "blur(8px)",
-              border: "none",
-              boxShadow: "none",
-              padding: "8px 12px",
-              minHeight: "auto",
-              "&::before": {
-                display: "none",
-              },
-            },
-            description: {
-              color: isDark ? "#909296" : "#868e96",
-              fontSize: "0.75rem",
-              margin: 0,
-            },
-          },
-        });
+        showToast({ message: "Committed", type: "success" });
       }
     } catch (error) {
-      notifications.show({
-        message: "Commit failed",
-        position: "bottom-center",
-        autoClose: 2000,
-        withCloseButton: false,
-        withBorder: false,
-        styles: {
-          root: {
-            backgroundColor: isDark
-              ? "rgba(44, 46, 51, 0.95)"
-              : "rgba(241, 243, 245, 0.95)",
-            backdropFilter: "blur(8px)",
-            border: "none",
-            boxShadow: "none",
-            padding: "8px 12px",
-            minHeight: "auto",
-            "&::before": {
-              display: "none",
-            },
-          },
-          description: {
-            color: isDark ? "#fa5252" : "#c92a2a",
-            fontSize: "0.75rem",
-            margin: 0,
-          },
-        },
-      });
+      showToast({ message: "Commit failed", type: "error", duration: 2000 });
     }
   };
 
