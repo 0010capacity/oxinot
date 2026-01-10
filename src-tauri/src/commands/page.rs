@@ -160,6 +160,10 @@ pub async fn update_page(
 pub async fn delete_page(workspace_path: String, page_id: String) -> Result<bool, String> {
     let conn = open_workspace_db(&workspace_path)?;
 
+    // Get parent before deletion
+    let page = get_page_by_id(&conn, &page_id)?;
+    let parent_id = page.parent_id.clone();
+
     // Delete file from file system
     let file_sync = FileSyncService::new(workspace_path.clone());
     file_sync
@@ -169,6 +173,11 @@ pub async fn delete_page(workspace_path: String, page_id: String) -> Result<bool
     // CASCADE will automatically delete all blocks
     conn.execute("DELETE FROM pages WHERE id = ?", [&page_id])
         .map_err(|e| e.to_string())?;
+
+    // Check if parent should be converted back to regular file
+    if let Some(pid) = parent_id {
+        check_and_convert_to_file(&conn, &workspace_path, &pid)?;
+    }
 
     Ok(true)
 }
@@ -206,8 +215,17 @@ pub async fn move_page(
     let conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
 
-    // If moving to a parent, ensure parent is a directory
+    // Validate: cannot move to itself
     if let Some(parent_id) = &request.new_parent_id {
+        if parent_id == &request.id {
+            return Err("Cannot move page to itself".to_string());
+        }
+
+        // Validate: cannot move to its own descendant
+        if is_descendant(&conn, parent_id, &request.id)? {
+            return Err("Cannot move page to its own descendant".to_string());
+        }
+
         let parent = get_page_by_id(&conn, parent_id)?;
         if !parent.is_directory {
             // Convert parent to directory first
@@ -225,7 +243,7 @@ pub async fn move_page(
     }
 
     // Move file in file system
-    let file_sync = FileSyncService::new(workspace_path);
+    let file_sync = FileSyncService::new(workspace_path.clone());
     let new_path = file_sync
         .move_page_file(
             &conn,
@@ -234,6 +252,10 @@ pub async fn move_page(
         )
         .map_err(|e| format!("Failed to move page file: {}", e))?;
 
+    // Get old parent before update
+    let page = get_page_by_id(&conn, &request.id)?;
+    let old_parent_id = page.parent_id.clone();
+
     // Update database
     conn.execute(
         "UPDATE pages SET parent_id = ?, file_path = ?, updated_at = ? WHERE id = ?",
@@ -241,7 +263,71 @@ pub async fn move_page(
     )
     .map_err(|e| e.to_string())?;
 
+    // Check if old parent should be converted back to regular file
+    if let Some(old_pid) = old_parent_id {
+        check_and_convert_to_file(&conn, &workspace_path, &old_pid)?;
+    }
+
     get_page_by_id(&conn, &request.id)
+}
+
+/// Check if target_id is a descendant of page_id
+fn is_descendant(conn: &Connection, target_id: &str, page_id: &str) -> Result<bool, String> {
+    let mut current_id = Some(target_id.to_string());
+
+    while let Some(id) = current_id {
+        let page = get_page_by_id(conn, &id)?;
+
+        if let Some(parent_id) = page.parent_id {
+            if parent_id == page_id {
+                return Ok(true);
+            }
+            current_id = Some(parent_id);
+        } else {
+            break;
+        }
+    }
+
+    Ok(false)
+}
+
+/// Check if page has children, and convert to regular file if not
+fn check_and_convert_to_file(
+    conn: &Connection,
+    workspace_path: &str,
+    page_id: &str,
+) -> Result<(), String> {
+    let parent = get_page_by_id(conn, page_id)?;
+
+    if !parent.is_directory {
+        return Ok(());
+    }
+
+    // Count children
+    let child_count: i32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pages WHERE parent_id = ?",
+            [page_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to count children: {}", e))?;
+
+    // If no children remain, convert back to regular file
+    if child_count == 0 {
+        let file_sync = FileSyncService::new(workspace_path);
+        let new_path = file_sync
+            .convert_directory_to_file(conn, page_id)
+            .map_err(|e| format!("Failed to convert to file: {}", e))?;
+
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE pages SET is_directory = 0, file_path = ?, updated_at = ? WHERE id = ?",
+            params![&new_path, &now, page_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
 }
 
 /// Convert a page to directory (when adding first child)

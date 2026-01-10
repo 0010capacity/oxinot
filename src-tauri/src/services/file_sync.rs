@@ -144,24 +144,6 @@ impl FileSyncService {
         new_parent_id: Option<&str>,
     ) -> Result<String, String> {
         let page = self.get_page_from_db(conn, page_id)?;
-        let old_path = if let Some(fp) = &page.file_path {
-            PathBuf::from(fp)
-        } else {
-            self.get_page_file_path(conn, page_id)?
-        };
-
-        // If old file doesn't exist, create it first
-        if !old_path.exists() {
-            // Ensure parent directory exists
-            if let Some(parent) = old_path.parent() {
-                fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create parent directory: {}", e))?;
-            }
-            // Create file with basic content
-            let initial_content = format!("# {}\n\n", page.title);
-            fs::write(&old_path, initial_content)
-                .map_err(|e| format!("Failed to create file: {}", e))?;
-        }
 
         // Calculate new parent directory
         let new_parent_dir = if let Some(parent_id) = new_parent_id {
@@ -185,27 +167,111 @@ impl FileSyncService {
         fs::create_dir_all(&new_parent_dir)
             .map_err(|e| format!("Failed to create target directory: {}", e))?;
 
-        let file_name = old_path.file_name().ok_or("Invalid file name")?;
-        let new_path = new_parent_dir.join(file_name);
-
-        // Move file or directory
-        fs::rename(&old_path, &new_path).map_err(|e| format!("Failed to move: {}", e))?;
-
-        // If it's a directory, move the whole directory
         if page.is_directory {
+            // Moving a directory note - move the entire folder structure
+            let old_path = if let Some(fp) = &page.file_path {
+                PathBuf::from(fp)
+            } else {
+                self.get_page_file_path(conn, page_id)?
+            };
+
+            // The directory is named after the file stem
             let old_dir = old_path
                 .parent()
-                .ok_or("Cannot get parent")?
-                .join(old_path.file_stem().ok_or("Invalid name")?);
+                .ok_or("Cannot get parent directory")?
+                .join(old_path.file_stem().ok_or("Invalid file name")?);
 
-            if old_dir.exists() {
-                let new_dir = new_parent_dir.join(old_dir.file_name().ok_or("Invalid dir name")?);
-                fs::rename(&old_dir, &new_dir)
-                    .map_err(|e| format!("Failed to move directory: {}", e))?;
+            if !old_dir.exists() {
+                return Err(format!("Directory does not exist: {:?}", old_dir));
             }
+
+            // Move the entire directory
+            let dir_name = old_dir.file_name().ok_or("Invalid directory name")?;
+            let new_dir = new_parent_dir.join(dir_name);
+
+            fs::rename(&old_dir, &new_dir)
+                .map_err(|e| format!("Failed to move directory: {}", e))?;
+
+            // Return new file path inside moved directory
+            let new_file_path = new_dir.join(format!("{}.md", dir_name.to_string_lossy()));
+            Ok(new_file_path.to_string_lossy().to_string())
+        } else {
+            // Moving a regular file
+            let old_path = if let Some(fp) = &page.file_path {
+                PathBuf::from(fp)
+            } else {
+                self.get_page_file_path(conn, page_id)?
+            };
+
+            if !old_path.exists() {
+                // Create file if it doesn't exist
+                if let Some(parent) = old_path.parent() {
+                    fs::create_dir_all(parent)
+                        .map_err(|e| format!("Failed to create parent directory: {}", e))?;
+                }
+                let initial_content = format!("# {}\n\n", page.title);
+                fs::write(&old_path, initial_content)
+                    .map_err(|e| format!("Failed to create file: {}", e))?;
+            }
+
+            let file_name = old_path.file_name().ok_or("Invalid file name")?;
+            let new_path = new_parent_dir.join(file_name);
+
+            fs::rename(&old_path, &new_path).map_err(|e| format!("Failed to move file: {}", e))?;
+
+            Ok(new_path.to_string_lossy().to_string())
+        }
+    }
+
+    /// Convert a directory back to a regular file (when no children remain)
+    pub fn convert_directory_to_file(
+        &self,
+        conn: &Connection,
+        page_id: &str,
+    ) -> Result<String, String> {
+        let page = self.get_page_from_db(conn, page_id)?;
+
+        if !page.is_directory {
+            return Err("Page is not a directory".to_string());
         }
 
-        Ok(new_path.to_string_lossy().to_string())
+        let old_file_path = if let Some(fp) = &page.file_path {
+            PathBuf::from(fp)
+        } else {
+            self.get_page_file_path(conn, page_id)?
+        };
+
+        // The directory is the parent of the file
+        let dir_path = old_file_path.parent().ok_or("Cannot get directory path")?;
+
+        // Read content from the file inside directory
+        let content = if old_file_path.exists() {
+            fs::read_to_string(&old_file_path).map_err(|e| format!("Failed to read file: {}", e))?
+        } else {
+            format!("# {}\n\n", page.title)
+        };
+
+        // Create new file path (one level up, outside the directory)
+        let parent = dir_path.parent().ok_or("Cannot get parent directory")?;
+        let file_name = format!(
+            "{}.md",
+            dir_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .ok_or("Invalid directory name")?
+        );
+        let new_file_path = parent.join(file_name);
+
+        // Write content to new file location
+        fs::write(&new_file_path, content).map_err(|e| format!("Failed to write file: {}", e))?;
+
+        // Remove the directory and its contents
+        if dir_path.exists() {
+            fs::remove_dir_all(dir_path)
+                .map_err(|e| format!("Failed to remove directory: {}", e))?;
+        }
+
+        Ok(new_file_path.to_string_lossy().to_string())
     }
 
     /// Convert a page file to a directory structure

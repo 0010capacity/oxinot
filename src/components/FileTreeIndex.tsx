@@ -110,12 +110,18 @@ export function FileTreeIndex() {
       const pageElement = elements.find((el) =>
         el.getAttribute("data-page-id"),
       );
+      const dropZone = elements.find(
+        (el) => el.getAttribute("data-drop-zone") === "root",
+      );
 
       if (pageElement) {
         const pageId = pageElement.getAttribute("data-page-id");
         if (pageId && pageId !== dragState.draggedPageId) {
           setDragState((prev) => ({ ...prev, dragOverPageId: pageId }));
         }
+      } else if (dropZone) {
+        // Hovering over root drop zone
+        setDragState((prev) => ({ ...prev, dragOverPageId: "root" }));
       } else {
         setDragState((prev) => ({ ...prev, dragOverPageId: null }));
       }
@@ -135,29 +141,44 @@ export function FileTreeIndex() {
       });
 
       // Perform drop if valid
-      if (draggedPageId && dragOverPageId && draggedPageId !== dragOverPageId) {
-        console.log(
-          `[FileTreeIndex] Dropping ${draggedPageId} on ${dragOverPageId}`,
-        );
-        try {
-          await movePage(draggedPageId, dragOverPageId);
-          await loadPages();
-          setCollapsed((prev) => ({
-            ...prev,
-            [dragOverPageId]: false,
-          }));
-          console.log("[FileTreeIndex] Page moved successfully");
-        } catch (error) {
-          console.error("Failed to move page:", error);
-          alert(`Failed to move page: ${error}`);
+      if (draggedPageId) {
+        if (dragOverPageId === "root") {
+          // Move to root level
+          console.log(`[FileTreeIndex] Moving ${draggedPageId} to root`);
+          try {
+            await movePage(draggedPageId, null);
+            await loadPages();
+            console.log("[FileTreeIndex] Page moved to root successfully");
+          } catch (error) {
+            console.error("Failed to move page:", error);
+            alert(`Failed to move page: ${error}`);
+          }
+        } else if (dragOverPageId && draggedPageId !== dragOverPageId) {
+          console.log(
+            `[FileTreeIndex] Dropping ${draggedPageId} on ${dragOverPageId}`,
+          );
+          try {
+            await movePage(draggedPageId, dragOverPageId);
+            await loadPages();
+            setCollapsed((prev) => ({
+              ...prev,
+              [dragOverPageId]: false,
+            }));
+            console.log("[FileTreeIndex] Page moved successfully");
+          } catch (error) {
+            console.error("Failed to move page:", error);
+            alert(`Failed to move page: ${error}`);
+          }
         }
       }
     };
 
     if (dragState.isDragging) {
+      document.body.style.cursor = "grabbing";
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
       return () => {
+        document.body.style.cursor = "";
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
       };
@@ -421,6 +442,41 @@ export function FileTreeIndex() {
         <PageHeader title={workspaceName} />
 
         <Stack gap={0} style={{ position: "relative" }}>
+          {/* Root Drop Zone */}
+          {dragState.isDragging && (
+            <div
+              data-drop-zone="root"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 1000,
+                pointerEvents: "all",
+                backgroundColor:
+                  dragOverPageId === "root"
+                    ? "var(--color-interactive-hover)"
+                    : "transparent",
+                border:
+                  dragOverPageId === "root"
+                    ? "2px dashed var(--mantine-color-blue-5)"
+                    : "2px dashed transparent",
+                borderRadius: "var(--radius-sm)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.15s ease",
+              }}
+            >
+              {dragOverPageId === "root" && (
+                <Text size="sm" c="dimmed" fw={500}>
+                  Drop here to move to root
+                </Text>
+              )}
+            </div>
+          )}
+
           {/* Pages Tree */}
           <Stack gap={0} style={{ flex: 1 }}>
             {rootPages.map((page) => renderPageTree(page, 0))}
