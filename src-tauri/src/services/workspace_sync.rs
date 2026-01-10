@@ -33,6 +33,11 @@ impl WorkspaceSyncService {
                 .unwrap_or(0)
         });
 
+        // Separate directory notes from regular files
+        let (dir_notes, regular_files): (Vec<_>, Vec<_>) = files
+            .into_iter()
+            .partition(|f| self.is_directory_note(&f.path));
+
         // 2. Get existing pages from DB
         let existing_pages = self.get_all_pages(conn)?;
         let mut existing_paths: std::collections::HashMap<String, Page> = existing_pages
@@ -40,8 +45,8 @@ impl WorkspaceSyncService {
             .filter_map(|p| p.file_path.clone().map(|path| (path, p)))
             .collect();
 
-        // 3. Process each file
-        for file_info in files {
+        // 3. Process directory notes first
+        for file_info in dir_notes {
             let relative_path = self.get_relative_path(&file_info.path)?;
 
             match existing_paths.remove(&relative_path) {
@@ -62,7 +67,29 @@ impl WorkspaceSyncService {
             }
         }
 
-        // 4. Remove pages that no longer have files
+        // 4. Process regular files (now parent_id can be resolved)
+        for file_info in regular_files {
+            let relative_path = self.get_relative_path(&file_info.path)?;
+
+            match existing_paths.remove(&relative_path) {
+                Some(page) => {
+                    // File exists in DB - check if modified
+                    if self.needs_reindex(&file_info, &page) {
+                        self.reindex_file(conn, &file_info, &page.id)?;
+                        stats.updated += 1;
+                    } else {
+                        stats.unchanged += 1;
+                    }
+                }
+                None => {
+                    // New file - index it
+                    self.index_new_file(conn, &file_info)?;
+                    stats.added += 1;
+                }
+            }
+        }
+
+        // 5. Remove pages that no longer have files
         for (_, page) in existing_paths {
             self.delete_page_from_db(conn, &page.id)?;
             stats.deleted += 1;
