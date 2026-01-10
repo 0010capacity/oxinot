@@ -8,6 +8,45 @@ Keep it short, implementation-oriented, and opinionated.
 - Achieve **Obsidian-like Live Preview**: editing feels like plaintext Markdown, but common constructs render smoothly inline.
 - Maintain responsiveness: avoid full re-renders or heavy sync work on every keystroke.
 
+## Embeds (DECISION) — 100% identical rendering via existing Outliner renderer
+### What we want
+Embeds must render **exactly like the outliner** (same visuals, same hybrid rendering, same interactions):
+- Embedded block: `!((blockId))`
+- Embedded page: `![[Page]]`
+- Must support link navigation immediately (no “click once to focus then click again”)
+- Must be **read-only as a card** (no caret/selection/editing), while still allowing:
+  - Task checkbox toggles
+  - Internal navigation (page links / block links)
+  - External link opening
+
+### What we will NOT do (abandoned)
+**Do not** implement embeds by “serializing a subtree into a synthetic Markdown string” and rendering it inside a nested CodeMirror instance.
+Reasons:
+- Markdown block-level parsing inside list items is inherently fragile (`- ### Heading` etc.)
+- Even with heuristics, it will drift from the main renderer
+- It introduces theme/focus/selection quirks and duplicate navigation handlers
+- It becomes a second rendering pipeline to keep in sync (guaranteed divergence)
+
+### The correct implementation direction (next session)
+**Reuse the existing outliner block renderer** (React + `BlockComponent`/editor) and add an “embed/read-only” mode:
+1) Refactor `src/outliner/BlockComponent.tsx` into:
+   - A store-connected container (loads block/children + actions from stores)
+   - A pure/presentational renderer (e.g., `BlockView`) that accepts:
+     - `block`, `childIds`, `depth`, `readOnly`
+     - callbacks for navigation and checkbox toggling
+2) Implement embed cards as React components that render a local block tree:
+   - `EmbeddedBlockCard`: fetch subtree by block id, normalize into local `blocksById` + `childrenMap`, render `BlockView` tree
+   - `EmbeddedPageCard`: fetch page blocks, normalize, render `BlockView` tree
+3) Read-only behavior:
+   - Editors inside embeds run with `readOnly=true` and do not take focus/selection
+   - Disable outliner keybindings (Enter/Backspace/indent/nav) inside embeds
+   - Keep *only* the intended interactions: checkbox toggle + link navigation
+4) Checkbox toggles must persist:
+   - Checkbox click should update the *real* block content (same path as the main outliner update)
+   - Do not mutate a synthetic doc that cannot be persisted
+
+This keeps embeds 100% consistent with the main editor and eliminates duplication.
+
 ## Current State (Implemented!)
 - ✅ Vite + React + TypeScript bootstrapped
 - ✅ Mantine UI (AppShell with theme toggle)
@@ -23,6 +62,7 @@ Files of interest:
 - `src/editor/createEditor.ts`: Editor factory with all extensions
 - `src/editor/extensions/hybridRendering.ts`: **Core hybrid rendering implementation**
 - `src/markdown/parser.ts`: Markdown AST parsing utilities
+- `src/outliner/BlockComponent.tsx`: Current block renderer (needs refactor into container + presentational component for embeds)
 
 ## Working Principles
 ### 1) Single source of truth = Markdown string
