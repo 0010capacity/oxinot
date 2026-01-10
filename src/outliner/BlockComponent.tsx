@@ -1,4 +1,11 @@
-import React, { memo, useCallback, useRef, useEffect, useMemo } from "react";
+import React, {
+  memo,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useMantineColorScheme } from "@mantine/core";
 import {
   useBlock,
@@ -6,7 +13,8 @@ import {
   useBlockStore,
   useFocusedBlockId,
 } from "../stores/blockStore";
-import { useDebouncedBlockUpdate } from "../hooks/useDebouncedBlockUpdate";
+// NOTE: We intentionally avoid debounced store writes while typing.
+// The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import { Editor, EditorRef } from "../components/Editor";
@@ -45,8 +53,35 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       (state) => state.clearTargetCursorPosition,
     );
 
-    const { debouncedUpdate, flushUpdate } = useDebouncedBlockUpdate(blockId);
     const editorRef = useRef<EditorRef>(null);
+
+    // Local draft is the immediate source of truth while editing.
+    // This prevents controlled-value "ping-pong" that can break IME composition.
+    const [draft, setDraft] = useState<string>(block.content);
+
+    // Keep the latest draft in a ref so callbacks/keybindings can stay stable
+    // (otherwise keybindings change every keystroke and the editor view gets recreated).
+    const draftRef = useRef<string>(block.content);
+
+    // Keep draft in sync when the underlying block changes (e.g., page load, external update)
+    // but do not overwrite while this block is focused (editing session owns the draft).
+    useEffect(() => {
+      if (focusedBlockId !== blockId) {
+        setDraft(block.content);
+        draftRef.current = block.content;
+      }
+    }, [block.content, focusedBlockId, blockId]);
+
+    // Commit helper: stable callback reading from refs (doesn't change every keystroke).
+    const commitDraft = useCallback(() => {
+      const latestDraft = draftRef.current;
+      const latestBlock = useBlockStore.getState().blocksById[blockId];
+
+      // Avoid unnecessary writes; also tolerate missing block during transitions.
+      if (latestBlock && latestDraft !== latestBlock.content) {
+        useBlockStore.getState().updateBlockContent(blockId, latestDraft);
+      }
+    }, [blockId]);
 
     // Focus editor when this block becomes focused
     useEffect(() => {
@@ -74,20 +109,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       clearTargetCursorPosition,
     ]);
 
-    const handleContentChange = useCallback(
-      (content: string) => {
-        debouncedUpdate(content);
-      },
-      [debouncedUpdate],
-    );
+    const handleContentChange = useCallback((content: string) => {
+      draftRef.current = content;
+      setDraft(content);
+    }, []);
 
     const handleFocus = useCallback(() => {
       setFocusedBlock(blockId);
     }, [blockId, setFocusedBlock]);
 
     const handleBlur = useCallback(() => {
-      flushUpdate();
-    }, [flushUpdate]);
+      commitDraft();
+    }, [commitDraft]);
 
     const handleCopyBlockId = useCallback(
       async (e: React.MouseEvent) => {
@@ -156,8 +189,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       return [
         {
           key: "Enter",
-          run: () => {
-            flushUpdate();
+          run: (view: EditorView) => {
+            // Let IME handle Enter for composition commit.
+            if ((view as any).composing) return false;
+
+            commitDraft();
             createBlock(blockId);
             return true; // Prevent default CodeMirror behavior
           },
@@ -206,7 +242,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   // Merge current content into previous block
                   const prevLength = prevBlock.content.length;
                   const newContent = prevBlock.content + content;
-                  flushUpdate();
+                  commitDraft();
                   useBlockStore
                     .getState()
                     .updateBlockContent(prevBlockId, newContent);
@@ -232,7 +268,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 .getState()
                 .getPreviousBlock(blockId);
               if (prevBlockId) {
-                flushUpdate();
+                commitDraft();
 
                 // Calculate column position in current line
                 const columnPos = cursor - line.from;
@@ -276,7 +312,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 .getState()
                 .getNextBlock(blockId);
               if (nextBlockId) {
-                flushUpdate();
+                commitDraft();
 
                 // Calculate column position in current line
                 const columnPos = cursor - line.from;
@@ -309,7 +345,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const view = editorRef.current?.getView();
             const cursorPos = view?.state.selection.main.head ?? null;
 
-            flushUpdate();
+            commitDraft();
             if (cursorPos !== null) {
               setFocusedBlock(blockId, cursorPos);
             }
@@ -325,7 +361,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const view = editorRef.current?.getView();
             const cursorPos = view?.state.selection.main.head ?? null;
 
-            flushUpdate();
+            commitDraft();
             if (cursorPos !== null) {
               setFocusedBlock(blockId, cursorPos);
             }
@@ -336,7 +372,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       ];
     }, [
       blockId,
-      flushUpdate,
       createBlock,
       deleteBlock,
       indentBlock,
@@ -423,7 +458,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
             <Editor
               ref={editorRef}
-              value={block.content}
+              value={draft}
               onChange={handleContentChange}
               onFocus={handleFocus}
               onBlur={handleBlur}

@@ -250,9 +250,18 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       // the editor on every keystroke / render. Those are handled via `latestRef`.
     }, [readOnly, lineWrapping, theme, lineNumbers, keybindings, isFocused]);
 
-    // Update content when value prop changes
+    // Update content when value prop changes.
+    //
+    // IMPORTANT (IME): While the user is composing (Korean/Japanese/Chinese IME),
+    // do not push external `value` into the editor. Doing so can overwrite the
+    // in-progress composition and make text "disappear".
+    //
+    // In our architecture, the editor owns the live draft while typing, and
+    // external state should follow via `onChange`/flush points.
     useEffect(() => {
       if (editorViewRef.current) {
+        if (isComposingRef.current) return;
+
         const currentDoc = editorViewRef.current.state.doc.toString();
         if (currentDoc !== value) {
           isUpdatingRef.current = true;
