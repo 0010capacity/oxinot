@@ -48,6 +48,9 @@ async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, Strin
         // Initialize git repository if not already initialized
         let _ = commands::git::git_init(path_str.clone()).await;
 
+        // Run incremental sync to index workspace files
+        let _ = commands::workspace::sync_workspace_incremental(path_str.clone()).await;
+
         // Check if workspace is empty and create Welcome.md if needed
         match fs::read_dir(&path_str) {
             Ok(entries) => {

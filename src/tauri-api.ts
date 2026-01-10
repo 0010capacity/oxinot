@@ -68,4 +68,23 @@ export const tauriAPI = {
   getPathInfo: async (targetPath: string): Promise<PathInfo> => {
     return await invoke<PathInfo>("get_path_info", { targetPath });
   },
+
+  // Workspace sync operations
+  syncWorkspaceIncremental: async (
+    workspacePath: string,
+  ): Promise<{ pages: number; blocks: number }> => {
+    return await invoke<{ pages: number; blocks: number }>(
+      "sync_workspace_incremental",
+      { workspacePath },
+    );
+  },
+
+  reindexWorkspace: async (
+    workspacePath: string,
+  ): Promise<{ pages: number; blocks: number }> => {
+    return await invoke<{ pages: number; blocks: number }>(
+      "reindex_workspace",
+      { workspacePath },
+    );
+  },
 };

@@ -11,9 +11,12 @@ import {
   IconPlus,
   IconCheck,
   IconChevronDown,
+  IconRefresh,
 } from "@tabler/icons-react";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useMantineColorScheme } from "@mantine/core";
+import { tauriAPI } from "../tauri-api";
+import { notifications } from "@mantine/notifications";
 
 interface WorkspacePickerProps {
   currentWorkspacePath: string | null;
@@ -28,6 +31,50 @@ export function WorkspacePicker({
   const workspaces = useWorkspaceStore((state) => state.getWorkspaces());
   const openWorkspace = useWorkspaceStore((state) => state.openWorkspace);
   const selectWorkspace = useWorkspaceStore((state) => state.selectWorkspace);
+
+  const handleReindex = async () => {
+    if (!currentWorkspacePath) {
+      notifications.show({
+        title: "Error",
+        message: "No workspace selected",
+        color: "red",
+      });
+      return;
+    }
+
+    try {
+      notifications.show({
+        id: "reindex",
+        title: "Re-indexing workspace",
+        message: "This may take a moment...",
+        loading: true,
+        autoClose: false,
+      });
+
+      const result = await tauriAPI.reindexWorkspace(currentWorkspacePath);
+
+      notifications.update({
+        id: "reindex",
+        title: "Re-index complete",
+        message: `Indexed ${result.pages} pages`,
+        color: "green",
+        loading: false,
+        autoClose: 3000,
+      });
+
+      // Reload pages
+      window.location.reload();
+    } catch (error) {
+      notifications.update({
+        id: "reindex",
+        title: "Re-index failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+        color: "red",
+        loading: false,
+        autoClose: 5000,
+      });
+    }
+  };
 
   const currentWorkspace = workspaces.find(
     (w) => w.path === currentWorkspacePath,
@@ -144,6 +191,17 @@ export function WorkspacePicker({
             Add Workspace...
           </Text>
         </Menu.Item>
+
+        {currentWorkspacePath && (
+          <Menu.Item
+            leftSection={<IconRefresh size={16} />}
+            onClick={handleReindex}
+          >
+            <Text size="sm" fw={500}>
+              Re-index Workspace
+            </Text>
+          </Menu.Item>
+        )}
       </Menu.Dropdown>
     </Menu>
   );
