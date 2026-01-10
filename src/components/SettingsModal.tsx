@@ -1301,14 +1301,14 @@ export function SettingsModal({
                   )}
 
                   {matchesSearch("reset settings danger") && (
-                  <div
-                    style={{
-                      padding: 16,
-                      borderRadius: 6,
-                      backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                      borderLeft: `3px solid ${isDark ? "#FA5252" : "#FF6B6B"}`,
-                    }}
-                  >
+                    <div
+                      style={{
+                        padding: 16,
+                        borderRadius: 6,
+                        backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                        borderLeft: `3px solid ${isDark ? "#FA5252" : "#FF6B6B"}`,
+                      }}
+                    >
                     <Text size="sm" fw={500} mb={12} c="red">
                       Danger Zone
                     </Text>
@@ -1341,9 +1341,9 @@ export function SettingsModal({
                       </div>
                     </Stack>
                   </div>
+                )}
                 </Stack>
               </div>
-            )}
             </Stack>
           </Tabs.Panel>
 
