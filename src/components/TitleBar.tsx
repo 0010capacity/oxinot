@@ -35,6 +35,7 @@ export function TitleBar({ currentWorkspacePath }: TitleBarProps) {
     >
       {/* Left - Navigation buttons */}
       <div
+        data-tauri-drag-region
         style={{
           flex: 1,
           display: "flex",
