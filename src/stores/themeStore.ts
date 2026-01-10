@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 import { persist } from "zustand/middleware";
 import type { ColorVariant } from "../theme/types";
 
@@ -44,7 +44,7 @@ const fontStacks: Record<FontFamily, string> = {
   cascadia: '"Cascadia Code", monospace',
 };
 
-export const useThemeStore = create<ThemeState>()(
+export const useThemeStore = createWithEqualityFn<ThemeState>()(
   persist(
     (set, get) => ({
       colorVariant: "default",

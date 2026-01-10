@@ -331,6 +331,12 @@ pub fn run() {
             commands::block::indent_block,
             commands::block::outdent_block,
             commands::block::toggle_collapse,
+            // Block search/navigation commands
+            commands::block::search_blocks,
+            commands::block::resolve_block_path,
+            commands::block::get_block,
+            commands::block::get_block_ancestors,
+            commands::block::get_block_subtree,
             // Page commands
             commands::page::get_pages,
             commands::page::create_page,

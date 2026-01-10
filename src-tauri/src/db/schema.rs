@@ -57,6 +57,48 @@ CREATE TABLE IF NOT EXISTS block_refs (
 
 CREATE INDEX IF NOT EXISTS idx_refs_from ON block_refs(from_block_id);
 CREATE INDEX IF NOT EXISTS idx_refs_to ON block_refs(to_block_id);
+
+-- FTS: 링크 제안/검색을 위한 블록 검색 인덱스 (content + anchor id + path 캐시)
+-- NOTE: 이 테이블은 파생 데이터이며, 리빌드/리인덱싱 시 재생성될 수 있음.
+-- anchor_id는 마크다운 파일에만 숨겨 저장되는 "ID::<uuid>"에서 추출되어 blocks.id와 일치하도록 유지된다.
+CREATE VIRTUAL TABLE IF NOT EXISTS blocks_fts USING fts5(
+    block_id UNINDEXED,
+    page_id UNINDEXED,
+    content,
+    anchor_id,
+    path_text,
+    tokenize = 'unicode61'
+);
+
+-- NOTE: SQLite virtual tables (including FTS5) may not be indexed with CREATE INDEX.
+-- FTS provides its own indexing; if you need filtering by page_id, store it as UNINDEXED
+-- and filter in queries, or use the FTS 'rowid' + auxiliary mapping table.
+
+-- 페이지 경로 캐시 (페이지 링크 [[A/B/C]] 제안/해결에 사용)
+CREATE TABLE IF NOT EXISTS page_paths (
+    page_id TEXT PRIMARY KEY,
+    path_text TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (page_id) REFERENCES pages(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_page_paths_text ON page_paths(path_text);
+
+-- 블록 경로 캐시 (블록 링크 제안에서 표시용: "A/B/C > X > Y")
+-- 실제 링크 삽입은 (())에 UUID를 쓰는 정책이므로, path_text는 검색/표시에만 사용.
+CREATE TABLE IF NOT EXISTS block_paths (
+    block_id TEXT PRIMARY KEY,
+    page_id TEXT NOT NULL,
+    path_text TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (block_id) REFERENCES blocks(id) ON DELETE CASCADE,
+    FOREIGN KEY (page_id) REFERENCES pages(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_block_paths_page ON block_paths(page_id);
+CREATE INDEX IF NOT EXISTS idx_block_paths_text ON block_paths(path_text);
 "#;
 
 /// Initialize the database schema
@@ -154,6 +196,43 @@ fn migrate_schema(conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
         // Add file_size column
         conn.execute("ALTER TABLE pages ADD COLUMN file_size INTEGER", [])?;
     }
+
+    // Ensure auxiliary cache tables/fts exist for older DBs
+    conn.execute_batch(
+        r#"
+        CREATE VIRTUAL TABLE IF NOT EXISTS blocks_fts USING fts5(
+            block_id UNINDEXED,
+            page_id UNINDEXED,
+            content,
+            anchor_id,
+            path_text,
+            tokenize = 'unicode61'
+        );
+
+        -- NOTE: SQLite virtual tables (including FTS5) may not be indexed with CREATE INDEX.
+        -- FTS provides its own indexing; if you need filtering by page_id, store it as UNINDEXED
+        -- and filter in queries, or use the FTS 'rowid' + auxiliary mapping table.
+
+        CREATE TABLE IF NOT EXISTS page_paths (
+            page_id TEXT PRIMARY KEY,
+            path_text TEXT NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (page_id) REFERENCES pages(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_page_paths_text ON page_paths(path_text);
+
+        CREATE TABLE IF NOT EXISTS block_paths (
+            block_id TEXT PRIMARY KEY,
+            page_id TEXT NOT NULL,
+            path_text TEXT NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (block_id) REFERENCES blocks(id) ON DELETE CASCADE,
+            FOREIGN KEY (page_id) REFERENCES pages(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_block_paths_page ON block_paths(page_id);
+        CREATE INDEX IF NOT EXISTS idx_block_paths_text ON block_paths(path_text);
+        "#,
+    )?;
 
     Ok(())
 }

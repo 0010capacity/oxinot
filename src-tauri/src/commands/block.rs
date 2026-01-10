@@ -1,5 +1,7 @@
 use chrono::Utc;
 use rusqlite::{params, Connection};
+use rusqlite::OptionalExtension;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::commands::workspace::open_workspace_db;
@@ -8,6 +10,221 @@ use crate::models::block::{
 };
 use crate::services::markdown_mirror::blocks_to_markdown;
 use crate::utils::fractional_index;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BlockWithPath {
+    pub block: Block,
+    pub ancestor_ids: Vec<String>, // root -> ... -> self
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetBlockRequest {
+    pub block_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetBlockSubtreeRequest {
+    pub block_id: String,
+    /// Optional max depth relative to the requested root (0 = root only).
+    pub max_depth: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetBlockAncestorsRequest {
+    pub block_id: String,
+}
+
+/// Helper: load a single block from DB, or return None.
+fn get_block_by_id_opt(conn: &Connection, id: &str) -> Result<Option<Block>, String> {
+    conn.query_row(
+        "SELECT id, page_id, parent_id, content, order_weight,
+                is_collapsed, block_type, language, created_at, updated_at
+         FROM blocks WHERE id = ?",
+        [id],
+        |row| {
+            Ok(Block {
+                id: row.get(0)?,
+                page_id: row.get(1)?,
+                parent_id: row.get(2)?,
+                content: row.get(3)?,
+                order_weight: row.get(4)?,
+                is_collapsed: row.get::<_, i32>(5)? != 0,
+                block_type: parse_block_type(row.get::<_, String>(6)?),
+                language: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+            })
+        },
+    )
+    .optional()
+    .map_err(|e| e.to_string())
+}
+
+/// Helper: return ancestor chain (root -> ... -> self) for a given block_id.
+/// Also returns the block itself, if found.
+fn get_block_with_ancestors(conn: &Connection, block_id: &str) -> Result<Option<BlockWithPath>, String> {
+    let sql = r#"
+WITH RECURSIVE
+anc(id, page_id, parent_id, content, order_weight, is_collapsed, block_type, language, created_at, updated_at, depth) AS (
+    SELECT id, page_id, parent_id, content, order_weight, is_collapsed, block_type, language, created_at, updated_at, 0
+    FROM blocks
+    WHERE id = ?1
+    UNION ALL
+    SELECT b.id, b.page_id, b.parent_id, b.content, b.order_weight, b.is_collapsed, b.block_type, b.language, b.created_at, b.updated_at, anc.depth + 1
+    FROM blocks b
+    JOIN anc ON anc.parent_id = b.id
+)
+SELECT id, page_id, parent_id, content, order_weight, is_collapsed, block_type, language, created_at, updated_at, depth
+FROM anc
+ORDER BY depth DESC
+"#;
+
+    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![block_id], |row| {
+            Ok((
+                Block {
+                    id: row.get(0)?,
+                    page_id: row.get(1)?,
+                    parent_id: row.get(2)?,
+                    content: row.get(3)?,
+                    order_weight: row.get(4)?,
+                    is_collapsed: row.get::<_, i32>(5)? != 0,
+                    block_type: parse_block_type(row.get::<_, String>(6)?),
+                    language: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                },
+                row.get::<_, i64>(10)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    if rows.is_empty() {
+        return Ok(None);
+    }
+
+    // rows are ordered root..self; last is the requested block
+    let ancestor_ids = rows.iter().map(|(b, _)| b.id.clone()).collect::<Vec<_>>();
+    let block = rows.last().unwrap().0.clone();
+
+    Ok(Some(BlockWithPath { block, ancestor_ids }))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BlockSearchResult {
+    pub id: String,
+    pub page_id: String,
+    pub parent_id: Option<String>,
+    pub content: String,
+    pub depth: i32,
+    pub page_path: String,
+    pub block_path: String,
+    pub full_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchBlocksRequest {
+    pub query: String,
+    pub limit: Option<i64>,
+}
+
+/// Resolve a block by a breadcrumb-like path within a page:
+/// Example input: ["X", "Y"] resolves the child block named "X" under root,
+/// then child "Y" under "X", matching by exact content equality (trimmed).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResolveBlockPathRequest {
+    pub page_id: String,
+    pub segments: Vec<String>,
+}
+
+//
+// Navigation / embed helpers
+//
+
+/// Get a single block by id (used for (()) navigation).
+#[tauri::command]
+pub async fn get_block(
+    workspace_path: String,
+    request: GetBlockRequest,
+) -> Result<Option<BlockWithPath>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+    get_block_with_ancestors(&conn, &request.block_id)
+}
+
+/// Get a block’s ancestor chain (zoom path) as block IDs (root -> ... -> self).
+#[tauri::command]
+pub async fn get_block_ancestors(
+    workspace_path: String,
+    request: GetBlockAncestorsRequest,
+) -> Result<Vec<String>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+    let Some(bwp) = get_block_with_ancestors(&conn, &request.block_id)? else {
+        return Ok(vec![]);
+    };
+    Ok(bwp.ancestor_ids)
+}
+
+/// Get the subtree blocks for embedding (root block + all descendants).
+/// Returns blocks in unspecified order; caller can group by parent/order_weight.
+#[tauri::command]
+pub async fn get_block_subtree(
+    workspace_path: String,
+    request: GetBlockSubtreeRequest,
+) -> Result<Vec<Block>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    // First, ensure the root exists (and capture page_id so we can scope recursion if needed).
+    let root = get_block_by_id_opt(&conn, &request.block_id)?
+        .ok_or_else(|| "Block not found".to_string())?;
+
+    let max_depth = request.max_depth.unwrap_or(1000).clamp(0, 10_000);
+
+    let sql = r#"
+WITH RECURSIVE descendants AS (
+    SELECT
+        id, page_id, parent_id, content, order_weight, is_collapsed, block_type, language, created_at, updated_at,
+        0 as depth
+    FROM blocks
+    WHERE id = ?1
+
+    UNION ALL
+
+    SELECT
+        b.id, b.page_id, b.parent_id, b.content, b.order_weight, b.is_collapsed, b.block_type, b.language, b.created_at, b.updated_at,
+        d.depth + 1
+    FROM blocks b
+    JOIN descendants d ON b.parent_id = d.id
+    WHERE d.depth < ?2
+)
+SELECT id, page_id, parent_id, content, order_weight, is_collapsed, block_type, language, created_at, updated_at
+FROM descendants
+"#;
+
+    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let blocks = stmt
+        .query_map(params![root.id, max_depth], |row| {
+            Ok(Block {
+                id: row.get(0)?,
+                page_id: row.get(1)?,
+                parent_id: row.get(2)?,
+                content: row.get(3)?,
+                order_weight: row.get(4)?,
+                is_collapsed: row.get::<_, i32>(5)? != 0,
+                block_type: parse_block_type(row.get::<_, String>(6)?),
+                language: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(blocks)
+}
 
 /// Get all blocks for a page
 #[tauri::command]
@@ -49,6 +266,167 @@ pub async fn get_page_blocks(
     Ok(blocks)
 }
 
+/// Search blocks across the whole workspace DB by content substring.
+/// Returns breadcrumb-like paths (page path + block path) for completion/navigation.
+///
+/// NOTE:
+/// - This uses `LIKE` matching for now. You can later replace with FTS.
+/// - Depth/path are computed via recursive CTEs.
+/// - Path segments are derived from block content (trimmed, newlines collapsed).
+#[tauri::command]
+pub async fn search_blocks(
+    workspace_path: String,
+    request: SearchBlocksRequest,
+) -> Result<Vec<BlockSearchResult>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    let q = request.query.trim();
+    if q.is_empty() {
+        return Ok(vec![]);
+    }
+    let limit = request.limit.unwrap_or(50).clamp(1, 200);
+    let like = format!("%{}%", q);
+
+    // Recursive CTE to:
+    // - build page path as "A/B/C" by walking pages.parent_id
+    // - build block path as "X/Y" by walking blocks.parent_id within a page
+    //
+    // We compute paths only for matching blocks, but use CTEs to get ancestor chains.
+    let sql = r#"
+WITH RECURSIVE
+page_chain(id, title, parent_id, path) AS (
+    SELECT p.id, p.title, p.parent_id, p.title as path
+    FROM pages p
+    WHERE p.parent_id IS NULL
+    UNION ALL
+    SELECT c.id, c.title, c.parent_id, (pc.path || '/' || c.title) as path
+    FROM pages c
+    JOIN page_chain pc ON pc.id = c.parent_id
+),
+-- normalize content for path segments: trim + collapse internal whitespace
+norm_blocks AS (
+    SELECT
+        b.id,
+        b.page_id,
+        b.parent_id,
+        TRIM(REPLACE(REPLACE(b.content, CHAR(10), ' '), CHAR(13), ' ')) as content
+    FROM blocks b
+),
+-- block path via parent traversal, within the same page
+block_chain(id, page_id, parent_id, content, depth, path) AS (
+    SELECT
+        nb.id,
+        nb.page_id,
+        nb.parent_id,
+        nb.content,
+        0 as depth,
+        nb.content as path
+    FROM norm_blocks nb
+    WHERE nb.parent_id IS NULL
+
+    UNION ALL
+
+    SELECT
+        nb.id,
+        nb.page_id,
+        nb.parent_id,
+        nb.content,
+        bc.depth + 1 as depth,
+        (bc.path || '/' || nb.content) as path
+    FROM norm_blocks nb
+    JOIN block_chain bc ON bc.id = nb.parent_id
+    WHERE nb.page_id = bc.page_id
+)
+SELECT
+    nb.id,
+    nb.page_id,
+    nb.parent_id,
+    nb.content,
+    COALESCE(bc.depth, 0) as depth,
+    COALESCE(pc.path, '') as page_path,
+    COALESCE(bc.path, nb.content) as block_path,
+    CASE
+        WHEN COALESCE(pc.path, '') = '' THEN COALESCE(bc.path, nb.content)
+        ELSE (pc.path || '/' || COALESCE(bc.path, nb.content))
+    END as full_path
+FROM norm_blocks nb
+LEFT JOIN block_chain bc ON bc.id = nb.id
+LEFT JOIN page_chain pc ON pc.id = nb.page_id
+WHERE nb.content LIKE ?1
+ORDER BY LENGTH(nb.content) ASC
+LIMIT ?2
+"#;
+
+    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![like, limit], |row| {
+            Ok(BlockSearchResult {
+                id: row.get(0)?,
+                page_id: row.get(1)?,
+                parent_id: row.get(2)?,
+                content: row.get(3)?,
+                depth: row.get(4)?,
+                page_path: row.get(5)?,
+                block_path: row.get(6)?,
+                full_path: row.get(7)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(rows)
+}
+
+/// Resolve block path segments within a page by exact content match at each level.
+/// Assumes uniqueness per parent is enforced at the editor level (per your design).
+#[tauri::command]
+pub async fn resolve_block_path(
+    workspace_path: String,
+    request: ResolveBlockPathRequest,
+) -> Result<Option<String>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    let mut current_parent: Option<String> = None;
+
+    for seg in request.segments {
+        let seg = seg.trim();
+        if seg.is_empty() {
+            return Ok(None);
+        }
+
+        // Exact match on content under the current parent in this page.
+        // Normalize line breaks to spaces to align with serialization expectations.
+        let normalized = seg.replace('\n', " ").replace('\r', " ");
+
+        let found: Option<String> = conn
+            .query_row(
+                "SELECT id
+                 FROM blocks
+                 WHERE page_id = ?1
+                   AND parent_id IS ?2
+                   AND TRIM(REPLACE(REPLACE(content, CHAR(10), ' '), CHAR(13), ' ')) = TRIM(?3)
+                 LIMIT 1",
+                params![request.page_id, current_parent, normalized],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+
+        let Some(id) = found else {
+            return Ok(None);
+        };
+
+        current_parent = Some(id);
+    }
+
+    Ok(current_parent)
+}
+
+
+
+
+
 /// Create a new block
 #[tauri::command]
 pub async fn create_block(
@@ -89,6 +467,7 @@ pub async fn create_block(
     let created_block = get_block_by_id(&conn, &id)?;
 
     // Sync to markdown file
+    // (File serializer will later be updated to hide ID markers while keeping stable UUIDs.)
     sync_page_to_markdown(&conn, &workspace_path, &created_block.page_id)?;
 
     Ok(created_block)

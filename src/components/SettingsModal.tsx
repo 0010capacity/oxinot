@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
   Modal,
   Stack,
@@ -34,7 +34,11 @@ import {
   IconPlus,
   IconX,
 } from "@tabler/icons-react";
-import { useThemeStore, type ColorVariant } from "../stores/themeStore";
+import {
+  useThemeStore,
+  type ColorVariant,
+  type FontFamily,
+} from "../stores/themeStore";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
 import {
   useClockFormatStore,
@@ -47,7 +51,7 @@ import { useGitStore } from "../stores/gitStore";
 import { useAdvancedSettingsStore } from "../stores/advancedSettingsStore";
 import { useColorScheme } from "@mantine/hooks";
 
-const FONT_OPTIONS = [
+const FONT_OPTIONS: Array<{ label: string; value: FontFamily }> = [
   { label: "System Default", value: "system" },
   { label: "Inter", value: "inter" },
   { label: "SF Pro", value: "sf-pro" },
@@ -61,8 +65,6 @@ const FONT_OPTIONS = [
   { label: "Fira Code", value: "fira-code" },
   { label: "Cascadia Code", value: "cascadia" },
 ];
-
-type FontFamily = (typeof FONT_OPTIONS)[number]["value"];
 
 interface SettingsModalProps {
   opened: boolean;
@@ -173,8 +175,8 @@ export function SettingsModal({
   );
 
   // Git
-  const isGitRepo = useGitStore((state) => state.isGitRepo);
-  const hasGitChanges = useGitStore((state) => state.hasGitChanges);
+  const isGitRepo = useGitStore((state) => state.isRepo);
+  const hasGitChanges = useGitStore((state) => state.hasChanges);
   const autoCommitEnabled = useGitStore((state) => state.autoCommitEnabled);
   const setAutoCommitEnabled = useGitStore(
     (state) => state.setAutoCommitEnabled,
@@ -183,8 +185,8 @@ export function SettingsModal({
   const setAutoCommitInterval = useGitStore(
     (state) => state.setAutoCommitInterval,
   );
-  const checkGitStatus = useGitStore((state) => state.checkGitStatus);
-  const gitCommit = useGitStore((state) => state.gitCommit);
+  const checkGitStatus = useGitStore((state) => state.checkStatus);
+  const gitCommit = useGitStore((state) => state.commit);
   const initGit = useGitStore((state) => state.initGit);
   const remoteUrl = useGitStore((state) => state.remoteUrl);
   const getRemoteUrl = useGitStore((state) => state.getRemoteUrl);
@@ -230,11 +232,11 @@ export function SettingsModal({
   };
 
   // Load remote URL when opening settings
-  useState(() => {
+  useEffect(() => {
     if (workspacePath && isGitRepo) {
       getRemoteUrl(workspacePath);
     }
-  });
+  }, [workspacePath, isGitRepo, getRemoteUrl]);
 
   // Search functionality - search within actual setting items
   const matchesSearch = (text: string) => {
@@ -376,9 +378,10 @@ export function SettingsModal({
             )
           }
         />
-        {searchQuery && filteredTabs && filteredTabs.length === 0 && (
+        {searchQuery && (
           <Text size="xs" c="dimmed" mt={8}>
-            No settings found for "{searchQuery}"
+            Search is active. If you don't see any matching sections, try a
+            different keyword.
           </Text>
         )}
       </div>
@@ -482,7 +485,9 @@ export function SettingsModal({
                       </Text>
                       <Select
                         value={fontFamily}
-                        onChange={(value) => setFontFamily(value as FontFamily)}
+                        onChange={(value) => {
+                          if (value) setFontFamily(value as FontFamily);
+                        }}
                         data={FONT_OPTIONS}
                         placeholder="Select font"
                         searchable

@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 import { persist } from "zustand/middleware";
 
 interface AppSettings {
@@ -14,7 +14,7 @@ interface AppSettingsStore extends AppSettings {
   getDailyNotePath: (date: Date) => string;
 }
 
-export const useAppSettingsStore = create<AppSettingsStore>()(
+export const useAppSettingsStore = createWithEqualityFn<AppSettingsStore>()(
   persist(
     (set, get) => ({
       // Default settings

@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 import { persist } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -45,7 +45,7 @@ interface GitState {
   removeRemote: (workspacePath: string) => Promise<void>;
 }
 
-export const useGitStore = create<GitState>()(
+export const useGitStore = createWithEqualityFn<GitState>()(
   persist(
     (set, get) => ({
       // Initial State

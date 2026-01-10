@@ -7,13 +7,7 @@ import {
   createTheme,
   Stack,
   Text,
-  Modal,
-  Switch,
-  Select,
   Button,
-  Group,
-  NumberInput,
-  TextInput,
 } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import "@mantine/notifications/styles.css";
@@ -23,18 +17,8 @@ import { showToast } from "./utils/toast";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
 import { usePageStore } from "./stores/pageStore";
-import {
-  useOutlinerSettingsStore,
-  FONT_OPTIONS,
-  type FontFamily,
-} from "./stores/outlinerSettingsStore";
+import { useOutlinerSettingsStore } from "./stores/outlinerSettingsStore";
 import { useGitStore } from "./stores/gitStore";
-import {
-  useClockFormatStore,
-  type TimeFormat,
-  type DateOrder,
-  type DateSeparator,
-} from "./stores/clockFormatStore";
 import { useAppSettingsStore } from "./stores/appSettingsStore";
 import { MigrationDialog } from "./components/MigrationDialog";
 import { TitleBar } from "./components/TitleBar";
@@ -48,9 +32,6 @@ import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 import { SettingsModal } from "./components/SettingsModal";
 
 import { ThemeProvider } from "./theme/ThemeProvider";
-import { useThemeStore } from "./stores/themeStore";
-import { SegmentedControl } from "@mantine/core";
-import type { ColorVariant } from "./theme/types";
 
 const theme = createTheme({
   fontFamily:
@@ -99,45 +80,15 @@ function AppContent({ workspacePath }: AppContentProps) {
   const breadcrumb = useBreadcrumb();
   const { showIndex, setWorkspaceName, openNote } = useViewStore();
 
-  const showIndentGuides = useOutlinerSettingsStore(
-    (state) => state.showIndentGuides,
-  );
-  const toggleIndentGuides = useOutlinerSettingsStore(
-    (state) => state.toggleIndentGuides,
-  );
-  const fontFamily = useOutlinerSettingsStore((state) => state.fontFamily);
-  const setFontFamily = useOutlinerSettingsStore(
-    (state) => state.setFontFamily,
-  );
   const getFontStack = useOutlinerSettingsStore((state) => state.getFontStack);
 
-  const timeFormat = useClockFormatStore((state) => state.timeFormat);
-  const dateOrder = useClockFormatStore((state) => state.dateOrder);
-  const dateSeparator = useClockFormatStore((state) => state.dateSeparator);
-  const setTimeFormat = useClockFormatStore((state) => state.setTimeFormat);
-  const setDateOrder = useClockFormatStore((state) => state.setDateOrder);
-  const setDateSeparator = useClockFormatStore(
-    (state) => state.setDateSeparator,
-  );
-
-  const dailyNotesPath = useAppSettingsStore((state) => state.dailyNotesPath);
-  const setDailyNotesPath = useAppSettingsStore(
-    (state) => state.setDailyNotesPath,
-  );
   const homepageType = useAppSettingsStore((state) => state.homepageType);
-  const setHomepageType = useAppSettingsStore((state) => state.setHomepageType);
   const customHomepageId = useAppSettingsStore(
     (state) => state.customHomepageId,
-  );
-  const setCustomHomepageId = useAppSettingsStore(
-    (state) => state.setCustomHomepageId,
   );
   const getDailyNotePath = useAppSettingsStore(
     (state) => state.getDailyNotePath,
   );
-
-  const colorVariant = useThemeStore((state) => state.colorVariant);
-  const setColorVariant = useThemeStore((state) => state.setColorVariant);
 
   const [showMigration, setShowMigration] = useState(false);
   const [dbInitialized, setDbInitialized] = useState(false);
@@ -160,13 +111,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   const isPulling = useGitStore((state) => state.isPulling);
   const remoteUrl = useGitStore((state) => state.remoteUrl);
   const autoCommitEnabled = useGitStore((state) => state.autoCommitEnabled);
-  const setAutoCommitEnabled = useGitStore(
-    (state) => state.setAutoCommitEnabled,
-  );
   const autoCommitInterval = useGitStore((state) => state.autoCommitInterval);
-  const setAutoCommitInterval = useGitStore(
-    (state) => state.setAutoCommitInterval,
-  );
   const autoCommit = useGitStore((state) => state.autoCommit);
 
   const [gitMenuOpen, setGitMenuOpen] = useState(false);

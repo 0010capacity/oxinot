@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 import { persist } from "zustand/middleware";
 import { tauriAPI, FileSystemItem } from "../tauri-api";
 
@@ -43,7 +43,7 @@ interface WorkspaceState {
   clearError: () => void;
 }
 
-export const useWorkspaceStore = create<WorkspaceState>()(
+export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
   persist(
     (set, get) => ({
       workspacePath: null,

@@ -1,4 +1,5 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
+import { shallow } from "zustand/shallow";
 import { persist } from "zustand/middleware";
 
 export type FontFamily =
@@ -99,45 +100,51 @@ interface OutlinerSettingsStore extends OutlinerSettings {
   setShowBlockCount: (value: boolean) => void;
 }
 
-export const useOutlinerSettingsStore = create<OutlinerSettingsStore>()(
-  persist(
-    (set, get) => ({
-      // Default settings
-      showIndentGuides: true,
-      fontFamily: "Inter",
-      autoExpandBlocks: true,
-      showBlockCount: false,
+export const useOutlinerSettingsStore =
+  createWithEqualityFn<OutlinerSettingsStore>()(
+    persist(
+      (set, get) => ({
+        // Default settings
+        showIndentGuides: true,
+        fontFamily: "Inter",
+        autoExpandBlocks: true,
+        showBlockCount: false,
 
-      // Actions
-      toggleIndentGuides: () =>
-        set((state) => ({ showIndentGuides: !state.showIndentGuides })),
+        // Actions
+        toggleIndentGuides: () =>
+          set((state) => ({ showIndentGuides: !state.showIndentGuides })),
 
-      setShowIndentGuides: (value: boolean) => set({ showIndentGuides: value }),
+        setShowIndentGuides: (value: boolean) =>
+          set({ showIndentGuides: value }),
 
-      setAutoExpandBlocks: (value: boolean) => set({ autoExpandBlocks: value }),
+        setAutoExpandBlocks: (value: boolean) =>
+          set({ autoExpandBlocks: value }),
 
-      setShowBlockCount: (value: boolean) => set({ showBlockCount: value }),
+        setShowBlockCount: (value: boolean) => set({ showBlockCount: value }),
 
-      setFontFamily: (font: FontFamily) => {
-        set({ fontFamily: font });
-        // Update CSS variable
-        const fontOption = FONT_OPTIONS.find((opt) => opt.value === font);
-        if (fontOption) {
-          document.documentElement.style.setProperty(
-            "--font-family",
-            fontOption.stack,
+        setFontFamily: (font: FontFamily) => {
+          set({ fontFamily: font });
+          // Update CSS variable
+          const fontOption = FONT_OPTIONS.find((opt) => opt.value === font);
+          if (fontOption) {
+            document.documentElement.style.setProperty(
+              "--font-family",
+              fontOption.stack,
+            );
+          }
+        },
+
+        getFontStack: () => {
+          const fontFamily = get().fontFamily;
+          const fontOption = FONT_OPTIONS.find(
+            (opt) => opt.value === fontFamily,
           );
-        }
+          return fontOption?.stack || FONT_OPTIONS[0].stack;
+        },
+      }),
+      {
+        name: "outliner-settings",
       },
-
-      getFontStack: () => {
-        const fontFamily = get().fontFamily;
-        const fontOption = FONT_OPTIONS.find((opt) => opt.value === fontFamily);
-        return fontOption?.stack || FONT_OPTIONS[0].stack;
-      },
-    }),
-    {
-      name: "outliner-settings",
-    },
-  ),
-);
+    ),
+    shallow,
+  );

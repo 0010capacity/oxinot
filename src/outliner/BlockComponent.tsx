@@ -89,6 +89,35 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       flushUpdate();
     }, [flushUpdate]);
 
+    const handleCopyBlockId = useCallback(
+      async (e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        if (!blockId) return;
+
+        try {
+          await navigator.clipboard.writeText(blockId);
+        } catch {
+          // Fallback for environments where Clipboard API isn't available
+          try {
+            const textarea = document.createElement("textarea");
+            textarea.value = blockId;
+            textarea.style.position = "fixed";
+            textarea.style.left = "-9999px";
+            textarea.style.top = "-9999px";
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+          } catch {
+            // no-op
+          }
+        }
+      },
+      [blockId],
+    );
+
     const handleBulletClick = useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -356,7 +385,42 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           </div>
 
           {/* Content Editor */}
-          <div className="block-content-wrapper">
+          <div
+            className="block-content-wrapper"
+            style={{ position: "relative" }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                right: 6,
+                top: 4,
+                display: "flex",
+                gap: 6,
+                opacity: 0.0,
+                transition: "opacity 120ms ease",
+                pointerEvents: "none",
+              }}
+              className="block-copy-id-toolbar"
+            >
+              <button
+                type="button"
+                onClick={handleCopyBlockId}
+                title="Copy block ID"
+                style={{
+                  pointerEvents: "auto",
+                  border: "none",
+                  background: "rgba(127, 127, 127, 0.12)",
+                  color: "var(--color-text-secondary, rgba(127,127,127,0.9))",
+                  borderRadius: 6,
+                  padding: "2px 6px",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                Copy ID
+              </button>
+            </div>
+
             <Editor
               ref={editorRef}
               value={block.content}
@@ -389,6 +453,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             ))}
           </div>
         )}
+
+        <style>
+          {`
+            .block-content-wrapper:hover .block-copy-id-toolbar {
+              opacity: 1 !important;
+            }
+          `}
+        </style>
       </div>
     );
   },

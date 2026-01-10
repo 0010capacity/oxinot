@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 
 interface SyncState {
   isReindexing: boolean;
@@ -10,27 +10,23 @@ interface SyncState {
   cancelReindex: () => void;
 }
 
-export const useSyncStore = create<SyncState>((set) => ({
+export const useSyncStore = createWithEqualityFn<SyncState>()((set) => ({
   isReindexing: false,
   progress: 0,
   message: "",
-
   startReindex: () => {
-    set({ isReindexing: true, progress: 0, message: "Starting re-index..." });
+    set({ isReindexing: true, progress: 0, message: "Starting reindex..." });
   },
-
   updateProgress: (progress: number, message?: string) => {
     set((state) => ({
       progress: Math.min(100, Math.max(0, progress)),
       message: message || state.message,
     }));
   },
-
   finishReindex: () => {
-    set({ isReindexing: false, progress: 100, message: "" });
+    set({ isReindexing: false, progress: 100, message: "Reindex complete!" });
   },
-
   cancelReindex: () => {
-    set({ isReindexing: false, progress: 0, message: "" });
+    set({ isReindexing: false, progress: 0, message: "Reindex cancelled" });
   },
 }));

@@ -39,6 +39,7 @@ import { TagHandler } from "./handlers/TagHandler";
 import { HighlightHandler } from "./handlers/HighlightHandler";
 import { CommentHandler } from "./handlers/CommentHandler";
 import { CalloutHandler } from "./handlers/CalloutHandler";
+import { BlockRefHandler } from "./handlers/BlockRefHandler";
 
 // Import handler system
 import { HandlerRegistry } from "./handlers/HandlerRegistry";
@@ -207,6 +208,9 @@ function buildDecorations(view: EditorView): DecorationSet {
 
       decorations.push(
         ...WikiLinkHandler.processLine(lineText, line.from, onCursorLine),
+      );
+      decorations.push(
+        ...BlockRefHandler.processLine(lineText, line.from, onCursorLine),
       );
       decorations.push(
         ...TagHandler.processLine(lineText, line.from, onCursorLine),
@@ -750,8 +754,38 @@ export const hybridRenderingTheme = EditorView.theme({
   ".cm-wiki-link": {
     color: "#8b5cf6",
     textDecoration: "none",
+  },
+
+  // Block references / embeds
+  // ((uuid)) and !((uuid)) are rendered as token-like highlights; UUID is hidden by handler.
+  ".cm-block-ref": {
+    color: "#8b5cf6",
+    textDecoration: "none",
     cursor: "pointer",
-    fontWeight: "500",
+    fontWeight: 500,
+    padding: "0 2px",
+    borderRadius: "4px",
+    background: "rgba(139, 92, 246, 0.12)",
+  },
+  ".cm-block-embed": {
+    color: "#8b5cf6",
+    textDecoration: "none",
+    cursor: "pointer",
+    fontWeight: 600,
+    padding: "0 2px",
+    borderRadius: "4px",
+    background: "rgba(139, 92, 246, 0.18)",
+    boxShadow: "inset 0 0 0 1px rgba(139, 92, 246, 0.35)",
+  },
+
+  // Embed subtree widget container (read-only)
+  ".cm-block-embed-subtree": {
+    margin: "6px 0",
+    padding: "6px 0",
+    paddingLeft: "10px",
+    borderLeft: "2px solid rgba(139, 92, 246, 0.25)",
+    background: "rgba(139, 92, 246, 0.05)",
+    borderRadius: "6px",
   },
 
   ".cm-tag": {

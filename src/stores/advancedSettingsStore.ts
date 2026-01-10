@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 import { persist } from "zustand/middleware";
 
 interface AdvancedSettings {
@@ -23,32 +23,34 @@ const defaultSettings: AdvancedSettings = {
   telemetryEnabled: false,
 };
 
-export const useAdvancedSettingsStore = create<AdvancedSettingsStore>()(
-  persist(
-    (set) => ({
-      ...defaultSettings,
+export const useAdvancedSettingsStore =
+  createWithEqualityFn<AdvancedSettingsStore>()(
+    persist(
+      (set) => ({
+        ...defaultSettings,
 
-      setAutoUpdate: (value: boolean) => set({ autoUpdate: value }),
-      setCheckUpdatesOnStartup: (value: boolean) =>
-        set({ checkUpdatesOnStartup: value }),
-      setBetaUpdates: (value: boolean) => set({ betaUpdates: value }),
-      setTelemetryEnabled: (value: boolean) => set({ telemetryEnabled: value }),
+        setAutoUpdate: (value: boolean) => set({ autoUpdate: value }),
+        setCheckUpdatesOnStartup: (value: boolean) =>
+          set({ checkUpdatesOnStartup: value }),
+        setBetaUpdates: (value: boolean) => set({ betaUpdates: value }),
+        setTelemetryEnabled: (value: boolean) =>
+          set({ telemetryEnabled: value }),
 
-      resetAllSettings: () => {
-        set(defaultSettings);
-        // Clear all other stores
-        localStorage.removeItem("theme-settings");
-        localStorage.removeItem("app-settings");
-        localStorage.removeItem("clock-format-settings");
-        localStorage.removeItem("outliner-settings");
-        localStorage.removeItem("git-settings");
-        localStorage.removeItem("advanced-settings");
-        // Reload to apply changes
-        window.location.reload();
+        resetAllSettings: () => {
+          set(defaultSettings);
+          // Clear all other stores
+          localStorage.removeItem("theme-settings");
+          localStorage.removeItem("app-settings");
+          localStorage.removeItem("clock-format-settings");
+          localStorage.removeItem("outliner-settings");
+          localStorage.removeItem("git-settings");
+          localStorage.removeItem("advanced-settings");
+          // Reload to apply changes
+          window.location.reload();
+        },
+      }),
+      {
+        name: "advanced-settings",
       },
-    }),
-    {
-      name: "advanced-settings",
-    },
-  ),
-);
+    ),
+  );

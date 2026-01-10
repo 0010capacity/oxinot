@@ -6,6 +6,7 @@
  * - [[note name|display text]] - link with alias
  * - [[note#heading]] - link to heading
  * - [[note#^block-id]] - link to block
+ * - [[folder/note]] - folder-style path (render shows only the basename by default)
  *
  * - Styles the link text as clickable
  * - Hides or dims the [[ ]] markers based on cursor position
@@ -19,6 +20,16 @@ import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
+
+function getWikiBasename(path: string): string {
+  const trimmed = (path ?? "").trim();
+  if (!trimmed) return "";
+  const parts = trimmed
+    .split("/")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : trimmed;
+}
 
 export class WikiLinkHandler extends BaseHandler {
   constructor() {
@@ -53,7 +64,7 @@ export class WikiLinkHandler extends BaseHandler {
 
     while ((match = wikiLinkRegex.exec(lineText)) !== null) {
       const fullMatch = match[0]; // [[note|alias]]
-      const noteName = match[1]; // note
+      const noteName = match[1]; // note (or folder/note)
       const hasAlias = match[2] !== undefined;
       const aliasText = match[3]; // alias (if exists)
 
@@ -61,9 +72,7 @@ export class WikiLinkHandler extends BaseHandler {
       const end = start + fullMatch.length;
 
       // Opening [[
-      decorations.push(
-        createHiddenMarker(start, start + 2, isOnCursorLine),
-      );
+      decorations.push(createHiddenMarker(start, start + 2, isOnCursorLine));
 
       if (hasAlias) {
         // Format: [[note|alias]]
@@ -99,10 +108,28 @@ export class WikiLinkHandler extends BaseHandler {
         );
       } else {
         // Format: [[note]]
-        // Show the note name as a link
+        // Render only the basename by default (e.g., [[A/B/C]] shows "C")
 
-        const linkStart = start + 2;
-        const linkEnd = end - 2;
+        const noteStart = start + 2;
+        const noteEnd = noteStart + noteName.length;
+
+        const basename = getWikiBasename(noteName);
+        const basenameIndex = noteName.lastIndexOf(basename);
+
+        // If we can't reliably locate basename, fall back to full note range.
+        const linkStart =
+          basename && basenameIndex >= 0
+            ? noteStart + basenameIndex
+            : noteStart;
+        const linkEnd =
+          linkStart + (basename ? basename.length : noteName.length);
+
+        // Hide any leading path part (A/B/)
+        if (linkStart > noteStart) {
+          decorations.push(
+            createHiddenMarker(noteStart, linkStart, isOnCursorLine),
+          );
+        }
 
         decorations.push(
           createStyledText(linkStart, linkEnd, {
@@ -115,12 +142,17 @@ export class WikiLinkHandler extends BaseHandler {
             `,
           }),
         );
+
+        // Hide any trailing part (unlikely, but keep safe)
+        if (linkEnd < noteEnd) {
+          decorations.push(
+            createHiddenMarker(linkEnd, noteEnd, isOnCursorLine),
+          );
+        }
       }
 
       // Closing ]]
-      decorations.push(
-        createHiddenMarker(end - 2, end, isOnCursorLine),
-      );
+      decorations.push(createHiddenMarker(end - 2, end, isOnCursorLine));
     }
 
     return decorations;

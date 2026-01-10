@@ -14,13 +14,25 @@ import {
   indentOnInput,
   bracketMatching,
 } from "@codemirror/language";
-import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import {
+  closeBrackets,
+  closeBracketsKeymap,
+  autocompletion,
+  CompletionContext,
+} from "@codemirror/autocomplete";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { invoke } from "@tauri-apps/api/core";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 import {
   hybridRenderingPlugin,
   hybridRenderingTheme,
   isFocusedFacet,
 } from "./extensions/hybridRendering";
+import { usePageStore } from "../stores/pageStore";
+import { useViewStore } from "../stores/viewStore";
+import { useBlockStore } from "../stores/blockStore";
+
+type EmbedNavigateDetail = { blockId?: string };
 
 /**
  * Editor configuration options
@@ -33,6 +45,31 @@ export interface EditorConfig {
   readOnly?: boolean;
   lineWrapping?: boolean;
   theme?: "light" | "dark";
+
+  /**
+   * Optional handler for Obsidian-style wiki links ([[...]]). If not provided,
+   * the editor will attempt to navigate using the app stores by ensuring any
+   * folder path (e.g., [[A/B/C]]) exists as folder-notes and then opening/creating
+   * the final note. Breadcrumbs will be updated accordingly.
+   */
+  onOpenWikiLink?: (raw: string, noteTitle: string) => void;
+
+  /**
+   * Enable wiki-link autocompletion: when typing `[[`, show live suggestions.
+   * Pressing Enter will insert the selected suggestion (typically the full path).
+   *
+   * Default: true
+   */
+  enableWikiLinkAutocomplete?: boolean;
+
+  /**
+   * Enable block-link + embed autocompletion:
+   * - Typing `((` shows block suggestions, Enter inserts the selected block UUID.
+   * - Typing `!((` shows block suggestions, Enter inserts embed syntax with UUID.
+   *
+   * Default: true
+   */
+  enableBlockLinkAutocomplete?: boolean;
 
   /**
    * Whether to show line numbers in the gutter.
@@ -123,6 +160,649 @@ function createUpdateListener(onChange?: (doc: string) => void): Extension {
       const newDoc = update.state.doc.toString();
       onChange(newDoc);
     }
+  });
+}
+
+function normalizeWikiTitle(input: string): string {
+  return (input ?? "").trim().replace(/\s+/g, " ");
+}
+
+function extractBlockRefAtLinePos(
+  lineText: string,
+  offsetInLine: number,
+): { id: string; isEmbed: boolean } | null {
+  // Match:
+  // - ((uuid))
+  // - !((uuid))
+  const re = /(!)?\(\(([^\)\s]+)\)\)/g;
+  let m: RegExpExecArray | null;
+
+  while ((m = re.exec(lineText)) !== null) {
+    const full = m[0];
+    const start = m.index;
+    const end = start + full.length;
+    if (offsetInLine < start || offsetInLine > end) continue;
+
+    const id = (m[2] ?? "").trim();
+    if (!id) return null;
+
+    return { id, isEmbed: !!m[1] };
+  }
+
+  return null;
+}
+
+async function navigateToBlockById(blockId: string): Promise<void> {
+  const id = (blockId ?? "").trim();
+  if (!id) return;
+
+  const workspacePath = useWorkspaceStore.getState().workspacePath;
+  if (!workspacePath) return;
+
+  // Ask backend for the block + its ancestor chain (for zoomPath),
+  // so we can navigate without guessing based on currently loaded page.
+  let blockWithPath: any | null = null;
+  try {
+    blockWithPath = await invoke("get_block", {
+      workspacePath,
+      request: { block_id: id },
+    });
+  } catch {
+    blockWithPath = null;
+  }
+  if (!blockWithPath?.block) return;
+
+  const pageStore = usePageStore.getState();
+  const viewStore = useViewStore.getState();
+  const blockStore = useBlockStore.getState();
+
+  // Ensure pages exist for breadcrumb calculation
+  if (pageStore.pageIds.length === 0) {
+    try {
+      await pageStore.loadPages();
+    } catch {
+      // ignore
+    }
+  }
+
+  const pageId = blockWithPath.block.pageId as string;
+  const pagesById = usePageStore.getState().pagesById;
+  const page = pagesById[pageId];
+  if (!page) return;
+
+  // Build parent path for page breadcrumb
+  const parentNames: string[] = [];
+  const pagePathIds: string[] = [];
+  let currentParentId: string | undefined = page.parentId;
+
+  while (currentParentId) {
+    const parent = pagesById[currentParentId];
+    if (!parent) break;
+    parentNames.unshift(parent.title);
+    pagePathIds.unshift(parent.id);
+    currentParentId = parent.parentId;
+  }
+  pagePathIds.push(page.id);
+
+  // Open the page
+  pageStore.setCurrentPageId(page.id);
+  pageStore.selectPage(page.id);
+  await blockStore.loadPage(page.id);
+  viewStore.openNote(page.id, page.title, parentNames, pagePathIds);
+
+  // Zoom to the referenced block
+  const ancestorIds: string[] = Array.isArray(blockWithPath.ancestorIds)
+    ? blockWithPath.ancestorIds
+    : [];
+  useViewStore.setState({
+    focusedBlockId: id,
+    zoomPath: ancestorIds.length ? ancestorIds : [id],
+  });
+}
+
+function createEmbedNavigateEventHandler(): Extension {
+  return EditorView.domEventHandlers({
+    "cm-embed-navigate": (event) => {
+      const custom = event as CustomEvent<EmbedNavigateDetail>;
+      const blockId = custom.detail?.blockId;
+      if (!blockId) return false;
+
+      // Read-only embed widget dispatches this event; we navigate the main app view.
+      void navigateToBlockById(blockId);
+
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    },
+  });
+}
+
+function createBlockRefClickHandler(): Extension {
+  return EditorView.domEventHandlers({
+    click: (event, view) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return false;
+
+      const el = target.closest?.(
+        ".cm-block-ref, .cm-block-embed",
+      ) as HTMLElement | null;
+      if (!el) return false;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const pos = view.posAtDOM(el);
+      if (pos == null) return true;
+
+      const line = view.state.doc.lineAt(pos);
+      const lineText = line.text;
+      const offsetInLine = Math.max(
+        0,
+        Math.min(pos - line.from, lineText.length),
+      );
+
+      const ref = extractBlockRefAtLinePos(lineText, offsetInLine);
+      if (!ref) return true;
+
+      void navigateToBlockById(ref.id);
+      return true;
+    },
+  });
+}
+
+function getWikiLinkQueryAtPos(
+  doc: string,
+  cursorPos: number,
+): { from: number; to: number; query: string; isEmbed: boolean } | null {
+  // Detect an in-progress wiki link like:
+  // - `[[que`  (no closing ]])
+  // - `![[que` (embed)
+  //
+  // Return the replacement range for the query portion (after `[[`) and the query string.
+  const before = doc.slice(0, cursorPos);
+  const open = before.lastIndexOf("[[");
+  if (open < 0) return null;
+
+  // If we already closed the link before cursor, don't suggest.
+  const closed = before.lastIndexOf("]]");
+  if (closed > open) return null;
+
+  const from = open + 2;
+  const to = cursorPos;
+
+  // Extract current query (after [[ up to cursor), stop at newline
+  const raw = doc.slice(from, to);
+  if (raw.includes("\n")) return null;
+
+  // If user typed alias separator or heading anchor, only complete the note path portion.
+  const query = raw.split("|")[0].split("#")[0];
+
+  // Determine embed by checking immediately preceding character of "[["
+  const isEmbed = open > 0 && before[open - 1] === "!";
+
+  return { from, to, query: normalizeWikiTitle(query), isEmbed };
+}
+
+function getParensLinkQueryAtPos(
+  doc: string,
+  cursorPos: number,
+): { from: number; to: number; query: string; isEmbed: boolean } | null {
+  // Detect in-progress block reference:
+  // - `((query` -> normal link
+  // - `!((query` -> embed
+  // Return replacement range for the query portion (after `((`) and the query string.
+  const before = doc.slice(0, cursorPos);
+
+  const open = before.lastIndexOf("((");
+  if (open < 0) return null;
+
+  // If we already closed the link before cursor, don't suggest.
+  const closed = before.lastIndexOf("))");
+  if (closed > open) return null;
+
+  // Avoid matching something like "((\n"
+  const from = open + 2;
+  const to = cursorPos;
+
+  const raw = doc.slice(from, to);
+  if (raw.includes("\n")) return null;
+
+  // Determine embed by checking immediately preceding character of "(("
+  const isEmbed = open > 0 && before[open - 1] === "!";
+
+  return { from, to, query: normalizeWikiTitle(raw), isEmbed };
+}
+
+type PageRecord = { id: string; title: string; parentId?: string };
+
+function computePageFullPathTitles(
+  pageId: string,
+  pagesById: Record<string, PageRecord>,
+): string[] {
+  const out: string[] = [];
+  let cur: string | undefined = pageId;
+  const visited = new Set<string>();
+
+  while (cur) {
+    if (visited.has(cur)) break;
+    visited.add(cur);
+
+    const p: PageRecord | undefined = pagesById[cur];
+    if (!p) break;
+
+    out.unshift(p.title);
+    cur = p.parentId;
+  }
+
+  return out;
+}
+
+function buildWikiPathForPage(
+  pageId: string,
+  pagesById: Record<string, PageRecord>,
+): string {
+  return computePageFullPathTitles(pageId, pagesById).join("/");
+}
+
+function createUnifiedLinkAutocomplete(): Extension {
+  const wikiSource = async (context: CompletionContext) => {
+    const state = context.state;
+    const cursor = state.selection.main.head;
+    const doc = state.doc.toString();
+
+    const info = getWikiLinkQueryAtPos(doc, cursor);
+    if (!info) return null;
+
+    const { from, to, query, isEmbed } = info;
+
+    // Load pages if needed (best-effort; we keep UI responsive)
+    const pageStore = usePageStore.getState();
+    if (pageStore.pageIds.length === 0) {
+      try {
+        await pageStore.loadPages();
+      } catch {
+        // ignore - fall through with empty suggestions
+      }
+    }
+
+    const { pagesById, pageIds } = usePageStore.getState();
+
+    const q = query.trim();
+
+    const options: any[] = [];
+
+    for (const id of pageIds) {
+      const p = pagesById[id];
+      if (!p) continue;
+
+      const fullPath = buildWikiPathForPage(id, pagesById);
+      const label = p.title;
+      const lowerLabel = (label ?? "").toLowerCase();
+      const lowerFull = (fullPath ?? "").toLowerCase();
+
+      if (!q || lowerLabel.includes(q) || lowerFull.includes(q)) {
+        options.push({
+          label, // what the user sees in the list
+          detail: fullPath !== label ? fullPath : undefined, // show full path as detail
+          type: "text",
+          apply: (
+            view: any,
+            _completion: any,
+            fromPos: number,
+            toPos: number,
+          ) => {
+            const insert = isEmbed ? `![[` + fullPath + `]]` : fullPath;
+
+            if (isEmbed) {
+              // Replace the whole "![[query" region including the existing "[[",
+              // by expanding replacement to include the optional leading "!".
+              const openPos = Math.max(0, fromPos - 2); // points to "[[" start
+              const bangPos = openPos > 0 ? openPos - 1 : openPos;
+              const hasBang = bangPos >= 0 && doc[bangPos] === "!";
+              const replaceFrom = hasBang ? bangPos : openPos;
+
+              view.dispatch({
+                changes: { from: replaceFrom, to: toPos, insert },
+              });
+              return;
+            }
+
+            // Normal [[...]] link: replace only the query portion inside the brackets.
+            view.dispatch({
+              changes: { from: fromPos, to: toPos, insert },
+            });
+          },
+        });
+      }
+    }
+
+    // Sort: prefer prefix match on basename/title, then shorter paths
+    options.sort((a, b) => {
+      const aL = a.label.toLowerCase();
+      const bL = b.label.toLowerCase();
+      const aStarts = q ? aL.startsWith(q) : false;
+      const bStarts = q ? bL.startsWith(q) : false;
+      if (aStarts !== bStarts) return aStarts ? -1 : 1;
+
+      const aD = (a.detail ?? a.label).length;
+      const bD = (b.detail ?? b.label).length;
+      if (aD !== bD) return aD - bD;
+
+      return aL.localeCompare(bL);
+    });
+
+    return {
+      from,
+      to,
+      options,
+      validFor: /^[^\\]\n]*$/,
+    };
+  };
+
+  const blockSource = async (context: CompletionContext) => {
+    const state = context.state;
+    const cursor = state.selection.main.head;
+    const doc = state.doc.toString();
+
+    const info = getParensLinkQueryAtPos(doc, cursor);
+    if (!info) return null;
+
+    const { from, to, query, isEmbed } = info;
+    const q = query.trim();
+    if (!q) {
+      return {
+        from,
+        to,
+        options: [],
+        validFor: /^[^\\)\n]*$/,
+      };
+    }
+
+    // Query backend for block suggestions. We show content + breadcrumb-like path,
+    // but we insert the UUID into (()) or !(()).
+    const workspacePath = useWorkspaceStore.getState().workspacePath;
+
+    let results: any[] = [];
+    try {
+      if (workspacePath) {
+        results = await invoke("search_blocks", {
+          workspacePath,
+          request: { query: q, limit: 50 },
+        });
+      } else {
+        results = [];
+      }
+    } catch {
+      results = [];
+    }
+
+    const options: any[] = results.map((r) => {
+      const label = (r.content ?? "").toString();
+      const detail = (r.full_path ?? "").toString();
+
+      return {
+        label,
+        detail: detail && detail !== label ? detail : undefined,
+        type: "text",
+        apply: (
+          view: any,
+          _completion: any,
+          fromPos: number,
+          toPos: number,
+        ) => {
+          const id = (r.id ?? "").toString();
+          const insert = isEmbed ? `!((` + id + `))` : `((${id}))`;
+
+          // If embed, replace the whole "!((query" (or "((query") region including the existing "((",
+          // by expanding replacement to include the optional leading "!".
+          if (isEmbed) {
+            const openPos = Math.max(0, fromPos - 2); // points to "((" start
+            const bangPos = openPos > 0 ? openPos - 1 : openPos;
+            const hasBang = bangPos >= 0 && doc[bangPos] === "!";
+            const replaceFrom = hasBang ? bangPos : openPos;
+
+            view.dispatch({
+              changes: { from: replaceFrom, to: toPos, insert },
+            });
+            return;
+          }
+
+          // Normal (()) link: replace the "((query" region including the opening "((" with the wrapped UUID.
+          const openPos = Math.max(0, fromPos - 2); // points to "((" start
+          view.dispatch({
+            changes: { from: openPos, to: toPos, insert },
+          });
+        },
+      };
+    });
+
+    return {
+      from,
+      to,
+      options,
+      validFor: /^[^\\)\n]*$/,
+    };
+  };
+
+  return autocompletion({
+    // NOTE: `override` cannot be merged across multiple autocompletion() instances.
+    // Keep exactly one autocompletion extension and combine sources here to avoid:
+    // "Config merge conflict for field override"
+    override: [wikiSource, blockSource],
+    defaultKeymap: true,
+    activateOnTyping: true,
+  });
+}
+
+function splitWikiPathSegments(input: string): string[] {
+  // Folder-style wiki links: [[A/B/C]] where each segment is a folder-note/page.
+  // Normalize whitespace per segment and remove empties.
+  return (input ?? "")
+    .split("/")
+    .map((s) => normalizeWikiTitle(s))
+    .filter((s) => s.length > 0);
+}
+
+function parseWikiLinkTarget(raw: string): { noteTitle: string } | null {
+  // Support:
+  // - [[note]]
+  // - [[note|alias]]
+  // - [[note#heading]]
+  // - [[note#^block-id]]
+  // - [[A/B/C]] (folder-style path where parents must exist as folder-notes)
+  //
+  // Navigation target is the note title/path segment (before | or #)
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return null;
+
+  const beforeAlias = trimmed.split("|")[0] ?? "";
+  const beforeAnchor = beforeAlias.split("#")[0] ?? "";
+  const noteTitle = normalizeWikiTitle(beforeAnchor);
+
+  if (!noteTitle) return null;
+  return { noteTitle };
+}
+
+async function openOrCreateNoteByTitle(noteTitle: string): Promise<void> {
+  const rawTitleOrPath = normalizeWikiTitle(noteTitle);
+  if (!rawTitleOrPath) return;
+
+  const pageStore = usePageStore.getState();
+  const viewStore = useViewStore.getState();
+  const blockStore = useBlockStore.getState();
+
+  // Ensure pages are loaded (needed for reliable folder chain + breadcrumb building)
+  if (pageStore.pageIds.length === 0) {
+    try {
+      await pageStore.loadPages();
+    } catch {
+      // If load fails, fall through; create/convert/open may still throw.
+    }
+  }
+
+  const targetSegments = splitWikiPathSegments(rawTitleOrPath);
+  const isPath = targetSegments.length >= 2;
+
+  // Find existing page by (title + optional parent) match
+  const findExisting = (
+    title: string,
+    parentId: string | null,
+    pagesById: typeof pageStore.pagesById,
+    pageIds: string[],
+  ): string | null => {
+    const t = title.toLowerCase();
+    for (const id of pageIds) {
+      const p = pagesById[id];
+      if (!p) continue;
+      if ((p.title ?? "").toLowerCase() !== t) continue;
+      const pid = p.parentId ?? null;
+      if (pid === parentId) return p.id;
+    }
+    return null;
+  };
+
+  // Ensure a folder-note exists (and isDirectory=true). Return its pageId.
+  const ensureFolderNote = async (
+    folderTitle: string,
+    parentId: string | null,
+  ): Promise<string> => {
+    // Re-read state each time to avoid stale copies after loadPages()
+    let { pagesById, pageIds } = usePageStore.getState();
+    let existingId = findExisting(folderTitle, parentId, pagesById, pageIds);
+
+    if (!existingId) {
+      existingId = await pageStore.createPage(
+        folderTitle,
+        parentId ?? undefined,
+      );
+      await pageStore.loadPages();
+      ({ pagesById, pageIds } = usePageStore.getState());
+    }
+
+    const existing = pagesById[existingId];
+    if (!existing) return existingId;
+
+    if (!existing.isDirectory) {
+      // Folder notes are directories in this app: convert so children live under it.
+      await pageStore.convertToDirectory(existingId);
+      await pageStore.loadPages();
+    }
+
+    return existingId;
+  };
+
+  // If it's a folder path, ensure chain A -> B -> ... exists as folder-notes.
+  let parentId: string | null = null;
+
+  if (isPath) {
+    for (let i = 0; i < targetSegments.length - 1; i++) {
+      const seg = targetSegments[i];
+      parentId = await ensureFolderNote(seg, parentId);
+    }
+  }
+
+  // Now ensure/open the final note under the resolved parentId (or root).
+  const finalTitle = isPath
+    ? targetSegments[targetSegments.length - 1]
+    : rawTitleOrPath;
+
+  let { pagesById, pageIds } = usePageStore.getState();
+  let pageId = findExisting(finalTitle, parentId, pagesById, pageIds);
+
+  if (!pageId) {
+    pageId = await pageStore.createPage(finalTitle, parentId ?? undefined);
+    await pageStore.loadPages();
+    ({ pagesById, pageIds } = usePageStore.getState());
+  } else {
+    // Keep state fresh for breadcrumb calculation below
+    ({ pagesById } = usePageStore.getState());
+  }
+
+  const page = pagesById[pageId];
+  if (!page) return;
+
+  // Build parent path for breadcrumb:
+  // workspace > parent chain > current page
+  const parentNames: string[] = [];
+  const pagePathIds: string[] = [];
+
+  let currentParentId: string | undefined = page.parentId;
+  while (currentParentId) {
+    const parent = pagesById[currentParentId];
+    if (!parent) break;
+    parentNames.unshift(parent.title);
+    pagePathIds.unshift(parent.id);
+    currentParentId = parent.parentId;
+  }
+  pagePathIds.push(page.id);
+
+  // Select + load + open (breadcrumb updated via openNote)
+  pageStore.setCurrentPageId(page.id);
+  pageStore.selectPage(page.id);
+  await blockStore.loadPage(page.id);
+  viewStore.openNote(page.id, page.title, parentNames, pagePathIds);
+}
+
+function createWikiLinkClickHandler(
+  onOpenWikiLink?: (raw: string, noteTitle: string) => void,
+): Extension {
+  return EditorView.domEventHandlers({
+    click: (event, view) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return false;
+
+      const el = target.closest?.(".cm-wiki-link") as HTMLElement | null;
+      if (!el) return false;
+
+      // Prevent CM selection changes + browser default behaviors
+      event.preventDefault();
+      event.stopPropagation();
+
+      const pos = view.posAtDOM(el);
+      if (pos == null) return true;
+
+      // Find the containing line and locate the wiki link around this position.
+      const line = view.state.doc.lineAt(pos);
+      const lineText = line.text;
+
+      // We need to compute the position within the line.
+      const offsetInLine = Math.max(
+        0,
+        Math.min(pos - line.from, lineText.length),
+      );
+
+      // Scan for wiki links in this line and pick the match that contains the click position.
+      const wikiLinkRegex = /\[\[([^\]|]+)(\|([^\]]+))?\]\]/g;
+      let match: RegExpExecArray | null;
+      let clickedRaw: string | null = null;
+
+      while ((match = wikiLinkRegex.exec(lineText)) !== null) {
+        const full = match[0];
+        const start = match.index;
+        const end = start + full.length;
+        if (offsetInLine >= start && offsetInLine <= end) {
+          clickedRaw = match[1] ?? "";
+          break;
+        }
+      }
+
+      if (!clickedRaw) return true;
+
+      const parsed = parseWikiLinkTarget(clickedRaw);
+      if (!parsed) return true;
+
+      if (onOpenWikiLink) {
+        onOpenWikiLink(clickedRaw, parsed.noteTitle);
+        return true;
+      }
+
+      // Default behavior:
+      // - If target is folder-style (A/B/C), ensure A and B exist as folder-notes (directories)
+      // - Create/open C under that chain
+      // - Update breadcrumbs correctly
+      void openOrCreateNoteByTitle(parsed.noteTitle);
+      return true;
+    },
   });
 }
 
@@ -234,10 +914,26 @@ export function createEditor(
     // Editor theme
     createEditorTheme(config.theme),
 
+    // Unified link autocompletion (wiki links + block refs) to avoid CodeMirror
+    // config merge conflicts caused by multiple autocompletion({ override: ... }) instances.
+    ...(config.enableWikiLinkAutocomplete === false &&
+    config.enableBlockLinkAutocomplete === false
+      ? []
+      : [createUnifiedLinkAutocomplete()]),
+
+    // Click navigation for block-ref tokens rendered in live preview
+    createBlockRefClickHandler(),
+
+    // Embed widget navigation events (bubble from widget DOM)
+    createEmbedNavigateEventHandler(),
+
     // Hybrid rendering (live preview)
     isFocusedFacet.of(config.isFocused ?? true),
     hybridRenderingPlugin,
     hybridRenderingTheme,
+
+    // Wiki link click navigation
+    createWikiLinkClickHandler(config.onOpenWikiLink),
 
     // Update listener
     createUpdateListener(config.onChange),

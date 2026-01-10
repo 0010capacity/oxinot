@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 import { persist } from "zustand/middleware";
 
 export type TimeFormat = "24h" | "12h";
@@ -19,7 +19,7 @@ interface ClockFormatStore extends ClockFormatSettings {
   formatDate: (date: Date) => string;
 }
 
-export const useClockFormatStore = create<ClockFormatStore>()(
+export const useClockFormatStore = createWithEqualityFn<ClockFormatStore>()(
   persist(
     (set, get) => ({
       // Default settings

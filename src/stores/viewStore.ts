@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 import { immer } from "zustand/middleware/immer";
 
 // View modes
@@ -43,7 +43,7 @@ const initialState: NavigationState = {
   pagePathIds: [],
 };
 
-export const useViewStore = create<ViewState>()(
+export const useViewStore = createWithEqualityFn<ViewState>()(
   immer((set) => ({
     ...initialState,
 

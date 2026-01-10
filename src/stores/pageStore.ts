@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 import { immer } from "zustand/middleware/immer";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "./workspaceStore";
@@ -50,7 +50,7 @@ type PageStore = PageState & PageActions;
 
 // ============ Store Implementation ============
 
-export const usePageStore = create<PageStore>()(
+export const usePageStore = createWithEqualityFn<PageStore>()(
   immer((set, get) => ({
     // Initial State
     pagesById: {},

@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn as create } from "zustand/traditional";
 import { immer } from "zustand/middleware/immer";
 import { shallow } from "zustand/shallow";
 import { invoke } from "@tauri-apps/api/core";
