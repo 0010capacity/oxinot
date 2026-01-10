@@ -29,7 +29,12 @@ import {
 } from "@tabler/icons-react";
 import { useThemeStore, type ColorVariant } from "../stores/themeStore";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
-import { useClockFormatStore, type TimeFormat, type DateOrder, type DateSeparator } from "../stores/clockFormatStore";
+import {
+  useClockFormatStore,
+  type TimeFormat,
+  type DateOrder,
+  type DateSeparator,
+} from "../stores/clockFormatStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import { useGitStore } from "../stores/gitStore";
 import { useColorScheme } from "@mantine/hooks";
@@ -49,7 +54,7 @@ const FONT_OPTIONS = [
   { label: "Cascadia Code", value: "cascadia" },
 ];
 
-type FontFamily = typeof FONT_OPTIONS[number]["value"];
+type FontFamily = (typeof FONT_OPTIONS)[number]["value"];
 
 interface SettingsModalProps {
   opened: boolean;
@@ -79,8 +84,12 @@ export function SettingsModal({
   const getFontStack = useThemeStore((state) => state.getFontStack);
   const editorFontSize = useThemeStore((state) => state.editorFontSize || 16);
   const setEditorFontSize = useThemeStore((state) => state.setEditorFontSize);
-  const editorLineHeight = useThemeStore((state) => state.editorLineHeight || 1.6);
-  const setEditorLineHeight = useThemeStore((state) => state.setEditorLineHeight);
+  const editorLineHeight = useThemeStore(
+    (state) => state.editorLineHeight || 1.6,
+  );
+  const setEditorLineHeight = useThemeStore(
+    (state) => state.setEditorLineHeight,
+  );
 
   // Clock Format
   const timeFormat = useClockFormatStore((state) => state.timeFormat);
@@ -88,31 +97,55 @@ export function SettingsModal({
   const dateSeparator = useClockFormatStore((state) => state.dateSeparator);
   const setTimeFormat = useClockFormatStore((state) => state.setTimeFormat);
   const setDateOrder = useClockFormatStore((state) => state.setDateOrder);
-  const setDateSeparator = useClockFormatStore((state) => state.setDateSeparator);
+  const setDateSeparator = useClockFormatStore(
+    (state) => state.setDateSeparator,
+  );
 
   // App Settings
   const dailyNotesPath = useAppSettingsStore((state) => state.dailyNotesPath);
-  const setDailyNotesPath = useAppSettingsStore((state) => state.setDailyNotesPath);
+  const setDailyNotesPath = useAppSettingsStore(
+    (state) => state.setDailyNotesPath,
+  );
   const homepageType = useAppSettingsStore((state) => state.homepageType);
   const setHomepageType = useAppSettingsStore((state) => state.setHomepageType);
-  const customHomepageId = useAppSettingsStore((state) => state.customHomepageId);
-  const setCustomHomepageId = useAppSettingsStore((state) => state.setCustomHomepageId);
+  const customHomepageId = useAppSettingsStore(
+    (state) => state.customHomepageId,
+  );
+  const setCustomHomepageId = useAppSettingsStore(
+    (state) => state.setCustomHomepageId,
+  );
 
   // Outliner
-  const showIndentGuides = useOutlinerSettingsStore((state) => state.showIndentGuides);
-  const toggleIndentGuides = useOutlinerSettingsStore((state) => state.toggleIndentGuides);
-  const autoExpandBlocks = useOutlinerSettingsStore((state) => state.autoExpandBlocks ?? true);
-  const setAutoExpandBlocks = useOutlinerSettingsStore((state) => state.setAutoExpandBlocks);
-  const showBlockCount = useOutlinerSettingsStore((state) => state.showBlockCount ?? false);
-  const setShowBlockCount = useOutlinerSettingsStore((state) => state.setShowBlockCount);
+  const showIndentGuides = useOutlinerSettingsStore(
+    (state) => state.showIndentGuides,
+  );
+  const toggleIndentGuides = useOutlinerSettingsStore(
+    (state) => state.toggleIndentGuides,
+  );
+  const autoExpandBlocks = useOutlinerSettingsStore(
+    (state) => state.autoExpandBlocks ?? true,
+  );
+  const setAutoExpandBlocks = useOutlinerSettingsStore(
+    (state) => state.setAutoExpandBlocks,
+  );
+  const showBlockCount = useOutlinerSettingsStore(
+    (state) => state.showBlockCount ?? false,
+  );
+  const setShowBlockCount = useOutlinerSettingsStore(
+    (state) => state.setShowBlockCount,
+  );
 
   // Git
   const isGitRepo = useGitStore((state) => state.isGitRepo);
   const hasGitChanges = useGitStore((state) => state.hasGitChanges);
   const autoCommitEnabled = useGitStore((state) => state.autoCommitEnabled);
-  const setAutoCommitEnabled = useGitStore((state) => state.setAutoCommitEnabled);
+  const setAutoCommitEnabled = useGitStore(
+    (state) => state.setAutoCommitEnabled,
+  );
   const autoCommitInterval = useGitStore((state) => state.autoCommitInterval);
-  const setAutoCommitInterval = useGitStore((state) => state.setAutoCommitInterval);
+  const setAutoCommitInterval = useGitStore(
+    (state) => state.setAutoCommitInterval,
+  );
   const checkGitStatus = useGitStore((state) => state.checkGitStatus);
   const gitCommit = useGitStore((state) => state.gitCommit);
 
@@ -195,7 +228,14 @@ export function SettingsModal({
           </Tabs.Tab>
         </Tabs.List>
 
-        <div style={{ flex: 1, padding: "24px", maxHeight: "70vh", overflow: "auto" }}>
+        <div
+          style={{
+            flex: 1,
+            padding: "24px",
+            maxHeight: "70vh",
+            overflow: "auto",
+          }}
+        >
           {/* Appearance Tab */}
           <Tabs.Panel value="appearance">
             <Stack gap="xl">
@@ -264,7 +304,11 @@ export function SettingsModal({
                         ]}
                         style={{ flex: 1 }}
                       />
-                      <Text size="sm" fw={500} style={{ minWidth: 50, textAlign: "right" }}>
+                      <Text
+                        size="sm"
+                        fw={500}
+                        style={{ minWidth: 50, textAlign: "right" }}
+                      >
                         {editorFontSize}px
                       </Text>
                     </Group>
@@ -291,7 +335,11 @@ export function SettingsModal({
                         ]}
                         style={{ flex: 1 }}
                       />
-                      <Text size="sm" fw={500} style={{ minWidth: 50, textAlign: "right" }}>
+                      <Text
+                        size="sm"
+                        fw={500}
+                        style={{ minWidth: 50, textAlign: "right" }}
+                      >
                         {editorLineHeight.toFixed(1)}
                       </Text>
                     </Group>
@@ -322,7 +370,9 @@ export function SettingsModal({
                     </Text>
                     <SegmentedControl
                       value={colorVariant}
-                      onChange={(value) => setColorVariant(value as ColorVariant)}
+                      onChange={(value) =>
+                        setColorVariant(value as ColorVariant)
+                      }
                       data={[
                         { label: "Default", value: "default" },
                         { label: "Blue", value: "blue" },
@@ -337,8 +387,13 @@ export function SettingsModal({
                     </Text>
                   </div>
 
-                  <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
-                    The theme automatically adapts to your system's dark mode setting
+                  <Alert
+                    icon={<IconInfoCircle size={16} />}
+                    color="blue"
+                    variant="light"
+                  >
+                    The theme automatically adapts to your system's dark mode
+                    setting
                   </Alert>
                 </Stack>
               </div>
@@ -397,7 +452,9 @@ export function SettingsModal({
                     </Text>
                     <Select
                       value={dateSeparator}
-                      onChange={(value) => setDateSeparator(value as DateSeparator)}
+                      onChange={(value) =>
+                        setDateSeparator(value as DateSeparator)
+                      }
                       data={[
                         { label: "Slash (/)", value: "/" },
                         { label: "Hyphen (-)", value: "-" },
@@ -445,14 +502,21 @@ export function SettingsModal({
                     </Text>
                     <TextInput
                       value={dailyNotesPath}
-                      onChange={(event) => setDailyNotesPath(event.currentTarget.value)}
+                      onChange={(event) =>
+                        setDailyNotesPath(event.currentTarget.value)
+                      }
                       placeholder="Daily"
                       description="Path where daily notes will be created (e.g., 'Daily' or 'Notes/Daily')"
                     />
                   </div>
 
-                  <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
-                    Daily notes are automatically created with today's date when you click the home button
+                  <Alert
+                    icon={<IconInfoCircle size={16} />}
+                    color="blue"
+                    variant="light"
+                  >
+                    Daily notes are automatically created with today's date when
+                    you click the home button
                   </Alert>
                 </Stack>
               </div>
@@ -478,7 +542,9 @@ export function SettingsModal({
                     <Select
                       value={homepageType}
                       onChange={(value) =>
-                        setHomepageType(value as "daily-note" | "index" | "custom-page")
+                        setHomepageType(
+                          value as "daily-note" | "index" | "custom-page",
+                        )
                       }
                       data={[
                         { label: "Today's Daily Note", value: "daily-note" },
@@ -537,14 +603,18 @@ export function SettingsModal({
                     label="Auto-expand blocks"
                     description="Automatically expand collapsed blocks when navigating"
                     checked={autoExpandBlocks}
-                    onChange={(event) => setAutoExpandBlocks?.(event.currentTarget.checked)}
+                    onChange={(event) =>
+                      setAutoExpandBlocks?.(event.currentTarget.checked)
+                    }
                   />
 
                   <Switch
                     label="Show block count"
                     description="Display the number of child blocks for each parent"
                     checked={showBlockCount}
-                    onChange={(event) => setShowBlockCount?.(event.currentTarget.checked)}
+                    onChange={(event) =>
+                      setShowBlockCount?.(event.currentTarget.checked)
+                    }
                   />
                 </Stack>
               </div>
@@ -568,7 +638,9 @@ export function SettingsModal({
                       label="Auto-commit"
                       description="Automatically commit changes at regular intervals"
                       checked={autoCommitEnabled}
-                      onChange={(event) => setAutoCommitEnabled(event.currentTarget.checked)}
+                      onChange={(event) =>
+                        setAutoCommitEnabled(event.currentTarget.checked)
+                      }
                     />
 
                     {autoCommitEnabled && (
@@ -579,14 +651,17 @@ export function SettingsModal({
                         <NumberInput
                           value={autoCommitInterval}
                           onChange={(value) =>
-                            setAutoCommitInterval(typeof value === "number" ? value : 5)
+                            setAutoCommitInterval(
+                              typeof value === "number" ? value : 5,
+                            )
                           }
                           min={1}
                           max={60}
                           step={1}
                         />
                         <Text size="xs" c="dimmed" mt={4}>
-                          Changes will be committed every {autoCommitInterval} minute
+                          Changes will be committed every {autoCommitInterval}{" "}
+                          minute
                           {autoCommitInterval !== 1 ? "s" : ""}
                         </Text>
                       </div>
@@ -608,7 +683,9 @@ export function SettingsModal({
                         <Button
                           size="sm"
                           variant="light"
-                          onClick={() => workspacePath && checkGitStatus(workspacePath)}
+                          onClick={() =>
+                            workspacePath && checkGitStatus(workspacePath)
+                          }
                         >
                           Refresh Status
                         </Button>
@@ -676,8 +753,13 @@ export function SettingsModal({
                     </Group>
                   </div>
 
-                  <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
-                    Custom keyboard shortcuts will be available in a future update
+                  <Alert
+                    icon={<IconInfoCircle size={16} />}
+                    color="blue"
+                    variant="light"
+                  >
+                    Custom keyboard shortcuts will be available in a future
+                    update
                   </Alert>
                 </Stack>
               </div>
@@ -695,8 +777,13 @@ export function SettingsModal({
                   Cloud synchronization settings
                 </Text>
 
-                <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
-                  Cloud sync is coming soon in a future update. For now, you can use Git for version control.
+                <Alert
+                  icon={<IconInfoCircle size={16} />}
+                  color="blue"
+                  variant="light"
+                >
+                  Cloud sync is coming soon in a future update. For now, you can
+                  use Git for version control.
                 </Alert>
               </div>
             </Stack>
@@ -714,8 +801,13 @@ export function SettingsModal({
                 </Text>
 
                 <Stack gap="lg">
-                  <Alert icon={<IconShieldLock size={16} />} color="green" variant="light">
-                    Your data is stored locally on your device. We don't collect any personal information.
+                  <Alert
+                    icon={<IconShieldLock size={16} />}
+                    color="green"
+                    variant="light"
+                  >
+                    Your data is stored locally on your device. We don't collect
+                    any personal information.
                   </Alert>
 
                   <div>
@@ -753,7 +845,7 @@ export function SettingsModal({
                       </Badge>
                     </Group>
                     <Text size="sm" c="dimmed">
-                      Version 0.0.1
+                      Version 0.1.0
                     </Text>
                   </div>
 
@@ -773,13 +865,17 @@ export function SettingsModal({
                       • Enhanced appearance customization
                       <br />
                       • Improved Git integration
-                      <br />
-                      • Better outliner controls
+                      <br />• Better outliner controls
                     </Text>
                   </div>
 
-                  <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
-                    This is a beta version. Some features are still in development.
+                  <Alert
+                    icon={<IconInfoCircle size={16} />}
+                    color="blue"
+                    variant="light"
+                  >
+                    This is a beta version. Some features are still in
+                    development.
                   </Alert>
                 </Stack>
               </div>
