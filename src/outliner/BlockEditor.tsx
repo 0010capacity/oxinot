@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useMantineColorScheme } from "@mantine/core";
 import { useBlockStore } from "../stores/blockStore";
 import { useViewStore } from "../stores/viewStore";
+import { useThemeStore } from "../stores/themeStore";
 import { BlockComponent } from "./BlockComponent";
 import { PageContainer } from "../components/layout/PageContainer";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
@@ -31,6 +32,9 @@ export function BlockEditor({
   const childrenMap = useBlockStore((state) => state.childrenMap);
 
   const focusedBlockId = useViewStore((state) => state.focusedBlockId);
+
+  const editorFontSize = useThemeStore((state) => state.editorFontSize);
+  const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
 
   // Load page blocks
   useEffect(() => {
@@ -101,7 +105,13 @@ export function BlockEditor({
           />
         )}
 
-        <div className="blocks-list">
+        <div
+          className="blocks-list"
+          style={{
+            fontSize: `${editorFontSize}px`,
+            lineHeight: editorLineHeight,
+          }}
+        >
           {blocksToShow.length === 0 ? (
             <div className="empty-state">
               <div
