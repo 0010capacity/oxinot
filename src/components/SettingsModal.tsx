@@ -217,9 +217,6 @@ export function SettingsModal({
           <Tabs.Tab value="shortcuts" leftSection={<IconKeyboard size={16} />}>
             Shortcuts
           </Tabs.Tab>
-          <Tabs.Tab value="sync" leftSection={<IconCloud size={16} />}>
-            Sync
-          </Tabs.Tab>
           <Tabs.Tab value="privacy" leftSection={<IconShieldLock size={16} />}>
             Privacy
           </Tabs.Tab>
@@ -766,29 +763,6 @@ export function SettingsModal({
             </Stack>
           </Tabs.Panel>
 
-          {/* Sync Tab */}
-          <Tabs.Panel value="sync">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  Sync
-                </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  Cloud synchronization settings
-                </Text>
-
-                <Alert
-                  icon={<IconInfoCircle size={16} />}
-                  color="blue"
-                  variant="light"
-                >
-                  Cloud sync is coming soon in a future update. For now, you can
-                  use Git for version control.
-                </Alert>
-              </div>
-            </Stack>
-          </Tabs.Panel>
-
           {/* Privacy Tab */}
           <Tabs.Panel value="privacy">
             <Stack gap="xl">
@@ -816,6 +790,17 @@ export function SettingsModal({
                     </Text>
                     <Text size="sm" c="dimmed">
                       {workspacePath || "No workspace selected"}
+                    </Text>
+                  </div>
+
+                  <div>
+                    <Text size="sm" fw={500} mb={8}>
+                      Synchronization
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      This app uses Git for version control and backup. All
+                      changes are stored locally and can be synced to remote Git
+                      repositories.
                     </Text>
                   </div>
                 </Stack>
