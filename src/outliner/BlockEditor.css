@@ -6,6 +6,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-y: auto;
+    overflow-x: visible;
     background-color: var(--color-bg-primary);
     color: var(--color-text-primary);
 }

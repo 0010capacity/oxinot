@@ -247,13 +247,20 @@ span[class*="heading"],
 }
 
 /* Hidden/Dimmed Syntax Styles */
+/* IMPORTANT:
+   Do NOT use display:none for CodeMirror "hidden" spans.
+   During in-progress edits (e.g., typing inside ((...)) / [[...]]), handlers may temporarily
+   mark ranges as hidden. If we force display:none, the user’s typed text can appear to
+   "not show up" until the DOM is re-laid out (often after a whitespace).
+   We instead rely on opacity/font-size to visually hide while preserving layout/IME behavior. */
 .cm-hidden {
-    display: none !important;
+    display: inline !important;
     opacity: 0 !important;
     font-size: 0.01em !important;
     text-decoration: none !important;
     text-decoration-line: none !important;
     border-bottom: none !important;
+    pointer-events: none !important;
 }
 
 .cm-dim-marker {
@@ -275,6 +282,83 @@ span[class*="heading"],
 
 /* Selection Styles */
 /* Note: Selection styles moved to styles/base.css */
+
+/* CodeMirror Autocomplete (Completion Tooltip)
+   - Avoid clipping while keeping CodeMirror's own positioning logic intact.
+   - Do NOT force fixed positioning (it breaks placement and can pin the panel to top-left). */
+.md-autocomplete-tooltip {
+    /* High enough to float over editor/content, but let app-level overlays win if needed */
+    z-index: 2000;
+
+    /* Keep CM positioning (usually absolute) */
+    position: static;
+
+    max-height: min(360px, 60vh);
+    min-width: 260px;
+    max-width: min(680px, 92vw);
+    overflow: auto;
+    border-radius: 8px;
+
+    /* Make it easier to read against varying backgrounds */
+    background: var(--color-surface, rgba(20, 20, 20, 0.95));
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+
+    /* Ensure the list doesn't get squeezed */
+    padding: 4px;
+}
+
+.md-autocomplete-tooltip.cm-tooltip {
+    /* Keep CodeMirror default positioning */
+    position: absolute;
+}
+
+.md-autocomplete-tooltip .cm-tooltip-autocomplete {
+    max-height: inherit;
+    overflow: visible;
+}
+
+.md-autocomplete-tooltip .cm-tooltip-autocomplete > ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    /* Ensure items have room */
+    min-width: 260px;
+}
+
+.md-autocomplete-tooltip .cm-tooltip-autocomplete > ul > li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    padding: 6px 8px;
+    border-radius: 6px;
+
+    /* Prevent text from being clipped by line-height issues */
+    line-height: 1.2;
+}
+
+.md-autocomplete-tooltip
+    .cm-tooltip-autocomplete
+    > ul
+    > li[aria-selected="true"] {
+    background: rgba(77, 171, 247, 0.18);
+}
+
+.md-autocomplete-tooltip .cm-completionLabel {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.md-autocomplete-tooltip .cm-completionDetail {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.75;
+    font-size: 0.85em;
+}
 
 /* Smooth Transitions */
 .cm-line {

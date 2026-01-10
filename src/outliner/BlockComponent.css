@@ -5,6 +5,9 @@
     font-size: var(--font-size-sm);
     line-height: var(--line-height-normal);
     position: relative;
+
+    /* Allow floating UI (e.g., CodeMirror autocomplete tooltips) to escape the block row. */
+    overflow: visible;
 }
 
 /* Indent guides */
@@ -26,6 +29,9 @@
     position: relative;
     border-radius: var(--radius-sm);
     transition: background-color var(--transition-normal);
+
+    /* Prevent suggestion popovers from being clipped by this row container. */
+    overflow: visible;
 }
 
 /* Collapse/Expand Toggle - show only on hover */
@@ -114,6 +120,9 @@
     min-width: 0;
     display: flex;
     align-items: flex-start;
+
+    /* Let CodeMirror tooltips render outside the wrapper bounds. */
+    overflow: visible;
 }
 
 .block-editor {

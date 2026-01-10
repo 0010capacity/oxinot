@@ -495,7 +495,7 @@ function AppContent({ workspacePath }: AppContentProps) {
           />
 
           {/* Main Content Panel */}
-          <div style={{ flex: 1, overflow: "hidden" }}>
+          <div style={{ flex: 1 }}>
             {!dbInitialized ? (
               <Container size="sm" py="xl" mt={50}>
                 <Text ta="center" c="dimmed">

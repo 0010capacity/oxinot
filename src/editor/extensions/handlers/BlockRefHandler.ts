@@ -6,26 +6,23 @@
  * - !((uuid))       : embed block (UUID should not be shown)
  *
  * Rendering rules (live preview):
- * - Hide the wrapping markers: "((", "))", and the leading "!" (embed marker)
- * - Hide the UUID text (must never be visible)
- * - Normal refs (()) render as a token-like highlight (read-only)
- * - Embed refs !(( )) render an inline, read-only subtree preview widget that:
- *   - fetches the block subtree from the backend
- *   - respects `isCollapsed` (do not render children when collapsed)
- *   - only bullet clicks inside the embed navigate (no container click navigation)
+ * - Always hide the entire raw markup `((...))` / `!((...))` (including UUID), even on the cursor line.
+ *   Editing still works because the document text remains; only the rendering hides it.
+ * - Normal refs (()) render as a one-line inline preview widget (read-only) that:
+ *   - fetches the referenced block content from the backend
+ *   - renders a single line of preview text (truncated)
+ *   - remains clickable via `createBlockRefClickHandler`
+ * - Embed refs !(( )) render an inline, read-only subtree preview widget.
  *
  * Notes:
  * - This handler is regex/line-based (like WikiLinkHandler), not syntax-tree-based.
- * - The embed preview is read-only by design.
+ * - The preview widgets are read-only by design.
  */
 
 import { SyntaxNode } from "@lezer/common";
 import { BaseHandler, RenderContext } from "./types";
 import type { DecorationSpec } from "../utils/decorationHelpers";
-import {
-  createHiddenMarker,
-  createStyledText,
-} from "../utils/decorationHelpers";
+import { createHiddenMarker } from "../utils/decorationHelpers";
 import { Decoration, WidgetType } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "../../../stores/workspaceStore";
@@ -49,12 +46,21 @@ type EmbedBlock = {
 function isProbablyUuid(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
+
+  // Reject obviously incomplete / in-progress edits (prevents hiding user input while typing)
+  if (t.length < 8) return false;
+
+  // Basic sanity: no whitespace or closing parens inside the id capture
   if (/\s|\)/.test(t)) return false;
-  return true;
+
+  // Accept UUID-ish tokens (hyphenated), or any long-enough opaque id token.
+  const uuidLike =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t);
+  return uuidLike || t.length >= 16;
 }
 
 function findBlockRefsInLine(lineText: string): BlockRefMatch[] {
-  const re = /(!)?\(\(([^\)\s]+)\)\)/g;
+  const re = /(!)?\(\(([^)\s]+)\)\)/g;
 
   const out: BlockRefMatch[] = [];
   let m: RegExpExecArray | null;
@@ -64,6 +70,8 @@ function findBlockRefsInLine(lineText: string): BlockRefMatch[] {
     const isEmbed = !!m[1];
     const id = (m[2] ?? "").trim();
 
+    // Only treat as a real block ref when the id looks "complete enough".
+    // This avoids applying hide/styling decorations while the user is still typing.
     if (!isProbablyUuid(id)) continue;
 
     out.push({
@@ -225,6 +233,101 @@ class EmbedSubtreeWidget extends WidgetType {
   }
 }
 
+class BlockRefPreviewWidget extends WidgetType {
+  private readonly blockId: string;
+
+  constructor(blockId: string) {
+    super();
+    this.blockId = blockId;
+  }
+
+  eq(other: BlockRefPreviewWidget) {
+    return other.blockId === this.blockId;
+  }
+
+  toDOM() {
+    const el = document.createElement("span");
+    el.className = "cm-block-ref cm-block-ref-preview";
+
+    // Attach the referenced id so click navigation can use it without needing to parse the doc.
+    el.setAttribute("data-block-id", this.blockId);
+
+    el.style.display = "inline-flex";
+    el.style.alignItems = "center";
+    el.style.maxWidth = "min(520px, 70vw)";
+    el.style.whiteSpace = "nowrap";
+    el.style.overflow = "hidden";
+    el.style.textOverflow = "ellipsis";
+    el.style.verticalAlign = "baseline";
+
+    // Token-like fallback while loading
+    el.textContent = "Block…";
+
+    const workspacePath = useWorkspaceStore.getState().workspacePath;
+    if (!workspacePath) {
+      el.textContent = "No workspace";
+      el.style.opacity = "0.7";
+      return el;
+    }
+
+    void (async () => {
+      try {
+        const res: any = await invoke("get_block", {
+          workspacePath,
+          request: { block_id: this.blockId },
+        });
+
+        // Debug logging to understand response shape and load failures
+        console.debug("[BlockRefPreviewWidget] get_block response", {
+          blockId: this.blockId,
+          hasRes: !!res,
+          resKeys:
+            res && typeof res === "object" ? Object.keys(res as object) : null,
+          sample: res,
+        });
+
+        const block = res?.block ?? res?.Block ?? null;
+        const content = (block?.content ?? "").toString().trim();
+
+        if (!content) {
+          console.debug("[BlockRefPreviewWidget] empty block content", {
+            blockId: this.blockId,
+            resolvedBlockKeys:
+              block && typeof block === "object"
+                ? Object.keys(block as object)
+                : null,
+            block,
+          });
+
+          el.textContent = "Untitled block";
+          el.style.opacity = "0.75";
+          return;
+        }
+
+        // Single-line preview (collapse whitespace + truncate)
+        const oneLine = content.replace(/\s+/g, " ").trim();
+        el.textContent = oneLine;
+      } catch (err) {
+        console.debug("[BlockRefPreviewWidget] failed to fetch block preview", {
+          blockId: this.blockId,
+          workspacePath,
+          error: err,
+        });
+
+        el.textContent = "Missing block";
+        el.style.opacity = "0.7";
+      }
+    })();
+
+    return el;
+  }
+
+  ignoreEvent() {
+    // Keep it read-only; navigation is handled by the click handler on .cm-block-ref.
+    return true;
+  }
+}
+
 export class BlockRefHandler extends BaseHandler {
   constructor() {
     super("BlockRefHandler");
@@ -241,7 +344,7 @@ export class BlockRefHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isOnCursorLine: boolean,
+    _isOnCursorLine: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -258,54 +361,43 @@ export class BlockRefHandler extends BaseHandler {
       const openStart = hasBang ? from + 1 : from;
       const openEnd = openStart + 2;
 
-      const idStart = openEnd;
-      const idEnd = to - 2;
-
-      const closeStart = idEnd;
-      const closeEnd = to;
+      // const idEnd = to - 2;
 
       if (hasBang) {
-        decorations.push(
-          createHiddenMarker(bangStart, bangEnd, isOnCursorLine),
-        );
+        // Hide "!" regardless of cursor line
+        decorations.push(createHiddenMarker(bangStart, bangEnd, false));
       }
 
-      decorations.push(createHiddenMarker(openStart, openEnd, isOnCursorLine));
+      // Hide "((" regardless of cursor line
+      decorations.push(createHiddenMarker(openStart, openEnd, false));
 
-      // UUID must never be visible
-      decorations.push(createHiddenMarker(idStart, idEnd, false));
+      // Always hide the entire block-ref syntax, including UUID, even on the cursor line.
+      // This prevents the UUID from ever becoming visible.
+      decorations.push(createHiddenMarker(from, to, false));
 
       if (match.isEmbed) {
         // Embed: insert an inline widget (read-only subtree preview)
         decorations.push({
-          from: idStart,
-          to: idEnd,
+          from,
+          to,
           decoration: Decoration.widget({
             widget: new EmbedSubtreeWidget(match.id),
             side: 0,
           }),
         });
       } else {
-        // Normal (()) link: token-like styling only (still clickable via click handler elsewhere)
-        decorations.push(
-          createStyledText(idStart, idEnd, {
-            className: "cm-block-ref",
-            style: `
-              color: #8b5cf6;
-              cursor: pointer;
-              font-weight: 500;
-              text-decoration: none;
-              padding: 0 2px;
-              border-radius: 4px;
-              background: rgba(139, 92, 246, 0.12);
-            `,
+        // Normal (()) link: render a one-line inline preview widget (read-only).
+        // Place the widget at the reference start so it remains visible/clickable
+        // while the raw markup is hidden.
+        decorations.push({
+          from,
+          to,
+          decoration: Decoration.widget({
+            widget: new BlockRefPreviewWidget(match.id),
+            side: 0,
           }),
-        );
+        });
       }
-
-      decorations.push(
-        createHiddenMarker(closeStart, closeEnd, isOnCursorLine),
-      );
     }
 
     return decorations;

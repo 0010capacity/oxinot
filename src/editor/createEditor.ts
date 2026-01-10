@@ -5,12 +5,13 @@ import {
   lineNumbers,
   highlightActiveLineGutter,
   KeyBinding,
+  tooltips,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import {
-  syntaxHighlighting,
   defaultHighlightStyle,
+  syntaxHighlighting,
   indentOnInput,
   bracketMatching,
 } from "@codemirror/language";
@@ -19,15 +20,18 @@ import {
   closeBracketsKeymap,
   autocompletion,
   CompletionContext,
+  startCompletion,
+  closeCompletion,
 } from "@codemirror/autocomplete";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { invoke } from "@tauri-apps/api/core";
-import { useWorkspaceStore } from "../stores/workspaceStore";
+
 import {
   hybridRenderingPlugin,
   hybridRenderingTheme,
   isFocusedFacet,
 } from "./extensions/hybridRendering";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { useBlockStore } from "../stores/blockStore";
@@ -131,6 +135,39 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
     // Keymaps (prepend user bindings so they override defaults)
     keymap.of([
       ...(config.keybindings ?? []),
+
+      // Debug: allow inspecting the completion tooltip without it auto-closing while you click around.
+      // - Cmd/Ctrl+Alt+K: toggle "pin completion open" mode (stores flag on the DOM for quick access)
+      // - Cmd/Ctrl+Alt+J: force-open completion
+      // - Cmd/Ctrl+Alt+H: close completion
+      {
+        key: "Mod-Alt-k",
+        run: (view) => {
+          const dom = view.dom as any;
+          dom.__pinCompletionOpen = !dom.__pinCompletionOpen;
+          if (dom.__pinCompletionOpen) {
+            startCompletion(view);
+          } else {
+            closeCompletion(view);
+          }
+          return true;
+        },
+      },
+      {
+        key: "Mod-Alt-j",
+        run: (view) => {
+          startCompletion(view);
+          return true;
+        },
+      },
+      {
+        key: "Mod-Alt-h",
+        run: (view) => {
+          closeCompletion(view);
+          return true;
+        },
+      },
+
       ...defaultKeymap,
       ...historyKeymap,
       ...closeBracketsKeymap,
@@ -291,6 +328,21 @@ function createBlockRefClickHandler(): Extension {
       event.preventDefault();
       event.stopPropagation();
 
+      // Prefer a direct id when the preview widget attaches it to its outer span.
+      // NOTE: Sometimes the click target is a nested node (text node wrapper, etc.),
+      // so we also try to find the attribute on the nearest ancestor within the token.
+      const directId =
+        el.getAttribute("data-block-id") ||
+        el.closest?.("[data-block-id]")?.getAttribute("data-block-id") ||
+        (el as any).dataset?.blockId ||
+        (el as any).dataset?.blockid ||
+        "";
+      if (directId) {
+        void navigateToBlockById(directId);
+        return true;
+      }
+
+      // Fallback: resolve block id by parsing the underlying doc around the click position.
       const pos = view.posAtDOM(el);
       if (pos == null) return true;
 
@@ -509,11 +561,29 @@ function createUnifiedLinkAutocomplete(): Extension {
 
     const { from, to, query, isEmbed } = info;
     const q = query.trim();
+
+    // Show suggestions immediately after typing `((` / `!((` (empty query).
+    // Without at least one option, CodeMirror may choose not to open the panel,
+    // which makes block-link autocomplete look "broken" until the user types more.
     if (!q) {
       return {
         from,
         to,
-        options: [],
+        options: [
+          {
+            label: "Start typing to search blocks…",
+            detail: isEmbed ? "Embed syntax: !((…))" : "Link syntax: ((…))",
+            type: "text",
+            apply: (
+              _view: any,
+              _completion: any,
+              _fromPos: number,
+              _toPos: number,
+            ) => {
+              // No-op placeholder; user should keep typing.
+            },
+          },
+        ],
         validFor: /^[^\\)\n]*$/,
       };
     }
@@ -591,6 +661,13 @@ function createUnifiedLinkAutocomplete(): Extension {
     override: [wikiSource, blockSource],
     defaultKeymap: true,
     activateOnTyping: true,
+
+    // Render the tooltip into a fixed-position portal so it can't be clipped by
+    // the app's rounded root container (overflow: hidden).
+    //
+    // This is critical for block editors because #root has overflow: hidden.
+    tooltipClass: () => "md-autocomplete-tooltip",
+    optionClass: () => "md-autocomplete-option",
   });
 }
 
@@ -926,6 +1003,19 @@ export function createEditor(
 
     // Embed widget navigation events (bubble from widget DOM)
     createEmbedNavigateEventHandler(),
+
+    // Configure tooltip behavior so autocomplete panels are not clipped by
+    // scroll/overflow containers in the app layout.
+    //
+    // - position: "fixed" makes tooltip placement independent of ancestor overflow/scroll.
+    // - parent: document.body ensures tooltips aren't constrained by editor wrappers.
+    //
+    // NOTE: In non-browser environments, `document` might not exist. This code is only
+    // executed when creating an editor view in the browser/webview runtime.
+    tooltips({
+      position: "fixed",
+      parent: document.body,
+    }),
 
     // Hybrid rendering (live preview)
     isFocusedFacet.of(config.isFocused ?? true),
