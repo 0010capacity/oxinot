@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { TextInput } from "@mantine/core";
+import { BulletPoint } from "../common/BulletPoint";
 
 interface NewPageInputProps {
   depth: number;
@@ -84,25 +85,9 @@ export function NewPageInput({
         }}
       />
 
-      {/* Bullet point */}
-      <div
-        style={{
-          flexShrink: 0,
-          width: "var(--layout-bullet-container-size)",
-          height: "var(--layout-bullet-container-size)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div
-          style={{
-            width: "4px",
-            height: "4px",
-            borderRadius: "50%",
-            backgroundColor: "var(--color-bullet-hover)",
-          }}
-        />
+      {/* Bullet point - dimmed to indicate unsaved state */}
+      <div style={{ opacity: 0.4 }}>
+        <BulletPoint type="default" isActive={false} />
       </div>
 
       {/* Input field - matches PageTreeItem text styling exactly */}
