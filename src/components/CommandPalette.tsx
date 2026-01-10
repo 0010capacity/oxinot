@@ -4,7 +4,6 @@ import {
   IconFile,
   IconGitCommit,
   IconGitBranch,
-  IconCalendar,
   IconSettings,
   IconHelp,
   IconFolderPlus,
@@ -29,7 +28,6 @@ interface CommandPaletteProps {
   opened: boolean;
   onClose: () => void;
   onOpenSearch?: () => void;
-  onOpenCalendar?: () => void;
   onOpenSettings?: () => void;
   onOpenHelp?: () => void;
 }
@@ -38,7 +36,6 @@ export function CommandPalette({
   opened,
   onClose,
   onOpenSearch,
-  onOpenCalendar,
   onOpenSettings,
   onOpenHelp,
 }: CommandPaletteProps) {
@@ -84,17 +81,6 @@ export function CommandPalette({
           showIndex();
         },
         keywords: ["tree", "files", "workspace", "home"],
-      },
-      {
-        id: "calendar",
-        label: "Open Calendar",
-        description: "View daily notes calendar",
-        icon: <IconCalendar size={16} />,
-        action: () => {
-          onClose();
-          onOpenCalendar?.();
-        },
-        keywords: ["date", "daily", "journal"],
       },
 
       // Page actions
@@ -224,7 +210,6 @@ export function CommandPalette({
       workspacePath,
       onClose,
       onOpenSearch,
-      onOpenCalendar,
       onOpenSettings,
       onOpenHelp,
       createPage,

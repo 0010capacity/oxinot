@@ -1,0 +1,124 @@
+import { useState, useEffect } from "react";
+import { Text, Box, Popover } from "@mantine/core";
+import { useMantineColorScheme } from "@mantine/core";
+import { useClockFormatStore } from "../../stores/clockFormatStore";
+import { CalendarDropdown } from "../CalendarDropdown";
+
+export function Clock() {
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === "dark";
+  const [time, setTime] = useState<string>("");
+  const [date, setDate] = useState<string>("");
+  const [opened, setOpened] = useState(false);
+
+  // Get the format settings and formatter functions
+  const timeFormat = useClockFormatStore((state) => state.timeFormat);
+  const dateOrder = useClockFormatStore((state) => state.dateOrder);
+  const dateSeparator = useClockFormatStore((state) => state.dateSeparator);
+  const formatTime = useClockFormatStore((state) => state.formatTime);
+  const formatDate = useClockFormatStore((state) => state.formatDate);
+
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      setTime(formatTime(now));
+      setDate(formatDate(now));
+    };
+
+    updateClock();
+    const interval = setInterval(updateClock, 1000);
+
+    return () => clearInterval(interval);
+  }, [timeFormat, dateOrder, dateSeparator]);
+
+  const handleClose = () => {
+    setOpened(false);
+  };
+
+  return (
+    <Popover
+      position="bottom-end"
+      withArrow={false}
+      offset={0}
+      opened={opened}
+      onChange={setOpened}
+    >
+      <Popover.Target>
+        <Box
+          onClick={() => setOpened(!opened)}
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: "8px",
+            cursor: "pointer",
+            padding: "6px 8px",
+            borderRadius: "6px",
+            transition: "background-color 0.2s ease",
+            backgroundColor: opened
+              ? isDark
+                ? "rgba(255, 255, 255, 0.1)"
+                : "rgba(0, 0, 0, 0.05)"
+              : "transparent",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = isDark
+              ? "rgba(255, 255, 255, 0.08)"
+              : "rgba(0, 0, 0, 0.03)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = opened
+              ? isDark
+                ? "rgba(255, 255, 255, 0.1)"
+                : "rgba(0, 0, 0, 0.05)"
+              : "transparent";
+          }}
+        >
+          <Text
+            size="sm"
+            fw={500}
+            style={{
+              color: "var(--color-text-secondary)",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {date || "00/00"}
+          </Text>
+          <Text
+            size="xs"
+            c="dimmed"
+            style={{
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            |
+          </Text>
+          <Text
+            size="sm"
+            fw={500}
+            style={{
+              color: "var(--color-text-secondary)",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {time || "00:00"}
+          </Text>
+        </Box>
+      </Popover.Target>
+
+      <Popover.Dropdown
+        style={{
+          padding: "16px",
+          borderRadius: "12px",
+          backgroundColor: isDark ? "#1a1b1e" : "#ffffff",
+          border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
+          boxShadow: isDark
+            ? "0 8px 24px rgba(0, 0, 0, 0.4)"
+            : "0 8px 24px rgba(0, 0, 0, 0.12)",
+        }}
+      >
+        <CalendarDropdown onClose={handleClose} />
+      </Popover.Dropdown>
+    </Popover>
+  );
+}

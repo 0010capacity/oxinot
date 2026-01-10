@@ -13,6 +13,7 @@ import {
   Button,
   Group,
   NumberInput,
+  TextInput,
 } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import "@mantine/notifications/styles.css";
@@ -28,15 +29,22 @@ import {
   type FontFamily,
 } from "./stores/outlinerSettingsStore";
 import { useGitStore } from "./stores/gitStore";
+import {
+  useClockFormatStore,
+  type TimeFormat,
+  type DateOrder,
+  type DateSeparator,
+} from "./stores/clockFormatStore";
+import { useAppSettingsStore } from "./stores/appSettingsStore";
 import { MigrationDialog } from "./components/MigrationDialog";
 import { TitleBar } from "./components/TitleBar";
 import { FileTreeIndex } from "./components/FileTreeIndex";
 import { BlockEditor } from "./outliner/BlockEditor";
 import { SearchModal } from "./components/SearchModal";
-import { CalendarModal } from "./components/CalendarModal";
 import { HelpModal } from "./components/HelpModal";
 import { CommandPalette } from "./components/CommandPalette";
 import { SyncProgress } from "./components/SyncProgress";
+import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { useThemeStore } from "./stores/themeStore";
@@ -81,11 +89,14 @@ function AppContent({ workspacePath }: AppContentProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
   const { selectWorkspace } = useWorkspaceStore();
-  const { loadPages } = usePageStore();
+  const { loadPages, createPage } = usePageStore();
   const currentPageId = usePageStore((state) => state.currentPageId);
+  const setCurrentPageId = usePageStore((state) => state.setCurrentPageId);
+  const pagesById = usePageStore((state) => state.pagesById);
+  const pageIds = usePageStore((state) => state.pageIds);
   const viewMode = useViewMode();
   const breadcrumb = useBreadcrumb();
-  const { showIndex, setWorkspaceName } = useViewStore();
+  const { showIndex, setWorkspaceName, openNote } = useViewStore();
 
   const showIndentGuides = useOutlinerSettingsStore(
     (state) => state.showIndentGuides,
@@ -99,6 +110,31 @@ function AppContent({ workspacePath }: AppContentProps) {
   );
   const getFontStack = useOutlinerSettingsStore((state) => state.getFontStack);
 
+  const timeFormat = useClockFormatStore((state) => state.timeFormat);
+  const dateOrder = useClockFormatStore((state) => state.dateOrder);
+  const dateSeparator = useClockFormatStore((state) => state.dateSeparator);
+  const setTimeFormat = useClockFormatStore((state) => state.setTimeFormat);
+  const setDateOrder = useClockFormatStore((state) => state.setDateOrder);
+  const setDateSeparator = useClockFormatStore(
+    (state) => state.setDateSeparator,
+  );
+
+  const dailyNotesPath = useAppSettingsStore((state) => state.dailyNotesPath);
+  const setDailyNotesPath = useAppSettingsStore(
+    (state) => state.setDailyNotesPath,
+  );
+  const homepageType = useAppSettingsStore((state) => state.homepageType);
+  const setHomepageType = useAppSettingsStore((state) => state.setHomepageType);
+  const customHomepageId = useAppSettingsStore(
+    (state) => state.customHomepageId,
+  );
+  const setCustomHomepageId = useAppSettingsStore(
+    (state) => state.setCustomHomepageId,
+  );
+  const getDailyNotePath = useAppSettingsStore(
+    (state) => state.getDailyNotePath,
+  );
+
   const colorVariant = useThemeStore((state) => state.colorVariant);
   const setColorVariant = useThemeStore((state) => state.setColorVariant);
 
@@ -107,7 +143,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   const [checkingDb, setCheckingDb] = useState(true);
   const [settingsOpened, setSettingsOpened] = useState(false);
   const [searchOpened, setSearchOpened] = useState(false);
-  const [calendarOpened, setCalendarOpened] = useState(false);
+
   const [helpOpened, setHelpOpened] = useState(false);
   const [commandPaletteOpened, setCommandPaletteOpened] = useState(false);
 
@@ -220,6 +256,9 @@ function AppContent({ workspacePath }: AppContentProps) {
         setDbInitialized(true);
         setShowMigration(false);
         setWorkspaceName(workspaceName);
+
+        // Open homepage after initialization
+        openHomepage();
       } catch (error) {
         console.error("[App] Failed to sync workspace:", error);
         setDbInitialized(false);
@@ -231,6 +270,187 @@ function AppContent({ workspacePath }: AppContentProps) {
 
     checkDatabase();
   }, [workspacePath, loadPages, setWorkspaceName, workspaceName]);
+
+  // Open homepage function
+  const openHomepage = async () => {
+    if (homepageType === "index") {
+      // Open file tree / workspace index
+      showIndex();
+    } else if (homepageType === "daily-note") {
+      // Open today's daily note
+      const today = new Date();
+      const fullPath = getDailyNotePath(today);
+
+      // Find existing daily note
+      const existingPageId = pageIds.find((id) => {
+        const page = pagesById[id];
+        if (!page) return false;
+
+        const buildPath = (pageId: string): string => {
+          const p = pagesById[pageId];
+          if (!p) return "";
+          if (p.parentId) {
+            const parentPath = buildPath(p.parentId);
+            return parentPath ? `${parentPath}/${p.title}` : p.title;
+          }
+          return p.title;
+        };
+
+        return buildPath(id) === fullPath;
+      });
+
+      if (existingPageId) {
+        const page = pagesById[existingPageId];
+        const parentNames: string[] = [];
+        const pagePathIds: string[] = [];
+
+        const buildParentPath = (pageId: string) => {
+          const p = pagesById[pageId];
+          if (!p) return;
+
+          if (p.parentId) {
+            buildParentPath(p.parentId);
+            const parentPage = pagesById[p.parentId];
+            if (parentPage) {
+              parentNames.push(parentPage.title);
+              pagePathIds.push(p.parentId);
+            }
+          }
+        };
+
+        buildParentPath(existingPageId);
+        pagePathIds.push(existingPageId);
+
+        setCurrentPageId(existingPageId);
+        openNote(existingPageId, page.title, parentNames, pagePathIds);
+      } else {
+        // Create daily note if it doesn't exist
+        try {
+          const pathParts = fullPath.split("/");
+          let parentId: string | undefined = undefined;
+
+          for (let i = 0; i < pathParts.length; i++) {
+            const currentPath = pathParts.slice(0, i + 1).join("/");
+
+            const existingPage = pageIds.find((id) => {
+              const p = pagesById[id];
+              if (!p) return false;
+
+              const buildPath = (pageId: string): string => {
+                const page = pagesById[pageId];
+                if (!page) return "";
+                if (page.parentId) {
+                  const parentPath = buildPath(page.parentId);
+                  return parentPath
+                    ? `${parentPath}/${page.title}`
+                    : page.title;
+                }
+                return page.title;
+              };
+
+              return buildPath(id) === currentPath;
+            });
+
+            if (existingPage) {
+              parentId = existingPage;
+            } else {
+              const newPageId = await createPage(pathParts[i], parentId);
+              parentId = newPageId;
+            }
+          }
+
+          // Reload pages and find the created page
+          await loadPages();
+
+          const freshPagesById = usePageStore.getState().pagesById;
+          const freshPageIds = usePageStore.getState().pageIds;
+
+          const createdPageId = freshPageIds.find((id) => {
+            const p = freshPagesById[id];
+            if (!p) return false;
+
+            const buildPath = (pageId: string): string => {
+              const page = freshPagesById[pageId];
+              if (!page) return "";
+              if (page.parentId) {
+                const parentPath = buildPath(page.parentId);
+                return parentPath ? `${parentPath}/${page.title}` : page.title;
+              }
+              return page.title;
+            };
+
+            return buildPath(id) === fullPath;
+          });
+
+          if (createdPageId) {
+            const createdPage = freshPagesById[createdPageId];
+            const parentNames: string[] = [];
+            const pagePathIds: string[] = [];
+
+            const buildParentPath = (pageId: string) => {
+              const page = freshPagesById[pageId];
+              if (!page) return;
+
+              if (page.parentId) {
+                buildParentPath(page.parentId);
+                const parentPage = freshPagesById[page.parentId];
+                if (parentPage) {
+                  parentNames.push(parentPage.title);
+                  pagePathIds.push(page.parentId);
+                }
+              }
+            };
+
+            buildParentPath(createdPageId);
+            pagePathIds.push(createdPageId);
+
+            setCurrentPageId(createdPageId);
+            openNote(
+              createdPageId,
+              createdPage.title,
+              parentNames,
+              pagePathIds,
+            );
+          }
+        } catch (error) {
+          console.error("Failed to create daily note:", error);
+          showIndex();
+        }
+      }
+    } else if (homepageType === "custom-page" && customHomepageId) {
+      // Open custom homepage
+      const page = pagesById[customHomepageId];
+      if (page) {
+        const parentNames: string[] = [];
+        const pagePathIds: string[] = [];
+
+        const buildParentPath = (pageId: string) => {
+          const p = pagesById[pageId];
+          if (!p) return;
+
+          if (p.parentId) {
+            buildParentPath(p.parentId);
+            const parentPage = pagesById[p.parentId];
+            if (parentPage) {
+              parentNames.push(parentPage.title);
+              pagePathIds.push(p.parentId);
+            }
+          }
+        };
+
+        buildParentPath(customHomepageId);
+        pagePathIds.push(customHomepageId);
+
+        setCurrentPageId(customHomepageId);
+        openNote(customHomepageId, page.title, parentNames, pagePathIds);
+      } else {
+        showIndex();
+      }
+    } else {
+      // Fallback to index
+      showIndex();
+    }
+  };
 
   const handleMigrationComplete = async () => {
     setShowMigration(false);
@@ -279,13 +499,15 @@ function AppContent({ workspacePath }: AppContentProps) {
       >
         <AppShell.Main>
           {/* Custom Title Bar */}
-          <TitleBar
+          <TitleBar currentWorkspacePath={workspacePath} />
+
+          {/* Bottom Left Controls */}
+          <BottomLeftControls
+            onHomeClick={openHomepage}
             onSettingsClick={() => setSettingsOpened(true)}
             onSearchClick={() => setSearchOpened(true)}
             onHelpClick={() => setHelpOpened(true)}
-            onCalendarClick={() => setCalendarOpened(true)}
             onCommandPaletteClick={() => setCommandPaletteOpened(true)}
-            currentWorkspacePath={workspacePath}
           />
 
           {/* Main Content Panel */}
@@ -374,14 +596,8 @@ function AppContent({ workspacePath }: AppContentProps) {
         opened={commandPaletteOpened}
         onClose={() => setCommandPaletteOpened(false)}
         onOpenSearch={() => setSearchOpened(true)}
-        onOpenCalendar={() => setCalendarOpened(true)}
         onOpenSettings={() => setSettingsOpened(true)}
         onOpenHelp={() => setHelpOpened(true)}
-      />
-
-      <CalendarModal
-        opened={calendarOpened}
-        onClose={() => setCalendarOpened(false)}
       />
 
       <HelpModal opened={helpOpened} onClose={() => setHelpOpened(false)} />
@@ -459,6 +675,135 @@ function AppContent({ workspacePath }: AppContentProps) {
                   </Text>
                 </div>
               </div>
+            </Stack>
+          </div>
+
+          <div>
+            <h3 style={{ margin: 0, marginBottom: 12 }}>Clock Format</h3>
+            <Stack gap="md">
+              <div>
+                <Text size="sm" fw={500} mb={8}>
+                  Time Format
+                </Text>
+                <Select
+                  value={timeFormat}
+                  onChange={(value) => setTimeFormat(value as TimeFormat)}
+                  data={[
+                    { label: "24-Hour (13:34)", value: "24h" },
+                    { label: "12-Hour (01:34 PM)", value: "12h" },
+                  ]}
+                  placeholder="Select time format"
+                />
+              </div>
+              <div>
+                <Text size="sm" fw={500} mb={8}>
+                  Date Order
+                </Text>
+                <Select
+                  value={dateOrder}
+                  onChange={(value) => setDateOrder(value as DateOrder)}
+                  data={[
+                    { label: "Month/Day/Year (MDY)", value: "MDY" },
+                    { label: "Day/Month/Year (DMY)", value: "DMY" },
+                    { label: "Year/Month/Day (YMD)", value: "YMD" },
+                  ]}
+                  placeholder="Select date order"
+                />
+                <Text size="xs" c="dimmed" mt={4}>
+                  Choose the order of year, month, and day
+                </Text>
+              </div>
+              <div>
+                <Text size="sm" fw={500} mb={8}>
+                  Date Separator
+                </Text>
+                <Select
+                  value={dateSeparator}
+                  onChange={(value) => setDateSeparator(value as DateSeparator)}
+                  data={[
+                    { label: "Slash (/)", value: "/" },
+                    { label: "Hyphen (-)", value: "-" },
+                  ]}
+                  placeholder="Select separator"
+                />
+              </div>
+              <div
+                style={{
+                  padding: 12,
+                  borderRadius: 6,
+                  backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                }}
+              >
+                <Text size="xs" c="dimmed">
+                  Preview:{" "}
+                  {useClockFormatStore.getState().formatDate(new Date())} |{" "}
+                  {useClockFormatStore.getState().formatTime(new Date())}
+                </Text>
+              </div>
+            </Stack>
+          </div>
+
+          <div>
+            <h3 style={{ margin: 0, marginBottom: 12 }}>Daily Notes</h3>
+            <Stack gap="md">
+              <div>
+                <Text size="sm" fw={500} mb={8}>
+                  Daily Notes Path
+                </Text>
+                <TextInput
+                  value={dailyNotesPath}
+                  onChange={(event) =>
+                    setDailyNotesPath(event.currentTarget.value)
+                  }
+                  placeholder="Daily"
+                  description="Path where daily notes will be created (e.g., 'Daily' or 'Notes/Daily')"
+                />
+              </div>
+            </Stack>
+          </div>
+
+          <div>
+            <h3 style={{ margin: 0, marginBottom: 12 }}>Homepage</h3>
+            <Stack gap="md">
+              <div>
+                <Text size="sm" fw={500} mb={8}>
+                  Homepage Type
+                </Text>
+                <Select
+                  value={homepageType}
+                  onChange={(value) =>
+                    setHomepageType(
+                      value as "daily-note" | "index" | "custom-page",
+                    )
+                  }
+                  data={[
+                    { label: "Today's Daily Note", value: "daily-note" },
+                    { label: "File Tree", value: "index" },
+                    { label: "Custom Page", value: "custom-page" },
+                  ]}
+                  placeholder="Select homepage type"
+                />
+                <Text size="xs" c="dimmed" mt={4}>
+                  Choose what to show when opening the app
+                </Text>
+              </div>
+              {homepageType === "custom-page" && (
+                <div>
+                  <Text size="sm" fw={500} mb={8}>
+                    Custom Homepage
+                  </Text>
+                  <Select
+                    value={customHomepageId || ""}
+                    onChange={(value) => setCustomHomepageId(value || null)}
+                    data={pageIds.map((id) => ({
+                      label: pagesById[id]?.title || id,
+                      value: id,
+                    }))}
+                    placeholder="Select a page"
+                    searchable
+                  />
+                </div>
+              )}
             </Stack>
           </div>
 

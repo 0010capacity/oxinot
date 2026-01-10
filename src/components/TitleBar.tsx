@@ -1,26 +1,14 @@
 import { useEffect, useState } from "react";
 import { isMacOS } from "../utils/platform";
-import { ActionIcons } from "./titleBar/ActionIcons";
+import { Clock } from "./titleBar/Clock";
 import { WindowControls } from "./titleBar/WindowControls";
 import { WorkspacePicker } from "./WorkspacePicker";
 
 interface TitleBarProps {
-  onSettingsClick: () => void;
-  onSearchClick?: () => void;
-  onHelpClick?: () => void;
-  onCalendarClick?: () => void;
-  onCommandPaletteClick?: () => void;
   currentWorkspacePath: string | null;
 }
 
-export function TitleBar({
-  onSettingsClick,
-  onSearchClick,
-  onHelpClick,
-  onCalendarClick,
-  onCommandPaletteClick,
-  currentWorkspacePath,
-}: TitleBarProps) {
+export function TitleBar({ currentWorkspacePath }: TitleBarProps) {
   const [isMac, setIsMac] = useState(false);
 
   useEffect(() => {
@@ -60,15 +48,9 @@ export function TitleBar({
         <WorkspacePicker currentWorkspacePath={currentWorkspacePath} />
       </div>
 
-      {/* Right section - Control buttons */}
+      {/* Right section - Clock only */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <ActionIcons
-          onSettingsClick={onSettingsClick}
-          onSearchClick={onSearchClick}
-          onHelpClick={onHelpClick}
-          onCalendarClick={onCalendarClick}
-          onCommandPaletteClick={onCommandPaletteClick}
-        />
+        <Clock />
 
         {/* Window controls - only show on Windows/Linux */}
         <WindowControls show={!isMac} />

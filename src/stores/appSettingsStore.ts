@@ -1,0 +1,46 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+interface AppSettings {
+  dailyNotesPath: string;
+  homepageType: "daily-note" | "index" | "custom-page";
+  customHomepageId: string | null;
+}
+
+interface AppSettingsStore extends AppSettings {
+  setDailyNotesPath: (path: string) => void;
+  setHomepageType: (type: "daily-note" | "index" | "custom-page") => void;
+  setCustomHomepageId: (id: string | null) => void;
+  getDailyNotePath: (date: Date) => string;
+}
+
+export const useAppSettingsStore = create<AppSettingsStore>()(
+  persist(
+    (set, get) => ({
+      // Default settings
+      dailyNotesPath: "Daily",
+      homepageType: "daily-note",
+      customHomepageId: null,
+
+      // Actions
+      setDailyNotesPath: (path: string) => set({ dailyNotesPath: path }),
+      setHomepageType: (type: "daily-note" | "index" | "custom-page") =>
+        set({ homepageType: type }),
+      setCustomHomepageId: (id: string | null) => set({ customHomepageId: id }),
+
+      getDailyNotePath: (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const dateStr = `${year}-${month}-${day}`;
+        const basePath = get().dailyNotesPath;
+
+        // Return path like "Daily/2025-01-10"
+        return basePath ? `${basePath}/${dateStr}` : dateStr;
+      },
+    }),
+    {
+      name: "app-settings",
+    },
+  ),
+);
