@@ -23,7 +23,15 @@ impl WorkspaceSyncService {
         let mut stats = SyncStats::default();
 
         // 1. Scan all .md files in workspace
-        let files = self.scan_markdown_files()?;
+        let mut files = self.scan_markdown_files()?;
+
+        // Sort by depth (parent directories first) to ensure parent_id resolution
+        files.sort_by_key(|f| {
+            f.path
+                .strip_prefix(&self.workspace_path)
+                .map(|p| p.components().count())
+                .unwrap_or(0)
+        });
 
         // 2. Get existing pages from DB
         let existing_pages = self.get_all_pages(conn)?;
@@ -159,6 +167,12 @@ impl WorkspaceSyncService {
         // Extract title from first line or filename
         let title = self.extract_title(&content, &file_info.path);
 
+        // Detect if this is a directory note (DirName/DirName.md pattern)
+        let is_directory = self.is_directory_note(&file_info.path);
+
+        // Detect parent_id by checking directory structure
+        let parent_id = self.detect_parent_id(conn, &file_info.path)?;
+
         // Create page
         let page_id = Uuid::new_v4().to_string();
         let relative_path = self.get_relative_path(&file_info.path)?;
@@ -171,12 +185,14 @@ impl WorkspaceSyncService {
             .ok();
 
         tx.execute(
-            "INSERT INTO pages (id, title, file_path, file_mtime, file_size, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO pages (id, title, parent_id, file_path, is_directory, file_mtime, file_size, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
                 &page_id,
                 &title,
+                &parent_id,
                 &relative_path,
+                is_directory as i32,
                 mtime,
                 file_info.size as i64,
                 &now,
@@ -237,6 +253,12 @@ impl WorkspaceSyncService {
         // Extract title
         let title = self.extract_title(&content, &file_info.path);
 
+        // Detect if this is a directory note
+        let is_directory = self.is_directory_note(&file_info.path);
+
+        // Detect parent_id by checking directory structure
+        let parent_id = self.detect_parent_id(&tx, &file_info.path)?;
+
         // Update page metadata
         let now = chrono::Utc::now().to_rfc3339();
         let mtime = file_info
@@ -246,8 +268,8 @@ impl WorkspaceSyncService {
             .ok();
 
         tx.execute(
-            "UPDATE pages SET title = ?, file_mtime = ?, file_size = ?, updated_at = ? WHERE id = ?",
-            params![&title, mtime, file_info.size as i64, &now, page_id],
+            "UPDATE pages SET title = ?, parent_id = ?, is_directory = ?, file_mtime = ?, file_size = ?, updated_at = ? WHERE id = ?",
+            params![&title, &parent_id, is_directory as i32, mtime, file_info.size as i64, &now, page_id],
         )
         .map_err(|e| format!("Failed to update page: {}", e))?;
 
@@ -343,6 +365,54 @@ impl WorkspaceSyncService {
             .and_then(|s| s.to_str())
             .unwrap_or("Untitled")
             .to_string()
+    }
+
+    /// Check if a file is a directory note (pattern: DirName/DirName.md)
+    fn is_directory_note(&self, path: &Path) -> bool {
+        let file_stem = path.file_stem().and_then(|s| s.to_str());
+        let parent_dir_name = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str());
+
+        if let (Some(stem), Some(parent)) = (file_stem, parent_dir_name) {
+            return stem == parent;
+        }
+
+        false
+    }
+
+    /// Detect parent_id by checking if file is inside a directory note
+    fn detect_parent_id(&self, conn: &Connection, path: &Path) -> Result<Option<String>, String> {
+        let parent_dir = match path.parent() {
+            Some(p) => p,
+            None => return Ok(None),
+        };
+
+        // If parent is workspace root, no parent_id
+        if parent_dir == self.workspace_path {
+            return Ok(None);
+        }
+
+        // Check if there's a directory note in the parent directory
+        let parent_dir_name = parent_dir
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or("Invalid parent directory name")?;
+
+        let potential_dir_note_path = parent_dir.join(format!("{}.md", parent_dir_name));
+        let relative_dir_note_path = self.get_relative_path(&potential_dir_note_path)?;
+
+        // Check if this directory note exists in DB
+        let parent_id: Option<String> = conn
+            .query_row(
+                "SELECT id FROM pages WHERE file_path = ?",
+                [&relative_dir_note_path],
+                |row| row.get(0),
+            )
+            .ok();
+
+        Ok(parent_id)
     }
 }
 

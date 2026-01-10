@@ -22,9 +22,12 @@ interface DragState {
   draggedPageId: string | null;
   dragOverPageId: string | null;
   startY: number;
+  startX: number;
   mouseX: number;
   mouseY: number;
 }
+
+const DRAG_THRESHOLD = 5; // pixels to move before considering it a drag
 
 // Create isolated drag context to prevent cascading re-renders
 export const DragContext = createContext<DragState>({
@@ -32,6 +35,7 @@ export const DragContext = createContext<DragState>({
   draggedPageId: null,
   dragOverPageId: null,
   startY: 0,
+  startX: 0,
   mouseX: 0,
   mouseY: 0,
 });
@@ -82,6 +86,7 @@ export function FileTreeIndex() {
     draggedPageId: null,
     dragOverPageId: null,
     startY: 0,
+    startX: 0,
     mouseX: 0,
     mouseY: 0,
   });
@@ -106,6 +111,17 @@ export function FileTreeIndex() {
   // Mouse-based drag and drop
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      // Check if we should start dragging (threshold check)
+      if (dragState.draggedPageId && !dragState.isDragging) {
+        const deltaX = Math.abs(e.clientX - dragState.startX);
+        const deltaY = Math.abs(e.clientY - dragState.startY);
+
+        if (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD) {
+          setDragState((prev) => ({ ...prev, isDragging: true }));
+        }
+        return;
+      }
+
       if (!dragState.isDragging) return;
 
       // Prevent text selection while dragging
@@ -141,9 +157,7 @@ export function FileTreeIndex() {
     };
 
     const handleMouseUp = async () => {
-      if (!dragState.isDragging) return;
-
-      const { draggedPageId, dragOverPageId } = dragState;
+      const { draggedPageId, dragOverPageId, isDragging } = dragState;
 
       // Reset drag state
       setDragState({
@@ -151,9 +165,13 @@ export function FileTreeIndex() {
         draggedPageId: null,
         dragOverPageId: null,
         startY: 0,
+        startX: 0,
         mouseX: 0,
         mouseY: 0,
       });
+
+      // If we never started dragging (just a click), do nothing
+      if (!isDragging) return;
 
       // Perform drop if valid
       if (draggedPageId) {
@@ -188,8 +206,10 @@ export function FileTreeIndex() {
       }
     };
 
-    if (dragState.isDragging) {
-      document.body.style.cursor = "grabbing";
+    if (dragState.draggedPageId) {
+      if (dragState.isDragging) {
+        document.body.style.cursor = "grabbing";
+      }
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
       return () => {
@@ -336,24 +356,17 @@ export function FileTreeIndex() {
       return;
     }
 
-    console.log("[FileTreeIndex] Starting drag:", pageId);
+    console.log("[FileTreeIndex] Mouse down on:", pageId);
 
-    // Prevent text selection during drag
-    e.preventDefault();
-
-    // Clear any existing text selection
-    if (window.getSelection) {
-      const selection = window.getSelection();
-      if (selection) {
-        selection.removeAllRanges();
-      }
-    }
+    // Don't prevent default yet - let click events work
+    // We'll prevent default only when drag threshold is exceeded
 
     setDragState({
-      isDragging: true,
+      isDragging: false, // Not dragging yet, just mouse down
       draggedPageId: pageId,
       dragOverPageId: null,
       startY: e.clientY,
+      startX: e.clientX,
       mouseX: e.clientX,
       mouseY: e.clientY,
     });
