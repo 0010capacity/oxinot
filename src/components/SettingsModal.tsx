@@ -184,15 +184,23 @@ export function SettingsModal({
       styles={{
         body: {
           padding: 0,
+          height: "70vh",
+          maxHeight: "700px",
         },
       }}
     >
-      <Tabs defaultValue="appearance" orientation="vertical">
+      <Tabs
+        defaultValue="appearance"
+        orientation="vertical"
+        style={{ height: "100%" }}
+      >
         <Tabs.List
           style={{
             borderRight: `1px solid ${isDark ? "#2C2E33" : "#DEE2E6"}`,
             minWidth: 200,
             padding: "12px 8px",
+            height: "100%",
+            overflowY: "auto",
           }}
         >
           <Tabs.Tab
@@ -234,8 +242,8 @@ export function SettingsModal({
           style={{
             flex: 1,
             padding: "24px",
-            maxHeight: "70vh",
-            overflow: "auto",
+            height: "100%",
+            overflowY: "auto",
           }}
         >
           {/* Appearance Tab */}
