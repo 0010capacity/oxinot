@@ -8,6 +8,13 @@ use std::thread;
 use std::time::Duration;
 use uuid::Uuid;
 
+/// I4 Migration Strategy: Canonical markdown format
+/// Current implementation uses bullet-only format (Option A from handoff notes):
+/// - All blocks serialize as "- content" (bullets)
+/// - Headings (# ) are parsed into bullet blocks for backward compatibility
+/// - This avoids heading loss when round-tripping through parser/serializer
+/// - Future: implement BlockType::Heading for proper heading support (Option B)
+
 /// Convert blocks to markdown string
 pub fn blocks_to_markdown(blocks: &[Block]) -> String {
     // Group by parent
@@ -75,6 +82,9 @@ fn render_blocks(
 }
 
 /// Parse markdown file to blocks
+/// Handles both bullet format (- ) and heading format (# ) for backward compatibility (I4)
+/// Headings are converted to root-level bullets to maintain canonical format.
+/// This ensures files with heading format can be read but will be serialized as bullets.
 pub fn markdown_to_blocks(content: &str, page_id: &str) -> Vec<Block> {
     let mut blocks = Vec::new();
     let mut parent_stack: Vec<(String, usize)> = Vec::new();
@@ -85,6 +95,35 @@ pub fn markdown_to_blocks(content: &str, page_id: &str) -> Vec<Block> {
         let depth = (line.len() - trimmed.len()) / 2;
 
         if trimmed.is_empty() {
+            continue;
+        }
+
+        // Skip heading lines - they are not part of the bullet-based canonical format
+        // Headings are parsed into their content for backward compatibility
+        if trimmed.starts_with('#') {
+            // Extract heading content (# Title -> Title)
+            let heading_content = trimmed
+                .trim_start_matches('#')
+                .trim_start()
+                .to_string();
+
+            if !heading_content.is_empty() {
+                // Treat heading as a root-level bullet (depth=0, no parent)
+                let block = Block {
+                    id: Uuid::new_v4().to_string(),
+                    page_id: page_id.to_string(),
+                    parent_id: None,
+                    content: heading_content,
+                    order_weight: order_counter,
+                    is_collapsed: false,
+                    block_type: BlockType::Bullet,
+                    language: None,
+                    created_at: Utc::now().to_rfc3339(),
+                    updated_at: Utc::now().to_rfc3339(),
+                };
+                blocks.push(block);
+                order_counter += 1.0;
+            }
             continue;
         }
 
@@ -99,7 +138,8 @@ pub fn markdown_to_blocks(content: &str, page_id: &str) -> Vec<Block> {
 
         let parent_id = parent_stack.last().map(|(id, _)| id.clone());
 
-        // Strip leading bullet if present
+        // Strip leading bullet if present (bullet format)
+        // Non-bullet lines are treated as-is (for backward compatibility with mixed formats)
         let content = if trimmed.starts_with("- ") {
             trimmed[2..].to_string()
         } else {
@@ -176,6 +216,62 @@ impl MarkdownMirrorService {
 
     pub fn shutdown(&self) {
         let _ = self.sender.send(MirrorCommand::Shutdown);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_markdown_roundtrip_bullets() {
+        let page_id = "test-page";
+
+        // Original bullet format
+        let original = "- Item 1\n- Item 2\n  - Nested\n";
+
+        // Parse to blocks
+        let blocks = markdown_to_blocks(original, page_id);
+        assert_eq!(blocks.len(), 3, "Should parse 3 items");
+
+        // Serialize back to markdown
+        let serialized = blocks_to_markdown(&blocks);
+
+        // Should be identical
+        assert_eq!(original, serialized, "Roundtrip should preserve bullet format");
+    }
+
+    #[test]
+    fn test_markdown_heading_compatibility() {
+        let page_id = "test-page";
+
+        // Old heading format
+        let heading_content = "# My Title\n";
+
+        // Parse to blocks
+        let blocks = markdown_to_blocks(heading_content, page_id);
+        assert_eq!(blocks.len(), 1, "Should parse heading as single block");
+        assert_eq!(blocks[0].content, "My Title", "Should extract heading content");
+
+        // Serialize back - should be bullet format (canonical)
+        let serialized = blocks_to_markdown(&blocks);
+        assert_eq!(serialized, "- My Title\n", "Heading should be converted to bullet on serialization");
+    }
+
+    #[test]
+    fn test_mixed_heading_bullet_content() {
+        let page_id = "test-page";
+
+        // File with mixed heading and bullet content
+        let content = "# Title\n- Bullet 1\n- Bullet 2\n";
+
+        let blocks = markdown_to_blocks(content, page_id);
+        assert_eq!(blocks.len(), 3, "Should parse heading and 2 bullets");
+
+        // First block should be from heading
+        assert_eq!(blocks[0].content, "Title");
+        assert_eq!(blocks[1].content, "Bullet 1");
+        assert_eq!(blocks[2].content, "Bullet 2");
     }
 }
 
