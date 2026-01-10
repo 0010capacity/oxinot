@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { useMantineColorScheme } from "@mantine/core";
+import { IconCopy } from "@tabler/icons-react";
 import {
   useBlock,
   useChildrenIds,
@@ -192,6 +193,50 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           run: (view: EditorView) => {
             // Let IME handle Enter for composition commit.
             if ((view as any).composing) return false;
+
+            const cursor = view.state.selection.main.head;
+            const content = view.state.doc.toString();
+
+            // Check if we're inside a code block
+            const beforeCursor = content.slice(0, cursor);
+
+            // Count opening and closing fences before cursor
+            const openFencesBeforeCursor = (beforeCursor.match(/^```/gm) || [])
+              .length;
+            const closeFencesBeforeCursor = (
+              beforeCursor.match(/^```$/gm) || []
+            ).length;
+
+            // If we have more opening fences than closing fences, we're inside a code block
+            const isInsideCodeBlock =
+              openFencesBeforeCursor > closeFencesBeforeCursor;
+
+            if (isInsideCodeBlock) {
+              // Allow default behavior (insert newline) when inside code block
+              return false;
+            }
+
+            // Check if we're at the end of a line that starts with ```
+            const line = view.state.doc.lineAt(cursor);
+            const lineText = line.text;
+            const isAtLineEnd = cursor === line.to;
+            const isCodeFence = lineText.trim().match(/^```\w*$/);
+
+            if (isCodeFence && isAtLineEnd) {
+              // Auto-create code block structure
+              const indent = lineText.match(/^\s*/)?.[0] || "";
+
+              view.dispatch({
+                changes: {
+                  from: line.from,
+                  to: line.to,
+                  insert: `${lineText}\n${indent}\n${indent}\`\`\``,
+                },
+                selection: { anchor: line.to + 1 + indent.length },
+              });
+
+              return true;
+            }
 
             commitDraft();
             createBlock(blockId);
@@ -444,15 +489,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 style={{
                   pointerEvents: "auto",
                   border: "none",
-                  background: "rgba(127, 127, 127, 0.12)",
-                  color: "var(--color-text-secondary, rgba(127,127,127,0.9))",
-                  borderRadius: 6,
-                  padding: "2px 6px",
+                  background: "transparent",
+                  color: "var(--color-text-tertiary, rgba(127,127,127,0.5))",
+                  borderRadius: 4,
+                  padding: "2px",
                   fontSize: 12,
                   cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                Copy ID
+                <IconCopy size={14} stroke={1.5} />
               </button>
             </div>
 
@@ -492,7 +540,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         <style>
           {`
             .block-content-wrapper:hover .block-copy-id-toolbar {
-              opacity: 1 !important;
+              opacity: 0.6 !important;
+            }
+            .block-copy-id-toolbar button:hover {
+              background: rgba(127, 127, 127, 0.1) !important;
+              color: var(--color-text-secondary, rgba(127,127,127,0.8)) !important;
             }
           `}
         </style>

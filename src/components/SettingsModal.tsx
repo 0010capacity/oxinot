@@ -173,6 +173,12 @@ export function SettingsModal({
   const setShowBlockCount = useOutlinerSettingsStore(
     (state) => state.setShowBlockCount,
   );
+  const showCodeBlockLineNumbers = useOutlinerSettingsStore(
+    (state) => state.showCodeBlockLineNumbers ?? true,
+  );
+  const setShowCodeBlockLineNumbers = useOutlinerSettingsStore(
+    (state) => state.setShowCodeBlockLineNumbers,
+  );
 
   // Git
   const isGitRepo = useGitStore((state) => state.isRepo);
@@ -296,7 +302,14 @@ export function SettingsModal({
         "start page",
         "default",
       ],
-      outliner: ["indent guides", "auto expand", "block count", "blocks"],
+      outliner: [
+        "indent guides",
+        "auto expand",
+        "block count",
+        "blocks",
+        "code block",
+        "line numbers",
+      ],
       git: [
         "version control",
         "git",
@@ -872,6 +885,19 @@ export function SettingsModal({
                       checked={showBlockCount}
                       onChange={(event) =>
                         setShowBlockCount?.(event.currentTarget.checked)
+                      }
+                    />
+                  )}
+
+                  {matchesSearch("code block line numbers") && (
+                    <Switch
+                      label="Show code block line numbers"
+                      description="Display line numbers in code blocks"
+                      checked={showCodeBlockLineNumbers}
+                      onChange={(event) =>
+                        setShowCodeBlockLineNumbers?.(
+                          event.currentTarget.checked,
+                        )
                       }
                     />
                   )}

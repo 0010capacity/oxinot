@@ -7,6 +7,7 @@
  * - [[note#heading]] - link to heading
  * - [[note#^block-id]] - link to block
  * - [[folder/note]] - folder-style path (render shows only the basename by default)
+ * - ![[note name]] - embed page
  *
  * - Styles the link text as clickable
  * - Hides or dims the [[ ]] markers based on cursor position
@@ -20,6 +21,12 @@ import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
+import { Decoration, WidgetType } from "@codemirror/view";
+import React from "react";
+import { createRoot, Root } from "react-dom/client";
+import { EmbeddedPageCard } from "../../../components/EmbeddedPageCard";
+import { MantineProvider } from "@mantine/core";
+import { ThemeProvider } from "../../../theme/ThemeProvider";
 
 function getWikiBasename(path: string): string {
   const trimmed = (path ?? "").trim();
@@ -29,6 +36,69 @@ function getWikiBasename(path: string): string {
     .map((p) => p.trim())
     .filter(Boolean);
   return parts.length > 0 ? parts[parts.length - 1] : trimmed;
+}
+
+class EmbedPageWidget extends WidgetType {
+  private readonly pageName: string;
+  private root: Root | null = null;
+
+  constructor(pageName: string) {
+    super();
+    this.pageName = pageName;
+  }
+
+  eq(other: EmbedPageWidget) {
+    return other.pageName === this.pageName;
+  }
+
+  toDOM() {
+    const container = document.createElement("div");
+    container.className = "cm-page-embed";
+
+    // Create React root and render EmbeddedPageCard with providers
+    this.root = createRoot(container);
+    this.root.render(
+      React.createElement(
+        MantineProvider,
+        { defaultColorScheme: "dark" },
+        React.createElement(
+          ThemeProvider,
+          null,
+          React.createElement(EmbeddedPageCard, {
+            pageName: this.pageName,
+            onNavigate: (blockId: string) => {
+              // Dispatch navigation event
+              container.dispatchEvent(
+                new CustomEvent("cm-embed-navigate", {
+                  bubbles: true,
+                  detail: { blockId },
+                }),
+              );
+            },
+          }),
+        ),
+      ),
+    );
+
+    return container;
+  }
+
+  destroy() {
+    // Clean up React root when widget is destroyed
+    // Use setTimeout to avoid "synchronously unmount while rendering" error
+    if (this.root) {
+      const rootToUnmount = this.root;
+      this.root = null;
+      setTimeout(() => {
+        rootToUnmount.unmount();
+      }, 0);
+    }
+  }
+
+  ignoreEvent() {
+    // Make embed read-only: do not let the editor treat it as editable content.
+    return true;
+  }
 }
 
 export class WikiLinkHandler extends BaseHandler {
@@ -58,15 +128,40 @@ export class WikiLinkHandler extends BaseHandler {
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
-    // Match wiki links: [[link]] or [[link|alias]]
-    const wikiLinkRegex = /\[\[([^\]|]+)(\|([^\]]+))?\]\]/g;
+    // First, check for embed pages: ![[page]]
+    const embedPageRegex = /!\[\[([^\]|]+)\]\]/g;
+    let embedMatch;
+
+    while ((embedMatch = embedPageRegex.exec(lineText)) !== null) {
+      const fullMatch = embedMatch[0]; // ![[page]]
+      const pageName = embedMatch[1]; // page
+
+      const start = lineFrom + embedMatch.index;
+      const end = start + fullMatch.length;
+
+      // Hide the entire ![[page]] syntax
+      decorations.push(createHiddenMarker(start, end, false));
+
+      // Insert embed widget
+      decorations.push({
+        from: start,
+        to: end,
+        decoration: Decoration.widget({
+          widget: new EmbedPageWidget(pageName),
+          side: 0,
+        }),
+      });
+    }
+
+    // Match wiki links: [[link]] or [[link|alias]] (but not ![[link]])
+    const wikiLinkRegex = /(?<!!)(\[\[([^\]|]+)(\|([^\]]+))?\]\])/g;
     let match;
 
     while ((match = wikiLinkRegex.exec(lineText)) !== null) {
-      const fullMatch = match[0]; // [[note|alias]]
-      const noteName = match[1]; // note (or folder/note)
-      const hasAlias = match[2] !== undefined;
-      const aliasText = match[3]; // alias (if exists)
+      const fullMatch = match[1]; // [[note|alias]]
+      const noteName = match[2]; // note (or folder/note)
+      const hasAlias = match[3] !== undefined;
+      const aliasText = match[4]; // alias (if exists)
 
       const start = lineFrom + match.index;
       const end = start + fullMatch.length;

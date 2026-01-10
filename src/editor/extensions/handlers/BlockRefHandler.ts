@@ -26,6 +26,11 @@ import { createHiddenMarker } from "../utils/decorationHelpers";
 import { Decoration, WidgetType } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "../../../stores/workspaceStore";
+import React from "react";
+import { createRoot, Root } from "react-dom/client";
+import { EmbeddedBlockCard } from "../../../components/EmbeddedBlockCard";
+import { MantineProvider } from "@mantine/core";
+import { ThemeProvider } from "../../../theme/ThemeProvider";
 
 type BlockRefMatch = {
   full: string;
@@ -33,14 +38,6 @@ type BlockRefMatch = {
   id: string;
   start: number;
   end: number;
-};
-
-type EmbedBlock = {
-  id: string;
-  parent_id: string | null;
-  content: string;
-  order_weight: number;
-  is_collapsed: boolean;
 };
 
 function isProbablyUuid(text: string): boolean {
@@ -88,6 +85,7 @@ function findBlockRefsInLine(lineText: string): BlockRefMatch[] {
 
 class EmbedSubtreeWidget extends WidgetType {
   private readonly blockId: string;
+  private root: Root | null = null;
 
   constructor(blockId: string) {
     super();
@@ -101,130 +99,45 @@ class EmbedSubtreeWidget extends WidgetType {
   toDOM() {
     const container = document.createElement("div");
     container.className = "cm-block-embed-subtree";
-    container.style.margin = "6px 0";
-    container.style.paddingLeft = "10px";
-    container.style.borderLeft = "2px solid rgba(139, 92, 246, 0.25)";
-    container.style.background = "rgba(139, 92, 246, 0.05)";
-    container.style.borderRadius = "6px";
-    container.style.paddingTop = "6px";
-    container.style.paddingBottom = "6px";
-    // NOTE: No container click navigation. Only bullets inside the embed navigate.
 
-    const header = document.createElement("div");
-    header.style.fontSize = "12px";
-    header.style.fontWeight = "600";
-    header.style.opacity = "0.75";
-    header.style.padding = "0 8px 6px 8px";
-    header.textContent = "Embedded block";
-    container.appendChild(header);
-
-    const body = document.createElement("div");
-    body.style.padding = "0 8px";
-    body.style.fontSize = "13px";
-    body.style.lineHeight = "1.5";
-    body.textContent = "Loading…";
-    container.appendChild(body);
-
-    // Fetch subtree asynchronously (read-only)
-    const workspacePath = useWorkspaceStore.getState().workspacePath;
-
-    if (!workspacePath) {
-      body.textContent = "No workspace selected";
-      return container;
-    }
-
-    void (async () => {
-      try {
-        const res: any = await invoke("get_block_subtree", {
-          workspacePath,
-          request: { block_id: this.blockId, max_depth: 1000 },
-        });
-
-        const blocks: EmbedBlock[] = (res ?? []).map((b: any) => ({
-          id: b.id,
-          parent_id: b.parentId ?? b.parent_id ?? null,
-          content: (b.content ?? "").toString(),
-          order_weight: b.orderWeight ?? b.order_weight ?? 0,
-          is_collapsed: !!(b.isCollapsed ?? b.is_collapsed),
-        }));
-
-        body.textContent = "";
-
-        // Build lookup + children map (local, no global mutable state)
-        const byId: Record<string, EmbedBlock> = {};
-        for (const b of blocks) byId[b.id] = b;
-
-        const childMap: Record<string, string[]> = { root: [] };
-        for (const b of blocks) {
-          const key = b.parent_id ?? "root";
-          if (!childMap[key]) childMap[key] = [];
-          childMap[key].push(b.id);
-        }
-        for (const key of Object.keys(childMap)) {
-          childMap[key].sort((a, b) => {
-            const ba = byId[a];
-            const bb = byId[b];
-            return (ba?.order_weight ?? 0) - (bb?.order_weight ?? 0);
-          });
-        }
-
-        const render = (id: string, depth: number) => {
-          const b = byId[id];
-          if (!b) return;
-
-          const row = document.createElement("div");
-          row.style.display = "flex";
-          row.style.gap = "8px";
-          row.style.alignItems = "flex-start";
-          row.style.paddingLeft = `${depth * 16}px`;
-
-          const bullet = document.createElement("button");
-          bullet.type = "button";
-          bullet.textContent = "•";
-          bullet.style.opacity = "0.55";
-          bullet.style.userSelect = "none";
-          bullet.style.border = "none";
-          bullet.style.background = "transparent";
-          bullet.style.cursor = "pointer";
-          bullet.style.padding = "0";
-          bullet.style.margin = "0";
-          bullet.setAttribute("data-embed-bullet", "true");
-          bullet.title = "Zoom to this block";
-          bullet.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            container.dispatchEvent(
-              new CustomEvent("cm-embed-navigate", {
-                bubbles: true,
-                detail: { blockId: b.id },
-              }),
-            );
-          });
-          row.appendChild(bullet);
-
-          const text = document.createElement("div");
-          text.textContent = b.content || "Untitled";
-          text.style.whiteSpace = "pre-wrap";
-          text.style.wordBreak = "break-word";
-          row.appendChild(text);
-
-          body.appendChild(row);
-
-          // Respect isCollapsed: do not render children if collapsed
-          if (b.is_collapsed) return;
-
-          const kids = childMap[id] ?? [];
-          for (const kid of kids) render(kid, depth + 1);
-        };
-
-        // Root of embed subtree is the referenced block
-        render(this.blockId, 0);
-      } catch {
-        body.textContent = "Failed to load embed";
-      }
-    })();
+    // Create React root and render EmbeddedBlockCard with providers
+    this.root = createRoot(container);
+    this.root.render(
+      React.createElement(
+        MantineProvider,
+        { defaultColorScheme: "dark" },
+        React.createElement(
+          ThemeProvider,
+          null,
+          React.createElement(EmbeddedBlockCard, {
+            blockId: this.blockId,
+            onNavigate: (blockId: string) => {
+              // Dispatch navigation event
+              container.dispatchEvent(
+                new CustomEvent("cm-embed-navigate", {
+                  bubbles: true,
+                  detail: { blockId },
+                }),
+              );
+            },
+          }),
+        ),
+      ),
+    );
 
     return container;
+  }
+
+  destroy() {
+    // Clean up React root when widget is destroyed
+    // Use setTimeout to avoid "synchronously unmount while rendering" error
+    if (this.root) {
+      const rootToUnmount = this.root;
+      this.root = null;
+      setTimeout(() => {
+        rootToUnmount.unmount();
+      }, 0);
+    }
   }
 
   ignoreEvent() {
