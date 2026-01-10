@@ -185,3 +185,14 @@
     position: relative;
     margin-left: 0;
 }
+
+/* Block copy ID toolbar - show on hover */
+.block-row:hover .block-copy-id-toolbar {
+    opacity: 1 !important;
+}
+
+/* Hide block copy toolbar when block contains embed widgets */
+.block-content-wrapper:has(.cm-block-embed-subtree) .block-copy-id-toolbar,
+.block-content-wrapper:has(.cm-page-embed) .block-copy-id-toolbar {
+    display: none !important;
+}

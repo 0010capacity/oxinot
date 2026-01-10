@@ -21,7 +21,7 @@ import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
-import { Decoration, WidgetType } from "@codemirror/view";
+import { Decoration, WidgetType, EditorView } from "@codemirror/view";
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { EmbeddedPageCard } from "../../../components/EmbeddedPageCard";
@@ -41,6 +41,7 @@ function getWikiBasename(path: string): string {
 class EmbedPageWidget extends WidgetType {
   private readonly pageName: string;
   private root: Root | null = null;
+  private container: HTMLElement | null = null;
 
   constructor(pageName: string) {
     super();
@@ -51,9 +52,10 @@ class EmbedPageWidget extends WidgetType {
     return other.pageName === this.pageName;
   }
 
-  toDOM() {
+  toDOM(view: EditorView) {
     const container = document.createElement("div");
     container.className = "cm-page-embed";
+    this.container = container;
 
     // Create React root and render EmbeddedPageCard with providers
     this.root = createRoot(container);
@@ -75,6 +77,16 @@ class EmbedPageWidget extends WidgetType {
                 }),
               );
             },
+            onEdit: () => {
+              // Find the widget position in the document and focus the editor there
+              const pos = view.posAtDOM(container);
+              if (pos !== null) {
+                view.focus();
+                view.dispatch({
+                  selection: { anchor: pos },
+                });
+              }
+            },
           }),
         ),
       ),
@@ -93,9 +105,15 @@ class EmbedPageWidget extends WidgetType {
         rootToUnmount.unmount();
       }, 0);
     }
+    this.container = null;
   }
 
-  ignoreEvent() {
+  ignoreEvent(event: Event) {
+    // Allow button clicks and other interactions within the widget
+    const target = event.target as HTMLElement;
+    if (target.tagName === "BUTTON" || target.closest("button")) {
+      return false;
+    }
     // Make embed read-only: do not let the editor treat it as editable content.
     return true;
   }
@@ -124,7 +142,7 @@ export class WikiLinkHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    _isOnCursorLine: boolean,
+    isOnCursorLine: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -138,6 +156,12 @@ export class WikiLinkHandler extends BaseHandler {
 
       const start = lineFrom + embedMatch.index;
       const end = start + fullMatch.length;
+
+      // If cursor is on this line, don't hide anything and don't show widgets
+      // This allows the user to edit the source code
+      if (isOnCursorLine) {
+        continue;
+      }
 
       // Hide the entire ![[page]] syntax
       decorations.push(createHiddenMarker(start, end, false));

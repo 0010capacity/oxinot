@@ -6,8 +6,8 @@
  * - !((uuid))       : embed block (UUID should not be shown)
  *
  * Rendering rules (live preview):
- * - Always hide the entire raw markup `((...))` / `!((...))` (including UUID), even on the cursor line.
- *   Editing still works because the document text remains; only the rendering hides it.
+ * - Hide the raw markup and show widgets ONLY when cursor is NOT on the line.
+ * - When cursor is on the line, show the source code for editing.
  * - Normal refs (()) render as a one-line inline preview widget (read-only) that:
  *   - fetches the referenced block content from the backend
  *   - renders a single line of preview text (truncated)
@@ -16,14 +16,14 @@
  *
  * Notes:
  * - This handler is regex/line-based (like WikiLinkHandler), not syntax-tree-based.
- * - The preview widgets are read-only by design.
+ * - The preview widgets are read-only by design, but become editable when cursor enters the line.
  */
 
 import { SyntaxNode } from "@lezer/common";
 import { BaseHandler, RenderContext } from "./types";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import { createHiddenMarker } from "../utils/decorationHelpers";
-import { Decoration, WidgetType } from "@codemirror/view";
+import { Decoration, WidgetType, EditorView } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "../../../stores/workspaceStore";
 import React from "react";
@@ -86,6 +86,7 @@ function findBlockRefsInLine(lineText: string): BlockRefMatch[] {
 class EmbedSubtreeWidget extends WidgetType {
   private readonly blockId: string;
   private root: Root | null = null;
+  private container: HTMLElement | null = null;
 
   constructor(blockId: string) {
     super();
@@ -96,9 +97,10 @@ class EmbedSubtreeWidget extends WidgetType {
     return other.blockId === this.blockId;
   }
 
-  toDOM() {
+  toDOM(view: EditorView) {
     const container = document.createElement("div");
     container.className = "cm-block-embed-subtree";
+    this.container = container;
 
     // Create React root and render EmbeddedBlockCard with providers
     this.root = createRoot(container);
@@ -120,6 +122,16 @@ class EmbedSubtreeWidget extends WidgetType {
                 }),
               );
             },
+            onEdit: () => {
+              // Find the widget position in the document and focus the editor there
+              const pos = view.posAtDOM(container);
+              if (pos !== null) {
+                view.focus();
+                view.dispatch({
+                  selection: { anchor: pos },
+                });
+              }
+            },
           }),
         ),
       ),
@@ -138,9 +150,15 @@ class EmbedSubtreeWidget extends WidgetType {
         rootToUnmount.unmount();
       }, 0);
     }
+    this.container = null;
   }
 
-  ignoreEvent() {
+  ignoreEvent(event: Event) {
+    // Allow button clicks and other interactions within the widget
+    const target = event.target as HTMLElement;
+    if (target.tagName === "BUTTON" || target.closest("button")) {
+      return false;
+    }
     // Make embed read-only: do not let the editor treat it as editable content.
     return true;
   }
@@ -260,7 +278,7 @@ export class BlockRefHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    _isOnCursorLine: boolean,
+    isOnCursorLine: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -268,6 +286,12 @@ export class BlockRefHandler extends BaseHandler {
     for (const match of matches) {
       const from = lineFrom + match.start;
       const to = lineFrom + match.end;
+
+      // If cursor is on this line, don't hide anything and don't show widgets
+      // This allows the user to edit the source code
+      if (isOnCursorLine) {
+        continue;
+      }
 
       const hasBang = match.isEmbed;
 
@@ -277,18 +301,15 @@ export class BlockRefHandler extends BaseHandler {
       const openStart = hasBang ? from + 1 : from;
       const openEnd = openStart + 2;
 
-      // const idEnd = to - 2;
-
       if (hasBang) {
-        // Hide "!" regardless of cursor line
+        // Hide "!"
         decorations.push(createHiddenMarker(bangStart, bangEnd, false));
       }
 
-      // Hide "((" regardless of cursor line
+      // Hide "(("
       decorations.push(createHiddenMarker(openStart, openEnd, false));
 
-      // Always hide the entire block-ref syntax, including UUID, even on the cursor line.
-      // This prevents the UUID from ever becoming visible.
+      // Hide the entire block-ref syntax, including UUID
       decorations.push(createHiddenMarker(from, to, false));
 
       if (match.isEmbed) {

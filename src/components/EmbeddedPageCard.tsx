@@ -4,6 +4,8 @@ import { useWorkspaceStore } from "../stores/workspaceStore";
 import { usePageStore, PageData } from "../stores/pageStore";
 import { Editor } from "./Editor";
 import { Box, Text, useMantineColorScheme } from "@mantine/core";
+import { IconEdit, IconCopy } from "@tabler/icons-react";
+import { showToast } from "../utils/toast";
 
 interface EmbeddedBlock {
   id: string;
@@ -16,17 +18,22 @@ interface EmbeddedBlock {
 interface EmbeddedPageCardProps {
   pageName: string;
   onNavigate?: (blockId: string) => void;
+  onEdit?: () => void;
 }
 
 export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
   pageName,
   onNavigate,
+  onEdit,
 }) => {
   const [blocks, setBlocks] = useState<EmbeddedBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [pageId, setPageId] = useState<string | null>(null);
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === "dark";
 
   useEffect(() => {
     if (!workspacePath) {
@@ -41,7 +48,7 @@ export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
 
         // Find page ID by name (supports folder paths like A/B/C)
         const { pagesById, pageIds } = usePageStore.getState();
-        let pageId: string | null = null;
+        let foundPageId: string | null = null;
 
         // Helper to compute full path for a page
         const computePageFullPath = (id: string): string => {
@@ -69,20 +76,22 @@ export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
 
           // Check if title matches or full path matches
           if (page.title === pageName || fullPath === pageName) {
-            pageId = id;
+            foundPageId = id;
             break;
           }
         }
 
-        if (!pageId) {
+        if (!foundPageId) {
           setError(`Page not found: ${pageName}`);
           setLoading(false);
           return;
         }
 
+        setPageId(foundPageId);
+
         const res: any = await invoke("get_page_blocks", {
           workspacePath,
-          pageId,
+          pageId: foundPageId,
         });
 
         const fetchedBlocks: EmbeddedBlock[] = (res ?? []).map((b: any) => ({
@@ -105,6 +114,22 @@ export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
 
     void fetchPageBlocks();
   }, [pageName, workspacePath]);
+
+  const handleCopyPageLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(`[[${pageName}]]`);
+      showToast("Page reference copied", "success");
+    } catch (err) {
+      console.error("Failed to copy page link:", err);
+      showToast("Failed to copy page reference", "error");
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit?.();
+  };
 
   // Build lookup and children map
   const byId: Record<string, EmbeddedBlock> = {};
@@ -224,7 +249,77 @@ export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
   // Render root-level blocks
   const rootBlocks = childMap.root ?? [];
   return (
-    <Box style={{ margin: "6px 0" }}>
+    <Box
+      style={{
+        margin: "6px 0",
+        position: "relative",
+        border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
+        borderRadius: "8px",
+        padding: "12px",
+        backgroundColor: isDark
+          ? "rgba(255, 255, 255, 0.02)"
+          : "rgba(0, 0, 0, 0.01)",
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Hover action buttons */}
+      <Box
+        style={{
+          position: "absolute",
+          top: "8px",
+          right: "8px",
+          display: "flex",
+          gap: "6px",
+          opacity: isHovered ? 1 : 0,
+          transition: "opacity 120ms ease",
+          pointerEvents: isHovered ? "auto" : "none",
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleCopyPageLink}
+          title="Copy page reference"
+          style={{
+            border: "none",
+            background: isDark
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.05)",
+            color: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
+            borderRadius: "4px",
+            padding: "4px",
+            fontSize: "12px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <IconCopy size={14} stroke={1.5} />
+        </button>
+        <button
+          type="button"
+          onClick={handleEdit}
+          title="Edit page"
+          style={{
+            border: "none",
+            background: isDark
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.05)",
+            color: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
+            borderRadius: "4px",
+            padding: "4px",
+            fontSize: "12px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <IconEdit size={14} stroke={1.5} />
+        </button>
+      </Box>
+
       {rootBlocks.map((blockId) => renderBlock(blockId, 0))}
     </Box>
   );
