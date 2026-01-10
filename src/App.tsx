@@ -214,12 +214,23 @@ function AppContent({ workspacePath }: AppContentProps) {
     return () => clearInterval(intervalId);
   }, [workspacePath, autoCommitEnabled, autoCommitInterval, autoCommit]);
 
-  // Command Palette keyboard shortcut (Cmd+K or Ctrl+K)
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Command Palette (Cmd+K or Ctrl+K)
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setCommandPaletteOpened(true);
+      }
+      // Settings (Cmd+, or Ctrl+,)
+      if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+        e.preventDefault();
+        setSettingsOpened(true);
+      }
+      // Help (Cmd+? or Ctrl+?)
+      if ((e.metaKey || e.ctrlKey) && (e.key === "?" || e.key === "/")) {
+        e.preventDefault();
+        setHelpOpened(true);
       }
     };
 
