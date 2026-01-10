@@ -2,6 +2,13 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { tauriAPI, FileSystemItem } from "../tauri-api";
 
+// Throttle lastAccessed updates to 5 minutes
+const LAST_ACCESSED_THROTTLE_MS = 5 * 60 * 1000;
+
+function shouldUpdateLastAccessed(lastAccessed: number): boolean {
+  return Date.now() - lastAccessed > LAST_ACCESSED_THROTTLE_MS;
+}
+
 export interface WorkspaceInfo {
   name: string;
   path: string;
@@ -81,10 +88,13 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           set({ isLoading: true, error: null });
           const items = await tauriAPI.readDirectory(path);
 
-          // Update last accessed time
-          const workspaces = get().workspaces.map((w) =>
-            w.path === path ? { ...w, lastAccessed: Date.now() } : w,
-          );
+          // Update last accessed time (throttled to 5 minutes)
+          const workspaces = get().workspaces.map((w) => {
+            if (w.path === path && shouldUpdateLastAccessed(w.lastAccessed)) {
+              return { ...w, lastAccessed: Date.now() };
+            }
+            return w;
+          });
 
           set({
             workspacePath: path,
@@ -119,12 +129,14 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             ],
           });
         } else {
-          // Update last accessed time
-          set({
-            workspaces: workspaces.map((w) =>
-              w.path === path ? { ...w, lastAccessed: Date.now() } : w,
-            ),
-          });
+          // Update last accessed time (throttled to 5 minutes)
+          if (shouldUpdateLastAccessed(exists.lastAccessed)) {
+            set({
+              workspaces: workspaces.map((w) =>
+                w.path === path ? { ...w, lastAccessed: Date.now() } : w,
+              ),
+            });
+          }
         }
       },
 
