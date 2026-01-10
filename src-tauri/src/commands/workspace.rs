@@ -10,6 +10,23 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use uuid::Uuid;
 
+/// Compute workspace-relative path from absolute path
+/// Example: /home/user/repo/Test4/File.md with workspace /home/user/repo
+/// Returns: "Test4/File.md" (always uses `/` separators)
+fn compute_rel_path(abs_path: &Path, workspace_root: &Path) -> Result<String, String> {
+    abs_path
+        .strip_prefix(workspace_root)
+        .map_err(|_| format!("Path {:?} is not under workspace root {:?}", abs_path, workspace_root))
+        .and_then(|rel| {
+            rel.to_str()
+                .map(|s| {
+                    // Convert backslashes to forward slashes for cross-platform consistency
+                    s.replace('\\', "/")
+                })
+                .ok_or_else(|| "Path contains invalid UTF-8".to_string())
+        })
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MigrationResult {
     pub pages: usize,
@@ -396,13 +413,39 @@ pub async fn set_workspace_path(
 #[tauri::command]
 pub async fn sync_workspace(workspace_path: String) -> Result<MigrationResult, String> {
     let conn = open_workspace_db(&workspace_path)?;
+    let workspace_root = PathBuf::from(&workspace_path);
 
     println!(
         "[sync_workspace] Starting sync for workspace: {}",
         workspace_path
     );
 
+    // Detect if DB contains absolute paths (P0 safety check)
+    // If found, we must wipe DB and force full reindex
+    {
+        let mut stmt = conn
+            .prepare("SELECT COUNT(*) FROM pages WHERE file_path IS NOT NULL AND (file_path LIKE '/%' OR file_path LIKE '%:\\%')")
+            .map_err(|e| e.to_string())?;
+
+        let has_absolute: i32 = stmt
+            .query_row([], |row| row.get(0))
+            .map_err(|e| e.to_string())?;
+
+        if has_absolute > 0 {
+            println!(
+                "[sync_workspace] WARNING: DB contains {} absolute paths. Forcing full reindex to migrate to relative paths.",
+                has_absolute
+            );
+            // Wipe all pages and blocks (DB is disposable cache per I2)
+            conn.execute("DELETE FROM blocks", [])
+                .map_err(|e| e.to_string())?;
+            conn.execute("DELETE FROM pages", [])
+                .map_err(|e| e.to_string())?;
+        }
+    }
+
     // Get all existing pages from DB
+    // file_path MUST be workspace-relative at this point (or empty from migration above)
     let mut existing_pages: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
     {
@@ -433,7 +476,6 @@ pub async fn sync_workspace(workspace_path: String) -> Result<MigrationResult, S
 
     let mut synced_pages = 0;
     let mut synced_blocks = 0;
-    let workspace_root = PathBuf::from(&workspace_path);
 
     // Scan filesystem
     let mut found_files = std::collections::HashSet::new();
@@ -531,8 +573,9 @@ fn sync_directory(
         let folder_note_path = path.join(format!("{}.md", dir_name));
 
         let page_id = if folder_note_path.exists() {
-            let file_path_str = folder_note_path.to_string_lossy().to_string();
-            found_files.insert(file_path_str.clone());
+            // Store relative path in found_files
+            let rel_path = compute_rel_path(&folder_note_path, workspace_root)?;
+            found_files.insert(rel_path.clone());
 
             let id = sync_or_create_file(
                 conn,
@@ -583,18 +626,20 @@ fn sync_directory(
             .unwrap_or(false);
 
         if is_dir_note {
-            let file_path_str = path.to_string_lossy().to_string();
+            // Store relative path in found_files for directory notes
+            let rel_path = compute_rel_path(&path, workspace_root)?;
             println!(
                 "[sync_directory] Skipping directory-note markdown file: {}",
-                file_path_str
+                rel_path
             );
-            found_files.insert(file_path_str);
+            found_files.insert(rel_path);
             continue;
         }
 
-        let file_path_str = path.to_string_lossy().to_string();
-        println!("[sync_directory] Found markdown file: {}", file_path_str);
-        found_files.insert(file_path_str.clone());
+        // Store relative path in found_files
+        let rel_path = compute_rel_path(&path, workspace_root)?;
+        println!("[sync_directory] Found markdown file: {}", rel_path);
+        found_files.insert(rel_path.clone());
 
         sync_or_create_file(
             conn,
@@ -614,7 +659,7 @@ fn sync_directory(
 /// Sync or create a file in database
 fn sync_or_create_file(
     conn: &rusqlite::Connection,
-    _workspace_root: &Path,
+    workspace_root: &Path,
     file_path: &Path,
     parent_page_id: Option<&str>,
     is_directory: bool,
@@ -622,7 +667,9 @@ fn sync_or_create_file(
     synced_pages: &mut usize,
     synced_blocks: &mut usize,
 ) -> Result<String, String> {
-    let file_path_str = file_path.to_string_lossy().to_string();
+    // Compute workspace-relative path for DB storage (P0 requirement)
+    let rel_path = compute_rel_path(file_path, workspace_root)?;
+
     let file_name = file_path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -638,8 +685,8 @@ fn sync_or_create_file(
         .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
         .map(|d| d.as_secs() as i64);
 
-    // Check if page already exists in DB
-    if let Some(page_id) = existing_pages.get(&file_path_str) {
+    // Check if page already exists in DB using relative path
+    if let Some(page_id) = existing_pages.get(&rel_path) {
         println!("Page already exists in DB: {} -> {}", file_name, page_id);
 
         // Determine if blocks need reindex
@@ -708,6 +755,7 @@ fn sync_or_create_file(
     let page_id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
 
+    // Store relative path in DB (P0 requirement)
     conn.execute(
         "INSERT INTO pages (id, title, parent_id, file_path, is_directory, file_mtime, file_size, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -715,7 +763,7 @@ fn sync_or_create_file(
             &page_id,
             file_name,
             parent_page_id,
-            &file_path_str,
+            &rel_path,
             if is_directory { 1 } else { 0 },
             mtime,
             size,

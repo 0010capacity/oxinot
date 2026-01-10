@@ -165,6 +165,7 @@ fn sync_page_to_markdown(
     page_id: &str,
 ) -> Result<(), String> {
     // Get file path for this page
+    // NOTE: file_path in DB is workspace-relative (P0 requirement)
     let file_path: Option<String> = conn
         .query_row(
             "SELECT file_path FROM pages WHERE id = ?",
