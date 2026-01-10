@@ -3,23 +3,17 @@ import {
   MantineProvider,
   AppShell,
   Container,
-  useMantineColorScheme,
   createTheme,
   Stack,
   Text,
-  Button,
 } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import "@mantine/notifications/styles.css";
 
-import { invoke } from "@tauri-apps/api/core";
-import { showToast } from "./utils/toast";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
 import { usePageStore } from "./stores/pageStore";
 import { useOutlinerSettingsStore } from "./stores/outlinerSettingsStore";
-import { useGitStore } from "./stores/gitStore";
-import { useAppSettingsStore } from "./stores/appSettingsStore";
 import { MigrationDialog } from "./components/MigrationDialog";
 import { TitleBar } from "./components/TitleBar";
 import { FileTreeIndex } from "./components/FileTreeIndex";
@@ -30,8 +24,13 @@ import { CommandPalette } from "./components/CommandPalette";
 import { SyncProgress } from "./components/SyncProgress";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 import { SettingsModal } from "./components/SettingsModal";
+import { GitStatusIndicator } from "./components/GitStatusIndicator";
+import { ErrorNotifications } from "./components/ErrorNotifications";
 
 import { ThemeProvider } from "./theme/ThemeProvider";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useWorkspaceInitializer } from "./hooks/useWorkspaceInitializer";
+import { useHomepage } from "./hooks/useHomepage";
 
 const theme = createTheme({
   fontFamily:
@@ -50,7 +49,7 @@ function WorkspaceSelector() {
       // No workspaces, open file picker
       selectWorkspace();
     }
-  }, []);
+  }, [selectWorkspace, openWorkspace, getWorkspaces]);
 
   return (
     <Container size="xs" py="xl">
@@ -68,147 +67,42 @@ interface AppContentProps {
 }
 
 function AppContent({ workspacePath }: AppContentProps) {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
   const { selectWorkspace } = useWorkspaceStore();
-  const { loadPages, createPage } = usePageStore();
   const currentPageId = usePageStore((state) => state.currentPageId);
-  const setCurrentPageId = usePageStore((state) => state.setCurrentPageId);
   const pagesById = usePageStore((state) => state.pagesById);
   const pageIds = usePageStore((state) => state.pageIds);
   const viewMode = useViewMode();
   const breadcrumb = useBreadcrumb();
-  const { showIndex, setWorkspaceName, openNote } = useViewStore();
+  const { showIndex, setWorkspaceName } = useViewStore();
 
   const getFontStack = useOutlinerSettingsStore((state) => state.getFontStack);
 
-  const homepageType = useAppSettingsStore((state) => state.homepageType);
-  const customHomepageId = useAppSettingsStore(
-    (state) => state.customHomepageId,
-  );
-  const getDailyNotePath = useAppSettingsStore(
-    (state) => state.getDailyNotePath,
-  );
-
-  const [showMigration, setShowMigration] = useState(false);
-  const [dbInitialized, setDbInitialized] = useState(false);
-  const [checkingDb, setCheckingDb] = useState(true);
+  // Modal states
   const [settingsOpened, setSettingsOpened] = useState(false);
   const [searchOpened, setSearchOpened] = useState(false);
-
   const [helpOpened, setHelpOpened] = useState(false);
   const [commandPaletteOpened, setCommandPaletteOpened] = useState(false);
 
-  // Git state
-  const hasGitChanges = useGitStore((state) => state.hasChanges);
-  const isGitRepo = useGitStore((state) => state.isRepo);
-  const initGit = useGitStore((state) => state.initGit);
-  const checkGitStatus = useGitStore((state) => state.checkStatus);
-  const gitCommit = useGitStore((state) => state.commit);
-  const gitPush = useGitStore((state) => state.push);
-  const gitPull = useGitStore((state) => state.pull);
-  const isPushing = useGitStore((state) => state.isPushing);
-  const isPulling = useGitStore((state) => state.isPulling);
-  const remoteUrl = useGitStore((state) => state.remoteUrl);
-  const autoCommitEnabled = useGitStore((state) => state.autoCommitEnabled);
-  const autoCommitInterval = useGitStore((state) => state.autoCommitInterval);
-  const autoCommit = useGitStore((state) => state.autoCommit);
-
-  const [gitMenuOpen, setGitMenuOpen] = useState(false);
-
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
-  // Git commit handler - immediate commit with timestamp
-  const handleGitCommit = async () => {
-    if (!workspacePath || !hasGitChanges) return;
-    const timestamp = new Date().toLocaleString();
-    try {
-      const result = await gitCommit(workspacePath, `Update: ${timestamp}`);
-      if (result.success) {
-        showToast({ message: "Committed", type: "success" });
-      }
-    } catch (error) {
-      showToast({ message: "Commit failed", type: "error", duration: 2000 });
-    }
-  };
+  // Homepage management hook
+  const { openHomepage } = useHomepage();
 
-  const handleGitPush = async () => {
-    if (!workspacePath || !remoteUrl) return;
-    try {
-      await gitPush(workspacePath);
-      showToast({ message: "Pushed to remote", type: "success" });
-    } catch (error) {
-      showToast({ message: "Push failed", type: "error", duration: 2000 });
-    }
-  };
+  // Workspace initialization hook
+  const {
+    isChecking,
+    isInitialized,
+    showMigration,
+    handleMigrationComplete,
+    handleMigrationCancel,
+  } = useWorkspaceInitializer(workspacePath, openHomepage, setWorkspaceName);
 
-  const handleGitPull = async () => {
-    if (!workspacePath || !remoteUrl) return;
-    try {
-      await gitPull(workspacePath);
-      showToast({ message: "Pulled from remote", type: "success" });
-    } catch (error) {
-      showToast({ message: "Pull failed", type: "error", duration: 2000 });
-    }
-  };
-
-  // Initialize git repo check and status on workspace load
-  useEffect(() => {
-    if (workspacePath) {
-      initGit(workspacePath).then(() => {
-        checkGitStatus(workspacePath);
-      });
-    }
-  }, [workspacePath, initGit, checkGitStatus]);
-
-  // Periodic Git status check (every 3 seconds)
-  useEffect(() => {
-    if (!workspacePath || !isGitRepo) return;
-
-    const intervalId = setInterval(() => {
-      checkGitStatus(workspacePath);
-    }, 3000);
-
-    return () => clearInterval(intervalId);
-  }, [workspacePath, isGitRepo, checkGitStatus]);
-
-  // Auto-commit interval
-  useEffect(() => {
-    if (!workspacePath || !autoCommitEnabled) return;
-
-    const intervalId = setInterval(
-      () => {
-        autoCommit(workspacePath);
-      },
-      autoCommitInterval * 60 * 1000,
-    );
-
-    return () => clearInterval(intervalId);
-  }, [workspacePath, autoCommitEnabled, autoCommitInterval, autoCommit]);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Command Palette (Cmd+K or Ctrl+K)
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setCommandPaletteOpened(true);
-      }
-      // Settings (Cmd+, or Ctrl+,)
-      if ((e.metaKey || e.ctrlKey) && e.key === ",") {
-        e.preventDefault();
-        setSettingsOpened(true);
-      }
-      // Help (Cmd+? or Ctrl+?)
-      if ((e.metaKey || e.ctrlKey) && (e.key === "?" || e.key === "/")) {
-        e.preventDefault();
-        setHelpOpened(true);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  // Setup keyboard shortcuts
+  useKeyboardShortcuts({
+    onCommandPalette: () => setCommandPaletteOpened(true),
+    onSettings: () => setSettingsOpened(true),
+    onHelp: () => setHelpOpened(true),
+  });
 
   // Apply saved font on mount
   useEffect(() => {
@@ -216,242 +110,12 @@ function AppContent({ workspacePath }: AppContentProps) {
     document.documentElement.style.setProperty("--font-family", fontStack);
   }, [getFontStack]);
 
-  useEffect(() => {
-    if (!workspacePath) {
-      setCheckingDb(false);
-      setDbInitialized(false);
-      return;
-    }
-
-    const checkDatabase = async () => {
-      setCheckingDb(true);
-      try {
-        // Sync filesystem with database (filesystem is source of truth)
-        console.log("[App] Syncing workspace with filesystem...");
-        const syncResult = await invoke<{ pages: number; blocks: number }>(
-          "sync_workspace",
-          { workspacePath },
-        );
-        console.log(
-          `[App] Workspace synced: ${syncResult.pages} pages, ${syncResult.blocks} blocks`,
-        );
-
-        await loadPages();
-        setDbInitialized(true);
-        setShowMigration(false);
-        setWorkspaceName(workspaceName);
-
-        // Open homepage after initialization
-        openHomepage();
-      } catch (error) {
-        console.error("[App] Failed to sync workspace:", error);
-        setDbInitialized(false);
-        setShowMigration(true);
-      } finally {
-        setCheckingDb(false);
-      }
-    };
-
-    checkDatabase();
-  }, [workspacePath, loadPages, setWorkspaceName, workspaceName]);
-
-  // Open homepage function
-  const openHomepage = async () => {
-    if (homepageType === "index") {
-      // Open file tree / workspace index
-      showIndex();
-    } else if (homepageType === "daily-note") {
-      // Open today's daily note
-      const today = new Date();
-      const fullPath = getDailyNotePath(today);
-
-      // Find existing daily note
-      const existingPageId = pageIds.find((id) => {
-        const page = pagesById[id];
-        if (!page) return false;
-
-        const buildPath = (pageId: string): string => {
-          const p = pagesById[pageId];
-          if (!p) return "";
-          if (p.parentId) {
-            const parentPath = buildPath(p.parentId);
-            return parentPath ? `${parentPath}/${p.title}` : p.title;
-          }
-          return p.title;
-        };
-
-        return buildPath(id) === fullPath;
-      });
-
-      if (existingPageId) {
-        const page = pagesById[existingPageId];
-        const parentNames: string[] = [];
-        const pagePathIds: string[] = [];
-
-        const buildParentPath = (pageId: string) => {
-          const p = pagesById[pageId];
-          if (!p) return;
-
-          if (p.parentId) {
-            buildParentPath(p.parentId);
-            const parentPage = pagesById[p.parentId];
-            if (parentPage) {
-              parentNames.push(parentPage.title);
-              pagePathIds.push(p.parentId);
-            }
-          }
-        };
-
-        buildParentPath(existingPageId);
-        pagePathIds.push(existingPageId);
-
-        setCurrentPageId(existingPageId);
-        openNote(existingPageId, page.title, parentNames, pagePathIds);
-      } else {
-        // Create daily note if it doesn't exist
-        try {
-          const pathParts = fullPath.split("/");
-          let parentId: string | undefined = undefined;
-
-          for (let i = 0; i < pathParts.length; i++) {
-            const currentPath = pathParts.slice(0, i + 1).join("/");
-
-            const existingPage = pageIds.find((id) => {
-              const p = pagesById[id];
-              if (!p) return false;
-
-              const buildPath = (pageId: string): string => {
-                const page = pagesById[pageId];
-                if (!page) return "";
-                if (page.parentId) {
-                  const parentPath = buildPath(page.parentId);
-                  return parentPath
-                    ? `${parentPath}/${page.title}`
-                    : page.title;
-                }
-                return page.title;
-              };
-
-              return buildPath(id) === currentPath;
-            });
-
-            if (existingPage) {
-              parentId = existingPage;
-            } else {
-              const newPageId = await createPage(pathParts[i], parentId);
-              parentId = newPageId;
-            }
-          }
-
-          // Reload pages and find the created page
-          await loadPages();
-
-          const freshPagesById = usePageStore.getState().pagesById;
-          const freshPageIds = usePageStore.getState().pageIds;
-
-          const createdPageId = freshPageIds.find((id) => {
-            const p = freshPagesById[id];
-            if (!p) return false;
-
-            const buildPath = (pageId: string): string => {
-              const page = freshPagesById[pageId];
-              if (!page) return "";
-              if (page.parentId) {
-                const parentPath = buildPath(page.parentId);
-                return parentPath ? `${parentPath}/${page.title}` : page.title;
-              }
-              return page.title;
-            };
-
-            return buildPath(id) === fullPath;
-          });
-
-          if (createdPageId) {
-            const createdPage = freshPagesById[createdPageId];
-            const parentNames: string[] = [];
-            const pagePathIds: string[] = [];
-
-            const buildParentPath = (pageId: string) => {
-              const page = freshPagesById[pageId];
-              if (!page) return;
-
-              if (page.parentId) {
-                buildParentPath(page.parentId);
-                const parentPage = freshPagesById[page.parentId];
-                if (parentPage) {
-                  parentNames.push(parentPage.title);
-                  pagePathIds.push(page.parentId);
-                }
-              }
-            };
-
-            buildParentPath(createdPageId);
-            pagePathIds.push(createdPageId);
-
-            setCurrentPageId(createdPageId);
-            openNote(
-              createdPageId,
-              createdPage.title,
-              parentNames,
-              pagePathIds,
-            );
-          }
-        } catch (error) {
-          console.error("Failed to create daily note:", error);
-          showIndex();
-        }
-      }
-    } else if (homepageType === "custom-page" && customHomepageId) {
-      // Open custom homepage
-      const page = pagesById[customHomepageId];
-      if (page) {
-        const parentNames: string[] = [];
-        const pagePathIds: string[] = [];
-
-        const buildParentPath = (pageId: string) => {
-          const p = pagesById[pageId];
-          if (!p) return;
-
-          if (p.parentId) {
-            buildParentPath(p.parentId);
-            const parentPage = pagesById[p.parentId];
-            if (parentPage) {
-              parentNames.push(parentPage.title);
-              pagePathIds.push(p.parentId);
-            }
-          }
-        };
-
-        buildParentPath(customHomepageId);
-        pagePathIds.push(customHomepageId);
-
-        setCurrentPageId(customHomepageId);
-        openNote(customHomepageId, page.title, parentNames, pagePathIds);
-      } else {
-        showIndex();
-      }
-    } else {
-      // Fallback to index
-      showIndex();
-    }
-  };
-
-  const handleMigrationComplete = async () => {
-    setShowMigration(false);
-    setDbInitialized(true);
-    // Sync after migration
-    await invoke("sync_workspace", { workspacePath });
-    await loadPages();
-    setWorkspaceName(workspaceName);
-    showIndex();
-  };
-
-  const handleMigrationCancel = () => {
-    setShowMigration(false);
+  const handleMigrationCancelWithWorkspace = () => {
+    handleMigrationCancel();
     selectWorkspace();
   };
 
-  if (checkingDb) {
+  if (isChecking) {
     return (
       <div
         style={{
@@ -497,7 +161,7 @@ function AppContent({ workspacePath }: AppContentProps) {
 
           {/* Main Content Panel */}
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-            {!dbInitialized ? (
+            {!isInitialized ? (
               <Container size="sm" py="xl" mt={50}>
                 <Text ta="center" c="dimmed">
                   Initializing workspace...
@@ -527,113 +191,25 @@ function AppContent({ workspacePath }: AppContentProps) {
           </div>
 
           {/* Git Status Indicator - Bottom Right */}
-          {isGitRepo && (
-            <div
-              style={{
-                position: "fixed",
-                bottom: "12px",
-                right: "12px",
-                zIndex: 1000,
-              }}
-              onMouseEnter={() => setGitMenuOpen(true)}
-              onMouseLeave={() => setGitMenuOpen(false)}
-            >
-              {/* Status Dot */}
-              <div
-                style={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  backgroundColor: hasGitChanges
-                    ? isDark
-                      ? "#ffd43b"
-                      : "#fab005"
-                    : isDark
-                      ? "#5c5f66"
-                      : "#adb5bd",
-                  cursor: "pointer",
-                  opacity: hasGitChanges ? 1 : 0.4,
-                  transition: "opacity 0.2s ease, background-color 0.2s ease",
-                }}
-                onClick={handleGitCommit}
-                title={hasGitChanges ? "Click to commit changes" : "No changes"}
-              />
-
-              {/* Hover Menu */}
-              {gitMenuOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "20px",
-                    right: "0",
-                    backgroundColor: isDark ? "#25262b" : "#ffffff",
-                    border: `1px solid ${isDark ? "#373A40" : "#DEE2E6"}`,
-                    borderRadius: "6px",
-                    padding: "8px",
-                    minWidth: "140px",
-                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                  }}
-                >
-                  <Stack gap={4}>
-                    <Button
-                      size="xs"
-                      variant="subtle"
-                      fullWidth
-                      onClick={handleGitCommit}
-                      disabled={!hasGitChanges}
-                      style={{ justifyContent: "flex-start" }}
-                    >
-                      {hasGitChanges ? "Commit" : "No Changes"}
-                    </Button>
-                    {remoteUrl && (
-                      <>
-                        <Button
-                          size="xs"
-                          variant="subtle"
-                          fullWidth
-                          onClick={handleGitPush}
-                          disabled={isPushing}
-                          style={{ justifyContent: "flex-start" }}
-                        >
-                          {isPushing ? "Pushing..." : "Push"}
-                        </Button>
-                        <Button
-                          size="xs"
-                          variant="subtle"
-                          fullWidth
-                          onClick={handleGitPull}
-                          disabled={isPulling}
-                          style={{ justifyContent: "flex-start" }}
-                        >
-                          {isPulling ? "Pulling..." : "Pull"}
-                        </Button>
-                      </>
-                    )}
-                    {!remoteUrl && (
-                      <Text size="xs" c="dimmed" px={8} py={4}>
-                        No remote set
-                      </Text>
-                    )}
-                  </Stack>
-                </div>
-              )}
-            </div>
-          )}
+          <GitStatusIndicator workspacePath={workspacePath} />
         </AppShell.Main>
       </AppShell>
 
+      {/* Migration Dialog */}
       <MigrationDialog
         workspacePath={workspacePath}
         isOpen={showMigration}
         onComplete={handleMigrationComplete}
-        onCancel={handleMigrationCancel}
+        onCancel={handleMigrationCancelWithWorkspace}
       />
 
+      {/* Search Modal */}
       <SearchModal
         opened={searchOpened}
         onClose={() => setSearchOpened(false)}
       />
 
+      {/* Command Palette */}
       <CommandPalette
         opened={commandPaletteOpened}
         onClose={() => setCommandPaletteOpened(false)}
@@ -642,8 +218,10 @@ function AppContent({ workspacePath }: AppContentProps) {
         onOpenHelp={() => setHelpOpened(true)}
       />
 
+      {/* Help Modal */}
       <HelpModal opened={helpOpened} onClose={() => setHelpOpened(false)} />
 
+      {/* Settings Modal */}
       <SettingsModal
         opened={settingsOpened}
         onClose={() => setSettingsOpened(false)}
@@ -651,16 +229,19 @@ function AppContent({ workspacePath }: AppContentProps) {
         pagesById={pagesById}
         pageIds={pageIds}
       />
+
+      <Notifications />
+      <ErrorNotifications />
     </>
   );
 }
 
 function App() {
-  const { workspacePath } = useWorkspaceStore();
+  const workspacePath = useWorkspaceStore((state) => state.workspacePath);
 
   if (!workspacePath) {
     return (
-      <MantineProvider theme={theme} defaultColorScheme="dark">
+      <MantineProvider theme={theme}>
         <Notifications />
         <ThemeProvider>
           <WorkspaceSelector />
@@ -670,8 +251,7 @@ function App() {
   }
 
   return (
-    <MantineProvider theme={theme} defaultColorScheme="dark">
-      <Notifications />
+    <MantineProvider theme={theme}>
       <ThemeProvider>
         <AppContent workspacePath={workspacePath} />
         <SyncProgress />

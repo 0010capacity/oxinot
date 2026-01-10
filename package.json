@@ -30,7 +30,7 @@
     "@mantine/core": "^7.4.2",
     "@mantine/hooks": "^7.4.2",
     "@mantine/notifications": "^7.17.8",
-    "@tabler/icons-react": "^2.44.0",
+    "@tabler/icons-react": "^3.36.1",
     "@tauri-apps/api": "^2.9.1",
     "immer": "^11.1.3",
     "markdown-it": "^14.0.0",
@@ -52,6 +52,6 @@
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
     "typescript": "^5.2.2",
-    "vite": "^5.0.8"
+    "vite": "^7.3.1"
   }
 }
