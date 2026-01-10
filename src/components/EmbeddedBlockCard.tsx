@@ -73,10 +73,10 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(`((${blockId}))`);
-      showToast("Block reference copied", "success");
+      showToast({ message: "Block reference copied", type: "success" });
     } catch (err) {
       console.error("Failed to copy block ID:", err);
-      showToast("Failed to copy block reference", "error");
+      showToast({ message: "Failed to copy block reference", type: "error" });
     }
   };
 

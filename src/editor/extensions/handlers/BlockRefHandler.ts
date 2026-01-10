@@ -86,7 +86,6 @@ function findBlockRefsInLine(lineText: string): BlockRefMatch[] {
 class EmbedSubtreeWidget extends WidgetType {
   private readonly blockId: string;
   private root: Root | null = null;
-  private container: HTMLElement | null = null;
 
   constructor(blockId: string) {
     super();
@@ -100,7 +99,6 @@ class EmbedSubtreeWidget extends WidgetType {
   toDOM(view: EditorView) {
     const container = document.createElement("div");
     container.className = "cm-block-embed-subtree";
-    this.container = container;
 
     // Create React root and render EmbeddedBlockCard with providers
     this.root = createRoot(container);
@@ -150,7 +148,6 @@ class EmbedSubtreeWidget extends WidgetType {
         rootToUnmount.unmount();
       }, 0);
     }
-    this.container = null;
   }
 
   ignoreEvent(event: Event) {

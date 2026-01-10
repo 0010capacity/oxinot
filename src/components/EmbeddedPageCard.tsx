@@ -30,7 +30,6 @@ export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
-  const [pageId, setPageId] = useState<string | null>(null);
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
@@ -87,8 +86,6 @@ export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
           return;
         }
 
-        setPageId(foundPageId);
-
         const res: any = await invoke("get_page_blocks", {
           workspacePath,
           pageId: foundPageId,
@@ -119,10 +116,10 @@ export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(`[[${pageName}]]`);
-      showToast("Page reference copied", "success");
+      showToast({ message: "Page reference copied", type: "success" });
     } catch (err) {
       console.error("Failed to copy page link:", err);
-      showToast("Failed to copy page reference", "error");
+      showToast({ message: "Failed to copy page reference", type: "error" });
     }
   };
 
@@ -251,7 +248,7 @@ export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
   return (
     <Box
       style={{
-        margin: "6px 0",
+        margin: "0",
         position: "relative",
         border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
         borderRadius: "8px",

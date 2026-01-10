@@ -41,7 +41,6 @@ function getWikiBasename(path: string): string {
 class EmbedPageWidget extends WidgetType {
   private readonly pageName: string;
   private root: Root | null = null;
-  private container: HTMLElement | null = null;
 
   constructor(pageName: string) {
     super();
@@ -55,7 +54,6 @@ class EmbedPageWidget extends WidgetType {
   toDOM(view: EditorView) {
     const container = document.createElement("div");
     container.className = "cm-page-embed";
-    this.container = container;
 
     // Create React root and render EmbeddedPageCard with providers
     this.root = createRoot(container);
@@ -105,7 +103,6 @@ class EmbedPageWidget extends WidgetType {
         rootToUnmount.unmount();
       }, 0);
     }
-    this.container = null;
   }
 
   ignoreEvent(event: Event) {
