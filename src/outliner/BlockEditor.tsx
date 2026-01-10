@@ -8,6 +8,7 @@ import { PageContainer } from "../components/layout/PageContainer";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
 import { PageHeader } from "../components/layout/PageHeader";
 import { LinkedReferences } from "../components/LinkedReferences";
+import { SubPagesSection } from "../components/SubPagesSection";
 import "./BlockEditor.css";
 
 interface BlockEditorProps {
@@ -127,6 +128,9 @@ export function BlockEditor({
             ))
           )}
         </div>
+
+        {/* Sub Pages */}
+        <SubPagesSection currentPageId={pageId} />
 
         {/* Linked References */}
         <LinkedReferences pageId={pageId} />
