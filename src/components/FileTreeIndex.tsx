@@ -531,7 +531,16 @@ export function FileTreeIndex() {
           )}
 
           {/* Pages Tree */}
-          <Stack gap={0} style={{ flex: 1 }}>
+          <Stack
+            gap={0}
+            style={{ flex: 1 }}
+            onClick={(e) => {
+              // Close new page input if clicking on empty space
+              if (isCreating && e.target === e.currentTarget) {
+                handleCancelCreate();
+              }
+            }}
+          >
             {rootPages.map((page) => renderPageTree(page, 0))}
 
             {/* New Page Input at bottom */}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { TextInput, Group, ActionIcon } from "@mantine/core";
 import { IconCheck, IconX } from "@tabler/icons-react";
 
@@ -16,6 +16,38 @@ export function NewPageInput({
   isSubmitting = false,
 }: NewPageInputProps) {
   const [title, setTitle] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input on mount
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, []);
+
+  // Handle click outside to close
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        onCancel();
+      }
+    };
+
+    // Add slight delay to avoid immediate close on trigger click
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+    }, 50);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onCancel]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey && title.trim()) {
@@ -27,34 +59,41 @@ export function NewPageInput({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (title.trim()) {
-      onSubmit(title);
+      await onSubmit(title);
+      setTitle("");
     }
   };
 
   return (
     <div
+      ref={containerRef}
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "var(--spacing-sm)",
+        gap: "8px",
         paddingLeft: `${depth * 24}px`,
-        paddingTop: "2px",
-        paddingBottom: "2px",
+        paddingRight: "8px",
+        paddingTop: "4px",
+        paddingBottom: "4px",
         backgroundColor: "var(--color-interactive-hover)",
-        borderRadius: "var(--radius-sm)",
+        borderRadius: "6px",
         border: "1px solid var(--color-interactive-focus)",
-        margin: "2px 0",
+        margin: "4px 8px",
+        transition: "all var(--transition-normal)",
       }}
     >
+      {/* Spacer for collapse toggle */}
       <div
         style={{
           width: "var(--layout-collapse-toggle-size)",
           height: "var(--layout-collapse-toggle-size)",
-          margin: 0,
+          flexShrink: 0,
         }}
       />
+
+      {/* Bullet point */}
       <div
         style={{
           flexShrink: 0,
@@ -75,15 +114,22 @@ export function NewPageInput({
         />
       </div>
 
-      <Group gap={4} wrap="nowrap" style={{ flex: 1, paddingRight: "8px" }}>
+      {/* Input and action buttons */}
+      <Group
+        gap={6}
+        wrap="nowrap"
+        style={{
+          flex: 1,
+        }}
+      >
         <TextInput
+          ref={inputRef}
           value={title}
           onChange={(e) => setTitle(e.currentTarget.value)}
           onKeyDown={handleKeyDown}
-          placeholder="New page title..."
-          autoFocus
-          size="xs"
+          placeholder="Enter page title..."
           disabled={isSubmitting}
+          size="xs"
           styles={{
             input: {
               border: "none",
@@ -91,31 +137,60 @@ export function NewPageInput({
               fontWeight: 500,
               fontSize: "var(--font-size-sm)",
               lineHeight: "24px",
+              padding: "0 4px",
+              color: "var(--color-text-primary)",
+
+              "&::placeholder": {
+                color: "var(--color-text-tertiary)",
+                opacity: 0.7,
+              },
+
+              "&:focus": {
+                outline: "none",
+              },
             },
           }}
-          style={{ flex: 1 }}
+          style={{
+            flex: 1,
+          }}
         />
 
+        {/* Confirm button */}
         <ActionIcon
           variant="subtle"
-          onClick={handleSubmit}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSubmit();
+          }}
           disabled={isSubmitting || !title.trim()}
           size="xs"
           color="green"
           style={{
-            opacity: title.trim() ? 1 : "var(--opacity-disabled)",
+            opacity: title.trim() ? 1 : 0.4,
+            transition: "opacity var(--transition-normal)",
           }}
+          title="Save page (Enter)"
         >
-          <IconCheck size={12} />
+          <IconCheck size={14} stroke={2} />
         </ActionIcon>
+
+        {/* Cancel button */}
         <ActionIcon
           variant="subtle"
-          onClick={onCancel}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCancel();
+          }}
           disabled={isSubmitting}
           size="xs"
-          style={{ opacity: "var(--opacity-dimmed)" }}
+          color="gray"
+          style={{
+            opacity: 0.6,
+            transition: "opacity var(--transition-normal)",
+          }}
+          title="Cancel (Esc)"
         >
-          <IconX size={12} />
+          <IconX size={14} stroke={2} />
         </ActionIcon>
       </Group>
     </div>
