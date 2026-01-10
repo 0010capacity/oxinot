@@ -110,6 +110,17 @@ export function BlockEditor({
           style={{
             fontSize: `${editorFontSize}px`,
             lineHeight: editorLineHeight,
+
+            // Make the block list itself the scroll container. This avoids layouts where
+            // an ancestor has `overflow: hidden` (e.g., app shell / root) and the page
+            // can no longer scroll.
+            overflowY: "auto",
+            overflowX: "visible",
+            minHeight: 0,
+
+            // Ensure there's room for the scroller to actually scroll within PageContainer.
+            // PageContainer is `height: 100%`, so we need a bounded height here.
+            maxHeight: "100%",
           }}
         >
           {blocksToShow.length === 0 ? (
