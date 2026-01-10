@@ -24,8 +24,6 @@ import {
   IconBrandGit,
   IconInfoCircle,
   IconKeyboard,
-  IconCloud,
-  IconShieldLock,
 } from "@tabler/icons-react";
 import { useThemeStore, type ColorVariant } from "../stores/themeStore";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
@@ -216,9 +214,6 @@ export function SettingsModal({
           )}
           <Tabs.Tab value="shortcuts" leftSection={<IconKeyboard size={16} />}>
             Shortcuts
-          </Tabs.Tab>
-          <Tabs.Tab value="privacy" leftSection={<IconShieldLock size={16} />}>
-            Privacy
           </Tabs.Tab>
           <Tabs.Tab value="about" leftSection={<IconInfoCircle size={16} />}>
             About
@@ -758,51 +753,6 @@ export function SettingsModal({
                     Custom keyboard shortcuts will be available in a future
                     update
                   </Alert>
-                </Stack>
-              </div>
-            </Stack>
-          </Tabs.Panel>
-
-          {/* Privacy Tab */}
-          <Tabs.Panel value="privacy">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  Privacy & Security
-                </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  Manage your data and privacy settings
-                </Text>
-
-                <Stack gap="lg">
-                  <Alert
-                    icon={<IconShieldLock size={16} />}
-                    color="green"
-                    variant="light"
-                  >
-                    Your data is stored locally on your device. We don't collect
-                    any personal information.
-                  </Alert>
-
-                  <div>
-                    <Text size="sm" fw={500} mb={8}>
-                      Data Location
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      {workspacePath || "No workspace selected"}
-                    </Text>
-                  </div>
-
-                  <div>
-                    <Text size="sm" fw={500} mb={8}>
-                      Synchronization
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      This app uses Git for version control and backup. All
-                      changes are stored locally and can be synced to remote Git
-                      repositories.
-                    </Text>
-                  </div>
                 </Stack>
               </div>
             </Stack>
