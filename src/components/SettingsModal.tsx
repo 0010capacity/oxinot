@@ -1343,7 +1343,7 @@ export function SettingsModal({
                   </div>
                 </Stack>
               </div>
-              )}
+            )}
             </Stack>
           </Tabs.Panel>
 
