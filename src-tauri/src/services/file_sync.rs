@@ -151,10 +151,12 @@ impl FileSyncService {
             let parent_file_path = self.get_page_file_path(conn, parent_id)?;
 
             if parent_page.is_directory {
+                // For directory notes, the file path is DirName/DirName.md
+                // We want to put children directly in DirName/, not DirName/DirName/
                 parent_file_path
                     .parent()
                     .ok_or("Cannot get parent directory")?
-                    .join(parent_file_path.file_stem().ok_or("Invalid file name")?)
+                    .to_path_buf()
             } else {
                 // Convert parent to directory first
                 return Err("Parent page must be converted to directory first".to_string());
