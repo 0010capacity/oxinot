@@ -264,6 +264,20 @@ span.cm-wiki-link,
     font-style: italic;
 }
 
+/* Embed widgets */
+.cm-block-embed-subtree,
+.cm-page-embed {
+    display: inline-block;
+    width: 100%;
+    pointer-events: auto !important;
+    cursor: default;
+}
+
+.cm-block-embed-subtree *,
+.cm-page-embed * {
+    pointer-events: auto !important;
+}
+
 /* Hidden/Dimmed Syntax Styles */
 /* IMPORTANT:
    Do NOT use display:none for CodeMirror "hidden" spans.

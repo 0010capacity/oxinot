@@ -215,7 +215,8 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
           gap: "6px",
           opacity: isHovered ? 1 : 0,
           transition: "opacity 120ms ease",
-          pointerEvents: isHovered ? "auto" : "none",
+          pointerEvents: "auto",
+          zIndex: 10,
         }}
       >
         <button
@@ -235,6 +236,9 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            pointerEvents: "auto",
+            position: "relative",
+            zIndex: 11,
           }}
         >
           <IconCopy size={14} stroke={1.5} />
@@ -256,6 +260,9 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            pointerEvents: "auto",
+            position: "relative",
+            zIndex: 11,
           }}
         >
           <IconEdit size={14} stroke={1.5} />
