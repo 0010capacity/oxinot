@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { TextInput, Group, ActionIcon } from "@mantine/core";
-import { IconCheck, IconX } from "@tabler/icons-react";
+import { TextInput } from "@mantine/core";
 
 interface NewPageInputProps {
   depth: number;
@@ -53,16 +52,10 @@ export function NewPageInput({
     if (e.key === "Enter" && !e.shiftKey && title.trim()) {
       e.preventDefault();
       onSubmit(title);
+      setTitle("");
     } else if (e.key === "Escape") {
       e.preventDefault();
       onCancel();
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (title.trim()) {
-      await onSubmit(title);
-      setTitle("");
     }
   };
 
@@ -72,24 +65,22 @@ export function NewPageInput({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "8px",
+        gap: "var(--spacing-sm)",
         paddingLeft: `${depth * 24}px`,
-        paddingRight: "8px",
-        paddingTop: "4px",
-        paddingBottom: "4px",
-        backgroundColor: "var(--color-interactive-hover)",
-        borderRadius: "6px",
-        border: "1px solid var(--color-interactive-focus)",
-        margin: "4px 8px",
-        transition: "all var(--transition-normal)",
+        paddingTop: "2px",
+        paddingBottom: "2px",
+        position: "relative",
+        borderRadius: "var(--radius-sm)",
+        transition: "background-color var(--transition-normal)",
+        userSelect: "none",
       }}
     >
-      {/* Spacer for collapse toggle */}
+      {/* Collapse toggle spacer */}
       <div
         style={{
+          flexShrink: 0,
           width: "var(--layout-collapse-toggle-size)",
           height: "var(--layout-collapse-toggle-size)",
-          flexShrink: 0,
         }}
       />
 
@@ -114,85 +105,43 @@ export function NewPageInput({
         />
       </div>
 
-      {/* Input and action buttons */}
-      <Group
-        gap={6}
-        wrap="nowrap"
+      {/* Input field - matches PageTreeItem text styling exactly */}
+      <TextInput
+        ref={inputRef}
+        value={title}
+        onChange={(e) => setTitle(e.currentTarget.value)}
+        onKeyDown={handleKeyDown}
+        onClick={(e) => e.stopPropagation()}
+        placeholder="New page"
+        disabled={isSubmitting}
+        size="xs"
+        styles={{
+          input: {
+            border: "none",
+            backgroundColor: "transparent",
+            fontWeight: 400,
+            fontSize: "var(--font-size-sm)",
+            lineHeight: "24px",
+            padding: "2px 4px 2px 4px",
+            color: "var(--color-text-primary)",
+            height: "auto",
+            minHeight: "auto",
+
+            "&::placeholder": {
+              color: "var(--color-text-tertiary)",
+              opacity: 0.5,
+            },
+
+            "&:focus": {
+              outline: "none",
+              backgroundColor: "transparent",
+            },
+          },
+        }}
         style={{
           flex: 1,
         }}
-      >
-        <TextInput
-          ref={inputRef}
-          value={title}
-          onChange={(e) => setTitle(e.currentTarget.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Enter page title..."
-          disabled={isSubmitting}
-          size="xs"
-          styles={{
-            input: {
-              border: "none",
-              backgroundColor: "transparent",
-              fontWeight: 500,
-              fontSize: "var(--font-size-sm)",
-              lineHeight: "24px",
-              padding: "0 4px",
-              color: "var(--color-text-primary)",
-
-              "&::placeholder": {
-                color: "var(--color-text-tertiary)",
-                opacity: 0.7,
-              },
-
-              "&:focus": {
-                outline: "none",
-              },
-            },
-          }}
-          style={{
-            flex: 1,
-          }}
-        />
-
-        {/* Confirm button */}
-        <ActionIcon
-          variant="subtle"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleSubmit();
-          }}
-          disabled={isSubmitting || !title.trim()}
-          size="xs"
-          color="green"
-          style={{
-            opacity: title.trim() ? 1 : 0.4,
-            transition: "opacity var(--transition-normal)",
-          }}
-          title="Save page (Enter)"
-        >
-          <IconCheck size={14} stroke={2} />
-        </ActionIcon>
-
-        {/* Cancel button */}
-        <ActionIcon
-          variant="subtle"
-          onClick={(e) => {
-            e.stopPropagation();
-            onCancel();
-          }}
-          disabled={isSubmitting}
-          size="xs"
-          color="gray"
-          style={{
-            opacity: 0.6,
-            transition: "opacity var(--transition-normal)",
-          }}
-          title="Cancel (Esc)"
-        >
-          <IconX size={14} stroke={2} />
-        </ActionIcon>
-      </Group>
+      />
     </div>
   );
 }
