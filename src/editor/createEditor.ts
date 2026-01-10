@@ -315,50 +315,53 @@ function createEmbedNavigateEventHandler(): Extension {
 }
 
 function createBlockRefClickHandler(): Extension {
-  return EditorView.domEventHandlers({
-    click: (event, view) => {
-      const target = event.target as HTMLElement | null;
-      if (!target) return false;
+  const handleClick = (event: MouseEvent, view: EditorView) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return false;
 
-      const el = target.closest?.(
-        ".cm-block-ref, .cm-block-embed",
-      ) as HTMLElement | null;
-      if (!el) return false;
+    const el = target.closest?.(
+      ".cm-block-ref, .cm-block-embed",
+    ) as HTMLElement | null;
+    if (!el) return false;
 
-      event.preventDefault();
-      event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
 
-      // Prefer a direct id when the preview widget attaches it to its outer span.
-      // NOTE: Sometimes the click target is a nested node (text node wrapper, etc.),
-      // so we also try to find the attribute on the nearest ancestor within the token.
-      const directId =
-        el.getAttribute("data-block-id") ||
-        el.closest?.("[data-block-id]")?.getAttribute("data-block-id") ||
-        (el as any).dataset?.blockId ||
-        (el as any).dataset?.blockid ||
-        "";
-      if (directId) {
-        void navigateToBlockById(directId);
-        return true;
-      }
-
-      // Fallback: resolve block id by parsing the underlying doc around the click position.
-      const pos = view.posAtDOM(el);
-      if (pos == null) return true;
-
-      const line = view.state.doc.lineAt(pos);
-      const lineText = line.text;
-      const offsetInLine = Math.max(
-        0,
-        Math.min(pos - line.from, lineText.length),
-      );
-
-      const ref = extractBlockRefAtLinePos(lineText, offsetInLine);
-      if (!ref) return true;
-
-      void navigateToBlockById(ref.id);
+    // Prefer a direct id when the preview widget attaches it to its outer span.
+    // NOTE: Sometimes the click target is a nested node (text node wrapper, etc.),
+    // so we also try to find the attribute on the nearest ancestor within the token.
+    const directId =
+      el.getAttribute("data-block-id") ||
+      el.closest?.("[data-block-id]")?.getAttribute("data-block-id") ||
+      (el as any).dataset?.blockId ||
+      (el as any).dataset?.blockid ||
+      "";
+    if (directId) {
+      void navigateToBlockById(directId);
       return true;
-    },
+    }
+
+    // Fallback: resolve block id by parsing the underlying doc around the click position.
+    const pos = view.posAtDOM(el);
+    if (pos == null) return true;
+
+    const line = view.state.doc.lineAt(pos);
+    const lineText = line.text;
+    const offsetInLine = Math.max(
+      0,
+      Math.min(pos - line.from, lineText.length),
+    );
+
+    const ref = extractBlockRefAtLinePos(lineText, offsetInLine);
+    if (!ref) return true;
+
+    void navigateToBlockById(ref.id);
+    return true;
+  };
+
+  return EditorView.domEventHandlers({
+    mousedown: handleClick,
+    click: handleClick,
   });
 }
 
@@ -823,63 +826,66 @@ async function openOrCreateNoteByTitle(noteTitle: string): Promise<void> {
 function createWikiLinkClickHandler(
   onOpenWikiLink?: (raw: string, noteTitle: string) => void,
 ): Extension {
-  return EditorView.domEventHandlers({
-    click: (event, view) => {
-      const target = event.target as HTMLElement | null;
-      if (!target) return false;
+  const handleClick = (event: MouseEvent, view: EditorView) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return false;
 
-      const el = target.closest?.(".cm-wiki-link") as HTMLElement | null;
-      if (!el) return false;
+    const el = target.closest?.(".cm-wiki-link") as HTMLElement | null;
+    if (!el) return false;
 
-      // Prevent CM selection changes + browser default behaviors
-      event.preventDefault();
-      event.stopPropagation();
+    // Prevent CM selection changes + browser default behaviors
+    event.preventDefault();
+    event.stopPropagation();
 
-      const pos = view.posAtDOM(el);
-      if (pos == null) return true;
+    const pos = view.posAtDOM(el);
+    if (pos == null) return true;
 
-      // Find the containing line and locate the wiki link around this position.
-      const line = view.state.doc.lineAt(pos);
-      const lineText = line.text;
+    // Find the containing line and locate the wiki link around this position.
+    const line = view.state.doc.lineAt(pos);
+    const lineText = line.text;
 
-      // We need to compute the position within the line.
-      const offsetInLine = Math.max(
-        0,
-        Math.min(pos - line.from, lineText.length),
-      );
+    // We need to compute the position within the line.
+    const offsetInLine = Math.max(
+      0,
+      Math.min(pos - line.from, lineText.length),
+    );
 
-      // Scan for wiki links in this line and pick the match that contains the click position.
-      const wikiLinkRegex = /\[\[([^\]|]+)(\|([^\]]+))?\]\]/g;
-      let match: RegExpExecArray | null;
-      let clickedRaw: string | null = null;
+    // Scan for wiki links in this line and pick the match that contains the click position.
+    const wikiLinkRegex = /\[\[([^\]|]+)(\|([^\]]+))?\]\]/g;
+    let match: RegExpExecArray | null;
+    let clickedRaw: string | null = null;
 
-      while ((match = wikiLinkRegex.exec(lineText)) !== null) {
-        const full = match[0];
-        const start = match.index;
-        const end = start + full.length;
-        if (offsetInLine >= start && offsetInLine <= end) {
-          clickedRaw = match[1] ?? "";
-          break;
-        }
+    while ((match = wikiLinkRegex.exec(lineText)) !== null) {
+      const full = match[0];
+      const start = match.index;
+      const end = start + full.length;
+      if (offsetInLine >= start && offsetInLine <= end) {
+        clickedRaw = match[1] ?? "";
+        break;
       }
+    }
 
-      if (!clickedRaw) return true;
+    if (!clickedRaw) return true;
 
-      const parsed = parseWikiLinkTarget(clickedRaw);
-      if (!parsed) return true;
+    const parsed = parseWikiLinkTarget(clickedRaw);
+    if (!parsed) return true;
 
-      if (onOpenWikiLink) {
-        onOpenWikiLink(clickedRaw, parsed.noteTitle);
-        return true;
-      }
-
-      // Default behavior:
-      // - If target is folder-style (A/B/C), ensure A and B exist as folder-notes (directories)
-      // - Create/open C under that chain
-      // - Update breadcrumbs correctly
-      void openOrCreateNoteByTitle(parsed.noteTitle);
+    if (onOpenWikiLink) {
+      onOpenWikiLink(clickedRaw, parsed.noteTitle);
       return true;
-    },
+    }
+
+    // Default behavior:
+    // - If target is folder-style (A/B/C), ensure A and B exist as folder-notes (directories)
+    // - Create/open C under that chain
+    // - Update breadcrumbs correctly
+    void openOrCreateNoteByTitle(parsed.noteTitle);
+    return true;
+  };
+
+  return EditorView.domEventHandlers({
+    mousedown: handleClick,
+    click: handleClick,
   });
 }
 

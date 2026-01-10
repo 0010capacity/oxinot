@@ -8,6 +8,7 @@ pub struct GitStatus {
     pub has_changes: bool,
     pub changed_files: Vec<String>,
     pub current_branch: String,
+    pub remote_url: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -88,6 +89,7 @@ pub async fn git_status(workspace_path: String) -> Result<GitStatus, String> {
             has_changes: false,
             changed_files: vec![],
             current_branch: String::new(),
+            remote_url: None,
         });
     }
 
@@ -114,12 +116,109 @@ pub async fn git_status(workspace_path: String) -> Result<GitStatus, String> {
 
     let has_changes = !changed_files.is_empty();
 
+    // Get remote URL
+    let remote_url = get_remote_url_internal(path);
+
     Ok(GitStatus {
         is_repo,
         has_changes,
         changed_files,
         current_branch,
+        remote_url,
     })
+}
+
+/// Get git remote URL (internal helper)
+fn get_remote_url_internal(path: &Path) -> Option<String> {
+    let output = Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(path)
+        .output()
+        .ok()?;
+
+    if output.status.success() {
+        let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !url.is_empty() {
+            return Some(url);
+        }
+    }
+    None
+}
+
+/// Get git remote URL
+#[command]
+pub async fn git_get_remote_url(workspace_path: String) -> Result<Option<String>, String> {
+    let path = Path::new(&workspace_path);
+
+    if !path.join(".git").exists() {
+        return Err("Not a git repository".to_string());
+    }
+
+    Ok(get_remote_url_internal(path))
+}
+
+/// Set git remote URL
+#[command]
+pub async fn git_set_remote_url(workspace_path: String, url: String) -> Result<String, String> {
+    let path = Path::new(&workspace_path);
+
+    if !path.join(".git").exists() {
+        return Err("Not a git repository".to_string());
+    }
+
+    // Check if remote 'origin' exists
+    let check_output = Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(path)
+        .output()
+        .map_err(|e| format!("Failed to check remote: {}", e))?;
+
+    let args = if check_output.status.success() {
+        vec!["remote", "set-url", "origin", &url]
+    } else {
+        vec!["remote", "add", "origin", &url]
+    };
+
+    let output = Command::new("git")
+        .args(&args)
+        .current_dir(path)
+        .output()
+        .map_err(|e| format!("Failed to set remote URL: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "Failed to set remote URL: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    Ok("Remote URL set successfully".to_string())
+}
+
+/// Remove git remote
+#[command]
+pub async fn git_remove_remote(workspace_path: String) -> Result<String, String> {
+    let path = Path::new(&workspace_path);
+
+    if !path.join(".git").exists() {
+        return Err("Not a git repository".to_string());
+    }
+
+    let output = Command::new("git")
+        .args(["remote", "remove", "origin"])
+        .current_dir(path)
+        .output()
+        .map_err(|e| format!("Failed to remove remote: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        // If remote doesn't exist, that's okay
+        if !stderr.contains("No such remote") {
+            return Err(format!("Failed to remove remote: {}", stderr));
+        }
+    }
+
+    Ok("Remote removed successfully".to_string())
 }
 
 /// Commit changes with a message

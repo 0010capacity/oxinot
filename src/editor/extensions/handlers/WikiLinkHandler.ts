@@ -124,7 +124,7 @@ export class WikiLinkHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isOnCursorLine: boolean,
+    _isOnCursorLine: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 

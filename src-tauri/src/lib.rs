@@ -345,6 +345,7 @@ pub fn run() {
             commands::page::move_page,
             commands::page::convert_page_to_directory,
             commands::page::debug_db_state,
+            commands::page::get_page_backlinks,
             // Workspace commands
             commands::workspace::initialize_workspace,
             commands::workspace::sync_workspace,
@@ -360,6 +361,9 @@ pub fn run() {
             commands::git::git_push,
             commands::git::git_pull,
             commands::git::git_log,
+            commands::git::git_get_remote_url,
+            commands::git::git_set_remote_url,
+            commands::git::git_remove_remote,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

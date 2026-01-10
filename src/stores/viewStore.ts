@@ -1,5 +1,7 @@
 import { createWithEqualityFn } from "zustand/traditional";
 import { immer } from "zustand/middleware/immer";
+import { useNavigationStore } from "./navigationStore";
+import { usePageStore } from "./pageStore";
 
 // View modes
 type ViewMode = "index" | "note";
@@ -65,6 +67,12 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         state.focusedBlockId = null;
         state.zoomPath = [];
       });
+
+      // Add to navigation history
+      const page = usePageStore.getState().pagesById[pageId];
+      if (page) {
+        useNavigationStore.getState().pushHistory(pageId, page.title);
+      }
     },
 
     openNote: (
@@ -92,6 +100,9 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         state.breadcrumb = crumbs;
         state.pagePathIds = pagePathIds || [];
       });
+
+      // Add to navigation history
+      useNavigationStore.getState().pushHistory(notePath, noteName);
     },
 
     zoomIntoBlock: (blockId: string) => {

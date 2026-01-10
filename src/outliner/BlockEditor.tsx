@@ -7,6 +7,7 @@ import { BlockComponent } from "./BlockComponent";
 import { PageContainer } from "../components/layout/PageContainer";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
 import { PageHeader } from "../components/layout/PageHeader";
+import { LinkedReferences } from "../components/LinkedReferences";
 import "./BlockEditor.css";
 
 interface BlockEditorProps {
@@ -126,6 +127,9 @@ export function BlockEditor({
             ))
           )}
         </div>
+
+        {/* Linked References */}
+        <LinkedReferences pageId={pageId} />
       </ContentWrapper>
     </PageContainer>
   );

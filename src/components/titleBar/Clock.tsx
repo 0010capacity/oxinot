@@ -50,10 +50,10 @@ export function Clock() {
             display: "flex",
             flexDirection: "row",
             alignItems: "center",
-            gap: "8px",
+            gap: "6px",
             cursor: "pointer",
-            padding: "6px 8px",
-            borderRadius: "6px",
+            padding: "4px 6px",
+            borderRadius: "4px",
             transition: "background-color 0.2s ease",
             backgroundColor: opened
               ? isDark
@@ -75,7 +75,7 @@ export function Clock() {
           }}
         >
           <Text
-            size="sm"
+            size="xs"
             fw={500}
             style={{
               color: "var(--color-text-secondary)",
@@ -94,7 +94,7 @@ export function Clock() {
             |
           </Text>
           <Text
-            size="sm"
+            size="xs"
             fw={500}
             style={{
               color: "var(--color-text-secondary)",

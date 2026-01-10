@@ -3,6 +3,7 @@ import { isMacOS } from "../utils/platform";
 import { Clock } from "./titleBar/Clock";
 import { WindowControls } from "./titleBar/WindowControls";
 import { WorkspacePicker } from "./WorkspacePicker";
+import { NavigationButtons } from "./NavigationButtons";
 
 interface TitleBarProps {
   currentWorkspacePath: string | null;
@@ -26,14 +27,24 @@ export function TitleBar({ currentWorkspacePath }: TitleBarProps) {
         backgroundColor: "var(--color-bg-primary)",
         userSelect: "none",
         WebkitUserSelect: "none",
-        paddingLeft: isMac ? "78px" : "16px",
-        paddingRight: "12px",
+        paddingLeft: isMac ? "80px" : "16px",
+        paddingRight: "16px",
         position: "relative",
         zIndex: 100,
       }}
     >
-      {/* Left spacer */}
-      <div style={{ flex: 1 }} data-tauri-drag-region />
+      {/* Left - Navigation buttons */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          paddingLeft: "0px",
+          height: "100%",
+        }}
+      >
+        <NavigationButtons compact />
+      </div>
 
       {/* Center - Workspace picker */}
       <div
@@ -49,7 +60,13 @@ export function TitleBar({ currentWorkspacePath }: TitleBarProps) {
       </div>
 
       {/* Right section - Clock only */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+        }}
+      >
         <Clock />
 
         {/* Window controls - only show on Windows/Linux */}
