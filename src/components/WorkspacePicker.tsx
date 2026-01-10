@@ -17,7 +17,7 @@ import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useMantineColorScheme } from "@mantine/core";
 import { tauriAPI } from "../tauri-api";
 import { useSyncStore } from "../stores/syncStore";
-import { showNotification } from "../utils/toast";
+import { showToast, showNotification } from "../utils/toast";
 
 interface WorkspacePickerProps {
   currentWorkspacePath: string | null;
@@ -55,24 +55,22 @@ export function WorkspacePicker({
 
       setTimeout(() => {
         finishReindex();
-        showNotification({
-          title: "Re-index complete",
-          message: `Indexed ${result.pages} pages`,
+        showToast({
+          message: `Re-indexed ${result.pages} pages`,
           type: "success",
         });
 
         // Reload pages after a short delay
         setTimeout(() => {
           window.location.reload();
-        }, 500);
+        }, 1500);
       }, 200);
     } catch (error) {
       cancelReindex();
-      showNotification({
-        title: "Re-index failed",
-        message: error instanceof Error ? error.message : "Unknown error",
+      showToast({
+        message: "Re-index failed",
         type: "error",
-        duration: 5000,
+        duration: 2000,
       });
     }
   };
