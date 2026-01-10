@@ -428,6 +428,13 @@ impl WorkspaceSyncService {
             .ok_or("Invalid parent directory name")?;
 
         let potential_dir_note_path = parent_dir.join(format!("{}.md", parent_dir_name));
+
+        // Don't set parent if the potential parent is the file itself
+        // (e.g., Welcome/Welcome.md should not be a child of itself)
+        if potential_dir_note_path == path {
+            return Ok(None);
+        }
+
         let relative_dir_note_path = self.get_relative_path(&potential_dir_note_path)?;
 
         // Check if this directory note exists in DB
