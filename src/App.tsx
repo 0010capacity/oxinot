@@ -154,6 +154,11 @@ function AppContent({ workspacePath }: AppContentProps) {
   const initGit = useGitStore((state) => state.initGit);
   const checkGitStatus = useGitStore((state) => state.checkStatus);
   const gitCommit = useGitStore((state) => state.commit);
+  const gitPush = useGitStore((state) => state.push);
+  const gitPull = useGitStore((state) => state.pull);
+  const isPushing = useGitStore((state) => state.isPushing);
+  const isPulling = useGitStore((state) => state.isPulling);
+  const remoteUrl = useGitStore((state) => state.remoteUrl);
   const autoCommitEnabled = useGitStore((state) => state.autoCommitEnabled);
   const setAutoCommitEnabled = useGitStore(
     (state) => state.setAutoCommitEnabled,
@@ -163,6 +168,8 @@ function AppContent({ workspacePath }: AppContentProps) {
     (state) => state.setAutoCommitInterval,
   );
   const autoCommit = useGitStore((state) => state.autoCommit);
+
+  const [gitMenuOpen, setGitMenuOpen] = useState(false);
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
@@ -177,6 +184,26 @@ function AppContent({ workspacePath }: AppContentProps) {
       }
     } catch (error) {
       showToast({ message: "Commit failed", type: "error", duration: 2000 });
+    }
+  };
+
+  const handleGitPush = async () => {
+    if (!workspacePath || !remoteUrl) return;
+    try {
+      await gitPush(workspacePath);
+      showToast({ message: "Pushed to remote", type: "success" });
+    } catch (error) {
+      showToast({ message: "Push failed", type: "error", duration: 2000 });
+    }
+  };
+
+  const handleGitPull = async () => {
+    if (!workspacePath || !remoteUrl) return;
+    try {
+      await gitPull(workspacePath);
+      showToast({ message: "Pulled from remote", type: "success" });
+    } catch (error) {
+      showToast({ message: "Pull failed", type: "error", duration: 2000 });
     }
   };
 
@@ -562,32 +589,91 @@ function AppContent({ workspacePath }: AppContentProps) {
                 position: "fixed",
                 bottom: "12px",
                 right: "12px",
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                backgroundColor: hasGitChanges
-                  ? isDark
-                    ? "#ffd43b"
-                    : "#fab005"
-                  : isDark
-                    ? "#5c5f66"
-                    : "#adb5bd",
-                cursor: hasGitChanges ? "pointer" : "default",
-                opacity: hasGitChanges ? 1 : 0.4,
-                transition: "opacity 0.2s ease, background-color 0.2s ease",
-                zIndex: 50,
+                zIndex: 1000,
               }}
-              onClick={handleGitCommit}
-              onMouseEnter={(e) => {
-                if (hasGitChanges) {
-                  e.currentTarget.style.opacity = "0.7";
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = hasGitChanges ? "1" : "0.4";
-              }}
-              title={hasGitChanges ? "Click to commit changes" : "No changes"}
-            />
+              onMouseEnter={() => setGitMenuOpen(true)}
+              onMouseLeave={() => setGitMenuOpen(false)}
+            >
+              {/* Status Dot */}
+              <div
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  backgroundColor: hasGitChanges
+                    ? isDark
+                      ? "#ffd43b"
+                      : "#fab005"
+                    : isDark
+                      ? "#5c5f66"
+                      : "#adb5bd",
+                  cursor: "pointer",
+                  opacity: hasGitChanges ? 1 : 0.4,
+                  transition: "opacity 0.2s ease, background-color 0.2s ease",
+                }}
+                onClick={handleGitCommit}
+                title={hasGitChanges ? "Click to commit changes" : "No changes"}
+              />
+
+              {/* Hover Menu */}
+              {gitMenuOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "20px",
+                    right: "0",
+                    backgroundColor: isDark ? "#25262b" : "#ffffff",
+                    border: `1px solid ${isDark ? "#373A40" : "#DEE2E6"}`,
+                    borderRadius: "6px",
+                    padding: "8px",
+                    minWidth: "140px",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                  }}
+                >
+                  <Stack gap={4}>
+                    <Button
+                      size="xs"
+                      variant="subtle"
+                      fullWidth
+                      onClick={handleGitCommit}
+                      disabled={!hasGitChanges}
+                      style={{ justifyContent: "flex-start" }}
+                    >
+                      {hasGitChanges ? "Commit" : "No Changes"}
+                    </Button>
+                    {remoteUrl && (
+                      <>
+                        <Button
+                          size="xs"
+                          variant="subtle"
+                          fullWidth
+                          onClick={handleGitPush}
+                          disabled={isPushing}
+                          style={{ justifyContent: "flex-start" }}
+                        >
+                          {isPushing ? "Pushing..." : "Push"}
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="subtle"
+                          fullWidth
+                          onClick={handleGitPull}
+                          disabled={isPulling}
+                          style={{ justifyContent: "flex-start" }}
+                        >
+                          {isPulling ? "Pulling..." : "Pull"}
+                        </Button>
+                      </>
+                    )}
+                    {!remoteUrl && (
+                      <Text size="xs" c="dimmed" px={8} py={4}>
+                        No remote set
+                      </Text>
+                    )}
+                  </Stack>
+                </div>
+              )}
+            </div>
           )}
         </AppShell.Main>
       </AppShell>

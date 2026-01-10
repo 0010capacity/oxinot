@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import {
   Modal,
   Stack,
@@ -13,6 +14,7 @@ import {
   Badge,
   Slider,
   Alert,
+  Tooltip,
 } from "@mantine/core";
 import {
   IconPalette,
@@ -28,6 +30,9 @@ import {
   IconDownload,
   IconAlertTriangle,
   IconTrash,
+  IconSearch,
+  IconPlus,
+  IconX,
 } from "@tabler/icons-react";
 import { useThemeStore, type ColorVariant } from "../stores/themeStore";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
@@ -76,6 +81,10 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("appearance");
 
   // Advanced settings
   const autoUpdate = useAdvancedSettingsStore((state) => state.autoUpdate);
@@ -177,6 +186,14 @@ export function SettingsModal({
   const checkGitStatus = useGitStore((state) => state.checkGitStatus);
   const gitCommit = useGitStore((state) => state.gitCommit);
   const initGit = useGitStore((state) => state.initGit);
+  const remoteUrl = useGitStore((state) => state.remoteUrl);
+  const getRemoteUrl = useGitStore((state) => state.getRemoteUrl);
+  const setRemoteUrl = useGitStore((state) => state.setRemoteUrl);
+  const removeRemote = useGitStore((state) => state.removeRemote);
+
+  // Remote URL management state
+  const [remoteUrlInput, setRemoteUrlInput] = useState("");
+  const [isEditingRemote, setIsEditingRemote] = useState(false);
 
   const handleGitCommit = async () => {
     if (!workspacePath || !hasGitChanges) return;
@@ -186,6 +203,119 @@ export function SettingsModal({
     } catch (error) {
       console.error("Commit failed:", error);
     }
+  };
+
+  const handleSetRemoteUrl = async () => {
+    if (!workspacePath || !remoteUrlInput.trim()) return;
+    try {
+      await setRemoteUrl(workspacePath, remoteUrlInput.trim());
+      setIsEditingRemote(false);
+      setRemoteUrlInput("");
+    } catch (error) {
+      console.error("Failed to set remote URL:", error);
+    }
+  };
+
+  const handleRemoveRemote = async () => {
+    if (!workspacePath) return;
+    if (
+      window.confirm("Are you sure you want to remove the remote repository?")
+    ) {
+      try {
+        await removeRemote(workspacePath);
+      } catch (error) {
+        console.error("Failed to remove remote:", error);
+      }
+    }
+  };
+
+  // Load remote URL when opening settings
+  useState(() => {
+    if (workspacePath && isGitRepo) {
+      getRemoteUrl(workspacePath);
+    }
+  });
+
+  // Search functionality
+  const searchableContent = useMemo(() => {
+    return [
+      {
+        tab: "appearance",
+        keywords: ["font", "size", "typography", "line height", "editor"],
+      },
+      {
+        tab: "theme",
+        keywords: [
+          "color",
+          "variant",
+          "accent",
+          "blue",
+          "purple",
+          "green",
+          "amber",
+        ],
+      },
+      {
+        tab: "datetime",
+        keywords: [
+          "time",
+          "date",
+          "format",
+          "clock",
+          "12h",
+          "24h",
+          "separator",
+        ],
+      },
+      { tab: "daily", keywords: ["daily notes", "path", "folder"] },
+      {
+        tab: "homepage",
+        keywords: ["home", "start", "default", "index", "custom page"],
+      },
+      {
+        tab: "outliner",
+        keywords: ["indent", "guides", "blocks", "expand", "count"],
+      },
+      {
+        tab: "git",
+        keywords: [
+          "git",
+          "version",
+          "commit",
+          "repository",
+          "remote",
+          "push",
+          "pull",
+        ],
+      },
+      {
+        tab: "shortcuts",
+        keywords: ["keyboard", "hotkey", "shortcut", "keys"],
+      },
+      {
+        tab: "advanced",
+        keywords: ["update", "telemetry", "reset", "developer"],
+      },
+      { tab: "about", keywords: ["version", "changelog", "info", "beta"] },
+    ];
+  }, []);
+
+  const filteredTabs = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+
+    const query = searchQuery.toLowerCase();
+    return searchableContent
+      .filter(
+        (item) =>
+          item.keywords.some((keyword) => keyword.includes(query)) ||
+          item.tab.includes(query),
+      )
+      .map((item) => item.tab);
+  }, [searchQuery, searchableContent]);
+
+  const shouldShowTab = (tabValue: string) => {
+    if (!searchQuery.trim()) return true;
+    return filteredTabs?.includes(tabValue) ?? false;
   };
 
   return (
@@ -206,15 +336,44 @@ export function SettingsModal({
       styles={{
         body: {
           padding: 0,
-          height: "70vh",
-          maxHeight: "700px",
+          height: "75vh",
+          maxHeight: "750px",
         },
       }}
     >
+      {/* Search Bar */}
+      <div
+        style={{
+          padding: "16px 24px",
+          borderBottom: `1px solid ${isDark ? "#2C2E33" : "#DEE2E6"}`,
+        }}
+      >
+        <TextInput
+          placeholder="Search settings..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.currentTarget.value)}
+          leftSection={<IconSearch size={16} />}
+          rightSection={
+            searchQuery && (
+              <IconX
+                size={16}
+                style={{ cursor: "pointer" }}
+                onClick={() => setSearchQuery("")}
+              />
+            )
+          }
+        />
+        {searchQuery && filteredTabs && filteredTabs.length === 0 && (
+          <Text size="xs" c="dimmed" mt={8}>
+            No settings found for "{searchQuery}"
+          </Text>
+        )}
+      </div>
       <Tabs
-        defaultValue="appearance"
+        value={activeTab}
+        onChange={(value) => setActiveTab(value || "appearance")}
         orientation="vertical"
-        style={{ height: "100%" }}
+        style={{ height: "calc(100% - 70px)" }}
       >
         <Tabs.List
           style={{
@@ -225,39 +384,62 @@ export function SettingsModal({
             overflowY: "auto",
           }}
         >
-          <Tabs.Tab
-            value="appearance"
-            leftSection={<IconAppWindow size={16} />}
-          >
-            Appearance
-          </Tabs.Tab>
-          <Tabs.Tab value="theme" leftSection={<IconPalette size={16} />}>
-            Theme
-          </Tabs.Tab>
-          <Tabs.Tab value="datetime" leftSection={<IconClock size={16} />}>
-            Date & Time
-          </Tabs.Tab>
-          <Tabs.Tab value="daily" leftSection={<IconCalendar size={16} />}>
-            Daily Notes
-          </Tabs.Tab>
-          <Tabs.Tab value="homepage" leftSection={<IconHome size={16} />}>
-            Homepage
-          </Tabs.Tab>
-          <Tabs.Tab value="outliner" leftSection={<IconList size={16} />}>
-            Outliner
-          </Tabs.Tab>
-          <Tabs.Tab value="git" leftSection={<IconBrandGit size={16} />}>
-            Version Control
-          </Tabs.Tab>
-          <Tabs.Tab value="shortcuts" leftSection={<IconKeyboard size={16} />}>
-            Shortcuts
-          </Tabs.Tab>
-          <Tabs.Tab value="advanced" leftSection={<IconSettings size={16} />}>
-            Advanced
-          </Tabs.Tab>
-          <Tabs.Tab value="about" leftSection={<IconInfoCircle size={16} />}>
-            About
-          </Tabs.Tab>
+          {shouldShowTab("appearance") && (
+            <Tabs.Tab
+              value="appearance"
+              leftSection={<IconAppWindow size={16} />}
+            >
+              Appearance
+            </Tabs.Tab>
+          )}
+          {shouldShowTab("theme") && (
+            <Tabs.Tab value="theme" leftSection={<IconPalette size={16} />}>
+              Theme
+            </Tabs.Tab>
+          )}
+          {shouldShowTab("datetime") && (
+            <Tabs.Tab value="datetime" leftSection={<IconClock size={16} />}>
+              Date & Time
+            </Tabs.Tab>
+          )}
+          {shouldShowTab("daily") && (
+            <Tabs.Tab value="daily" leftSection={<IconCalendar size={16} />}>
+              Daily Notes
+            </Tabs.Tab>
+          )}
+          {shouldShowTab("homepage") && (
+            <Tabs.Tab value="homepage" leftSection={<IconHome size={16} />}>
+              Homepage
+            </Tabs.Tab>
+          )}
+          {shouldShowTab("outliner") && (
+            <Tabs.Tab value="outliner" leftSection={<IconList size={16} />}>
+              Outliner
+            </Tabs.Tab>
+          )}
+          {shouldShowTab("git") && (
+            <Tabs.Tab value="git" leftSection={<IconBrandGit size={16} />}>
+              Version Control
+            </Tabs.Tab>
+          )}
+          {shouldShowTab("shortcuts") && (
+            <Tabs.Tab
+              value="shortcuts"
+              leftSection={<IconKeyboard size={16} />}
+            >
+              Shortcuts
+            </Tabs.Tab>
+          )}
+          {shouldShowTab("advanced") && (
+            <Tabs.Tab value="advanced" leftSection={<IconSettings size={16} />}>
+              Advanced
+            </Tabs.Tab>
+          )}
+          {shouldShowTab("about") && (
+            <Tabs.Tab value="about" leftSection={<IconInfoCircle size={16} />}>
+              About
+            </Tabs.Tab>
+          )}
         </Tabs.List>
 
         <div
@@ -817,6 +999,90 @@ export function SettingsModal({
                               {autoCommitInterval !== 1 ? "s" : ""}
                             </Text>
                           </>
+                        )}
+                      </div>
+
+                      <div
+                        style={{
+                          padding: 16,
+                          borderRadius: 6,
+                          backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                          borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
+                        }}
+                      >
+                        <Text size="sm" fw={500} mb={8}>
+                          Remote Repository
+                        </Text>
+                        {remoteUrl ? (
+                          <Stack gap="xs">
+                            <Group gap="xs" align="flex-start">
+                              <Text
+                                size="sm"
+                                c="dimmed"
+                                style={{
+                                  fontFamily: "monospace",
+                                  flex: 1,
+                                  wordBreak: "break-all",
+                                }}
+                              >
+                                {remoteUrl}
+                              </Text>
+                              <Tooltip label="Remove remote">
+                                <Button
+                                  size="xs"
+                                  variant="subtle"
+                                  color="red"
+                                  onClick={handleRemoveRemote}
+                                >
+                                  <IconX size={14} />
+                                </Button>
+                              </Tooltip>
+                            </Group>
+                            <Text size="xs" c="dimmed">
+                              Push and pull buttons are available in the
+                              bottom-right corner
+                            </Text>
+                          </Stack>
+                        ) : isEditingRemote ? (
+                          <Stack gap="xs">
+                            <TextInput
+                              placeholder="https://github.com/user/repo.git"
+                              value={remoteUrlInput}
+                              onChange={(e) =>
+                                setRemoteUrlInput(e.currentTarget.value)
+                              }
+                              size="sm"
+                            />
+                            <Group gap="xs">
+                              <Button
+                                size="xs"
+                                variant="light"
+                                onClick={handleSetRemoteUrl}
+                                disabled={!remoteUrlInput.trim()}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                size="xs"
+                                variant="subtle"
+                                onClick={() => {
+                                  setIsEditingRemote(false);
+                                  setRemoteUrlInput("");
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </Group>
+                          </Stack>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="light"
+                            leftSection={<IconPlus size={16} />}
+                            onClick={() => setIsEditingRemote(true)}
+                          >
+                            Add Remote URL
+                          </Button>
                         )}
                       </div>
 
