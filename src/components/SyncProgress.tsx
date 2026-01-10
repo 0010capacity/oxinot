@@ -13,33 +13,32 @@ export function SyncProgress() {
     <Box
       style={{
         position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: "var(--mantine-color-dark-7)",
-        borderTop: "1px solid var(--mantine-color-dark-4)",
-        padding: "8px 16px",
+        bottom: 16,
+        left: "50%",
+        transform: "translateX(-50%)",
         zIndex: 1000,
+        width: "300px",
       }}
     >
-      <Group gap={12} justify="space-between">
-        <Group gap={8} style={{ flex: 1 }}>
-          <IconRefresh size={14} style={{ animation: "spin 1s linear infinite" }} />
-          <Text size="xs" c="dimmed">
-            {message || "Re-indexing workspace..."}
-          </Text>
-        </Group>
-        <Text size="xs" c="dimmed" style={{ minWidth: "40px", textAlign: "right" }}>
+      <Group gap={8} justify="center" mb={6}>
+        <IconRefresh
+          size={12}
+          style={{ animation: "spin 1s linear infinite" }}
+        />
+        <Text size="xs" c="dimmed">
+          {message || "Re-indexing..."}
+        </Text>
+        <Text size="xs" c="dimmed">
           {Math.round(progress)}%
         </Text>
       </Group>
       <Progress
         value={progress}
-        size="xs"
-        mt={4}
+        size={3}
+        radius="xl"
         styles={{
           root: {
-            backgroundColor: "var(--mantine-color-dark-6)",
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
           },
         }}
       />
