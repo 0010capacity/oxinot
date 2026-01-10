@@ -323,8 +323,11 @@ class BlockRefPreviewWidget extends WidgetType {
   }
 
   ignoreEvent() {
-    // Keep it read-only; navigation is handled by the click handler on .cm-block-ref.
-    return true;
+    // IMPORTANT:
+    // Returning `true` here causes CodeMirror to ignore DOM events that happen on this widget,
+    // which prevents the editor-level click handler (`createBlockRefClickHandler`) from firing.
+    // We want clicks to bubble so the app can zoom/navigate to the referenced block.
+    return false;
   }
 }
 

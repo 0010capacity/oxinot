@@ -211,10 +211,30 @@ export function sortDecorations(
   decorations: DecorationSpec[],
 ): DecorationSpec[] {
   return decorations.sort((a, b) => {
-    if (a.from !== b.from) {
-      return a.from - b.from;
-    }
-    return a.to - b.to;
+    // RangeSetBuilder requires ranges ordered by `from`, then by `startSide`.
+    // For identical `from`/`startSide`, order by `to` and then `endSide` to keep it stable/deterministic.
+    const aStartSide =
+      (a.decoration as any)?.startSide ??
+      (a.decoration as any)?.spec?.startSide ??
+      0;
+    const bStartSide =
+      (b.decoration as any)?.startSide ??
+      (b.decoration as any)?.spec?.startSide ??
+      0;
+
+    const aEndSide =
+      (a.decoration as any)?.endSide ??
+      (a.decoration as any)?.spec?.endSide ??
+      0;
+    const bEndSide =
+      (b.decoration as any)?.endSide ??
+      (b.decoration as any)?.spec?.endSide ??
+      0;
+
+    if (a.from !== b.from) return a.from - b.from;
+    if (aStartSide !== bStartSide) return aStartSide - bStartSide;
+    if (a.to !== b.to) return a.to - b.to;
+    return aEndSide - bEndSide;
   });
 }
 
