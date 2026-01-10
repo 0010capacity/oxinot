@@ -210,8 +210,24 @@ fn sync_page_to_markdown(
 
     // Write to file
     if let Some(path) = file_path {
-        let full_path = std::path::Path::new(workspace_path).join(path);
+        let full_path = std::path::Path::new(workspace_path).join(&path);
         std::fs::write(&full_path, markdown).map_err(|e| format!("Failed to write file: {}", e))?;
+
+        // Update page's mtime and size in DB to reflect the file change
+        if let Ok(metadata) = std::fs::metadata(&full_path) {
+            if let Ok(mtime) = metadata.modified() {
+                if let Ok(duration) = mtime.duration_since(std::time::UNIX_EPOCH) {
+                    let mtime_secs = duration.as_secs() as i64;
+                    let size = metadata.len() as i64;
+
+                    conn.execute(
+                        "UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?",
+                        rusqlite::params![mtime_secs, size, page_id],
+                    )
+                    .map_err(|e| format!("Failed to update page metadata: {}", e))?;
+                }
+            }
+        }
     }
 
     Ok(())
