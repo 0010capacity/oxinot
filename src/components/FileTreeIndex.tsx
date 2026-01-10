@@ -22,6 +22,8 @@ interface DragState {
   draggedPageId: string | null;
   dragOverPageId: string | null;
   startY: number;
+  mouseX: number;
+  mouseY: number;
 }
 
 // Create isolated drag context to prevent cascading re-renders
@@ -30,6 +32,8 @@ export const DragContext = createContext<DragState>({
   draggedPageId: null,
   dragOverPageId: null,
   startY: 0,
+  mouseX: 0,
+  mouseY: 0,
 });
 
 // Memoized PageTreeItem wrapper to prevent unnecessary re-renders
@@ -78,6 +82,8 @@ export function FileTreeIndex() {
     draggedPageId: null,
     dragOverPageId: null,
     startY: 0,
+    mouseX: 0,
+    mouseY: 0,
   });
   const draggedPageId = dragState.draggedPageId;
   const dragOverPageId = dragState.dragOverPageId;
@@ -104,6 +110,13 @@ export function FileTreeIndex() {
 
       // Prevent text selection while dragging
       e.preventDefault();
+
+      // Update mouse position
+      setDragState((prev) => ({
+        ...prev,
+        mouseX: e.clientX,
+        mouseY: e.clientY,
+      }));
 
       // Find element under cursor
       const elements = document.elementsFromPoint(e.clientX, e.clientY);
@@ -138,6 +151,8 @@ export function FileTreeIndex() {
         draggedPageId: null,
         dragOverPageId: null,
         startY: 0,
+        mouseX: 0,
+        mouseY: 0,
       });
 
       // Perform drop if valid
@@ -339,6 +354,8 @@ export function FileTreeIndex() {
       draggedPageId: pageId,
       dragOverPageId: null,
       startY: e.clientY,
+      mouseX: e.clientX,
+      mouseY: e.clientY,
     });
   }, []);
 
@@ -440,6 +457,29 @@ export function FileTreeIndex() {
       <ContentWrapper>
         {/* Workspace Title */}
         <PageHeader title={workspaceName} />
+
+        {/* Dragging Ghost */}
+        {dragState.isDragging && dragState.draggedPageId && (
+          <div
+            style={{
+              position: "fixed",
+              left: dragState.mouseX + 10,
+              top: dragState.mouseY + 10,
+              zIndex: 10000,
+              pointerEvents: "none",
+              backgroundColor: "var(--mantine-color-dark-6)",
+              border: "1px solid var(--mantine-color-dark-4)",
+              borderRadius: "var(--radius-sm)",
+              padding: "8px 12px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+              opacity: 0.9,
+            }}
+          >
+            <Text size="sm" fw={500}>
+              {pages.find((p) => p.id === dragState.draggedPageId)?.title || ""}
+            </Text>
+          </div>
+        )}
 
         <Stack gap={0} style={{ position: "relative" }}>
           {/* Root Drop Zone */}
