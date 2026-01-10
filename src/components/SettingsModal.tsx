@@ -207,11 +207,9 @@ export function SettingsModal({
           <Tabs.Tab value="outliner" leftSection={<IconList size={16} />}>
             Outliner
           </Tabs.Tab>
-          {isGitRepo && (
-            <Tabs.Tab value="git" leftSection={<IconBrandGit size={16} />}>
-              Version Control
-            </Tabs.Tab>
-          )}
+          <Tabs.Tab value="git" leftSection={<IconBrandGit size={16} />}>
+            Version Control
+          </Tabs.Tab>
           <Tabs.Tab value="shortcuts" leftSection={<IconKeyboard size={16} />}>
             Shortcuts
           </Tabs.Tab>
@@ -614,149 +612,146 @@ export function SettingsModal({
           </Tabs.Panel>
 
           {/* Git Tab */}
-          {isGitRepo && (
-            <Tabs.Panel value="git">
-              <Stack gap="xl">
-                <div>
-                  <Text size="xl" fw={600} mb="lg">
-                    Version Control
-                  </Text>
-                  <Text size="sm" c="dimmed" mb="xl">
-                    Git-based version control for your workspace
-                  </Text>
+          <Tabs.Panel value="git">
+            <Stack gap="xl">
+              <div>
+                <Text size="xl" fw={600} mb="lg">
+                  Version Control
+                </Text>
+                <Text size="sm" c="dimmed" mb="xl">
+                  Git-based version control for your workspace
+                </Text>
 
-                  <Stack gap="lg">
-                    <Alert
-                      icon={<IconInfoCircle size={16} />}
-                      color="blue"
-                      variant="light"
-                    >
-                      Your workspace is a Git repository. All changes are
-                      tracked locally and can be synced to remote repositories.
-                    </Alert>
+                <Stack gap="lg">
+                  <Alert
+                    icon={<IconInfoCircle size={16} />}
+                    color="blue"
+                    variant="light"
+                  >
+                    Your workspace is a Git repository. All changes are tracked
+                    locally and can be synced to remote repositories.
+                  </Alert>
 
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        Repository Location
-                      </Text>
-                      <Text
-                        size="sm"
-                        c="dimmed"
-                        style={{
-                          fontFamily: "monospace",
-                          backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                          padding: "8px 12px",
-                          borderRadius: "4px",
-                          wordBreak: "break-all",
-                        }}
-                      >
-                        {workspacePath}
-                      </Text>
-                    </div>
-
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        Current Status
-                      </Text>
-                      <Group gap="xs" mb={8}>
-                        <Button
-                          size="sm"
-                          variant="light"
-                          color={hasGitChanges ? "yellow" : "gray"}
-                          onClick={handleGitCommit}
-                          disabled={!hasGitChanges}
-                        >
-                          {hasGitChanges ? "Commit Changes" : "No Changes"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="subtle"
-                          onClick={() =>
-                            workspacePath && checkGitStatus(workspacePath)
-                          }
-                        >
-                          Refresh
-                        </Button>
-                      </Group>
-                      <Text size="xs" c={hasGitChanges ? "yellow" : "dimmed"}>
-                        {hasGitChanges
-                          ? "⚠️ You have uncommitted changes"
-                          : "✓ All changes committed"}
-                      </Text>
-                    </div>
-
-                    <div
+                  <div>
+                    <Text size="sm" fw={500} mb={8}>
+                      Repository Location
+                    </Text>
+                    <Text
+                      size="sm"
+                      c="dimmed"
                       style={{
-                        padding: 16,
-                        borderRadius: 6,
+                        fontFamily: "monospace",
                         backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                        borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
+                        padding: "8px 12px",
+                        borderRadius: "4px",
+                        wordBreak: "break-all",
                       }}
                     >
-                      <Text size="sm" fw={500} mb={8}>
-                        Auto-commit
-                      </Text>
-                      <Switch
-                        label="Enable auto-commit"
-                        description="Automatically commit changes at regular intervals"
-                        checked={autoCommitEnabled}
-                        onChange={(event) =>
-                          setAutoCommitEnabled(event.currentTarget.checked)
+                      {workspacePath}
+                    </Text>
+                  </div>
+
+                  <div>
+                    <Text size="sm" fw={500} mb={8}>
+                      Current Status
+                    </Text>
+                    <Group gap="xs" mb={8}>
+                      <Button
+                        size="sm"
+                        variant="light"
+                        color={hasGitChanges ? "yellow" : "gray"}
+                        onClick={handleGitCommit}
+                        disabled={!hasGitChanges}
+                      >
+                        {hasGitChanges ? "Commit Changes" : "No Changes"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        onClick={() =>
+                          workspacePath && checkGitStatus(workspacePath)
                         }
-                        mb={autoCommitEnabled ? 12 : 0}
-                      />
+                      >
+                        Refresh
+                      </Button>
+                    </Group>
+                    <Text size="xs" c={hasGitChanges ? "yellow" : "dimmed"}>
+                      {hasGitChanges
+                        ? "⚠️ You have uncommitted changes"
+                        : "✓ All changes committed"}
+                    </Text>
+                  </div>
 
-                      {autoCommitEnabled && (
-                        <>
-                          <Text size="sm" fw={500} mb={8}>
-                            Commit Interval
-                          </Text>
-                          <NumberInput
-                            value={autoCommitInterval}
-                            onChange={(value) =>
-                              setAutoCommitInterval(
-                                typeof value === "number" ? value : 5,
-                              )
-                            }
-                            min={1}
-                            max={60}
-                            step={1}
-                            suffix=" min"
-                          />
-                          <Text size="xs" c="dimmed" mt={8}>
-                            Automatic commits occur every {autoCommitInterval}{" "}
-                            minute
-                            {autoCommitInterval !== 1 ? "s" : ""}
-                          </Text>
-                        </>
-                      )}
-                    </div>
+                  <div
+                    style={{
+                      padding: 16,
+                      borderRadius: 6,
+                      backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                      borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
+                    }}
+                  >
+                    <Text size="sm" fw={500} mb={8}>
+                      Auto-commit
+                    </Text>
+                    <Switch
+                      label="Enable auto-commit"
+                      description="Automatically commit changes at regular intervals"
+                      checked={autoCommitEnabled}
+                      onChange={(event) =>
+                        setAutoCommitEnabled(event.currentTarget.checked)
+                      }
+                      mb={autoCommitEnabled ? 12 : 0}
+                    />
 
-                    <Alert
-                      icon={<IconInfoCircle size={16} />}
-                      color="grape"
-                      variant="light"
-                    >
-                      <Text size="sm" fw={500} mb={4}>
-                        Tip: Using Git with Oxinot
-                      </Text>
-                      <Text size="xs">
-                        • All markdown files and changes are tracked
-                        automatically
-                        <br />
-                        • Use auto-commit for continuous backup
-                        <br />
-                        • Push to remote repositories (GitHub, GitLab, etc.) for
-                        cloud backup
-                        <br />• Click the yellow dot in bottom-right corner for
-                        quick commits
-                      </Text>
-                    </Alert>
-                  </Stack>
-                </div>
-              </Stack>
-            </Tabs.Panel>
-          )}
+                    {autoCommitEnabled && (
+                      <>
+                        <Text size="sm" fw={500} mb={8}>
+                          Commit Interval
+                        </Text>
+                        <NumberInput
+                          value={autoCommitInterval}
+                          onChange={(value) =>
+                            setAutoCommitInterval(
+                              typeof value === "number" ? value : 5,
+                            )
+                          }
+                          min={1}
+                          max={60}
+                          step={1}
+                          suffix=" min"
+                        />
+                        <Text size="xs" c="dimmed" mt={8}>
+                          Automatic commits occur every {autoCommitInterval}{" "}
+                          minute
+                          {autoCommitInterval !== 1 ? "s" : ""}
+                        </Text>
+                      </>
+                    )}
+                  </div>
+
+                  <Alert
+                    icon={<IconInfoCircle size={16} />}
+                    color="grape"
+                    variant="light"
+                  >
+                    <Text size="sm" fw={500} mb={4}>
+                      Tip: Using Git with Oxinot
+                    </Text>
+                    <Text size="xs">
+                      • All markdown files and changes are tracked automatically
+                      <br />
+                      • Use auto-commit for continuous backup
+                      <br />
+                      • Push to remote repositories (GitHub, GitLab, etc.) for
+                      cloud backup
+                      <br />• Click the yellow dot in bottom-right corner for
+                      quick commits
+                    </Text>
+                  </Alert>
+                </Stack>
+              </div>
+            </Stack>
+          </Tabs.Panel>
 
           {/* Shortcuts Tab */}
           <Tabs.Panel value="shortcuts">
