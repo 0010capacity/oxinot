@@ -23,7 +23,11 @@ export function PageContainer({
         height: "100%",
         padding: "var(--layout-container-padding)",
         backgroundColor: "var(--color-bg-primary)",
-        overflowY: "auto",
+
+        // Scrolling should be owned by the app's main panel, not each page container.
+        // Nested scroll containers can cause blanking/paint issues while scrolling.
+        overflowY: "visible",
+
         ...style,
       }}
     >

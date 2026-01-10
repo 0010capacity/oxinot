@@ -474,7 +474,7 @@ function AppContent({ workspacePath }: AppContentProps) {
         padding={0}
         styles={{
           main: {
-            backgroundColor: isDark ? "#1a1b1e" : "#ffffff",
+            backgroundColor: "var(--color-bg-primary)",
             height: "100vh",
             display: "flex",
             flexDirection: "column",
@@ -496,7 +496,7 @@ function AppContent({ workspacePath }: AppContentProps) {
           />
 
           {/* Main Content Panel */}
-          <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
             {!dbInitialized ? (
               <Container size="sm" py="xl" mt={50}>
                 <Text ta="center" c="dimmed">
@@ -506,19 +506,17 @@ function AppContent({ workspacePath }: AppContentProps) {
             ) : viewMode === "index" ? (
               <FileTreeIndex />
             ) : currentPageId ? (
-              <div style={{ flex: 1, minHeight: 0 }}>
-                <BlockEditor
-                  pageId={currentPageId}
-                  workspaceName={workspaceName}
-                  pageName={
-                    breadcrumb.length > 0 &&
-                    breadcrumb[breadcrumb.length - 1] !== workspaceName
-                      ? breadcrumb[breadcrumb.length - 1]
-                      : undefined
-                  }
-                  onNavigateHome={showIndex}
-                />
-              </div>
+              <BlockEditor
+                pageId={currentPageId}
+                workspaceName={workspaceName}
+                pageName={
+                  breadcrumb.length > 0 &&
+                  breadcrumb[breadcrumb.length - 1] !== workspaceName
+                    ? breadcrumb[breadcrumb.length - 1]
+                    : undefined
+                }
+                onNavigateHome={showIndex}
+              />
             ) : (
               <Container size="sm" py="xl" mt={50}>
                 <Text ta="center" c="dimmed">
