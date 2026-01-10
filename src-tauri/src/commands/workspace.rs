@@ -1,12 +1,13 @@
 use crate::models::block::BlockType;
 use crate::services::markdown_to_blocks;
-use crate::services::WorkspaceSyncService;
+// (removed) WorkspaceSyncService import: sync/reindex paths are unified on filesystem-driven `sync_workspace`
 use chrono::Utc;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -498,10 +499,13 @@ fn sync_directory(
         a_name.cmp(&b_name)
     });
 
+    // Skip .md-outliner directory and separate files/dirs up-front
+    let mut file_entries: Vec<std::fs::DirEntry> = Vec::new();
+    let mut dir_entries: Vec<std::fs::DirEntry> = Vec::new();
+
     for entry in items {
         let path = entry.path();
 
-        // Skip .md-outliner directory
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
             if name == ".md-outliner" {
                 continue;
@@ -512,59 +516,96 @@ fn sync_directory(
             .metadata()
             .map_err(|e| format!("Error reading metadata: {}", e))?;
 
-        if metadata.is_file() {
-            if let Some(ext) = path.extension() {
-                if ext == "md" {
-                    let file_path_str = path.to_string_lossy().to_string();
-                    println!("[sync_directory] Found markdown file: {}", file_path_str);
-                    found_files.insert(file_path_str.clone());
+        if metadata.is_dir() {
+            dir_entries.push(entry);
+        } else if metadata.is_file() {
+            file_entries.push(entry);
+        }
+    }
 
-                    sync_or_create_file(
-                        conn,
-                        workspace_root,
-                        &path,
-                        parent_page_id,
-                        false,
-                        existing_pages,
-                        synced_pages,
-                        synced_blocks,
-                    )?;
-                }
-            }
-        } else if metadata.is_dir() {
-            let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            let folder_note_path = path.join(format!("{}.md", dir_name));
+    // (1) Process subdirectories first so we can create directory pages (Dir/Dir.md)
+    // and pass the correct parent_id when indexing their contents.
+    for entry in dir_entries {
+        let path = entry.path();
+        let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        let folder_note_path = path.join(format!("{}.md", dir_name));
 
-            let page_id = if folder_note_path.exists() {
-                let file_path_str = folder_note_path.to_string_lossy().to_string();
-                found_files.insert(file_path_str.clone());
+        let page_id = if folder_note_path.exists() {
+            let file_path_str = folder_note_path.to_string_lossy().to_string();
+            found_files.insert(file_path_str.clone());
 
-                let id = sync_or_create_file(
-                    conn,
-                    workspace_root,
-                    &folder_note_path,
-                    parent_page_id,
-                    true,
-                    existing_pages,
-                    synced_pages,
-                    synced_blocks,
-                )?;
-                Some(id)
-            } else {
-                None
-            };
-
-            sync_directory(
+            let id = sync_or_create_file(
                 conn,
                 workspace_root,
-                &path,
-                page_id.as_deref().or(parent_page_id),
+                &folder_note_path,
+                parent_page_id,
+                true,
                 existing_pages,
-                found_files,
                 synced_pages,
                 synced_blocks,
             )?;
+            Some(id)
+        } else {
+            None
+        };
+
+        sync_directory(
+            conn,
+            workspace_root,
+            &path,
+            page_id.as_deref().or(parent_page_id),
+            existing_pages,
+            found_files,
+            synced_pages,
+            synced_blocks,
+        )?;
+    }
+
+    // (2) Process regular markdown files in the current directory.
+    // IMPORTANT: never index "directory note" files (Dir/Dir.md) as regular pages.
+    for entry in file_entries {
+        let path = entry.path();
+
+        if let Some(ext) = path.extension() {
+            if ext != "md" {
+                continue;
+            }
+        } else {
+            continue;
         }
+
+        let is_dir_note = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .zip(path.file_stem().and_then(|s| s.to_str()))
+            .map(|(parent_name, stem)| parent_name == stem)
+            .unwrap_or(false);
+
+        if is_dir_note {
+            let file_path_str = path.to_string_lossy().to_string();
+            println!(
+                "[sync_directory] Skipping directory-note markdown file: {}",
+                file_path_str
+            );
+            found_files.insert(file_path_str);
+            continue;
+        }
+
+        let file_path_str = path.to_string_lossy().to_string();
+        println!("[sync_directory] Found markdown file: {}", file_path_str);
+        found_files.insert(file_path_str.clone());
+
+        sync_or_create_file(
+            conn,
+            workspace_root,
+            &path,
+            parent_page_id,
+            false,
+            existing_pages,
+            synced_pages,
+            synced_blocks,
+        )?;
     }
 
     Ok(())
@@ -587,16 +628,76 @@ fn sync_or_create_file(
         .and_then(|s| s.to_str())
         .unwrap_or("Untitled");
 
+    // Read filesystem metadata for incremental detection (mtime + size)
+    let metadata = fs::metadata(file_path).map_err(|e| e.to_string())?;
+    let size = metadata.len() as i64;
+
+    let mtime = metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64);
+
     // Check if page already exists in DB
     if let Some(page_id) = existing_pages.get(&file_path_str) {
         println!("Page already exists in DB: {} -> {}", file_name, page_id);
 
-        // Update parent_id and is_directory if needed
+        // Determine if blocks need reindex
+        let (db_mtime, db_size): (Option<i64>, Option<i64>) = conn
+            .query_row(
+                "SELECT file_mtime, file_size FROM pages WHERE id = ?",
+                [page_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|e| e.to_string())?;
+
+        let needs_reindex = db_mtime != mtime || db_size != Some(size);
+
+        // Always keep hierarchy metadata in sync
         conn.execute(
-            "UPDATE pages SET parent_id = ?, is_directory = ? WHERE id = ?",
-            params![parent_page_id, if is_directory { 1 } else { 0 }, page_id],
+            "UPDATE pages SET parent_id = ?, is_directory = ?, file_mtime = ?, file_size = ?, updated_at = ? WHERE id = ?",
+            params![
+                parent_page_id,
+                if is_directory { 1 } else { 0 },
+                mtime,
+                size,
+                Utc::now().to_rfc3339(),
+                page_id
+            ],
         )
         .map_err(|e| e.to_string())?;
+
+        if needs_reindex {
+            // Reindex blocks
+            let content = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
+
+            conn.execute("DELETE FROM blocks WHERE page_id = ?", [page_id])
+                .map_err(|e| e.to_string())?;
+
+            let blocks = markdown_to_blocks(&content, page_id);
+
+            for block in &blocks {
+                conn.execute(
+                    "INSERT INTO blocks (id, page_id, parent_id, content, order_weight,
+                                        block_type, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    params![
+                        &block.id,
+                        &block.page_id,
+                        &block.parent_id,
+                        &block.content,
+                        block.order_weight,
+                        block_type_to_string(&block.block_type),
+                        &block.created_at,
+                        &block.updated_at
+                    ],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+
+            *synced_pages += 1;
+            *synced_blocks += blocks.len();
+        }
 
         return Ok(page_id.clone());
     }
@@ -608,14 +709,16 @@ fn sync_or_create_file(
     let now = Utc::now().to_rfc3339();
 
     conn.execute(
-        "INSERT INTO pages (id, title, parent_id, file_path, is_directory, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO pages (id, title, parent_id, file_path, is_directory, file_mtime, file_size, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         params![
             &page_id,
             file_name,
             parent_page_id,
             &file_path_str,
             if is_directory { 1 } else { 0 },
+            mtime,
+            size,
             &now,
             &now
         ],
@@ -635,7 +738,7 @@ fn sync_or_create_file(
                 &block.page_id,
                 &block.parent_id,
                 &block.content,
-                block.order_weight,
+                &block.order_weight,
                 block_type_to_string(&block.block_type),
                 &block.created_at,
                 &block.updated_at
@@ -650,31 +753,37 @@ fn sync_or_create_file(
     Ok(page_id)
 }
 
-/// Incremental sync: only reindex files that changed (based on mtime + size)
+/// Incremental sync: currently unified to use the filesystem-driven sync engine
+/// for consistent directory-note semantics (Dir/Dir.md is the directory page's content source).
+///
+/// NOTE:
+/// This preserves behavior correctness, but it's not "incremental" yet. Follow-up work:
+/// - Track per-file mtime/size and only reindex changed pages
+/// - Or move incremental detection into the filesystem-driven engine
 #[tauri::command]
 pub async fn sync_workspace_incremental(workspace_path: String) -> Result<MigrationResult, String> {
-    let conn = open_workspace_db(&workspace_path)?;
-
+    // Unify on the canonical filesystem-driven sync to ensure:
+    // - Dir/Dir.md is never treated as a separate page node
+    // - parent_id relationships are derived from directory structure consistently
     println!(
-        "[sync_workspace_incremental] Starting incremental sync for: {}",
+        "[sync_workspace_incremental] Running unified filesystem-driven sync for: {}",
         workspace_path
     );
 
-    let sync_service = WorkspaceSyncService::new(&workspace_path);
-    let stats = sync_service.sync(&conn)?;
-
-    println!(
-        "[sync_workspace_incremental] Complete: {} added, {} updated, {} deleted, {} unchanged",
-        stats.added, stats.updated, stats.deleted, stats.unchanged
-    );
-
-    Ok(MigrationResult {
-        pages: stats.added + stats.updated,
-        blocks: 0, // We don't track individual blocks in stats
-    })
+    // Reuse the same engine as full sync (no DB wipe here).
+    sync_workspace(workspace_path).await
 }
 
 /// Full reindex: delete all and rebuild from files
+///
+/// IMPORTANT:
+/// This project has two different sync implementations:
+/// - `sync_workspace` (filesystem-driven, handles directory-note semantics)
+/// - `WorkspaceSyncService::reindex_full` (md-walkdir based)
+///
+/// To avoid duplicate "directory note" pages (Dir/Dir.md appearing as its own page),
+/// full reindex should use the filesystem-driven sync, which treats Dir/Dir.md
+/// as the content source for the directory page (Notion-like).
 #[tauri::command]
 pub async fn reindex_workspace(workspace_path: String) -> Result<MigrationResult, String> {
     let conn = open_workspace_db(&workspace_path)?;
@@ -684,12 +793,19 @@ pub async fn reindex_workspace(workspace_path: String) -> Result<MigrationResult
         workspace_path
     );
 
-    let sync_service = WorkspaceSyncService::new(&workspace_path);
-    let stats = sync_service.reindex_full(&conn)?;
+    // Full wipe
+    conn.execute("DELETE FROM blocks", [])
+        .map_err(|e| format!("Failed to delete blocks: {}", e))?;
+    conn.execute("DELETE FROM pages", [])
+        .map_err(|e| format!("Failed to delete pages: {}", e))?;
+
+    // Rebuild from filesystem using the canonical, filesystem-driven sync.
+    // This ensures directory-notes (Dir/Dir.md) do not become duplicate pages.
+    let result = sync_workspace(workspace_path.clone()).await?;
 
     println!(
         "[reindex_workspace] Complete: {} pages indexed",
-        stats.added
+        result.pages
     );
 
     // Run VACUUM to optimize database
@@ -701,8 +817,5 @@ pub async fn reindex_workspace(workspace_path: String) -> Result<MigrationResult
 
     println!("[reindex_workspace] Database optimized");
 
-    Ok(MigrationResult {
-        pages: stats.added,
-        blocks: 0,
-    })
+    Ok(result)
 }
