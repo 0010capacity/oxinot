@@ -741,7 +741,7 @@ export function SettingsModal({
 
                 <Stack gap="lg">
                   {matchesSearch("Homepage Type start default") && (
-                  <div>
+                    <div>
                     <Text size="sm" fw={500} mb={8}>
                       Homepage Type
                     </Text>
@@ -762,7 +762,8 @@ export function SettingsModal({
                     <Text size="xs" c="dimmed" mt={4}>
                       Choose what to show when opening the app
                     </Text>
-                  </div>
+                    </div>
+                  )}
 
                   {homepageType === "custom-page" && (
                     <div>
