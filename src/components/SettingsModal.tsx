@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Modal,
   Stack,
@@ -27,6 +26,8 @@ import {
   IconKeyboard,
   IconSettings,
   IconDownload,
+  IconAlertTriangle,
+  IconTrash,
 } from "@tabler/icons-react";
 import { useThemeStore, type ColorVariant } from "../stores/themeStore";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
@@ -38,6 +39,7 @@ import {
 } from "../stores/clockFormatStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import { useGitStore } from "../stores/gitStore";
+import { useAdvancedSettingsStore } from "../stores/advancedSettingsStore";
 import { useColorScheme } from "@mantine/hooks";
 
 const FONT_OPTIONS = [
@@ -75,11 +77,30 @@ export function SettingsModal({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // Advanced settings (local state for now)
-  const [autoUpdate, setAutoUpdate] = useState(true);
-  const [checkUpdatesOnStartup, setCheckUpdatesOnStartup] = useState(true);
-  const [betaUpdates, setBetaUpdates] = useState(false);
-  const [telemetryEnabled, setTelemetryEnabled] = useState(false);
+  // Advanced settings
+  const autoUpdate = useAdvancedSettingsStore((state) => state.autoUpdate);
+  const setAutoUpdate = useAdvancedSettingsStore(
+    (state) => state.setAutoUpdate,
+  );
+  const checkUpdatesOnStartup = useAdvancedSettingsStore(
+    (state) => state.checkUpdatesOnStartup,
+  );
+  const setCheckUpdatesOnStartup = useAdvancedSettingsStore(
+    (state) => state.setCheckUpdatesOnStartup,
+  );
+  const betaUpdates = useAdvancedSettingsStore((state) => state.betaUpdates);
+  const setBetaUpdates = useAdvancedSettingsStore(
+    (state) => state.setBetaUpdates,
+  );
+  const telemetryEnabled = useAdvancedSettingsStore(
+    (state) => state.telemetryEnabled,
+  );
+  const setTelemetryEnabled = useAdvancedSettingsStore(
+    (state) => state.setTelemetryEnabled,
+  );
+  const resetAllSettings = useAdvancedSettingsStore(
+    (state) => state.resetAllSettings,
+  );
 
   // Theme
   const colorVariant = useThemeStore((state) => state.colorVariant);
@@ -155,6 +176,7 @@ export function SettingsModal({
   );
   const checkGitStatus = useGitStore((state) => state.checkGitStatus);
   const gitCommit = useGitStore((state) => state.gitCommit);
+  const initGit = useGitStore((state) => state.initGit);
 
   const handleGitCommit = async () => {
     if (!workspacePath || !hasGitChanges) return;
@@ -643,131 +665,183 @@ export function SettingsModal({
                 </Text>
 
                 <Stack gap="lg">
-                  <Alert
-                    icon={<IconInfoCircle size={16} />}
-                    color="blue"
-                    variant="light"
-                  >
-                    Your workspace is a Git repository. All changes are tracked
-                    locally and can be synced to remote repositories.
-                  </Alert>
-
-                  <div>
-                    <Text size="sm" fw={500} mb={8}>
-                      Repository Location
-                    </Text>
-                    <Text
-                      size="sm"
-                      c="dimmed"
-                      style={{
-                        fontFamily: "monospace",
-                        backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                        padding: "8px 12px",
-                        borderRadius: "4px",
-                        wordBreak: "break-all",
-                      }}
-                    >
-                      {workspacePath}
-                    </Text>
-                  </div>
-
-                  <div>
-                    <Text size="sm" fw={500} mb={8}>
-                      Current Status
-                    </Text>
-                    <Group gap="xs" mb={8}>
-                      <Button
-                        size="sm"
+                  {!isGitRepo ? (
+                    <>
+                      <Alert
+                        icon={<IconAlertTriangle size={16} />}
+                        color="yellow"
                         variant="light"
-                        color={hasGitChanges ? "yellow" : "gray"}
-                        onClick={handleGitCommit}
-                        disabled={!hasGitChanges}
                       >
-                        {hasGitChanges ? "Commit Changes" : "No Changes"}
-                      </Button>
+                        <Text size="sm" fw={500} mb={4}>
+                          Git Not Initialized
+                        </Text>
+                        <Text size="sm">
+                          This workspace is not a Git repository yet. Initialize
+                          Git to enable version control and automatic backups.
+                        </Text>
+                      </Alert>
+
                       <Button
-                        size="sm"
-                        variant="subtle"
-                        onClick={() =>
-                          workspacePath && checkGitStatus(workspacePath)
-                        }
+                        leftSection={<IconBrandGit size={16} />}
+                        onClick={() => workspacePath && initGit(workspacePath)}
+                        variant="filled"
+                        color="blue"
                       >
-                        Refresh
+                        Initialize Git Repository
                       </Button>
-                    </Group>
-                    <Text size="xs" c={hasGitChanges ? "yellow" : "dimmed"}>
-                      {hasGitChanges
-                        ? "⚠️ You have uncommitted changes"
-                        : "✓ All changes committed"}
-                    </Text>
-                  </div>
 
-                  <div
-                    style={{
-                      padding: 16,
-                      borderRadius: 6,
-                      backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                      borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
-                    }}
-                  >
-                    <Text size="sm" fw={500} mb={8}>
-                      Auto-commit
-                    </Text>
-                    <Switch
-                      label="Enable auto-commit"
-                      description="Automatically commit changes at regular intervals"
-                      checked={autoCommitEnabled}
-                      onChange={(event) =>
-                        setAutoCommitEnabled(event.currentTarget.checked)
-                      }
-                      mb={autoCommitEnabled ? 12 : 0}
-                    />
-
-                    {autoCommitEnabled && (
-                      <>
+                      <div
+                        style={{
+                          padding: 16,
+                          borderRadius: 6,
+                          backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                        }}
+                      >
                         <Text size="sm" fw={500} mb={8}>
-                          Commit Interval
+                          Why Use Git?
                         </Text>
-                        <NumberInput
-                          value={autoCommitInterval}
-                          onChange={(value) =>
-                            setAutoCommitInterval(
-                              typeof value === "number" ? value : 5,
-                            )
-                          }
-                          min={1}
-                          max={60}
-                          step={1}
-                          suffix=" min"
-                        />
-                        <Text size="xs" c="dimmed" mt={8}>
-                          Automatic commits occur every {autoCommitInterval}{" "}
-                          minute
-                          {autoCommitInterval !== 1 ? "s" : ""}
+                        <Text size="sm" c="dimmed">
+                          • Track all changes to your notes
+                          <br />
+                          • Never lose work - full history available
+                          <br />
+                          • Sync across devices with remote repositories
+                          <br />• Collaborate with others using GitHub, GitLab,
+                          etc.
                         </Text>
-                      </>
-                    )}
-                  </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Alert
+                        icon={<IconInfoCircle size={16} />}
+                        color="blue"
+                        variant="light"
+                      >
+                        Your workspace is a Git repository. All changes are
+                        tracked locally and can be synced to remote
+                        repositories.
+                      </Alert>
 
-                  <Alert
-                    icon={<IconInfoCircle size={16} />}
-                    color="grape"
-                    variant="light"
-                  >
-                    <Text size="sm" fw={500} mb={4}>
-                      Tip: Using Git with Oxinot
-                    </Text>
-                    <Text size="xs">
-                      • All markdown files and changes are tracked automatically
-                      <br />
-                      • Use auto-commit for continuous backup
-                      <br />
-                      • Push to remote repositories (GitHub, GitLab, etc.) for
-                      cloud backup
-                      <br />• Click the yellow dot in bottom-right corner for
-                      quick commits
-                    </Text>
-                  </Alert>
+                      <div>
+                        <Text size="sm" fw={500} mb={8}>
+                          Repository Location
+                        </Text>
+                        <Text
+                          size="sm"
+                          c="dimmed"
+                          style={{
+                            fontFamily: "monospace",
+                            backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                            padding: "8px 12px",
+                            borderRadius: "4px",
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          {workspacePath}
+                        </Text>
+                      </div>
+
+                      <div>
+                        <Text size="sm" fw={500} mb={8}>
+                          Current Status
+                        </Text>
+                        <Group gap="xs" mb={8}>
+                          <Button
+                            size="sm"
+                            variant="light"
+                            color={hasGitChanges ? "yellow" : "gray"}
+                            onClick={handleGitCommit}
+                            disabled={!hasGitChanges}
+                          >
+                            {hasGitChanges ? "Commit Changes" : "No Changes"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="subtle"
+                            onClick={() =>
+                              workspacePath && checkGitStatus(workspacePath)
+                            }
+                          >
+                            Refresh
+                          </Button>
+                        </Group>
+                        <Text size="xs" c={hasGitChanges ? "yellow" : "dimmed"}>
+                          {hasGitChanges
+                            ? "⚠️ You have uncommitted changes"
+                            : "✓ All changes committed"}
+                        </Text>
+                      </div>
+
+                      <div
+                        style={{
+                          padding: 16,
+                          borderRadius: 6,
+                          backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                          borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
+                        }}
+                      >
+                        <Text size="sm" fw={500} mb={8}>
+                          Auto-commit
+                        </Text>
+                        <Switch
+                          label="Enable auto-commit"
+                          description="Automatically commit changes at regular intervals"
+                          checked={autoCommitEnabled}
+                          onChange={(event) =>
+                            setAutoCommitEnabled(event.currentTarget.checked)
+                          }
+                          mb={autoCommitEnabled ? 12 : 0}
+                        />
+
+                        {autoCommitEnabled && (
+                          <>
+                            <Text size="sm" fw={500} mb={8}>
+                              Commit Interval
+                            </Text>
+                            <NumberInput
+                              value={autoCommitInterval}
+                              onChange={(value) =>
+                                setAutoCommitInterval(
+                                  typeof value === "number" ? value : 5,
+                                )
+                              }
+                              min={1}
+                              max={60}
+                              step={1}
+                              suffix=" min"
+                            />
+                            <Text size="xs" c="dimmed" mt={8}>
+                              Automatic commits occur every {autoCommitInterval}{" "}
+                              minute
+                              {autoCommitInterval !== 1 ? "s" : ""}
+                            </Text>
+                          </>
+                        )}
+                      </div>
+
+                      <Alert
+                        icon={<IconInfoCircle size={16} />}
+                        color="grape"
+                        variant="light"
+                      >
+                        <Text size="sm" fw={500} mb={4}>
+                          Tip: Using Git with Oxinot
+                        </Text>
+                        <Text size="xs">
+                          • All markdown files and changes are tracked
+                          automatically
+                          <br />
+                          • Use auto-commit for continuous backup
+                          <br />
+                          • Push to remote repositories (GitHub, GitLab, etc.)
+                          for cloud backup
+                          <br />• Click the yellow dot in bottom-right corner
+                          for quick commits
+                        </Text>
+                      </Alert>
+                    </>
+                  )}
                 </Stack>
               </div>
             </Stack>
@@ -854,31 +928,43 @@ export function SettingsModal({
                       Updates
                     </Text>
                     <Stack gap="md">
+                      <Alert
+                        icon={<IconInfoCircle size={16} />}
+                        color="blue"
+                        variant="light"
+                      >
+                        Auto-update functionality will be available in a future
+                        release.
+                      </Alert>
+
                       <Switch
                         label="Automatic updates"
-                        description="Automatically download and install updates"
+                        description="Automatically download and install updates (coming soon)"
                         checked={autoUpdate}
                         onChange={(event) =>
                           setAutoUpdate(event.currentTarget.checked)
                         }
+                        disabled
                       />
 
                       <Switch
                         label="Check for updates on startup"
-                        description="Check for new versions when the app starts"
+                        description="Check for new versions when the app starts (coming soon)"
                         checked={checkUpdatesOnStartup}
                         onChange={(event) =>
                           setCheckUpdatesOnStartup(event.currentTarget.checked)
                         }
+                        disabled
                       />
 
                       <Switch
                         label="Beta updates"
-                        description="Receive beta versions with experimental features"
+                        description="Receive beta versions with experimental features (coming soon)"
                         checked={betaUpdates}
                         onChange={(event) =>
                           setBetaUpdates(event.currentTarget.checked)
                         }
+                        disabled
                       />
 
                       <Group gap="xs">
@@ -886,6 +972,7 @@ export function SettingsModal({
                           size="sm"
                           variant="light"
                           leftSection={<IconDownload size={16} />}
+                          disabled
                         >
                           Check for Updates
                         </Button>
@@ -927,30 +1014,45 @@ export function SettingsModal({
                     </Stack>
                   </div>
 
-                  <div>
-                    <Text size="sm" fw={500} mb={8}>
-                      Workspace Information
+                  <div
+                    style={{
+                      padding: 16,
+                      borderRadius: 6,
+                      backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                      borderLeft: `3px solid ${isDark ? "#FA5252" : "#FF6B6B"}`,
+                    }}
+                  >
+                    <Text size="sm" fw={500} mb={12} c="red">
+                      Danger Zone
                     </Text>
-                    <div
-                      style={{
-                        padding: 12,
-                        borderRadius: 6,
-                        backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                      }}
-                    >
-                      <Group gap="xs" mb={4}>
-                        <Text size="xs" c="dimmed" fw={500}>
-                          Path:
+                    <Stack gap="md">
+                      <div>
+                        <Text size="sm" fw={500} mb={4}>
+                          Reset All Settings
                         </Text>
-                        <Text
-                          size="xs"
-                          c="dimmed"
-                          style={{ fontFamily: "monospace" }}
+                        <Text size="xs" c="dimmed" mb={8}>
+                          This will reset all settings to their default values
+                          and reload the application.
+                        </Text>
+                        <Button
+                          size="sm"
+                          variant="light"
+                          color="red"
+                          leftSection={<IconTrash size={16} />}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                "Are you sure you want to reset all settings? This action cannot be undone.",
+                              )
+                            ) {
+                              resetAllSettings();
+                            }
+                          }}
                         >
-                          {workspacePath || "None"}
-                        </Text>
-                      </Group>
-                    </div>
+                          Reset All Settings
+                        </Button>
+                      </div>
+                    </Stack>
                   </div>
                 </Stack>
               </div>
