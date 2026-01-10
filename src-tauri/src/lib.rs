@@ -340,6 +340,8 @@ pub fn run() {
             // Workspace commands
             commands::workspace::initialize_workspace,
             commands::workspace::sync_workspace,
+            commands::workspace::sync_workspace_incremental,
+            commands::workspace::reindex_workspace,
             // Search commands
             commands::search::search_content,
             // Git commands

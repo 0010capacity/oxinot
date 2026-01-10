@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS pages (
     parent_id TEXT,  -- NULL = 루트 레벨 페이지
     file_path TEXT,  -- 미러링될 마크다운 파일 경로
     is_directory INTEGER DEFAULT 0,  -- 1 = 폴더로 전환됨 (하위 페이지 있음)
+    file_mtime INTEGER,  -- 파일 수정 시간 (Unix timestamp) for incremental sync
+    file_size INTEGER,   -- 파일 크기 (bytes) for incremental sync
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
@@ -121,6 +123,36 @@ fn migrate_schema(conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
     if !has_path {
         // Add path column
         conn.execute("ALTER TABLE workspace ADD COLUMN path TEXT", [])?;
+    }
+
+    // Check if file_mtime column exists in pages table
+    let has_file_mtime: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('pages') WHERE name='file_mtime'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if !has_file_mtime {
+        // Add file_mtime column
+        conn.execute("ALTER TABLE pages ADD COLUMN file_mtime INTEGER", [])?;
+    }
+
+    // Check if file_size column exists in pages table
+    let has_file_size: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('pages') WHERE name='file_size'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if !has_file_size {
+        // Add file_size column
+        conn.execute("ALTER TABLE pages ADD COLUMN file_size INTEGER", [])?;
     }
 
     Ok(())

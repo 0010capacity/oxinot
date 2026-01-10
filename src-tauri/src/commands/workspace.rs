@@ -1,5 +1,6 @@
 use crate::models::block::BlockType;
 use crate::services::markdown_to_blocks;
+use crate::services::WorkspaceSyncService;
 use chrono::Utc;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -647,4 +648,61 @@ fn sync_or_create_file(
     *synced_blocks += blocks.len();
 
     Ok(page_id)
+}
+
+/// Incremental sync: only reindex files that changed (based on mtime + size)
+#[tauri::command]
+pub async fn sync_workspace_incremental(workspace_path: String) -> Result<MigrationResult, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    println!(
+        "[sync_workspace_incremental] Starting incremental sync for: {}",
+        workspace_path
+    );
+
+    let sync_service = WorkspaceSyncService::new(&workspace_path);
+    let stats = sync_service.sync(&conn)?;
+
+    println!(
+        "[sync_workspace_incremental] Complete: {} added, {} updated, {} deleted, {} unchanged",
+        stats.added, stats.updated, stats.deleted, stats.unchanged
+    );
+
+    Ok(MigrationResult {
+        pages: stats.added + stats.updated,
+        blocks: 0, // We don't track individual blocks in stats
+    })
+}
+
+/// Full reindex: delete all and rebuild from files
+#[tauri::command]
+pub async fn reindex_workspace(workspace_path: String) -> Result<MigrationResult, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    println!(
+        "[reindex_workspace] Starting full reindex for: {}",
+        workspace_path
+    );
+
+    let sync_service = WorkspaceSyncService::new(&workspace_path);
+    let stats = sync_service.reindex_full(&conn)?;
+
+    println!(
+        "[reindex_workspace] Complete: {} pages indexed",
+        stats.added
+    );
+
+    // Run VACUUM to optimize database
+    conn.execute("VACUUM", [])
+        .map_err(|e| format!("Failed to vacuum database: {}", e))?;
+
+    conn.execute("ANALYZE", [])
+        .map_err(|e| format!("Failed to analyze database: {}", e))?;
+
+    println!("[reindex_workspace] Database optimized");
+
+    Ok(MigrationResult {
+        pages: stats.added,
+        blocks: 0,
+    })
 }

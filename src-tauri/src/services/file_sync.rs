@@ -303,7 +303,7 @@ impl FileSyncService {
     // Helper: Get page from database
     fn get_page_from_db(&self, conn: &Connection, page_id: &str) -> Result<Page, String> {
         conn.query_row(
-            "SELECT id, title, parent_id, file_path, is_directory, created_at, updated_at
+            "SELECT id, title, parent_id, file_path, is_directory, file_mtime, file_size, created_at, updated_at
              FROM pages WHERE id = ?",
             [page_id],
             |row| {
@@ -313,8 +313,10 @@ impl FileSyncService {
                     parent_id: row.get(2)?,
                     file_path: row.get(3)?,
                     is_directory: row.get::<_, i32>(4)? != 0,
-                    created_at: row.get(5)?,
-                    updated_at: row.get(6)?,
+                    file_mtime: row.get(5)?,
+                    file_size: row.get(6)?,
+                    created_at: row.get(7)?,
+                    updated_at: row.get(8)?,
                 })
             },
         )
