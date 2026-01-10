@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export type TimeFormat = "24h" | "12h";
-export type DateSeparator = "/" | "-";
+export type DateSeparator = "/" | "-" | ".";
 export type DateOrder = "MDY" | "DMY" | "YMD";
 
 interface ClockFormatSettings {
