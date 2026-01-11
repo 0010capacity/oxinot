@@ -139,7 +139,7 @@ export class WikiLinkHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isOnCursorLine: boolean,
+    shouldShowMarkers: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -154,9 +154,9 @@ export class WikiLinkHandler extends BaseHandler {
       const start = lineFrom + embedMatch.index;
       const end = start + fullMatch.length;
 
-      // If cursor is on this line, don't hide anything and don't show widgets
+      // Show source code in edit mode (when markers should be shown)
       // This allows the user to edit the source code
-      if (isOnCursorLine) {
+      if (shouldShowMarkers) {
         continue;
       }
 
@@ -187,9 +187,9 @@ export class WikiLinkHandler extends BaseHandler {
       const start = lineFrom + match.index;
       const end = start + fullMatch.length;
 
-      // If cursor is on this line, don't hide anything
+      // Show source code in edit mode (when markers should be shown)
       // This allows the user to edit the source code and see autocomplete
-      if (isOnCursorLine) {
+      if (shouldShowMarkers) {
         continue;
       }
 

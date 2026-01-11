@@ -91,7 +91,7 @@ export class CalloutHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isOnCursorLine: boolean,
+    shouldShowMarkers: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -107,8 +107,8 @@ export class CalloutHandler extends BaseHandler {
 
       const config = this.CALLOUT_TYPES[calloutType] || this.CALLOUT_TYPES.note;
 
-      // Hide the > [!type] part when not on cursor line
-      if (!isOnCursorLine) {
+      // Hide the > [!type] part in preview mode (when markers should be hidden)
+      if (!shouldShowMarkers) {
         const syntaxEnd = lineText.indexOf(title);
         if (syntaxEnd > 0) {
           decorations.push({
@@ -123,7 +123,7 @@ export class CalloutHandler extends BaseHandler {
           });
         }
       } else {
-        // Dim the syntax when cursor is on line
+        // Dim the syntax in edit mode (when markers should be shown)
         const syntaxEnd = lineText.indexOf(title);
         if (syntaxEnd > 0) {
           decorations.push({

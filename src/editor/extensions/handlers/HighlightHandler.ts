@@ -36,7 +36,7 @@ export class HighlightHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isOnCursorLine: boolean,
+    shouldShowMarkers: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -51,9 +51,7 @@ export class HighlightHandler extends BaseHandler {
       const contentEnd = end - 2;
 
       // Hide opening ==
-      decorations.push(
-        createHiddenMarker(start, start + 2, isOnCursorLine),
-      );
+      decorations.push(createHiddenMarker(start, start + 2, shouldShowMarkers));
 
       // Style the highlighted content
       decorations.push(
@@ -69,9 +67,7 @@ export class HighlightHandler extends BaseHandler {
       );
 
       // Hide closing ==
-      decorations.push(
-        createHiddenMarker(end - 2, end, isOnCursorLine),
-      );
+      decorations.push(createHiddenMarker(end - 2, end, shouldShowMarkers));
     }
 
     return decorations;

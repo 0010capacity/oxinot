@@ -87,96 +87,41 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     // Focus editor when this block becomes focused
     useEffect(() => {
-      console.log(
-        "[Focus Effect] blockId:",
-        blockId,
-        "focusedBlockId:",
-        focusedBlockId,
-        "targetCursorPosition:",
-        targetCursorPosition,
-      );
-
       if (focusedBlockId === blockId && editorRef.current) {
         const view = editorRef.current?.getView();
-        console.log(
-          "[Focus Effect] view exists:",
-          !!view,
-          "view.hasFocus:",
-          view?.hasFocus,
-        );
+
+        // If already focused and no target position, skip (mouse click already handled)
+        if (view && view.hasFocus && targetCursorPosition === null) {
+          return;
+        }
 
         if (view && !view.hasFocus) {
-          // Check if we already applied this exact position
-          if (
-            targetCursorPosition !== null &&
-            appliedPositionRef.current === targetCursorPosition
-          ) {
-            console.log(
-              "[Focus Effect] Already applied position:",
-              targetCursorPosition,
-              "skipping",
-            );
-            return;
-          }
-
-          // Skip if targetCursorPosition is null and we already set a position
-          // (this happens after clearTargetCursorPosition is called)
-          if (
-            targetCursorPosition === null &&
-            appliedPositionRef.current !== null
-          ) {
-            console.log(
-              "[Focus Effect] Position already applied and cleared, skipping null dispatch",
-            );
-            return;
-          }
-
           // Set cursor position
           let pos: number;
           if (targetCursorPosition !== null) {
-            // Use specified position (from keyboard nav or mouse click)
+            // Use specified position (from keyboard nav)
             pos = Math.min(targetCursorPosition, view.state.doc.length);
-            console.log(
-              "[Focus Effect] Using targetCursorPosition:",
-              targetCursorPosition,
-              "-> clamped to:",
-              pos,
-            );
             appliedPositionRef.current = targetCursorPosition;
             clearTargetCursorPosition();
           } else {
             // No target position: set cursor to end of content
             pos = view.state.doc.length;
-            console.log(
-              "[Focus Effect] No targetCursorPosition, using end:",
-              pos,
-            );
             appliedPositionRef.current = null;
           }
 
-          console.log("[Focus Effect] Dispatching selection to pos:", pos);
           view.dispatch({
             selection: { anchor: pos, head: pos },
           });
 
           // Focus the editor
-          setTimeout(() => {
-            if (view) {
-              console.log("[Focus Effect] Calling view.focus()");
-              view.focus();
-            }
-          }, 0);
+          view.focus();
         } else if (
           view &&
           targetCursorPosition !== null &&
           appliedPositionRef.current !== targetCursorPosition
         ) {
-          // Already focused, just adjust cursor position
+          // Already focused, just adjust cursor position (keyboard nav)
           const pos = Math.min(targetCursorPosition, view.state.doc.length);
-          console.log(
-            "[Focus Effect] Already focused, adjusting cursor to:",
-            pos,
-          );
           view.dispatch({
             selection: { anchor: pos, head: pos },
           });
@@ -203,68 +148,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       commitDraft();
     }, [commitDraft]);
 
-    const handleMouseDown = useCallback(
-      (e: React.MouseEvent) => {
-        // Capture click position BEFORE focus changes
-        const view = editorRef.current?.getView();
-        const wasAlreadyFocused = view?.hasFocus ?? false;
-
-        console.log(
-          "[handleMouseDown] blockId:",
-          blockId,
-          "focusedBlockId:",
-          focusedBlockId,
-          "wasAlreadyFocused (DOM):",
-          wasAlreadyFocused,
-          "view.hasFocus:",
-          view?.hasFocus,
-        );
-        console.log("[handleMouseDown] view exists:", !!view);
-
-        if (view && !wasAlreadyFocused) {
-          const coords = { x: e.clientX, y: e.clientY };
-          console.log("[handleMouseDown] Click coords:", coords);
-
-          const pos = view.posAtCoords(coords);
-          console.log("[handleMouseDown] posAtCoords result:", pos);
-          console.log("[handleMouseDown] doc.length:", view.state.doc.length);
-
-          if (pos != null) {
-            // Store exact position for cursor jump after focus
-            console.log("[handleMouseDown] Storing exact position:", pos);
-            setFocusedBlock(blockId, pos);
-          } else {
-            // Fallback: jump to end
-            console.log(
-              "[handleMouseDown] posAtCoords null, falling back to end",
-            );
-            setFocusedBlock(blockId, view.state.doc.length);
-          }
-        } else if (!view) {
-          console.log("[handleMouseDown] No view available");
-        } else {
-          console.log(
-            "[handleMouseDown] Already focused, letting CodeMirror handle cursor position",
-          );
-        }
-      },
-      [blockId, focusedBlockId, setFocusedBlock],
-    );
-
     const handleFocus = useCallback(() => {
       // Only update state if this block is not already focused
-      // This prevents unnecessary re-renders that could reset cursor position
-      console.log(
-        "[handleFocus] blockId:",
-        blockId,
-        "focusedBlockId:",
-        focusedBlockId,
-      );
       if (focusedBlockId !== blockId) {
-        console.log("[handleFocus] Calling setFocusedBlock without position");
         setFocusedBlock(blockId);
-      } else {
-        console.log("[handleFocus] Already focused, skipping");
       }
     }, [blockId, setFocusedBlock, focusedBlockId]);
 
@@ -613,7 +500,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           <div
             className="block-content-wrapper"
             style={{ position: "relative" }}
-            onMouseDownCapture={handleMouseDown}
           >
             <div
               style={{

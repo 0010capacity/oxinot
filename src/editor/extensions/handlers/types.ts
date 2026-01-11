@@ -24,6 +24,13 @@ export interface RenderContext {
   /** Whether the editor currently has focus */
   editorHasFocus: boolean;
 
+  /**
+   * Whether markdown markers should be visible (edit mode)
+   * - true: show markers dimmed (editing mode - block has focus)
+   * - false: hide markers completely (preview mode - block unfocused)
+   */
+  shouldShowMarkers: boolean;
+
   /** Array to collect decoration specs */
   decorations: DecorationSpec[];
 }
@@ -73,18 +80,10 @@ export abstract class BaseHandler implements DecorationHandler {
 
   /**
    * Helper to check if node is on cursor line
+   * @deprecated Use context.shouldShowMarkers instead for consistent behavior
    */
-  protected isOnCursorLine(node: SyntaxNode, context: RenderContext): boolean {
-    // Only show markers if the editor has focus AND cursor is on this line
-    if (!context.editorHasFocus) {
-      return false;
-    }
-
-    const nodeLine = context.state.doc.lineAt(node.from);
-    return (
-      nodeLine.from === context.cursor.lineFrom &&
-      nodeLine.to === context.cursor.lineTo
-    );
+  protected isOnCursorLine(_node: SyntaxNode, context: RenderContext): boolean {
+    return context.shouldShowMarkers;
   }
 
   /**

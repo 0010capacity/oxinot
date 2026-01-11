@@ -33,7 +33,7 @@ export class CommentHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isOnCursorLine: boolean,
+    shouldShowMarkers: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -45,8 +45,8 @@ export class CommentHandler extends BaseHandler {
       const start = lineFrom + match.index;
       const end = start + match[0].length;
 
-      if (isOnCursorLine) {
-        // Show dimmed comment when cursor is on line
+      if (shouldShowMarkers) {
+        // Show dimmed comment in edit mode (when markers should be shown)
         decorations.push({
           from: start,
           to: end,
@@ -65,7 +65,7 @@ export class CommentHandler extends BaseHandler {
           }),
         });
       } else {
-        // Completely hide comment when cursor is not on line
+        // Completely hide comment in preview mode (when markers should be hidden)
         decorations.push({
           from: start,
           to: end,

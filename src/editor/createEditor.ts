@@ -30,6 +30,7 @@ import {
   hybridRenderingPlugin,
   hybridRenderingTheme,
   isFocusedFacet,
+  isFocusedCompartment,
 } from "./extensions/hybridRendering";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { usePageStore } from "../stores/pageStore";
@@ -1046,6 +1047,40 @@ function createFocusListeners(
 }
 
 /**
+ * Creates a mousedown handler that immediately sets cursor position
+ * when clicking on an unfocused editor, avoiding the delay from
+ * React state updates and useEffect cycles.
+ */
+function createMouseDownHandler(): Extension {
+  return EditorView.domEventHandlers({
+    mousedown: (event, view) => {
+      // Only handle clicks on unfocused editors
+      if (view.hasFocus) {
+        return false; // Let CodeMirror handle normally
+      }
+
+      // Get cursor position from click coordinates
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+
+      if (pos != null) {
+        // Immediately set cursor position
+        view.dispatch({
+          selection: { anchor: pos, head: pos },
+        });
+
+        // Focus the editor
+        view.focus();
+
+        // Let the event propagate naturally
+        return false;
+      }
+
+      return false;
+    },
+  });
+}
+
+/**
  * Create base editor theme
  */
 function createEditorTheme(theme: "light" | "dark" = "light"): Extension {
@@ -1146,12 +1181,15 @@ export function createEditor(
     }),
 
     // Hybrid rendering (live preview)
-    isFocusedFacet.of(config.isFocused ?? true),
+    isFocusedCompartment.of(isFocusedFacet.of(config.isFocused ?? false)),
     hybridRenderingPlugin,
     hybridRenderingTheme,
 
     // Wiki link click navigation
     createWikiLinkClickHandler(config.onOpenWikiLink),
+
+    // Mousedown handler for immediate cursor positioning on unfocused editors
+    createMouseDownHandler(),
 
     // Update listener
     createUpdateListener(config.onChange),

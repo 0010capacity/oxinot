@@ -1,10 +1,20 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { EditorView, KeyBinding } from "@codemirror/view";
 import {
   createEditor,
   updateEditorContent,
   destroyEditor,
 } from "../editor/createEditor";
+import {
+  isFocusedFacet,
+  isFocusedCompartment,
+} from "../editor/extensions/hybridRendering";
 import { IME_FLUSH_TIMEOUT_MS } from "../outliner/constants";
 
 type MaybeTimer = ReturnType<typeof setTimeout> | null;
@@ -248,9 +258,9 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
           editorViewRef.current = null;
         }
       };
-      // NOTE: Intentionally exclude `onChange/onFocus/onBlur` and `value` to avoid re-creating
+      // NOTE: Intentionally exclude `onChange/onFocus/onBlur`, `value`, and `isFocused` to avoid re-creating
       // the editor on every keystroke / render. Those are handled via `latestRef`.
-    }, [readOnly, lineWrapping, theme, lineNumbers, keybindings, isFocused]);
+    }, [readOnly, lineWrapping, theme, lineNumbers, keybindings]);
 
     // Update content when value prop changes.
     //
@@ -272,6 +282,19 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         }
       }
     }, [value]);
+
+    // Update isFocused facet when isFocused prop changes
+    // Use useLayoutEffect to ensure synchronous execution before paint
+    // This prevents the "unfocused block stays in marker mode" issue when navigating up
+    useLayoutEffect(() => {
+      if (editorViewRef.current && latestRef.current.isFocused !== undefined) {
+        editorViewRef.current.dispatch({
+          effects: isFocusedCompartment.reconfigure(
+            isFocusedFacet.of(latestRef.current.isFocused),
+          ),
+        });
+      }
+    }, [isFocused]);
 
     return (
       <div

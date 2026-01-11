@@ -37,7 +37,7 @@ export class TagHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    _isOnCursorLine: boolean,
+    _shouldShowMarkers: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -52,7 +52,7 @@ export class TagHandler extends BaseHandler {
       const end = start + match[0].length;
 
       // Check if this tag is at the start of line, after whitespace, or after certain punctuation
-      const charBefore = match.index > 0 ? lineText[match.index - 1] : ' ';
+      const charBefore = match.index > 0 ? lineText[match.index - 1] : " ";
       const isValidTag = /[\s({\[,.]/.test(charBefore);
 
       if (!isValidTag) {
