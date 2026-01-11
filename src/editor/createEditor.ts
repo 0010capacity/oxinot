@@ -126,8 +126,131 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
     // Bracket matching
     bracketMatching(),
 
-    // Auto-close brackets
+    // Auto-close brackets (with custom handling for [[ and (()
     closeBrackets(),
+
+    // Custom backspace handler for [[ ]] and (( )) pairs
+    EditorView.domEventHandlers({
+      keydown: (event, view) => {
+        if (
+          event.key === "Backspace" &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.altKey
+        ) {
+          const state = view.state;
+          const selection = state.selection.main;
+
+          // Only handle when selection is empty (cursor)
+          if (!selection.empty) return false;
+
+          const pos = selection.head;
+          const doc = state.doc.toString();
+
+          // Check for [[ ]] pair (cursor between brackets)
+          if (pos >= 2 && pos + 2 <= doc.length) {
+            const before = doc.slice(pos - 2, pos);
+            const after = doc.slice(pos, pos + 2);
+
+            if (before === "[[" && after === "]]") {
+              view.dispatch({
+                changes: { from: pos - 2, to: pos + 2, insert: "" },
+              });
+              event.preventDefault();
+              return true;
+            }
+
+            if (before === "((" && after === "))") {
+              view.dispatch({
+                changes: { from: pos - 2, to: pos + 2, insert: "" },
+              });
+              event.preventDefault();
+              return true;
+            }
+          }
+
+          // Check for [[ or (( without closing (e.g., user just typed [[)
+          if (pos >= 2) {
+            const before2 = doc.slice(pos - 2, pos);
+            const after2 = doc.slice(pos, pos + 2);
+
+            if (before2 === "[[" && after2 === "]]") {
+              // Already handled above
+            } else if (before2 === "[[") {
+              // Delete [[ pair
+              view.dispatch({
+                changes: { from: pos - 2, to: pos, insert: "" },
+              });
+              event.preventDefault();
+              return true;
+            }
+
+            if (before2 === "((" && after2 === "))") {
+              // Already handled above
+            } else if (before2 === "((") {
+              // Delete (( pair
+              view.dispatch({
+                changes: { from: pos - 2, to: pos, insert: "" },
+              });
+              event.preventDefault();
+              return true;
+            }
+          }
+
+          // Check for ![[  ]] pair (embed)
+          if (pos >= 3 && pos + 2 <= doc.length) {
+            const before = doc.slice(pos - 3, pos);
+            const after = doc.slice(pos, pos + 2);
+
+            if (before === "![[" && after === "]]") {
+              view.dispatch({
+                changes: { from: pos - 3, to: pos + 2, insert: "" },
+              });
+              event.preventDefault();
+              return true;
+            }
+
+            if (before === "!((" && after === "))") {
+              view.dispatch({
+                changes: { from: pos - 3, to: pos + 2, insert: "" },
+              });
+              event.preventDefault();
+              return true;
+            }
+          }
+
+          // Check for ![[  or !(( without closing
+          if (pos >= 3) {
+            const before3 = doc.slice(pos - 3, pos);
+            const after3 = doc.slice(pos, pos + 2);
+
+            if (before3 === "![[" && after3 === "]]") {
+              // Already handled above
+            } else if (before3 === "![[") {
+              // Delete ![[
+              view.dispatch({
+                changes: { from: pos - 3, to: pos, insert: "" },
+              });
+              event.preventDefault();
+              return true;
+            }
+
+            if (before3 === "!((" && after3 === "))") {
+              // Already handled above
+            } else if (before3 === "!((") {
+              // Delete !((
+              view.dispatch({
+                changes: { from: pos - 3, to: pos, insert: "" },
+              });
+              event.preventDefault();
+              return true;
+            }
+          }
+        }
+
+        return false;
+      },
+    }),
 
     // Highlight selection matches
     highlightSelectionMatches(),
@@ -506,25 +629,46 @@ function createUnifiedLinkAutocomplete(): Extension {
             fromPos: number,
             toPos: number,
           ) => {
-            const insert = isEmbed ? `![[` + fullPath + `]]` : fullPath;
+            const state = view.state;
+            const currentDoc = state.doc.toString();
 
             if (isEmbed) {
+              const insert = `![[${fullPath}]]`;
               // Replace the whole "![[query" region including the existing "[[",
               // by expanding replacement to include the optional leading "!".
               const openPos = Math.max(0, fromPos - 2); // points to "[[" start
               const bangPos = openPos > 0 ? openPos - 1 : openPos;
-              const hasBang = bangPos >= 0 && doc[bangPos] === "!";
+              const hasBang = bangPos >= 0 && currentDoc[bangPos] === "!";
               const replaceFrom = hasBang ? bangPos : openPos;
 
+              // Check if closing ]] already exists after cursor
+              let replaceTo = toPos;
+              if (currentDoc.slice(toPos, toPos + 2) === "]]") {
+                replaceTo = toPos + 2;
+              }
+
+              const cursorPos = replaceFrom + insert.length;
               view.dispatch({
-                changes: { from: replaceFrom, to: toPos, insert },
+                changes: { from: replaceFrom, to: replaceTo, insert },
+                selection: { anchor: cursorPos, head: cursorPos },
               });
               return;
             }
 
-            // Normal [[...]] link: replace only the query portion inside the brackets.
+            // Normal [[...]] link: replace entire [[query]] including brackets
+            const insert = `[[${fullPath}]]`;
+            const openPos = Math.max(0, fromPos - 2); // points to "[[" start
+
+            // Check if closing ]] already exists after cursor
+            let replaceTo = toPos;
+            if (currentDoc.slice(toPos, toPos + 2) === "]]") {
+              replaceTo = toPos + 2;
+            }
+
+            const cursorPos = openPos + insert.length;
             view.dispatch({
-              changes: { from: fromPos, to: toPos, insert },
+              changes: { from: openPos, to: replaceTo, insert },
+              selection: { anchor: cursorPos, head: cursorPos },
             });
           },
         });
@@ -623,27 +767,47 @@ function createUnifiedLinkAutocomplete(): Extension {
           fromPos: number,
           toPos: number,
         ) => {
+          const state = view.state;
+          const currentDoc = state.doc.toString();
           const id = (r.id ?? "").toString();
-          const insert = isEmbed ? `!((` + id + `))` : `((${id}))`;
 
           // If embed, replace the whole "!((query" (or "((query") region including the existing "((",
           // by expanding replacement to include the optional leading "!".
           if (isEmbed) {
+            const insert = `!((${id}))`;
             const openPos = Math.max(0, fromPos - 2); // points to "((" start
             const bangPos = openPos > 0 ? openPos - 1 : openPos;
-            const hasBang = bangPos >= 0 && doc[bangPos] === "!";
+            const hasBang = bangPos >= 0 && currentDoc[bangPos] === "!";
             const replaceFrom = hasBang ? bangPos : openPos;
 
+            // Check if closing )) already exists after cursor
+            let replaceTo = toPos;
+            if (currentDoc.slice(toPos, toPos + 2) === "))") {
+              replaceTo = toPos + 2;
+            }
+
+            const cursorPos = replaceFrom + insert.length;
             view.dispatch({
-              changes: { from: replaceFrom, to: toPos, insert },
+              changes: { from: replaceFrom, to: replaceTo, insert },
+              selection: { anchor: cursorPos, head: cursorPos },
             });
             return;
           }
 
           // Normal (()) link: replace the "((query" region including the opening "((" with the wrapped UUID.
+          const insert = `((${id}))`;
           const openPos = Math.max(0, fromPos - 2); // points to "((" start
+
+          // Check if closing )) already exists after cursor
+          let replaceTo = toPos;
+          if (currentDoc.slice(toPos, toPos + 2) === "))") {
+            replaceTo = toPos + 2;
+          }
+
+          const cursorPos = openPos + insert.length;
           view.dispatch({
-            changes: { from: openPos, to: toPos, insert },
+            changes: { from: openPos, to: replaceTo, insert },
+            selection: { anchor: cursorPos, head: cursorPos },
           });
         },
       };

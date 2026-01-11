@@ -187,6 +187,12 @@ export class WikiLinkHandler extends BaseHandler {
       const start = lineFrom + match.index;
       const end = start + fullMatch.length;
 
+      // If cursor is on this line, don't hide anything
+      // This allows the user to edit the source code and see autocomplete
+      if (isOnCursorLine) {
+        continue;
+      }
+
       // Opening [[ - always hide (even when cursor is on line)
       decorations.push(createHiddenMarker(start, start + 2, false));
 
