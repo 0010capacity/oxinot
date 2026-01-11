@@ -28,7 +28,24 @@ export const findPageByPath = (
   pageIds: string[],
   pagesById: Record<string, PageData>,
 ): string | undefined => {
-  return pageIds.find((id) => buildPagePath(id, pagesById) === fullPath);
+  console.log(`[findPageByPath] Looking for path: "${fullPath}"`);
+  console.log(`[findPageByPath] Total pages: ${pageIds.length}`);
+
+  for (const id of pageIds) {
+    const builtPath = buildPagePath(id, pagesById);
+    console.log(
+      `[findPageByPath] Page ${id}: "${builtPath}" (title: ${pagesById[id]?.title})`,
+    );
+  }
+
+  const result = pageIds.find(
+    (id) => buildPagePath(id, pagesById) === fullPath,
+  );
+  console.log(
+    `[findPageByPath] Result: ${result ? `Found ${result}` : "Not found"}`,
+  );
+
+  return result;
 };
 
 /**
@@ -70,20 +87,34 @@ export const createPageHierarchy = async (
   fullPath: string,
   createPageFn: (title: string, parentId?: string) => Promise<string>,
   findPageFn: (path: string) => string | undefined,
+  convertToDirectoryFn?: (pageId: string) => Promise<void>,
 ): Promise<string | null> => {
   const pathParts = fullPath.split("/");
   let parentId: string | undefined = undefined;
 
   for (let i = 0; i < pathParts.length; i++) {
     const currentPath = pathParts.slice(0, i + 1).join("/");
+    const isLastPart = i === pathParts.length - 1;
 
     const existingPage = findPageFn(currentPath);
 
     if (existingPage) {
+      // If this is an intermediate path (not the last part),
+      // ensure it's a directory
+      if (!isLastPart && convertToDirectoryFn) {
+        await convertToDirectoryFn(existingPage);
+      }
       parentId = existingPage;
     } else {
       try {
         const newPageId = await createPageFn(pathParts[i], parentId);
+
+        // If this is an intermediate path (not the last part),
+        // convert it to a directory
+        if (!isLastPart && convertToDirectoryFn) {
+          await convertToDirectoryFn(newPageId);
+        }
+
         parentId = newPageId;
       } catch (error) {
         console.error(`Failed to create page "${pathParts[i]}":`, error);

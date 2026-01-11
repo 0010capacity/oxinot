@@ -30,14 +30,33 @@ export const useHomepage = (): UseHomepageReturn => {
   const openPageByPath = useCallback(
     async (fullPath: string): Promise<void> => {
       try {
-        let pageId = findPageByPath(fullPath, pageIds, pagesById);
+        // Ensure pages are loaded before trying to find
+        if (pageIds.length === 0) {
+          console.log("[useHomepage] Pages not loaded yet, loading now...");
+          await loadPages();
+          // Give React time to update state after Zustand update
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+
+        // Get fresh state after loading
+        const freshPageIds = usePageStore.getState().pageIds;
+        const freshPagesById = usePageStore.getState().pagesById;
+
+        let pageId = findPageByPath(fullPath, freshPageIds, freshPagesById);
 
         if (!pageId) {
           try {
             const createdPageId = await createPageHierarchy(
               fullPath,
               createPage,
-              (path: string) => findPageByPath(path, pageIds, pagesById),
+              (path: string) => {
+                const state = usePageStore.getState();
+                return findPageByPath(path, state.pageIds, state.pagesById);
+              },
+              async (pageId: string) => {
+                const { convertToDirectory } = usePageStore.getState();
+                await convertToDirectory(pageId);
+              },
             );
 
             if (!createdPageId) {
@@ -84,7 +103,7 @@ export const useHomepage = (): UseHomepageReturn => {
             showIndex();
           }
         } else {
-          const page = pagesById[pageId];
+          const page = freshPagesById[pageId];
           if (!page) {
             console.error("[useHomepage] Page data not found");
             addError("Page data not found", {
@@ -94,7 +113,7 @@ export const useHomepage = (): UseHomepageReturn => {
             return;
           }
 
-          const { names, ids } = buildPageBreadcrumb(pageId, pagesById);
+          const { names, ids } = buildPageBreadcrumb(pageId, freshPagesById);
 
           setCurrentPageId(pageId);
           openNote(pageId, page.title, names, ids);
@@ -149,7 +168,16 @@ export const useHomepage = (): UseHomepageReturn => {
         showIndex();
       }
     },
-    [pagesById, setCurrentPageId, openNote, showIndex, addError],
+    [
+      pageIds,
+      pagesById,
+      loadPages,
+      createPage,
+      setCurrentPageId,
+      openNote,
+      showIndex,
+      addError,
+    ],
   );
 
   const openHomepage = useCallback(async (): Promise<void> => {
