@@ -149,7 +149,9 @@ function getVisibleLineRanges(
 function isCursorOnLine(view: EditorView, lineFrom: number, lineTo: number) {
   // Only consider cursor position if the editor is actually focused
   // This prevents all block editors from thinking they have cursor focus
-  if (!view.hasFocus) {
+  // Check both hasFocus (DOM focus) and isFocused facet (logical focus for outliner blocks)
+  const isFocused = view.state.facet(isFocusedFacet);
+  if (!view.hasFocus && !isFocused) {
     return false;
   }
   const head = view.state.selection.main.head;

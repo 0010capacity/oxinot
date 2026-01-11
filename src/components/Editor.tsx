@@ -14,6 +14,7 @@ interface EditorProps {
   onChange?: (value: string) => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  onMouseDown?: (e: React.MouseEvent) => void;
   readOnly?: boolean;
   lineWrapping?: boolean;
   theme?: "light" | "dark";
@@ -54,6 +55,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       onChange,
       onFocus,
       onBlur,
+      onMouseDown,
       readOnly = false,
       lineWrapping = true,
       theme = "light",
@@ -275,6 +277,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       <div
         ref={containerRef}
         className={className}
+        onMouseDown={onMouseDown}
         style={{
           width: "100%",
           height: "100%",
