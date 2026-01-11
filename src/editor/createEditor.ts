@@ -126,18 +126,20 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
     // Bracket matching
     bracketMatching(),
 
-    // Auto-close brackets (with custom handling for [[ and (()
+    // Auto-close brackets
     closeBrackets(),
 
-    // Custom backspace handler for [[ ]] and (( )) pairs
-    EditorView.domEventHandlers({
-      keydown: (event, view) => {
-        if (
-          event.key === "Backspace" &&
-          !event.ctrlKey &&
-          !event.metaKey &&
-          !event.altKey
-        ) {
+    // Highlight selection matches
+    highlightSelectionMatches(),
+
+    // Keymaps (prepend user bindings so they override defaults)
+    keymap.of([
+      ...(config.keybindings ?? []),
+
+      // Custom backspace handler for [[ ]], (( )), ![[  ]], !(( )) pairs
+      {
+        key: "Backspace",
+        run: (view) => {
           const state = view.state;
           const selection = state.selection.main;
 
@@ -146,6 +148,38 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
 
           const pos = selection.head;
           const doc = state.doc.toString();
+
+          // Check for ![[  ]] pair (embed) - check longest patterns first
+          if (pos >= 3 && pos + 2 <= doc.length) {
+            const before = doc.slice(pos - 3, pos);
+            const after = doc.slice(pos, pos + 2);
+
+            if (before === "![[" && after === "]]") {
+              view.dispatch({
+                changes: { from: pos - 3, to: pos + 2, insert: "" },
+              });
+              return true;
+            }
+
+            if (before === "!((" && after === "))") {
+              view.dispatch({
+                changes: { from: pos - 3, to: pos + 2, insert: "" },
+              });
+              return true;
+            }
+          }
+
+          // Check for ![[  or !(( without closing brackets
+          if (pos >= 3) {
+            const before3 = doc.slice(pos - 3, pos);
+
+            if (before3 === "![[" || before3 === "!((") {
+              view.dispatch({
+                changes: { from: pos - 3, to: pos, insert: "" },
+              });
+              return true;
+            }
+          }
 
           // Check for [[ ]] pair (cursor between brackets)
           if (pos >= 2 && pos + 2 <= doc.length) {
@@ -156,7 +190,6 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
               view.dispatch({
                 changes: { from: pos - 2, to: pos + 2, insert: "" },
               });
-              event.preventDefault();
               return true;
             }
 
@@ -164,100 +197,25 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
               view.dispatch({
                 changes: { from: pos - 2, to: pos + 2, insert: "" },
               });
-              event.preventDefault();
               return true;
             }
           }
 
-          // Check for [[ or (( without closing (e.g., user just typed [[)
+          // Check for [[ or (( without closing brackets
           if (pos >= 2) {
             const before2 = doc.slice(pos - 2, pos);
-            const after2 = doc.slice(pos, pos + 2);
 
-            if (before2 === "[[" && after2 === "]]") {
-              // Already handled above
-            } else if (before2 === "[[") {
-              // Delete [[ pair
+            if (before2 === "[[" || before2 === "((") {
               view.dispatch({
                 changes: { from: pos - 2, to: pos, insert: "" },
               });
-              event.preventDefault();
-              return true;
-            }
-
-            if (before2 === "((" && after2 === "))") {
-              // Already handled above
-            } else if (before2 === "((") {
-              // Delete (( pair
-              view.dispatch({
-                changes: { from: pos - 2, to: pos, insert: "" },
-              });
-              event.preventDefault();
               return true;
             }
           }
 
-          // Check for ![[  ]] pair (embed)
-          if (pos >= 3 && pos + 2 <= doc.length) {
-            const before = doc.slice(pos - 3, pos);
-            const after = doc.slice(pos, pos + 2);
-
-            if (before === "![[" && after === "]]") {
-              view.dispatch({
-                changes: { from: pos - 3, to: pos + 2, insert: "" },
-              });
-              event.preventDefault();
-              return true;
-            }
-
-            if (before === "!((" && after === "))") {
-              view.dispatch({
-                changes: { from: pos - 3, to: pos + 2, insert: "" },
-              });
-              event.preventDefault();
-              return true;
-            }
-          }
-
-          // Check for ![[  or !(( without closing
-          if (pos >= 3) {
-            const before3 = doc.slice(pos - 3, pos);
-            const after3 = doc.slice(pos, pos + 2);
-
-            if (before3 === "![[" && after3 === "]]") {
-              // Already handled above
-            } else if (before3 === "![[") {
-              // Delete ![[
-              view.dispatch({
-                changes: { from: pos - 3, to: pos, insert: "" },
-              });
-              event.preventDefault();
-              return true;
-            }
-
-            if (before3 === "!((" && after3 === "))") {
-              // Already handled above
-            } else if (before3 === "!((") {
-              // Delete !((
-              view.dispatch({
-                changes: { from: pos - 3, to: pos, insert: "" },
-              });
-              event.preventDefault();
-              return true;
-            }
-          }
-        }
-
-        return false;
+          return false;
+        },
       },
-    }),
-
-    // Highlight selection matches
-    highlightSelectionMatches(),
-
-    // Keymaps (prepend user bindings so they override defaults)
-    keymap.of([
-      ...(config.keybindings ?? []),
 
       // Debug: allow inspecting the completion tooltip without it auto-closing while you click around.
       // - Cmd/Ctrl+Alt+K: toggle "pin completion open" mode (stores flag on the DOM for quick access)
