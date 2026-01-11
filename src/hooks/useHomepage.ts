@@ -31,16 +31,15 @@ export const useHomepage = (): UseHomepageReturn => {
     async (fullPath: string): Promise<void> => {
       try {
         // Ensure pages are loaded before trying to find
+        let freshPageIds = pageIds;
+        let freshPagesById = pagesById;
+
         if (pageIds.length === 0) {
           console.log("[useHomepage] Pages not loaded yet, loading now...");
-          await loadPages();
-          // Give React time to update state after Zustand update
-          await new Promise((resolve) => setTimeout(resolve, 50));
+          const loadedData = await loadPages();
+          freshPageIds = loadedData.pageIds;
+          freshPagesById = loadedData.pagesById;
         }
-
-        // Get fresh state after loading
-        const freshPageIds = usePageStore.getState().pageIds;
-        const freshPagesById = usePageStore.getState().pagesById;
 
         let pageId = findPageByPath(fullPath, freshPageIds, freshPagesById);
 
@@ -70,10 +69,9 @@ export const useHomepage = (): UseHomepageReturn => {
 
             pageId = createdPageId;
 
-            await loadPages();
-
-            const freshPageIds = usePageStore.getState().pageIds;
-            const freshPagesById = usePageStore.getState().pagesById;
+            const loadedData = await loadPages();
+            freshPageIds = loadedData.pageIds;
+            freshPagesById = loadedData.pagesById;
 
             pageId = findPageByPath(fullPath, freshPageIds, freshPagesById);
             if (!pageId) {

@@ -28,7 +28,10 @@ interface PageState {
 
 interface PageActions {
   // 페이지 로드
-  loadPages: () => Promise<void>;
+  loadPages: () => Promise<{
+    pageIds: string[];
+    pagesById: Record<string, PageData>;
+  }>;
 
   // 페이지 CRUD
   createPage: (title: string, parentId?: string) => Promise<string>;
@@ -77,15 +80,15 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         const pages: PageData[] = await invoke("get_pages", { workspacePath });
         console.log("[PageStore] Received pages from backend:", pages.length);
 
+        const pagesById: Record<string, PageData> = {};
+        const pageIds: string[] = [];
+
+        for (const page of pages) {
+          pagesById[page.id] = page;
+          pageIds.push(page.id);
+        }
+
         set((state) => {
-          const pagesById: Record<string, PageData> = {};
-          const pageIds: string[] = [];
-
-          for (const page of pages) {
-            pagesById[page.id] = page;
-            pageIds.push(page.id);
-          }
-
           console.log("[PageStore] Setting state with pages:", pageIds.length);
           state.pagesById = pagesById;
           state.pageIds = pageIds;
@@ -97,13 +100,16 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
           }
         });
         console.log("[PageStore] State updated successfully");
+
+        // Return the loaded data so callers can use it immediately
+        return { pageIds, pagesById };
       } catch (error) {
-        console.error("[PageStore] Error loading pages:", error);
         set((state) => {
           state.error =
             error instanceof Error ? error.message : "Failed to load pages";
           state.isLoading = false;
         });
+        throw error;
       }
     },
 

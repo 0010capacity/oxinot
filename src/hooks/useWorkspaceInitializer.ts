@@ -49,16 +49,6 @@ export const useWorkspaceInitializer = (
 
         await loadPages();
 
-        // Wait for pages to be loaded in state before proceeding
-        // Zustand state updates are asynchronous with React rendering
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        // Verify pages are actually loaded
-        const { pageIds } = usePageStore.getState();
-        if (pageIds.length === 0) {
-          console.warn("[useWorkspaceInitializer] No pages loaded after sync");
-        }
-
         setIsInitialized(true);
         setShowMigration(false);
 
