@@ -806,17 +806,11 @@ export const hybridRenderingTheme = EditorView.theme({
   // Embed subtree widget container (read-only)
   ".cm-block-embed-subtree": {
     margin: "6px 0",
-    background: "rgba(139, 92, 246, 0.05)",
-    borderRadius: "6px",
-    padding: "6px 0",
   },
 
   // Embed page widget container (read-only)
   ".cm-page-embed": {
     margin: "6px 0",
-    background: "rgba(139, 92, 246, 0.05)",
-    borderRadius: "6px",
-    padding: "6px 0",
   },
 
   ".cm-tag": {

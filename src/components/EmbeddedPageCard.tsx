@@ -188,7 +188,10 @@ export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
             •
           </button>
 
-          <Box style={{ flex: 1, minWidth: 0 }}>
+          <Box
+            style={{ flex: 1, minWidth: 0, overflow: "hidden" }}
+            className="embedded-editor-wrapper"
+          >
             <Editor
               value={block.content}
               onChange={() => {

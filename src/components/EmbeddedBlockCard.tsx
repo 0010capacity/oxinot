@@ -145,7 +145,10 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
             •
           </button>
 
-          <Box style={{ flex: 1, minWidth: 0 }}>
+          <Box
+            style={{ flex: 1, minWidth: 0, overflow: "hidden" }}
+            className="embedded-editor-wrapper"
+          >
             <Editor
               value={block.content}
               onChange={() => {
