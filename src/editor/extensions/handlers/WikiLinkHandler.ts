@@ -154,7 +154,7 @@ export class WikiLinkHandler extends BaseHandler {
       const start = lineFrom + embedMatch.index;
       const end = start + fullMatch.length;
 
-      // Show source code in edit mode (when markers should be shown)
+      // If cursor is on this line, don't hide anything and don't show widgets
       // This allows the user to edit the source code
       if (shouldShowMarkers) {
         continue;
@@ -187,7 +187,7 @@ export class WikiLinkHandler extends BaseHandler {
       const start = lineFrom + match.index;
       const end = start + fullMatch.length;
 
-      // Show source code in edit mode (when markers should be shown)
+      // If cursor is on this line, don't hide anything
       // This allows the user to edit the source code and see autocomplete
       if (shouldShowMarkers) {
         continue;

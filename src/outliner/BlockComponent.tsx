@@ -546,6 +546,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               lineWrapping={true}
               theme={isDark ? "dark" : "light"}
               keybindings={keybindings}
+              // FOCUS STATE PROP:
+              // -----------------
+              // This determines whether markdown markers are visible or hidden
+              // focusedBlockId comes from useViewStore and is set when user clicks/focuses a block
+              //
+              // When true (block has focus):
+              //   → shouldShowMarkers = true (via shouldShowMarkersForLine in hybridRendering.ts)
+              //   → Markers are visible → Shows raw markdown (e.g., [[link]], # heading)
+              //
+              // When false (block unfocused):
+              //   → shouldShowMarkers = false
+              //   → Markers are hidden → Renders formatted content (e.g., link, styled heading)
               isFocused={focusedBlockId === blockId}
               className="block-editor"
               style={{

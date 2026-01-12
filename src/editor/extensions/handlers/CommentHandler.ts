@@ -46,7 +46,7 @@ export class CommentHandler extends BaseHandler {
       const end = start + match[0].length;
 
       if (shouldShowMarkers) {
-        // Show dimmed comment in edit mode (when markers should be shown)
+        // Show dimmed comment when cursor is on line
         decorations.push({
           from: start,
           to: end,
@@ -65,7 +65,7 @@ export class CommentHandler extends BaseHandler {
           }),
         });
       } else {
-        // Completely hide comment in preview mode (when markers should be hidden)
+        // Completely hide comment when cursor is not on line
         decorations.push({
           from: start,
           to: end,

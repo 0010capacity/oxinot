@@ -158,9 +158,9 @@ function getVisibleLineRanges(
  * not individual line cursor position since each block is a single line.
  */
 function shouldShowMarkersForLine(editorHasFocus: boolean): boolean {
-  // In block-based editors, hide markers when the block has focus (editing mode)
-  // Show markers (render mode) when the block doesn't have focus
-  return !editorHasFocus;
+  // In block-based editors, show markers when the block has focus (edit mode)
+  // Hide markers (render mode) when the block doesn't have focus
+  return editorHasFocus;
 }
 
 /**

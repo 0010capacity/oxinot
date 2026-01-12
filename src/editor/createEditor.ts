@@ -1181,6 +1181,8 @@ export function createEditor(
     }),
 
     // Hybrid rendering (live preview)
+    // Default focus: false (unfocused) → markers hidden, content rendered
+    // Updated dynamically when user clicks/focuses blocks
     isFocusedCompartment.of(isFocusedFacet.of(config.isFocused ?? false)),
     hybridRenderingPlugin,
     hybridRenderingTheme,

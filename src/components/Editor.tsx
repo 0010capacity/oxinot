@@ -283,7 +283,18 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       }
     }, [value]);
 
+    // FOCUS STATE UPDATES:
+    // ---------------------
     // Update isFocused facet when isFocused prop changes
+    // This is called whenever the user clicks on a different block or navigates with keyboard
+    //
+    // Flow:
+    // 1. BlockComponent passes isFocused={focusedBlockId === blockId}
+    // 2. This effect runs when isFocused prop changes
+    // 3. Updates the editor's isFocusedFacet via compartment reconfiguration
+    // 4. Triggers hybridRenderingPlugin's update() method (via facetChanged detection)
+    // 5. Plugin rebuilds decorations based on new focus state
+    //
     // Use useLayoutEffect to ensure synchronous execution before paint
     // This prevents the "unfocused block stays in marker mode" issue when navigating up
     useLayoutEffect(() => {

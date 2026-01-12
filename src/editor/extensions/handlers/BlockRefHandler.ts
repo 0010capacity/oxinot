@@ -284,7 +284,7 @@ export class BlockRefHandler extends BaseHandler {
       const from = lineFrom + match.start;
       const to = lineFrom + match.end;
 
-      // Show source code in edit mode (when markers should be shown)
+      // If cursor is on this line, don't hide anything and don't show widgets
       // This allows the user to edit the source code
       if (shouldShowMarkers) {
         continue;
