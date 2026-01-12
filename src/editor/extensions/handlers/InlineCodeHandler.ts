@@ -28,7 +28,6 @@ export class InlineCodeHandler extends BaseHandler {
   handle(node: SyntaxNode, context: RenderContext): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
     const content = this.getNodeText(node, context);
-    const isOnCursor = this.isOnCursorLine(node, context);
 
     // Inline code is wrapped with backticks
     // Format: `code`
@@ -37,10 +36,14 @@ export class InlineCodeHandler extends BaseHandler {
     }
 
     // Opening backtick
-    decorations.push(createHiddenMarker(node.from, node.from + 1, isOnCursor));
+    decorations.push(
+      createHiddenMarker(node.from, node.from + 1, context.isEditMode),
+    );
 
     // Closing backtick
-    decorations.push(createHiddenMarker(node.to - 1, node.to, isOnCursor));
+    decorations.push(
+      createHiddenMarker(node.to - 1, node.to, context.isEditMode),
+    );
 
     // Style the code content between backticks
     if (node.from + 1 < node.to - 1) {

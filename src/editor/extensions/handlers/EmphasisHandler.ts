@@ -27,7 +27,6 @@ export class EmphasisHandler extends BaseHandler {
   handle(node: SyntaxNode, context: RenderContext): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
     const content = this.getNodeText(node, context);
-    const isOnCursor = this.isOnCursorLine(node, context);
 
     // Emphasis is wrapped with * or _
     // Format: *text* or _text_
@@ -38,10 +37,14 @@ export class EmphasisHandler extends BaseHandler {
     }
 
     // Opening marker (first character)
-    decorations.push(createHiddenMarker(node.from, node.from + 1, isOnCursor));
+    decorations.push(
+      createHiddenMarker(node.from, node.from + 1, context.isEditMode),
+    );
 
     // Closing marker (last character)
-    decorations.push(createHiddenMarker(node.to - 1, node.to, isOnCursor));
+    decorations.push(
+      createHiddenMarker(node.to - 1, node.to, context.isEditMode),
+    );
 
     // Style the content between markers
     if (node.from + 1 < node.to - 1) {

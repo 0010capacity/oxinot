@@ -91,7 +91,7 @@ export class CalloutHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    shouldShowMarkers: boolean,
+    isEditMode: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -107,8 +107,8 @@ export class CalloutHandler extends BaseHandler {
 
       const config = this.CALLOUT_TYPES[calloutType] || this.CALLOUT_TYPES.note;
 
-      // Hide the > [!type] part when not on cursor line
-      if (!shouldShowMarkers) {
+      // Hide the > [!type] part in preview mode
+      if (!isEditMode) {
         const syntaxEnd = lineText.indexOf(title);
         if (syntaxEnd > 0) {
           decorations.push({

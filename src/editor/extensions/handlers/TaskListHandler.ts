@@ -45,14 +45,13 @@ export class TaskListHandler extends BaseHandler {
 
     // Add checkbox widget at the start of the line
     decorations.push(
-      createWidget(line.from, new CheckboxWidget(checked, line.from), 1)
+      createWidget(line.from, new CheckboxWidget(checked, line.from), 1),
     );
 
     // Hide the markdown checkbox syntax
-    // Show dimmed if cursor is on this line
-    const isOnCursor = this.isOnCursorLine(node, context);
+    // Show dimmed in edit mode
     decorations.push(
-      createHiddenMarker(markerEnd, checkboxEnd, isOnCursor)
+      createHiddenMarker(markerEnd, checkboxEnd, context.isEditMode),
     );
 
     return decorations;

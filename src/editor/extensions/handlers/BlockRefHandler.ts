@@ -275,7 +275,7 @@ export class BlockRefHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    shouldShowMarkers: boolean,
+    isEditMode: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -284,9 +284,9 @@ export class BlockRefHandler extends BaseHandler {
       const from = lineFrom + match.start;
       const to = lineFrom + match.end;
 
-      // If cursor is on this line, don't hide anything and don't show widgets
-      // This allows the user to edit the source code
-      if (shouldShowMarkers) {
+      // In edit mode, show raw markdown for editing
+      // Don't hide anything and don't show widgets
+      if (isEditMode) {
         continue;
       }
 

@@ -28,7 +28,6 @@ export class BlockquoteHandler extends BaseHandler {
     const decorations: DecorationSpec[] = [];
     const line = this.getNodeLine(node, context);
     const lineText = line.text;
-    const isOnCursor = this.isOnCursorLine(node, context);
 
     // Blockquote format: > text
     const match = lineText.match(/^(>\s*)/);
@@ -38,9 +37,9 @@ export class BlockquoteHandler extends BaseHandler {
 
     const markerEnd = line.from + match[1].length;
 
-    // Hide/dim the > marker
+    // Hide/dim the > marker based on edit mode
     decorations.push(
-      createHiddenMarker(line.from, markerEnd, isOnCursor)
+      createHiddenMarker(line.from, markerEnd, context.isEditMode),
     );
 
     // Style the blockquote content
@@ -49,7 +48,7 @@ export class BlockquoteHandler extends BaseHandler {
         createStyledText(markerEnd, line.to, {
           className: "cm-blockquote",
           style: getBlockquoteStyle(),
-        })
+        }),
       );
     }
 

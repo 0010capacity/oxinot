@@ -37,7 +37,7 @@ export class TagHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    _shouldShowMarkers: boolean,
+    _isEditMode: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 

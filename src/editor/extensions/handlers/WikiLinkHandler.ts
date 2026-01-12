@@ -135,11 +135,15 @@ export class WikiLinkHandler extends BaseHandler {
   /**
    * Process wiki links in a line of text
    * Called manually from the main rendering loop
+   *
+   * @param lineText - The text content of the line
+   * @param lineFrom - The absolute position of the line start in the document
+   * @param isEditMode - true if block is in edit mode (focused), false if in preview mode (unfocused)
    */
   static processLine(
     lineText: string,
     lineFrom: number,
-    shouldShowMarkers: boolean,
+    isEditMode: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -154,9 +158,9 @@ export class WikiLinkHandler extends BaseHandler {
       const start = lineFrom + embedMatch.index;
       const end = start + fullMatch.length;
 
-      // If cursor is on this line, don't hide anything and don't show widgets
-      // This allows the user to edit the source code
-      if (shouldShowMarkers) {
+      // In edit mode, show raw markdown for editing
+      // Don't hide anything and don't show widgets
+      if (isEditMode) {
         continue;
       }
 
@@ -187,9 +191,9 @@ export class WikiLinkHandler extends BaseHandler {
       const start = lineFrom + match.index;
       const end = start + fullMatch.length;
 
-      // If cursor is on this line, don't hide anything
+      // In edit mode, show raw markdown for editing
       // This allows the user to edit the source code and see autocomplete
-      if (shouldShowMarkers) {
+      if (isEditMode) {
         continue;
       }
 
