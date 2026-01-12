@@ -9,6 +9,16 @@
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
+  "bundle": {
+    "macOS": {
+      "signingIdentity": null,
+      "certificateChain": [],
+      "timestampUrl": "",
+      "dmg": {
+        "title": "Oxinot"
+      }
+    }
+  },
   "app": {
     "windows": [
       {
