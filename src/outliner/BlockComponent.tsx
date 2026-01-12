@@ -164,20 +164,28 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       const handleCompositionEnd = () => {
         if (!pendingBlockOperationRef.current) return;
 
-        const view = editorRef.current?.getView();
-        if (!view) return;
-
         const op = pendingBlockOperationRef.current;
         pendingBlockOperationRef.current = null;
 
-        removeImeInsertedNewline();
-        commitDraft();
+        const applyPendingOperation = () => {
+          const view = editorRef.current?.getView();
+          if (!view) return;
 
-        if (op.type === "split") {
-          const offset = op.offset ?? view.state.selection.main.head;
-          useBlockStore.getState().splitBlockAtOffset(blockId, offset);
+          removeImeInsertedNewline();
+          commitDraft();
+
+          if (op.type === "split") {
+            const offset = op.offset ?? view.state.selection.main.head;
+            useBlockStore.getState().splitBlockAtOffset(blockId, offset);
+          } else {
+            createBlock(blockId);
+          }
+        };
+
+        if (typeof window.requestAnimationFrame === "function") {
+          window.requestAnimationFrame(applyPendingOperation);
         } else {
-          createBlock(blockId);
+          setTimeout(applyPendingOperation, 0);
         }
       };
 
