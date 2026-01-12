@@ -54,8 +54,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // Consolidated IME state
     const imeStateRef = useRef({
       isComposing: false,
-      recentlyComposed: false, // Track if composition happened recently
-      compositionTimeout: null as NodeJS.Timeout | null,
+      lastInputWasComposition: false, // Track if last beforeinput was composition
       enterPressed: false,
       contentBeforeEnter: "",
       cursorBeforeEnter: 0,
@@ -154,40 +153,45 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
       const handleCompositionStart = () => {
         imeStateRef.current.isComposing = true;
-        imeStateRef.current.recentlyComposed = true;
+        imeStateRef.current.lastInputWasComposition = true;
         imeStateRef.current.enterPressed = false;
-
-        // Clear any existing timeout
-        if (imeStateRef.current.compositionTimeout) {
-          clearTimeout(imeStateRef.current.compositionTimeout);
-        }
       };
 
       const handleCompositionEnd = () => {
         imeStateRef.current.isComposing = false;
-
-        // Keep recentlyComposed flag active for a short period
-        // Korean IME finishes composition before Enter key is processed
-        if (imeStateRef.current.compositionTimeout) {
-          clearTimeout(imeStateRef.current.compositionTimeout);
-        }
-        imeStateRef.current.compositionTimeout = setTimeout(() => {
-          imeStateRef.current.recentlyComposed = false;
-          imeStateRef.current.compositionTimeout = null;
-        }, 100); // 100ms window to catch Enter after composition
+        // Keep lastInputWasComposition flag - will be cleared on next non-IME input
       };
 
-      // Intercept Enter key during or shortly after IME composition at DOM level (capture phase)
-      const handleKeyDown = (e: KeyboardEvent) => {
-        // Catch Enter during active composition OR shortly after compositionend
-        // Korean IME finishes each character's composition immediately, so we need
-        // to check if composition happened recently (within 100ms)
+      // Track input events to detect IME vs normal input
+      const handleBeforeInput = (e: Event) => {
+        const inputEvent = e as InputEvent;
+
+        // Set flag based on whether this is composition input
         if (
-          e.key === "Enter" &&
-          !e.shiftKey &&
-          (imeStateRef.current.isComposing ||
-            imeStateRef.current.recentlyComposed)
+          inputEvent.inputType === "insertCompositionText" ||
+          inputEvent.inputType === "deleteCompositionText"
         ) {
+          imeStateRef.current.lastInputWasComposition = true;
+        } else if (
+          inputEvent.inputType === "insertText" ||
+          inputEvent.inputType === "deleteContentBackward"
+        ) {
+          // Regular text input - clear the IME flag
+          imeStateRef.current.lastInputWasComposition = false;
+        }
+        // insertLineBreak is ignored - we check the flag before it fires
+      };
+
+      // Intercept Enter key during or after IME composition at DOM level (capture phase)
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // Determine if this Enter is IME-related by checking:
+        // 1. Active composition (e.g., Japanese IME candidate selection)
+        // 2. Last input was composition-based (e.g., Korean IME finished composition)
+        const isImeRelated =
+          imeStateRef.current.isComposing ||
+          imeStateRef.current.lastInputWasComposition;
+
+        if (e.key === "Enter" && !e.shiftKey && isImeRelated) {
           e.preventDefault();
           e.stopPropagation();
 
@@ -200,12 +204,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           imeStateRef.current.contentBeforeEnter = content;
           imeStateRef.current.cursorBeforeEnter = cursor;
 
-          // Clear the recentlyComposed flag and timeout
-          imeStateRef.current.recentlyComposed = false;
-          if (imeStateRef.current.compositionTimeout) {
-            clearTimeout(imeStateRef.current.compositionTimeout);
-            imeStateRef.current.compositionTimeout = null;
-          }
+          // Clear IME flag - we've processed the IME Enter
+          imeStateRef.current.lastInputWasComposition = false;
 
           // Execute block operation immediately since composition is already done
           commitDraft();
@@ -228,19 +228,24 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       const dom = view.dom;
       dom.addEventListener("compositionstart", handleCompositionStart);
       dom.addEventListener("compositionend", handleCompositionEnd);
+      dom.addEventListener("beforeinput", handleBeforeInput);
       dom.addEventListener("keydown", handleKeyDown, { capture: true });
 
       return () => {
         dom.removeEventListener("compositionstart", handleCompositionStart);
         dom.removeEventListener("compositionend", handleCompositionEnd);
+        dom.removeEventListener("beforeinput", handleBeforeInput);
         dom.removeEventListener("keydown", handleKeyDown, { capture: true });
-
-        // Clear timeout on cleanup
-        if (imeStateRef.current.compositionTimeout) {
-          clearTimeout(imeStateRef.current.compositionTimeout);
-        }
       };
     }, [blockId, createBlock, commitDraft]);
+
+    const handleFocus = useCallback(() => {
+      // Reset IME state when focusing a different block
+      if (focusedBlockId !== blockId) {
+        imeStateRef.current.lastInputWasComposition = false;
+        setFocusedBlock(blockId);
+      }
+    }, [blockId, setFocusedBlock, focusedBlockId]);
 
     const handleContentChange = useCallback((content: string) => {
       draftRef.current = content;
@@ -249,14 +254,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const handleBlur = useCallback(() => {
       commitDraft();
+      // Clear IME state on blur
+      imeStateRef.current.lastInputWasComposition = false;
     }, [commitDraft]);
-
-    const handleFocus = useCallback(() => {
-      // Only update state if this block is not already focused
-      if (focusedBlockId !== blockId) {
-        setFocusedBlock(blockId);
-      }
-    }, [blockId, setFocusedBlock, focusedBlockId]);
 
     const handleCopyBlockId = useCallback(
       async (e: React.MouseEvent) => {
@@ -329,7 +329,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             // If Enter was pressed during/after IME composition, skip normal processing
             if (
               imeStateRef.current.isComposing ||
-              imeStateRef.current.recentlyComposed ||
+              imeStateRef.current.lastInputWasComposition ||
               imeStateRef.current.enterPressed
             ) {
               return true; // Already handled by keydown capture
