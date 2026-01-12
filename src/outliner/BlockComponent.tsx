@@ -228,6 +228,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
             const cursor = view.state.selection.main.head;
             const content = view.state.doc.toString();
+            const contentLength = content.length;
 
             // Check if we're inside a code block
             const beforeCursor = content.slice(0, cursor);
@@ -271,7 +272,16 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             }
 
             commitDraft();
-            createBlock(blockId);
+
+            // Determine whether to split block or create new sibling based on cursor position
+            if (cursor === contentLength) {
+              // Cursor at end: create new sibling block
+              createBlock(blockId);
+            } else {
+              // Cursor in middle: split current block
+              useBlockStore.getState().splitBlockAtOffset(blockId, cursor);
+            }
+
             return true; // Prevent default CodeMirror behavior
           },
         },
