@@ -157,12 +157,6 @@ function getVisibleLineRanges(
  * For outliner blocks (single-line editors), we only care about block focus,
  * not individual line cursor position since each block is a single line.
  */
-function shouldShowMarkersForLine(editorHasFocus: boolean): boolean {
-  // In block-based editors, show markers when the block has focus (edit mode)
-  // Hide markers (render mode) when the block doesn't have focus
-  return editorHasFocus;
-}
-
 /**
  * Build decorations for the visible range using the handler system.
  *
@@ -179,15 +173,15 @@ function buildDecorations(view: EditorView): DecorationSet {
   // Get cursor information once
   const cursor = getCursorInfo(state);
 
-  // Check if editor has focus (block is focused in outliner)
-  const editorHasFocus = state.facet(isFocusedFacet);
+  // Check if block is in edit mode (block is focused in outliner)
+  const isEditMode = state.facet(isFocusedFacet);
 
-  // Create render context (shouldShowMarkers will be set per-node)
+  // Create render context
   const context: RenderContext = {
     state,
     cursor,
-    editorHasFocus,
-    shouldShowMarkers: false, // Will be updated per-node
+    editorHasFocus: isEditMode,
+    isEditMode,
     decorations,
   };
 
@@ -201,9 +195,6 @@ function buildDecorations(view: EditorView): DecorationSet {
       to,
       enter: (node) => {
         const syntaxNode = node.node;
-
-        // For block-based editors, use block-level focus
-        context.shouldShowMarkers = shouldShowMarkersForLine(editorHasFocus);
 
         const nodeDecorations = handlerRegistry.handleNode(syntaxNode, context);
         if (nodeDecorations.length) decorations.push(...nodeDecorations);
@@ -225,26 +216,23 @@ function buildDecorations(view: EditorView): DecorationSet {
       const line = state.doc.line(lineNum);
       const lineText = line.text;
 
-      // For block-based editors, use block-level focus
-      const shouldShowMarkers = shouldShowMarkersForLine(editorHasFocus);
-
       decorations.push(
-        ...WikiLinkHandler.processLine(lineText, line.from, shouldShowMarkers),
+        ...WikiLinkHandler.processLine(lineText, line.from, isEditMode),
       );
       decorations.push(
-        ...BlockRefHandler.processLine(lineText, line.from, shouldShowMarkers),
+        ...BlockRefHandler.processLine(lineText, line.from, isEditMode),
       );
       decorations.push(
-        ...TagHandler.processLine(lineText, line.from, shouldShowMarkers),
+        ...TagHandler.processLine(lineText, line.from, isEditMode),
       );
       decorations.push(
-        ...HighlightHandler.processLine(lineText, line.from, shouldShowMarkers),
+        ...HighlightHandler.processLine(lineText, line.from, isEditMode),
       );
       decorations.push(
-        ...CommentHandler.processLine(lineText, line.from, shouldShowMarkers),
+        ...CommentHandler.processLine(lineText, line.from, isEditMode),
       );
       decorations.push(
-        ...CalloutHandler.processLine(lineText, line.from, shouldShowMarkers),
+        ...CalloutHandler.processLine(lineText, line.from, isEditMode),
       );
     }
   }
@@ -260,15 +248,12 @@ function buildDecorations(view: EditorView): DecorationSet {
 
       const isSeparator = /^\s*\|?[\s\-:|]+\|[\s\-:|]*$/.test(lineText);
 
-      // For block-based editors, use block-level focus
-      const shouldShowMarkers = shouldShowMarkersForLine(editorHasFocus);
-
       const isHeader =
         lineNum < state.doc.lines &&
         /^\s*\|?[\s\-:|]+\|[\s\-:|]*$/.test(state.doc.line(lineNum + 1).text);
 
       if (isSeparator) {
-        if (!shouldShowMarkers) {
+        if (!isEditMode) {
           decorations.push({
             from: line.from,
             to: line.to,
@@ -338,7 +323,7 @@ function buildDecorations(view: EditorView): DecorationSet {
       });
 
       // Pipe visibility
-      if (!shouldShowMarkers) {
+      if (!isEditMode) {
         for (let i = 0; i < lineText.length; i++) {
           if (lineText[i] !== "|") continue;
           decorations.push({
@@ -372,10 +357,7 @@ function buildDecorations(view: EditorView): DecorationSet {
       const line = state.doc.line(lineNum);
       const lineText = line.text;
 
-      // For block-based editors, use block-level focus
-      const shouldShowMarkers = shouldShowMarkersForLine(editorHasFocus);
-
-      const strikethroughRegex = /~~([^~]+)~~/g;
+      const strikethroughRegex = /~~(.+?)~~/g;
       let match: RegExpExecArray | null;
       while ((match = strikethroughRegex.exec(lineText)) !== null) {
         const start = line.from + match.index;
@@ -392,7 +374,7 @@ function buildDecorations(view: EditorView): DecorationSet {
           }),
         });
 
-        if (!shouldShowMarkers) {
+        if (!isEditMode) {
           decorations.push({
             from: start,
             to: start + 2,
@@ -431,12 +413,9 @@ function buildDecorations(view: EditorView): DecorationSet {
       const line = state.doc.line(lineNum);
       const lineText = line.text;
 
-      // For block-based editors, use block-level focus
-      const shouldShowMarkers = shouldShowMarkersForLine(editorHasFocus);
-
       const def = lineText.match(/^\[\^([^\]]+)\]:\s+(.+)$/);
       if (def) {
-        if (!shouldShowMarkers) {
+        if (!isEditMode) {
           decorations.push({
             from: line.from,
             to: line.to,

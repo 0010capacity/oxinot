@@ -27,7 +27,6 @@ export class StrongHandler extends BaseHandler {
   handle(node: SyntaxNode, context: RenderContext): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
     const content = this.getNodeText(node, context);
-    const isOnCursor = this.isOnCursorLine(node, context);
 
     // Strong emphasis is wrapped with ** or __
     // Format: **text** or __text__
@@ -40,12 +39,16 @@ export class StrongHandler extends BaseHandler {
 
     // Opening markers (first 2 characters)
     decorations.push(
-      createHiddenMarker(node.from, node.from + markerLength, isOnCursor),
+      createHiddenMarker(
+        node.from,
+        node.from + markerLength,
+        context.isEditMode,
+      ),
     );
 
     // Closing markers (last 2 characters)
     decorations.push(
-      createHiddenMarker(node.to - markerLength, node.to, isOnCursor),
+      createHiddenMarker(node.to - markerLength, node.to, context.isEditMode),
     );
 
     // Style the content between markers

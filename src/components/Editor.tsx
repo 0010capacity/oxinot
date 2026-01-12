@@ -298,10 +298,10 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     // Use useLayoutEffect to ensure synchronous execution before paint
     // This prevents the "unfocused block stays in marker mode" issue when navigating up
     useLayoutEffect(() => {
-      if (editorViewRef.current && latestRef.current.isFocused !== undefined) {
+      if (editorViewRef.current && isFocused !== undefined) {
         editorViewRef.current.dispatch({
           effects: isFocusedCompartment.reconfigure(
-            isFocusedFacet.of(latestRef.current.isFocused),
+            isFocusedFacet.of(isFocused),
           ),
         });
       }

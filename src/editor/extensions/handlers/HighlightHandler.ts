@@ -36,7 +36,7 @@ export class HighlightHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    shouldShowMarkers: boolean,
+    isEditMode: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -51,7 +51,7 @@ export class HighlightHandler extends BaseHandler {
       const contentEnd = end - 2;
 
       // Hide opening ==
-      decorations.push(createHiddenMarker(start, start + 2, shouldShowMarkers));
+      decorations.push(createHiddenMarker(start, start + 2, isEditMode));
 
       // Style the highlighted content
       decorations.push(
@@ -67,7 +67,7 @@ export class HighlightHandler extends BaseHandler {
       );
 
       // Hide closing ==
-      decorations.push(createHiddenMarker(end - 2, end, shouldShowMarkers));
+      decorations.push(createHiddenMarker(contentEnd, end, isEditMode));
     }
 
     return decorations;

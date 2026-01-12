@@ -2,8 +2,8 @@
  * Heading handler for hybrid rendering
  *
  * Handles ATX-style headings (# H1, ## H2, etc.)
- * - Hides hash marks when cursor is not on line
- * - Shows dimmed hash marks when editing
+ * - Hides hash marks in preview mode (block unfocused)
+ * - Shows dimmed hash marks in edit mode (block focused)
  * - Applies appropriate font size and weight based on heading level
  */
 
@@ -41,11 +41,10 @@ export class HeadingHandler extends BaseHandler {
     const hashEnd = line.from + hashMarks.length;
     const level = hashMarks.length;
 
-    // Check if cursor is on this line
-    const isOnCursor = this.isOnCursorLine(node, context);
-
-    // Hide/dim the hash marks
-    decorations.push(createHiddenMarker(line.from, hashEnd, isOnCursor));
+    // Hide/dim the hash marks based on edit mode
+    decorations.push(
+      createHiddenMarker(line.from, hashEnd, context.isEditMode),
+    );
 
     // Style the heading text (if there is any)
     if (hashEnd < line.to) {

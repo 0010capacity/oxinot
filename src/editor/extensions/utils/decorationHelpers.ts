@@ -53,21 +53,25 @@ export function isPositionOnCursorLine(
 /**
  * Create a decoration that hides markdown markers
  *
- * The marker will be completely hidden when the cursor is not on the line,
- * and dimmed/visible when the cursor is on the line for editing.
+ * The marker will be completely hidden in preview mode (block unfocused),
+ * and dimmed/visible in edit mode (block has focus) for editing.
+ *
+ * @param from - Start position
+ * @param to - End position
+ * @param isEditMode - true if block is in edit mode (focused), false if in preview mode (unfocused)
  */
 export function createHiddenMarker(
   from: number,
   to: number,
-  isOnCursor: boolean,
+  isEditMode: boolean,
 ): DecorationSpec {
   return {
     from,
     to,
     decoration: Decoration.mark({
-      class: isOnCursor ? "cm-dim-marker" : "cm-hidden",
+      class: isEditMode ? "cm-dim-marker" : "cm-hidden",
       attributes: {
-        style: getMarkerStyle(isOnCursor),
+        style: getMarkerStyle(isEditMode),
       },
     }),
   };
@@ -168,10 +172,10 @@ export function createWidget(
  */
 export function createHiddenMarkers(
   ranges: Array<{ from: number; to: number }>,
-  isOnCursor: boolean,
+  isEditMode: boolean,
 ): DecorationSpec[] {
   return ranges.map((range) =>
-    createHiddenMarker(range.from, range.to, isOnCursor),
+    createHiddenMarker(range.from, range.to, isEditMode),
   );
 }
 
@@ -257,10 +261,10 @@ export function createPairedMarkers(
   openTo: number,
   closeFrom: number,
   closeTo: number,
-  isOnCursor: boolean,
+  isEditMode: boolean,
 ): DecorationSpec[] {
   return [
-    createHiddenMarker(openFrom, openTo, isOnCursor),
-    createHiddenMarker(closeFrom, closeTo, isOnCursor),
+    createHiddenMarker(openFrom, openTo, isEditMode),
+    createHiddenMarker(closeFrom, closeTo, isEditMode),
   ];
 }
