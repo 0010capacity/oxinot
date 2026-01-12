@@ -1,130 +1,266 @@
-# Release Guidelines
+# Release Guide
 
 ## Overview
-This document outlines the process for releasing new versions of Oxinot. We follow [Semantic Versioning 2.0.0](https://semver.org/) and maintain a structured release workflow.
 
-## Release Process
+Oxinot uses **Changesets** for automated version management and release coordination. This guide explains the release process for users and maintainers.
 
-### 1. Pre-Release Checklist
-Before starting a release, ensure:
-- [ ] All intended features/fixes are merged to `main` branch
+## Quick Start (Users)
+
+When you're satisfied with development and ready to release:
+
+```bash
+npm run release
+```
+
+This command automatically:
+1. Updates version in `package.json`, `tauri.conf.json`, and `Cargo.toml`
+2. Generates changelog entries
+3. Creates a release commit
+4. Builds the application
+5. (GitHub Actions will create the Git tag and GitHub Release with binaries)
+
+## Understanding the Workflow
+
+### What Developers Do
+
+1. **Commit Changes**: Use conventional commits (feat, fix, improve, etc.)
+2. **Create Changeset**: Run `npx changeset add` after each commit
+3. **Push to main**: Changes are automatically tracked
+
+### What the Release Process Does
+
+The `npm run release` command:
+1. Collects all pending changesets
+2. Calculates version bump (major/minor/patch)
+3. Updates versions in all config files
+4. Creates release commit and Git tag
+5. Builds Tauri app for all platforms
+6. GitHub Actions automatically:
+   - Uploads binaries to GitHub Release
+   - Makes the release publicly available
+
+## Semantic Versioning
+
+This project follows [Semantic Versioning 2.0.0](https://semver.org/).
+
+### Version Format
+```
+MAJOR.MINOR.PATCH
+```
+
+### When to Bump
+
+- **MAJOR (X.0.0)**: Breaking changes
+  - Breaking API changes
+  - Incompatible data format changes
+  - Major feature removals
+  - Database schema migrations
+
+- **MINOR (0.X.0)**: New features (backward-compatible)
+  - New features
+  - Enhancements
+  - New UI/UX improvements
+  - New configuration options
+
+- **PATCH (0.0.X)**: Bug fixes (backward-compatible)
+  - Bug fixes
+  - Performance improvements
+  - Minor UI tweaks
+  - Documentation updates
+
+### Breaking Change Indicator
+
+To trigger a MAJOR version bump, add `BREAKING CHANGE:` in commit footer:
+
+```
+feat(block): redesign block structure
+
+BREAKING CHANGE: Block data format changed from 'content' to 'text'
+```
+
+## Detailed Release Process
+
+### Step 1: Verify Pending Changes
+
+Before releasing, check what will be included:
+
+```bash
+npm run changeset:status --verbose
+```
+
+This shows:
+- All pending changesets
+- What version will be bumped to
+- Summary of changes
+
+### Step 2: Run Release Command
+
+```bash
+npm run release
+```
+
+This will:
+1. Call `changeset version` to update all versions
+2. Run `sync-versions.js` to sync Tauri configs
+3. Build the application
+4. Create release artifacts
+
+### Step 3: GitHub Actions Takes Over
+
+When the release commit is pushed and tagged, GitHub Actions automatically:
+1. Detects the `vX.Y.Z` tag
+2. Builds for all platforms:
+   - macOS (Intel & Apple Silicon)
+   - Linux
+   - Windows
+3. Creates GitHub Release with binaries
+4. Makes release publicly available
+
+**You don't need to do anything after pushing the tag!**
+
+## Release Checklist
+
+Before running `npm run release`:
+
+- [ ] All desired features/fixes are in `main`
 - [ ] Code review is complete
-- [ ] Tests pass locally
+- [ ] Tests pass locally: `npm run build`
 - [ ] Linting passes: `npm run lint`
 - [ ] Formatting is correct: `npm run format`
-- [ ] No critical warnings in compilation
+- [ ] No critical warnings in build output
+- [ ] Changesets are created for all changes: `npm run changeset:status`
 
-### 2. Determine Version Number
-Review commits since last release and determine the version bump:
+## Post-Release
 
-```
-git log --oneline <last-tag>..main
-```
+### After Release is Published
 
-Use the commit types to decide:
-- **MAJOR** (X.0.0): Breaking changes, API incompatibilities
-- **MINOR** (0.X.0): New features, improvements (backward-compatible)
-- **PATCH** (0.0.X): Bug fixes, stability improvements
+1. Verify release on GitHub Releases page
+2. Test downloading and running the app
+3. Update any external documentation
+4. Announce release (Discord, Twitter, etc.)
+5. Monitor for bug reports
 
-Refer to `VERSION.md` for detailed versioning rules.
+### If Issues are Discovered
 
-### 3. Update Version Files
-Update version number in all three places to maintain consistency:
+1. Fix the issue in code
+2. Create a new commit with fix
+3. Create changeset for the fix (typically patch version)
+4. Run `npm run release` again
 
-```bash
-# 1. package.json
-"version": "X.Y.Z"
+## Advanced: Manual Version Updates
 
-# 2. src-tauri/tauri.conf.json
-"version": "X.Y.Z"
-
-# 3. src-tauri/Cargo.toml
-version = "X.Y.Z"
-```
-
-**Note**: Keep all three versions in sync. Mismatches can cause build issues.
-
-### 4. Create Release Commit
-After updating versions, create a release commit:
+If you need to manually update versions:
 
 ```bash
-git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
-git commit -m "chore: release v0.X.Z"
+# Update package.json version
+npm version patch  # or minor, major
+
+# Sync to Tauri configs
+npm run version:sync
+
+# Create and push tag
 git push origin main
-```
-
-### 5. Build Release Bundles
-Build the application for target platform(s):
-
-```bash
-# For Apple Silicon (aarch64) macOS
-npm run tauri:build -- --target aarch64-apple-darwin
-
-# For Intel macOS
-npm run tauri:build -- --target x86_64-apple-darwin
-
-# For Universal binary (both architectures)
-npm run tauri:build -- --target universal-apple-darwin
-```
-
-Build artifacts are located in:
-```
-src-tauri/target/<target>/release/bundle/
-```
-
-**macOS Bundles:**
-- `*.app` - Application bundle
-- `*.dmg` - Disk image for distribution
-- `*.tar.gz` - Compressed archive
-
-### 6. Create Git Tag
-Tag the release commit:
-
-```bash
-git tag -a vX.Y.Z -m "Release vX.Y.Z: <brief description>"
-```
-
-**Tag message template:**
-```
-Release vX.Y.Z: <Feature headline>
-
-This release includes:
-- Feature/fix #1
-- Feature/fix #2
-- Feature/fix #3
-
-Platform support:
-- macOS (Apple Silicon/Intel/Universal)
-```
-
-### 7. Push Tag to GitHub
-```bash
+git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-### 8. Create GitHub Release
-Use GitHub CLI to create the release and upload artifacts:
+## Version File Locations
+
+The release process automatically keeps these in sync:
+
+1. **package.json**
+   ```json
+   "version": "X.Y.Z"
+   ```
+
+2. **src-tauri/tauri.conf.json**
+   ```json
+   "version": "X.Y.Z"
+   ```
+
+3. **src-tauri/Cargo.toml**
+   ```toml
+   version = "X.Y.Z"
+   ```
+
+**Important**: The sync script (`sync-versions.js`) ensures these stay in sync automatically.
+
+## Troubleshooting
+
+### "Some packages have been changed but no changesets were found"
+
+This means code was committed but no changeset was created. Fix:
 
 ```bash
-gh release create vX.Y.Z \
-  --title "vX.Y.Z - <Headline>" \
-  --notes "Release notes here" \
-  path/to/Oxinot_X.Y.Z_aarch64.dmg
+npx changeset add
+git add .changeset/
+git commit -m "chore: add changeset"
+git push origin main
 ```
 
-Or use GitHub web interface:
-1. Go to Releases page
-2. Click "Draft a new release"
-3. Select the tag you just pushed
-4. Add release title and description
-5. Upload DMG files
-6. Mark as "Latest release" if applicable
-7. Publish
+### Version mismatch between files
 
-### 9. Release Notes Template
+Run the sync script:
+
+```bash
+npm run version:sync
+```
+
+Then verify all three files match:
+
+```bash
+grep version package.json
+grep version src-tauri/tauri.conf.json
+grep version src-tauri/Cargo.toml
+```
+
+### Build failed during release
+
+The release process includes a build step. If it fails:
+
+1. Fix the issue locally
+2. Verify build works: `npm run build`
+3. Create a new changeset for the fix
+4. Run `npm run release` again
+
+### Git tag already exists
+
+If a tag was created but release didn't complete:
+
+```bash
+# Delete local tag
+git tag -d vX.Y.Z
+
+# Delete remote tag
+git push origin :refs/tags/vX.Y.Z
+
+# Run release again
+npm run release
+```
+
+## CI/CD Pipeline
+
+The project has two GitHub Actions workflows:
+
+### 1. CI Workflow (`ci.yml`)
+Runs on every push to `main` and PRs:
+- Linting checks
+- Format verification
+- Build verification
+- Basic Tauri build check
+
+### 2. Release Workflow (`release.yml`)
+Runs when a `vX.Y.Z` tag is pushed:
+- Builds for all platforms (macOS, Linux, Windows)
+- Creates GitHub Release
+- Uploads platform-specific binaries
+
+## Release Notes Template
+
+When creating a GitHub Release manually, use this template:
 
 ```markdown
-# vX.Y.Z - Release Title
+# Oxinot vX.Y.Z - Release Title
 
 ## New Features
 - Feature description
@@ -141,137 +277,25 @@ Or use GitHub web interface:
 ## Downloads
 - **macOS (Apple Silicon)**: `Oxinot_X.Y.Z_aarch64.dmg`
 - **macOS (Intel)**: `Oxinot_X.Y.Z_x86_64.dmg`
-- **macOS (Universal)**: `Oxinot_X.Y.Z_universal.dmg`
+- **Linux**: `oxinot_X.Y.Z_amd64.AppImage`
+- **Windows**: `Oxinot_X.Y.Z_x64_en-US.msi`
 
 ## System Requirements
-- macOS 11.0 or later
+- macOS 11.0+ / Windows 10+ / Linux (glibc 2.29+)
 - 50MB disk space
 
 ## Installation
-1. Download the `.dmg` file matching your architecture
-2. Double-click to mount the disk image
-3. Drag Oxinot into the Applications folder
-4. Eject the disk image
-5. Launch Oxinot from Applications
-
-## Known Issues
-- (If any)
+1. Download the appropriate file for your OS
+2. Run the installer or extract the archive
+3. Launch Oxinot
 
 ## Thank You
-Thanks to all contributors for making this release possible.
-```
-
-## Release Cadence
-
-### Regular Releases
-- **Major releases (X.0.0)**: Irregular, for significant feature additions or breaking changes
-- **Minor releases (0.X.0)**: Every 2-4 weeks, for new features and improvements
-- **Patch releases (0.0.X)**: As needed, for critical bug fixes
-
-### Hotfix Releases
-For critical bugs in current release:
-1. Create branch from release tag: `git checkout -b hotfix/<issue> vX.Y.Z`
-2. Fix the issue
-3. Merge to `main`
-4. Release as patch version (X.Y.Z+1)
-
-## Versioning Best Practices
-
-### Do's
-✅ Keep version numbers consistent across all config files
-✅ Tag every release
-✅ Write clear, descriptive release notes
-✅ Test builds thoroughly before releasing
-✅ Include download links in release notes
-✅ Document known issues and limitations
-
-### Don'ts
-❌ Skip version updates in any config file
-❌ Release without testing
-❌ Create releases without proper commit history
-❌ Forget to update documentation
-❌ Release breaking changes as MINOR/PATCH
-❌ Use version tags without proper release notes
-
-## Post-Release
-
-### After Release
-1. Verify release is available on GitHub
-2. Test downloading and running the application
-3. Update documentation if needed
-4. Announce release (Discord, Twitter, etc.)
-5. Monitor for bug reports
-
-### Maintenance
-- Keep `main` branch stable
-- Review and merge PRs regularly
-- Plan next release cycle
-- Update CHANGELOG if maintaining one
-
-## Emergency Rollback
-
-If a critical issue is discovered after release:
-
-1. Create hotfix branch from previous tag
-2. Apply fix
-3. Release as new patch version
-4. Update release notes in previous version to mention the issue
-5. Announce hotfix
-
-## Continuous Integration
-
-Consider automating:
-- Version validation (all files match)
-- Build verification
-- Release creation
-- Artifact upload
-
-Setup GitHub Actions workflow (`.github/workflows/release.yml`):
-```yaml
-name: Release
-on:
-  push:
-    tags:
-      - 'v*'
-jobs:
-  release:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build
-        run: npm run tauri:build -- --target aarch64-apple-darwin
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-```
-
-## Troubleshooting
-
-### Build Fails
-```bash
-# Clean build cache
-rm -rf src-tauri/target
-npm run tauri:build -- --target aarch64-apple-darwin
-```
-
-### Version Mismatch Errors
-```bash
-# Check all version files
-grep -n "0\." package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
-# Update any mismatches
-```
-
-### Tag Already Exists
-```bash
-# Delete local tag
-git tag -d vX.Y.Z
-# Delete remote tag
-git push origin :vX.Y.Z
-# Create new tag
-git tag -a vX.Y.Z -m "..."
-git push origin vX.Y.Z
+Thanks to all contributors for making this release possible!
 ```
 
 ## Questions?
-For questions about the release process, refer to `VERSION.md` for versioning rules or contact the maintainers.
+
+For detailed information about:
+- **Commit conventions**: See `VERSION.md`
+- **Development workflow**: See `AGENTS.md`
+- **Changesets usage**: Run `npx changeset --help` or check `.changeset/README.md`
