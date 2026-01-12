@@ -89,6 +89,22 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       }
     }, [blockId]);
 
+    const removeImeInsertedNewline = useCallback(() => {
+      const view = editorRef.current?.getView();
+      if (!view) return;
+
+      const cursor = view.state.selection.main.head;
+      if (cursor === 0) return;
+
+      const prevChar = view.state.doc.sliceString(cursor - 1, cursor);
+      if (prevChar !== "\n") return;
+
+      view.dispatch({
+        changes: { from: cursor - 1, to: cursor, insert: "" },
+        selection: { anchor: cursor - 1 },
+      });
+    }, []);
+
     // Focus editor when this block becomes focused
     useEffect(() => {
       if (focusedBlockId === blockId && editorRef.current) {
@@ -154,6 +170,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         const op = pendingBlockOperationRef.current;
         pendingBlockOperationRef.current = null;
 
+        removeImeInsertedNewline();
         commitDraft();
 
         if (op.type === "split") {
@@ -168,7 +185,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       return () => {
         window.removeEventListener("compositionend", handleCompositionEnd);
       };
-    }, [blockId, createBlock, commitDraft]);
+    }, [blockId, createBlock, commitDraft, removeImeInsertedNewline]);
 
     const handleContentChange = useCallback((content: string) => {
       draftRef.current = content;
