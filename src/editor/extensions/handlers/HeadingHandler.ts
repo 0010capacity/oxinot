@@ -31,25 +31,27 @@ export class HeadingHandler extends BaseHandler {
     const lineText = line.text;
 
     // Match heading pattern: # text or ## text, etc.
-    // Allow optional text after the hash marks
-    const match = lineText.match(/^(#{1,6})(\s+(.*))?$/);
+    // Capture hash marks and the following space (if present)
+    const match = lineText.match(/^(#{1,6})(\s)?(.*)$/);
     if (!match) {
       return decorations;
     }
 
     const hashMarks = match[1];
-    const hashEnd = line.from + hashMarks.length;
+    const space = match[2] || "";
+    const markerWithSpace = hashMarks + space;
+    const markerEnd = line.from + markerWithSpace.length;
     const level = hashMarks.length;
 
-    // Hide/dim the hash marks based on edit mode
+    // Hide/dim the hash marks and the following space based on edit mode
     decorations.push(
-      createHiddenMarker(line.from, hashEnd, context.isEditMode),
+      createHiddenMarker(line.from, markerEnd, context.isEditMode),
     );
 
     // Style the heading text (if there is any)
-    if (hashEnd < line.to) {
+    if (markerEnd < line.to) {
       decorations.push(
-        createStyledText(hashEnd, line.to, {
+        createStyledText(markerEnd, line.to, {
           className: `cm-heading-text cm-heading-${level}`,
           style: `${getHeadingStyle(level)}; text-decoration: none !important; border-bottom: none !important;`,
         }),
