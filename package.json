@@ -11,7 +11,13 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "changeset": "changeset",
+    "changeset:add": "changeset add",
+    "changeset:status": "changeset status --verbose",
+    "version:sync": "node sync-versions.js",
+    "version": "changeset version && npm run version:sync",
+    "release": "npm run version && npm run build"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.0",
