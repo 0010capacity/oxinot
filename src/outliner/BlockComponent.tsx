@@ -56,6 +56,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const editorRef = useRef<EditorRef>(null);
     const appliedPositionRef = useRef<number | null>(null);
+    const pendingBlockOperationRef = useRef<{
+      type: "split" | "create";
+      offset?: number;
+      cursor?: number;
+    } | null>(null);
 
     // Local draft is the immediate source of truth while editing.
     // This prevents controlled-value "ping-pong" that can break IME composition.
@@ -138,6 +143,33 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       targetCursorPosition,
       clearTargetCursorPosition,
     ]);
+
+    // Handle IME composition end: execute pending block operations after composition completes
+    useEffect(() => {
+      const view = editorRef.current?.getView();
+      if (!view) return;
+
+      const handleCompositionEnd = () => {
+        if (pendingBlockOperationRef.current) {
+          const op = pendingBlockOperationRef.current;
+
+          commitDraft();
+
+          if (op.type === "split" && op.offset !== undefined) {
+            useBlockStore.getState().splitBlockAtOffset(blockId, op.offset);
+          } else if (op.type === "create") {
+            createBlock(blockId);
+          }
+
+          pendingBlockOperationRef.current = null;
+        }
+      };
+
+      view.dom.addEventListener("compositionend", handleCompositionEnd);
+      return () => {
+        view.dom.removeEventListener("compositionend", handleCompositionEnd);
+      };
+    }, [blockId, createBlock, commitDraft]);
 
     const handleContentChange = useCallback((content: string) => {
       draftRef.current = content;
@@ -223,8 +255,25 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         {
           key: "Enter",
           run: (view: EditorView) => {
-            // Let IME handle Enter for composition commit.
-            if ((view as any).composing) return false;
+            // If IME composition is in progress, defer block operation to compositionend handler
+            // and return true to prevent default newline behavior
+            if ((view as any).composing) {
+              const cursor = view.state.selection.main.head;
+              const content = view.state.doc.toString();
+              const contentLength = content.length;
+
+              // Store pending operation to be executed when composition ends
+              if (cursor === contentLength) {
+                pendingBlockOperationRef.current = { type: "create" };
+              } else {
+                pendingBlockOperationRef.current = {
+                  type: "split",
+                  offset: cursor,
+                };
+              }
+
+              return true; // Prevent default newline during composition
+            }
 
             const cursor = view.state.selection.main.head;
             const content = view.state.doc.toString();
