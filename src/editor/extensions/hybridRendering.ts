@@ -14,10 +14,10 @@
 
 import {
   Decoration,
-  DecorationSet,
+  type DecorationSet,
   EditorView,
   ViewPlugin,
-  ViewUpdate,
+  type ViewUpdate,
 } from "@codemirror/view";
 import { RangeSetBuilder, Facet, Compartment } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
@@ -43,8 +43,8 @@ import { BlockRefHandler } from "./handlers/BlockRefHandler";
 
 // Import handler system
 import { HandlerRegistry } from "./handlers/HandlerRegistry";
-import { RenderContext } from "./handlers/types";
-import { DecorationSpec, sortDecorations } from "./utils/decorationHelpers";
+import type { RenderContext } from "./handlers/types";
+import { type DecorationSpec, sortDecorations } from "./utils/decorationHelpers";
 import { getCursorInfo } from "./utils/nodeHelpers";
 
 type VisibleRange = { from: number; to: number };

@@ -1,4 +1,4 @@
-import { PageData } from "@/stores/pageStore";
+import type { PageData } from "@/stores/pageStore";
 
 /**
  * Builds the full hierarchical path for a page

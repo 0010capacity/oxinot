@@ -69,7 +69,7 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
     const dateStr = formatDateForPage(selectedDate);
 
     // Check if page already exists
-    let page = getDailyNotePage(selectedDate);
+    const page = getDailyNotePage(selectedDate);
 
     if (!page) {
       // Create new daily note page

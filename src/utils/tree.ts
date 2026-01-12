@@ -55,11 +55,11 @@ export function buildTree<T extends { id: string; parentId: string | null }>(
  */
 export function flattenTree<T extends { id: string; children?: T[] }>(
   roots: T[],
-  includeDepth: boolean = false,
+  includeDepth = false,
 ): (T & { depth?: number })[] {
   const result: (T & { depth?: number })[] = [];
 
-  function traverse(node: T, depth: number = 0) {
+  function traverse(node: T, depth = 0) {
     const { children, ...rest } = node;
     result.push(
       includeDepth ? { ...rest, depth, children } as T & { depth: number } : node,
@@ -170,7 +170,7 @@ export function isAncestor<T extends { id: string; parentId: string | null }>(
 export function getSiblings<T extends { id: string; parentId: string | null }>(
   nodes: T[],
   nodeId: string,
-  includeSelf: boolean = false,
+  includeSelf = false,
 ): T[] {
   const node = nodes.find((n) => n.id === nodeId);
   if (!node) {
@@ -223,7 +223,7 @@ export function mapTree<T extends { children?: T[] }, R extends { children?: R[]
   roots: T[],
   mapper: (node: T, depth: number) => R,
 ): R[] {
-  function traverse(node: T, depth: number = 0): R {
+  function traverse(node: T, depth = 0): R {
     const mapped = mapper(node, depth);
     if (node.children && node.children.length > 0) {
       mapped.children = node.children.map((child) => traverse(child, depth + 1));
@@ -244,7 +244,7 @@ export function mapTree<T extends { children?: T[] }, R extends { children?: R[]
 export function filterTree<T extends { children?: T[] }>(
   roots: T[],
   predicate: (node: T) => boolean,
-  keepParents: boolean = true,
+  keepParents = true,
 ): T[] {
   function traverse(node: T): T | null {
     const matches = predicate(node);

@@ -3,7 +3,7 @@
  * Provides helpers for conditional styling, theme-aware values, and style merging
  */
 
-import React from "react";
+import type React from "react";
 
 /**
  * Helper to conditionally apply values based on theme
@@ -61,8 +61,8 @@ export function createOpacityToggle(
  */
 export function getBorderStyle(
   color: string,
-  width: string = "1px",
-  style: string = "solid",
+  width = "1px",
+  style = "solid",
 ): string {
   return `${width} ${style} ${color}`;
 }
@@ -84,7 +84,7 @@ export function classNames(
  * @returns Number value
  */
 export function pxToNumber(value: string): number {
-  return parseInt(value.replace("px", ""), 10);
+  return Number.parseInt(value.replace("px", ""), 10);
 }
 
 /**

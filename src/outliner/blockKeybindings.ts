@@ -1,5 +1,5 @@
-import { KeyBinding } from "@codemirror/view";
-import { Block, BlockAction } from "./types";
+import type { KeyBinding } from "@codemirror/view";
+import type { Block, BlockAction } from "./types";
 import { flattenBlocks } from "./blockUtils";
 
 /**

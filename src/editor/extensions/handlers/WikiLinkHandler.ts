@@ -14,16 +14,16 @@
  * - Differentiates between note name and display text
  */
 
-import { SyntaxNode } from "@lezer/common";
-import { BaseHandler, RenderContext } from "./types";
-import { DecorationSpec } from "../utils/decorationHelpers";
+import type { SyntaxNode } from "@lezer/common";
+import { BaseHandler, type RenderContext } from "./types";
+import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
-import { Decoration, WidgetType, EditorView } from "@codemirror/view";
+import { Decoration, WidgetType, type EditorView } from "@codemirror/view";
 import React from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { EmbeddedPageCard } from "../../../components/EmbeddedPageCard";
 import { MantineProvider } from "@mantine/core";
 import { ThemeProvider } from "../../../theme/ThemeProvider";
