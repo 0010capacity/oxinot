@@ -1,11 +1,5 @@
-import React, {
-  memo,
-  useCallback,
-  useRef,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import type React from "react";
+import { memo, useCallback, useRef, useEffect, useMemo, useState } from "react";
 import { useMantineColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
 import {
@@ -18,7 +12,7 @@ import {
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
-import { Editor, EditorRef } from "../components/Editor";
+import { Editor, type EditorRef } from "../components/Editor";
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import "./BlockComponent.css";
@@ -56,6 +50,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const editorRef = useRef<EditorRef>(null);
     const appliedPositionRef = useRef<number | null>(null);
+
+    // Consolidated IME state
+    const imeStateRef = useRef({
+      isComposing: false,
+      recentlyComposed: false, // Track if composition happened recently
+      compositionTimeout: null as NodeJS.Timeout | null,
+      enterPressed: false,
+      contentBeforeEnter: "",
+      cursorBeforeEnter: 0,
+      pendingOperation: null as {
+        type: "split" | "create";
+        offset?: number;
+      } | null,
+    });
 
     // Local draft is the immediate source of truth while editing.
     // This prevents controlled-value "ping-pong" that can break IME composition.
@@ -138,6 +146,101 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       targetCursorPosition,
       clearTargetCursorPosition,
     ]);
+
+    // Handle IME composition events: track state and execute pending block operations
+    useEffect(() => {
+      const view = editorRef.current?.getView();
+      if (!view) return;
+
+      const handleCompositionStart = () => {
+        imeStateRef.current.isComposing = true;
+        imeStateRef.current.recentlyComposed = true;
+        imeStateRef.current.enterPressed = false;
+
+        // Clear any existing timeout
+        if (imeStateRef.current.compositionTimeout) {
+          clearTimeout(imeStateRef.current.compositionTimeout);
+        }
+      };
+
+      const handleCompositionEnd = () => {
+        imeStateRef.current.isComposing = false;
+
+        // Keep recentlyComposed flag active for a short period
+        // Korean IME finishes composition before Enter key is processed
+        if (imeStateRef.current.compositionTimeout) {
+          clearTimeout(imeStateRef.current.compositionTimeout);
+        }
+        imeStateRef.current.compositionTimeout = setTimeout(() => {
+          imeStateRef.current.recentlyComposed = false;
+          imeStateRef.current.compositionTimeout = null;
+        }, 100); // 100ms window to catch Enter after composition
+      };
+
+      // Intercept Enter key during or shortly after IME composition at DOM level (capture phase)
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // Catch Enter during active composition OR shortly after compositionend
+        // Korean IME finishes each character's composition immediately, so we need
+        // to check if composition happened recently (within 100ms)
+        if (
+          e.key === "Enter" &&
+          !e.shiftKey &&
+          (imeStateRef.current.isComposing ||
+            imeStateRef.current.recentlyComposed)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const cursor = view.state.selection.main.head;
+          const content = view.state.doc.toString();
+          const contentLength = content.length;
+
+          // Save state before block operation
+          imeStateRef.current.enterPressed = true;
+          imeStateRef.current.contentBeforeEnter = content;
+          imeStateRef.current.cursorBeforeEnter = cursor;
+
+          // Clear the recentlyComposed flag and timeout
+          imeStateRef.current.recentlyComposed = false;
+          if (imeStateRef.current.compositionTimeout) {
+            clearTimeout(imeStateRef.current.compositionTimeout);
+            imeStateRef.current.compositionTimeout = null;
+          }
+
+          // Execute block operation immediately since composition is already done
+          commitDraft();
+
+          if (cursor === contentLength) {
+            createBlock(blockId);
+          } else {
+            useBlockStore.getState().splitBlockAtOffset(blockId, cursor);
+          }
+
+          // Reset state
+          imeStateRef.current.enterPressed = false;
+          imeStateRef.current.contentBeforeEnter = "";
+          imeStateRef.current.cursorBeforeEnter = 0;
+
+          return false;
+        }
+      };
+
+      const dom = view.dom;
+      dom.addEventListener("compositionstart", handleCompositionStart);
+      dom.addEventListener("compositionend", handleCompositionEnd);
+      dom.addEventListener("keydown", handleKeyDown, { capture: true });
+
+      return () => {
+        dom.removeEventListener("compositionstart", handleCompositionStart);
+        dom.removeEventListener("compositionend", handleCompositionEnd);
+        dom.removeEventListener("keydown", handleKeyDown, { capture: true });
+
+        // Clear timeout on cleanup
+        if (imeStateRef.current.compositionTimeout) {
+          clearTimeout(imeStateRef.current.compositionTimeout);
+        }
+      };
+    }, [blockId, createBlock, commitDraft]);
 
     const handleContentChange = useCallback((content: string) => {
       draftRef.current = content;
@@ -223,11 +326,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         {
           key: "Enter",
           run: (view: EditorView) => {
-            // Let IME handle Enter for composition commit.
-            if ((view as any).composing) return false;
+            // If Enter was pressed during/after IME composition, skip normal processing
+            if (
+              imeStateRef.current.isComposing ||
+              imeStateRef.current.recentlyComposed ||
+              imeStateRef.current.enterPressed
+            ) {
+              return true; // Already handled by keydown capture
+            }
 
             const cursor = view.state.selection.main.head;
             const content = view.state.doc.toString();
+            const contentLength = content.length;
 
             // Check if we're inside a code block
             const beforeCursor = content.slice(0, cursor);
@@ -271,7 +381,16 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             }
 
             commitDraft();
-            createBlock(blockId);
+
+            // Determine whether to split block or create new sibling based on cursor position
+            if (cursor === contentLength) {
+              // Cursor at end: create new sibling block
+              createBlock(blockId);
+            } else {
+              // Cursor in middle: split current block
+              useBlockStore.getState().splitBlockAtOffset(blockId, cursor);
+            }
+
             return true; // Prevent default CodeMirror behavior
           },
         },

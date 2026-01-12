@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import type React from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceStore } from "../stores/workspaceStore";
-import { usePageStore, PageData } from "../stores/pageStore";
+import { usePageStore, type PageData } from "../stores/pageStore";
 import { Editor } from "./Editor";
 import { Box, Text, useMantineColorScheme } from "@mantine/core";
 import { IconEdit, IconCopy } from "@tabler/icons-react";

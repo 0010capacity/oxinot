@@ -6,8 +6,8 @@
  * like getting line information, cursor position, and node traversal.
  */
 
-import { EditorState, Line } from "@codemirror/state";
-import { SyntaxNode } from "@lezer/common";
+import type { EditorState, Line } from "@codemirror/state";
+import type { SyntaxNode } from "@lezer/common";
 
 /**
  * Information about a line in the document
@@ -203,7 +203,7 @@ export interface PatternMatch {
 export function findAllMatches(
   text: string,
   pattern: RegExp,
-  offset: number = 0,
+  offset = 0,
 ): PatternMatch[] {
   const matches: PatternMatch[] = [];
   const globalPattern = new RegExp(

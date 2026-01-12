@@ -7,9 +7,9 @@
  * - Comments are not rendered in the final view
  */
 
-import { SyntaxNode } from "@lezer/common";
-import { BaseHandler, RenderContext } from "./types";
-import { DecorationSpec } from "../utils/decorationHelpers";
+import type { SyntaxNode } from "@lezer/common";
+import { BaseHandler, type RenderContext } from "./types";
+import type { DecorationSpec } from "../utils/decorationHelpers";
 import { Decoration } from "@codemirror/view";
 
 export class CommentHandler extends BaseHandler {

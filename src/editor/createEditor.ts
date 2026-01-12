@@ -1,10 +1,10 @@
-import { EditorState, Extension } from "@codemirror/state";
+import { EditorState, type Extension } from "@codemirror/state";
 import {
   EditorView,
   keymap,
   lineNumbers,
   highlightActiveLineGutter,
-  KeyBinding,
+  type KeyBinding,
   tooltips,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -19,7 +19,7 @@ import {
   closeBrackets,
   closeBracketsKeymap,
   autocompletion,
-  CompletionContext,
+  type CompletionContext,
   startCompletion,
   closeCompletion,
 } from "@codemirror/autocomplete";

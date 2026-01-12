@@ -23,7 +23,7 @@ export function capitalize(str: string): string {
 export function truncate(
   str: string,
   maxLength: number,
-  ellipsis: string = "...",
+  ellipsis = "...",
 ): string {
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength - ellipsis.length) + ellipsis;
@@ -121,7 +121,7 @@ export function stripMarkdown(str: string): string {
 export function extractWords(
   str: string,
   wordCount: number,
-  ellipsis: string = "...",
+  ellipsis = "...",
 ): string {
   const words = str.trim().split(/\s+/);
   if (words.length <= wordCount) return str;
@@ -198,8 +198,8 @@ export function isPresent(str: string | null | undefined): boolean {
 export function pad(
   str: string,
   length: number,
-  padChar: string = " ",
-  padLeft: boolean = true,
+  padChar = " ",
+  padLeft = true,
 ): string {
   if (str.length >= length) return str;
   const padding = padChar.repeat(length - str.length);
@@ -221,7 +221,7 @@ export function normalizeWhitespace(str: string): string {
  * @param maxInitials - Maximum number of initials to extract
  * @returns Initials (e.g., "John Doe" -> "JD")
  */
-export function getInitials(name: string, maxInitials: number = 2): string {
+export function getInitials(name: string, maxInitials = 2): string {
   return name
     .split(/\s+/)
     .filter((word) => word.length > 0)
@@ -238,7 +238,7 @@ export function getInitials(name: string, maxInitials: number = 2): string {
  */
 export function randomString(
   length: number,
-  charset: string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+  charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
 ): string {
   let result = "";
   for (let i = 0; i < length; i++) {

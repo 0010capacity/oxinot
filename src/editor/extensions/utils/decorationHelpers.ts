@@ -6,8 +6,8 @@
  * and make the decoration logic more maintainable.
  */
 
-import { Decoration, WidgetType } from "@codemirror/view";
-import { Line } from "@codemirror/state";
+import { Decoration, type WidgetType } from "@codemirror/view";
+import type { Line } from "@codemirror/state";
 import { getMarkerStyle } from "../theme/styles";
 
 /**
@@ -155,7 +155,7 @@ export function createVerySubtleText(
 export function createWidget(
   pos: number,
   widget: WidgetType,
-  side: number = 1,
+  side = 1,
 ): DecorationSpec {
   return {
     from: pos,
@@ -189,7 +189,7 @@ export function createSafeReplacement(
   from: number,
   to: number,
   lineText: string,
-  startOffset: number = 0,
+  startOffset = 0,
 ): DecorationSpec | null {
   const textToReplace = lineText.slice(from - startOffset, to - startOffset);
 

@@ -5,7 +5,7 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { EditorView, KeyBinding } from "@codemirror/view";
+import type { EditorView, KeyBinding } from "@codemirror/view";
 import {
   createEditor,
   updateEditorContent,

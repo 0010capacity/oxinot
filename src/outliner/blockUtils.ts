@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { Block } from "./types";
+import type { Block } from "./types";
 import {
   INDENT_SIZE,
   MIN_LEVEL,
@@ -20,7 +20,7 @@ export function generateBlockId(): string {
 /**
  * Create a new block with validation
  */
-export function createBlock(content: string = "", level: number = 0): Block {
+export function createBlock(content = "", level = 0): Block {
   // Validate and clamp level
   const clampedLevel = Math.max(MIN_LEVEL, Math.min(MAX_LEVEL, level));
 
@@ -376,7 +376,7 @@ export function parseMarkdownToBlocks(markdown: string): Block[] {
  */
 export function blocksToMarkdown(
   blocks: Block[],
-  includeCollapsed: boolean = true,
+  includeCollapsed = true,
 ): string {
   if (!Array.isArray(blocks)) {
     debug.error("blocksToMarkdown: blocks is not an array", blocks);
@@ -445,7 +445,7 @@ export function blocksToMarkdown(
   }
 }
 
-export function cloneBlock(block: Block, deep: boolean = false): Block {
+export function cloneBlock(block: Block, deep = false): Block {
   const cloned = createBlock(block.content, block.level);
   cloned.collapsed = block.collapsed;
   cloned.kind = block.kind;

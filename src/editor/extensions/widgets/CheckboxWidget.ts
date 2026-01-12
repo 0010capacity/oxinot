@@ -5,7 +5,7 @@
  * Handles click events to toggle task completion state.
  */
 
-import { EditorView, WidgetType } from "@codemirror/view";
+import { type EditorView, WidgetType } from "@codemirror/view";
 
 /**
  * Widget for rendering interactive checkboxes in task lists

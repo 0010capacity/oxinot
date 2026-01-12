@@ -6,10 +6,10 @@
  * dedicated handler that implements the DecorationHandler interface.
  */
 
-import { EditorState } from "@codemirror/state";
-import { SyntaxNode } from "@lezer/common";
-import { DecorationSpec } from "../utils/decorationHelpers";
-import { CursorInfo } from "../utils/nodeHelpers";
+import type { EditorState } from "@codemirror/state";
+import type { SyntaxNode } from "@lezer/common";
+import type { DecorationSpec } from "../utils/decorationHelpers";
+import type { CursorInfo } from "../utils/nodeHelpers";
 
 /**
  * Context provided to handlers for rendering decisions

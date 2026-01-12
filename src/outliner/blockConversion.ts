@@ -1,4 +1,4 @@
-import { Block } from "./types";
+import type { Block } from "./types";
 import { FENCE_MARKERS, CODE_MARKERS } from "./constants";
 
 /**

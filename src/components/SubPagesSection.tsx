@@ -89,7 +89,7 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
     }));
   };
 
-  const renderPageTree = (nodes: PageTreeNode[], depth: number = 0) => {
+  const renderPageTree = (nodes: PageTreeNode[], depth = 0) => {
     return nodes.map((node) => {
       const hasChildren = node.children.length > 0;
       const isCollapsed = collapsed[node.id];

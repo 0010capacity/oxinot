@@ -7,9 +7,9 @@
  * - Applies bold styling to the content
  */
 
-import { SyntaxNode } from "@lezer/common";
-import { BaseHandler, RenderContext } from "./types";
-import { DecorationSpec } from "../utils/decorationHelpers";
+import type { SyntaxNode } from "@lezer/common";
+import { BaseHandler, type RenderContext } from "./types";
+import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
   createStyledText,

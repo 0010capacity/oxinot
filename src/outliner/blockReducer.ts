@@ -1,4 +1,4 @@
-import { BlockAction, Block } from "./types";
+import type { BlockAction, Block } from "./types";
 import {
   createBlock,
   flattenBlocks,

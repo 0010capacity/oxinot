@@ -49,6 +49,7 @@ interface BlockActions {
   ) => Promise<string>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
+  splitBlockAtOffset: (id: string, offset: number) => Promise<void>;
 
   // 블록 조작
   indentBlock: (id: string) => Promise<void>;
@@ -274,6 +275,107 @@ export const useBlockStore = create<BlockStore>()(
           if (state.blocksById[id]) {
             state.blocksById[id].content = previousContent;
           }
+        });
+        throw error;
+      }
+    },
+
+    splitBlockAtOffset: async (id: string, offset: number) => {
+      const { currentPageId, blocksById } = get();
+      if (!currentPageId) throw new Error("No page loaded");
+
+      const block = blocksById[id];
+      if (!block) throw new Error("Block not found");
+
+      const beforeContent = block.content.slice(0, offset);
+      const afterContent = block.content.slice(offset);
+
+      // Create new block with after content
+      const tempId = `temp-${Date.now()}`;
+      const tempBlock: BlockData = {
+        id: tempId,
+        pageId: currentPageId,
+        parentId: block.parentId,
+        content: afterContent,
+        orderWeight: Date.now(),
+        isCollapsed: false,
+        blockType: "bullet",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Optimistic update
+      set((state) => {
+        // Update current block content
+        if (state.blocksById[id]) {
+          state.blocksById[id].content = beforeContent;
+          state.blocksById[id].updatedAt = new Date().toISOString();
+        }
+
+        // Add new block
+        state.blocksById[tempId] = tempBlock;
+        const parentKey = block.parentId ?? "root";
+        if (!state.childrenMap[parentKey]) {
+          state.childrenMap[parentKey] = [];
+        }
+
+        const blockIndex = state.childrenMap[parentKey].indexOf(id);
+        if (blockIndex !== -1) {
+          state.childrenMap[parentKey].splice(blockIndex + 1, 0, tempId);
+        }
+
+        // Focus new block at start
+        state.focusedBlockId = tempId;
+        state.targetCursorPosition = 0;
+      });
+
+      try {
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) {
+          throw new Error("No workspace selected");
+        }
+
+        // Update current block
+        await invoke("update_block", {
+          workspacePath,
+          request: { id, content: beforeContent },
+        });
+
+        // Create new block
+        const newBlock: BlockData = await invoke("create_block", {
+          workspacePath,
+          request: {
+            pageId: currentPageId,
+            parentId: block.parentId,
+            afterBlockId: id,
+            content: afterContent,
+          },
+        });
+
+        // Replace temp block with real block
+        set((state) => {
+          delete state.blocksById[tempId];
+          state.blocksById[newBlock.id] = newBlock;
+
+          const parentKey = block.parentId ?? "root";
+          const tempIndex = state.childrenMap[parentKey].indexOf(tempId);
+          if (tempIndex !== -1) {
+            state.childrenMap[parentKey][tempIndex] = newBlock.id;
+          }
+
+          state.focusedBlockId = newBlock.id;
+        });
+      } catch (error) {
+        // Rollback
+        set((state) => {
+          if (state.blocksById[id]) {
+            state.blocksById[id].content = block.content;
+          }
+          delete state.blocksById[tempId];
+          const parentKey = block.parentId ?? "root";
+          state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
+            (bid) => bid !== tempId,
+          );
         });
         throw error;
       }

@@ -1,5 +1,5 @@
 import { syntaxTree } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
+import type { EditorState } from "@codemirror/state";
 
 /**
  * Markdown block types that can be rendered inline
@@ -71,7 +71,7 @@ export function parseVisibleBlocks(
 
       // Parse headings
       if (typeName.startsWith("ATXHeading")) {
-        const level = parseInt(typeName.replace("ATXHeading", "")) || 1;
+        const level = Number.parseInt(typeName.replace("ATXHeading", "")) || 1;
         blocks.push({
           type: "Heading",
           from,

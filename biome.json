@@ -29,7 +29,7 @@
       "jsxQuoteStyle": "double",
       "quoteProperties": "asNeeded",
       "semicolons": "always",
-      "singleQuotes": false,
+      "quoteStyle": "double",
       "trailingCommas": "all"
     }
   },

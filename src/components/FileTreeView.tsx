@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import type React from "react";
+import { useState } from "react";
 import { useWorkspaceStore } from "../stores/workspaceStore";
-import { FileSystemItem, tauriAPI } from "../tauri-api";
+import { type FileSystemItem, tauriAPI } from "../tauri-api";
 
 interface FileTreeNodeProps {
   item: FileSystemItem;

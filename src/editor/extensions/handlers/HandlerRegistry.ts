@@ -5,9 +5,9 @@
  * and dispatches syntax nodes to appropriate handlers.
  */
 
-import { SyntaxNode } from "@lezer/common";
-import { DecorationHandler, RenderContext } from "./types";
-import { DecorationSpec } from "../utils/decorationHelpers";
+import type { SyntaxNode } from "@lezer/common";
+import type { DecorationHandler, RenderContext } from "./types";
+import type { DecorationSpec } from "../utils/decorationHelpers";
 
 /**
  * Registry for managing decoration handlers
