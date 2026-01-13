@@ -40,6 +40,8 @@
     "@mantine/notifications": "^7.17.8",
     "@tabler/icons-react": "^3.36.1",
     "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.9.0",
     "immer": "^11.1.3",
     "markdown-it": "^14.0.0",
     "react": "^19.2.3",

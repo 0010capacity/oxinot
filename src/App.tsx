@@ -26,6 +26,7 @@ import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 import { SettingsModal } from "./components/SettingsModal";
 import { GitStatusIndicator } from "./components/GitStatusIndicator";
 import { ErrorNotifications } from "./components/ErrorNotifications";
+import { Updater } from "./components/Updater";
 
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -245,6 +246,7 @@ function App() {
         <Notifications />
         <ThemeProvider>
           <WorkspaceSelector />
+          <Updater />
         </ThemeProvider>
       </MantineProvider>
     );
@@ -255,6 +257,7 @@ function App() {
       <ThemeProvider>
         <AppContent workspacePath={workspacePath} />
         <SyncProgress />
+        <Updater />
       </ThemeProvider>
     </MantineProvider>
   );
