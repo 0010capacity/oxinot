@@ -687,9 +687,15 @@ export function SettingsModal({
                       </Text>
                       <SegmentedControl
                         value={colorScheme}
-                        onChange={(value) =>
-                          setColorScheme(value as "light" | "dark" | "auto")
-                        }
+                        onChange={(value) => {
+                          if (
+                            value === "light" ||
+                            value === "dark" ||
+                            value === "auto"
+                          ) {
+                            setColorScheme(value);
+                          }
+                        }}
                         data={[
                           {
                             label: t("settings.theme.modes.light"),
