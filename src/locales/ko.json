@@ -14,7 +14,18 @@
     "error": "오류",
     "success": "성공",
     "confirm": "확인",
-    "new_page": "새 페이지"
+    "new_page": "새 페이지",
+    "home": "홈"
+  },
+  "navigation": {
+    "go_back": "뒤로가기",
+    "go_forward": "앞으로가기",
+    "toggle_theme": "테마 전환",
+    "command_palette": "명령 팔레트 (Cmd+K)",
+    "calendar": "달력"
+  },
+  "tooltips": {
+    "remove_remote": "원격 저장소 제거"
   },
   "settings": {
     "title": "설정",
@@ -75,13 +86,15 @@
       "title": "데일리 노트",
       "description": "자동 데일리 노트 생성을 설정합니다",
       "path": "데일리 노트 경로",
-      "path_desc": "데일리 노트가 생성될 경로 (예: 'Daily' 또는 'Notes/Daily')"
+      "path_desc": "데일리 노트가 생성될 경로 (예: 'Daily' 또는 'Notes/Daily')",
+      "path_placeholder": "Daily"
     },
     "homepage": {
       "title": "홈페이지",
       "description": "앱을 열 때 표시할 화면을 선택합니다",
       "type": "홈페이지 유형",
       "type_desc": "앱을 열 때 보여줄 내용을 선택하세요",
+      "type_placeholder": "홈페이지 유형 선택",
       "types": {
         "daily_note": "오늘의 데일리 노트",
         "index": "파일 트리",
@@ -123,14 +136,17 @@
       "commit_interval_desc": "자동 커밋은 {{interval}}분마다 발생합니다",
       "remote_repo": "원격 저장소",
       "add_remote": "원격 URL 추가",
-      "push_pull_hint": "푸시 및 풀 버튼은 오른쪽 하단 모서리에 있습니다"
+      "push_pull_hint": "푸시 및 풀 버튼은 오른쪽 하단 모서리에 있습니다",
+      "remote_url_placeholder": "https://github.com/user/repo.git",
+      "remove_remote_confirm": "원격 저장소를 제거하시겠습니까?"
     },
     "shortcuts": {
       "title": "단축키",
       "description": "키보드 단축키를 확인하고 사용자 정의합니다",
       "command_palette": "명령 팔레트",
       "search": "검색",
-      "toggle_index": "인덱스 토글"
+      "toggle_index": "인덱스 토글",
+      "help": "도움말"
     },
     "advanced": {
       "title": "고급",
@@ -157,9 +173,12 @@
     },
     "about": {
       "title": "정보",
+      "app_name": "Oxinot",
+      "version": "버전 {{version}}",
       "updates_title": "업데이트",
       "updates_desc": "Oxinot은 Tauri Updater를 사용하여 자동으로 최신 상태를 유지합니다.",
-      "check_update_msg": "업데이트 기능은 Tauri Updater 통합과 함께 향후 릴리스에서 활성화될 예정입니다."
+      "check_update_msg": "업데이트 기능은 Tauri Updater 통합과 함께 향후 릴리스에서 활성화될 예정입니다.",
+      "check_updates_btn": "업데이트 확인"
     },
     "language": {
       "title": "언어",

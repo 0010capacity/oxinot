@@ -234,7 +234,7 @@ export function SettingsModal({
   const handleRemoveRemote = async () => {
     if (!workspacePath) return;
     if (
-      window.confirm("Are you sure you want to remove the remote repository?")
+      window.confirm(t("settings.git.remove_remote_confirm"))
     ) {
       try {
         await removeRemote(workspacePath);
@@ -943,25 +943,25 @@ export function SettingsModal({
             <Stack gap="xl">
               <div>
                 <Text size="xl" fw={600} mb="lg">
-                  Daily Notes
+                  {t("settings.daily_notes.title")}
                 </Text>
                 <Text size="sm" c="dimmed" mb="xl">
-                  Configure automatic daily note creation
+                  {t("settings.daily_notes.description")}
                 </Text>
 
                 <Stack gap="lg">
                   {matchesSearch("Daily Notes Path folder") && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Daily Notes Path
+                        {t("settings.daily_notes.path")}
                       </Text>
                       <TextInput
                         value={dailyNotesPath}
                         onChange={(event) =>
                           setDailyNotesPath(event.currentTarget.value)
                         }
-                        placeholder="Daily"
-                        description="Path where daily notes will be created (e.g., 'Daily' or 'Notes/Daily')"
+                        placeholder={t("settings.daily_notes.path_placeholder")}
+                        description={t("settings.daily_notes.path_desc")}
                       />
                     </div>
                   )}
@@ -975,17 +975,17 @@ export function SettingsModal({
             <Stack gap="xl">
               <div>
                 <Text size="xl" fw={600} mb="lg">
-                  Homepage
+                  {t("settings.homepage.title")}
                 </Text>
                 <Text size="sm" c="dimmed" mb="xl">
-                  Choose what to display when opening the app
+                  {t("settings.homepage.description")}
                 </Text>
 
                 <Stack gap="lg">
                   {matchesSearch("Homepage Type start default") && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Homepage Type
+                        {t("settings.homepage.type")}
                       </Text>
                       <Select
                         value={homepageType}
@@ -995,14 +995,14 @@ export function SettingsModal({
                           )
                         }
                         data={[
-                          { label: "Today's Daily Note", value: "daily-note" },
-                          { label: "File Tree", value: "index" },
-                          { label: "Custom Page", value: "custom-page" },
+                          { label: t("settings.homepage.types.daily_note"), value: "daily-note" },
+                          { label: t("settings.homepage.types.index"), value: "index" },
+                          { label: t("settings.homepage.types.custom_page"), value: "custom-page" },
                         ]}
-                        placeholder="Select homepage type"
+                        placeholder={t("settings.homepage.type_placeholder")}
                       />
                       <Text size="xs" c="dimmed" mt={4}>
-                        Choose what to show when opening the app
+                        {t("settings.homepage.type_desc")}
                       </Text>
                     </div>
                   )}
@@ -1010,7 +1010,7 @@ export function SettingsModal({
                   {homepageType === "custom-page" && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Custom Homepage
+                        {t("settings.homepage.custom_page")}
                       </Text>
                       <Select
                         value={customHomepageId || ""}
@@ -1019,7 +1019,7 @@ export function SettingsModal({
                           label: pagesById[id]?.title || id,
                           value: id,
                         }))}
-                        placeholder="Select a page"
+                        placeholder={t("settings.homepage.custom_page_placeholder")}
                         searchable
                       />
                     </div>
@@ -1034,17 +1034,17 @@ export function SettingsModal({
             <Stack gap="xl">
               <div>
                 <Text size="xl" fw={600} mb="lg">
-                  Outliner
+                  {t("settings.outliner.title")}
                 </Text>
                 <Text size="sm" c="dimmed" mb="xl">
-                  Customize the block editor behavior
+                  {t("settings.outliner.description")}
                 </Text>
 
                 <Stack gap="lg">
                   {matchesSearch("indent guides") && (
                     <Switch
-                      label="Show indent guides"
-                      description="Display vertical lines to show indentation levels"
+                      label={t("settings.outliner.indent_guides")}
+                      description={t("settings.outliner.indent_guides_desc")}
                       checked={showIndentGuides}
                       onChange={toggleIndentGuides}
                     />
@@ -1052,8 +1052,8 @@ export function SettingsModal({
 
                   {matchesSearch("auto expand blocks") && (
                     <Switch
-                      label="Auto-expand blocks"
-                      description="Automatically expand collapsed blocks when navigating"
+                      label={t("settings.outliner.auto_expand")}
+                      description={t("settings.outliner.auto_expand_desc")}
                       checked={autoExpandBlocks}
                       onChange={(event) =>
                         setAutoExpandBlocks?.(event.currentTarget.checked)
@@ -1063,8 +1063,8 @@ export function SettingsModal({
 
                   {matchesSearch("block count") && (
                     <Switch
-                      label="Show block count"
-                      description="Display the number of child blocks for each parent"
+                      label={t("settings.outliner.block_count")}
+                      description={t("settings.outliner.block_count_desc")}
                       checked={showBlockCount}
                       onChange={(event) =>
                         setShowBlockCount?.(event.currentTarget.checked)
@@ -1074,8 +1074,8 @@ export function SettingsModal({
 
                   {matchesSearch("code block line numbers") && (
                     <Switch
-                      label="Show code block line numbers"
-                      description="Display line numbers in code blocks"
+                      label={t("settings.outliner.code_block_line_numbers")}
+                      description={t("settings.outliner.code_block_line_numbers_desc")}
                       checked={showCodeBlockLineNumbers}
                       onChange={(event) =>
                         setShowCodeBlockLineNumbers?.(
@@ -1088,7 +1088,7 @@ export function SettingsModal({
                   {matchesSearch("indent size") && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Indent Size
+                        {t("settings.outliner.indent_size")}
                       </Text>
                       <NumberInput
                         value={indentSize}
@@ -1113,10 +1113,10 @@ export function SettingsModal({
             <Stack gap="xl">
               <div>
                 <Text size="xl" fw={600} mb="lg">
-                  Version Control
+                  {t("settings.git.title")}
                 </Text>
                 <Text size="sm" c="dimmed" mb="xl">
-                  Git-based version control for your workspace
+                  {t("settings.git.description")}
                 </Text>
 
                 <Stack gap="lg">
@@ -1131,7 +1131,7 @@ export function SettingsModal({
                           variant="filled"
                           color="blue"
                         >
-                          Initialize Git Repository
+                          {t("settings.git.init_button")}
                         </Button>
 
                         <div
@@ -1142,7 +1142,7 @@ export function SettingsModal({
                           }}
                         >
                           <Text size="sm" fw={500} mb={8}>
-                            Why Use Git?
+                            {t("settings.git.why_git")}
                           </Text>
                           <Text size="sm" c="dimmed">
                             • Track all changes to your notes
@@ -1150,6 +1150,7 @@ export function SettingsModal({
                             <br />• Sync across devices with remote repositories
                             <br />• Collaborate with others using GitHub,
                             GitLab, etc.
+                            {t("settings.git.why_git_desc")}
                           </Text>
                         </div>
                       </>
@@ -1159,7 +1160,7 @@ export function SettingsModal({
                       {matchesSearch("repository location path") && (
                         <div>
                           <Text size="sm" fw={500} mb={8}>
-                            Repository Location
+                            {t("settings.git.repo_location")}
                           </Text>
                           <Text
                             size="sm"
@@ -1180,7 +1181,7 @@ export function SettingsModal({
                       {matchesSearch("current status commit changes") && (
                         <div>
                           <Text size="sm" fw={500} mb={8}>
-                            Current Status
+                            {t("settings.git.current_status")}
                           </Text>
                           <Group gap="xs" mb={8}>
                             <Button
@@ -1190,7 +1191,7 @@ export function SettingsModal({
                               onClick={handleGitCommit}
                               disabled={!hasGitChanges}
                             >
-                              {hasGitChanges ? "Commit Changes" : "No Changes"}
+                              {hasGitChanges ? t("settings.git.commit_changes") : t("settings.git.no_changes")}
                             </Button>
                             <Button
                               size="sm"
@@ -1199,7 +1200,7 @@ export function SettingsModal({
                                 workspacePath && checkGitStatus(workspacePath)
                               }
                             >
-                              Refresh
+                              {t("settings.git.refresh")}
                             </Button>
                           </Group>
                           <Text
@@ -1207,8 +1208,8 @@ export function SettingsModal({
                             c={hasGitChanges ? "yellow" : "dimmed"}
                           >
                             {hasGitChanges
-                              ? "⚠️ You have uncommitted changes"
-                              : "✓ All changes committed"}
+                              ? t("settings.git.uncommitted_changes")
+                              : t("settings.git.all_committed")}
                           </Text>
                         </div>
                       )}
@@ -1223,11 +1224,11 @@ export function SettingsModal({
                           }}
                         >
                           <Text size="sm" fw={500} mb={8}>
-                            Auto-commit
+                            {t("settings.git.auto_commit")}
                           </Text>
                           <Switch
-                            label="Enable auto-commit"
-                            description="Automatically commit changes at regular intervals"
+                            label={t("settings.git.enable_auto_commit")}
+                            description={t("settings.git.enable_auto_commit_desc")}
                             checked={autoCommitEnabled}
                             onChange={(event) =>
                               setAutoCommitEnabled(event.currentTarget.checked)
@@ -1238,7 +1239,7 @@ export function SettingsModal({
                           {autoCommitEnabled && (
                             <>
                               <Text size="sm" fw={500} mb={8}>
-                                Commit Interval
+                                {t("settings.git.commit_interval")}
                               </Text>
                               <NumberInput
                                 value={autoCommitInterval}
@@ -1253,9 +1254,7 @@ export function SettingsModal({
                                 suffix=" min"
                               />
                               <Text size="xs" c="dimmed" mt={8}>
-                                Automatic commits occur every{" "}
-                                {autoCommitInterval} minute
-                                {autoCommitInterval !== 1 ? "s" : ""}
+                                {t("settings.git.commit_interval_desc", { interval: autoCommitInterval })}
                               </Text>
                             </>
                           )}
@@ -1272,7 +1271,7 @@ export function SettingsModal({
                           }}
                         >
                           <Text size="sm" fw={500} mb={8}>
-                            Remote Repository
+                            {t("settings.git.remote_repo")}
                           </Text>
                           {remoteUrl ? (
                             <Stack gap="xs">
@@ -1288,7 +1287,7 @@ export function SettingsModal({
                                 >
                                   {remoteUrl}
                                 </Text>
-                                <Tooltip label="Remove remote">
+                                <Tooltip label={t("tooltips.remove_remote")}>
                                   <Button
                                     size="xs"
                                     variant="subtle"
@@ -1300,14 +1299,13 @@ export function SettingsModal({
                                 </Tooltip>
                               </Group>
                               <Text size="xs" c="dimmed">
-                                Push and pull buttons are available in the
-                                bottom-right corner
+                                {t("settings.git.push_pull_hint")}
                               </Text>
                             </Stack>
                           ) : isEditingRemote ? (
                             <Stack gap="xs">
                               <TextInput
-                                placeholder="https://github.com/user/repo.git"
+                                placeholder={t("settings.git.remote_url_placeholder")}
                                 value={remoteUrlInput}
                                 onChange={(e) =>
                                   setRemoteUrlInput(e.currentTarget.value)
@@ -1321,7 +1319,7 @@ export function SettingsModal({
                                   onClick={handleSetRemoteUrl}
                                   disabled={!remoteUrlInput.trim()}
                                 >
-                                  Save
+                                  {t("common.save")}
                                 </Button>
                                 <Button
                                   size="xs"
@@ -1331,7 +1329,7 @@ export function SettingsModal({
                                     setRemoteUrlInput("");
                                   }}
                                 >
-                                  Cancel
+                                  {t("common.cancel")}
                                 </Button>
                               </Group>
                             </Stack>
@@ -1342,7 +1340,7 @@ export function SettingsModal({
                               leftSection={<IconPlus size={16} />}
                               onClick={() => setIsEditingRemote(true)}
                             >
-                              Add Remote URL
+                              {t("settings.git.add_remote")}
                             </Button>
                           )}
                         </div>
@@ -1359,10 +1357,10 @@ export function SettingsModal({
             <Stack gap="xl">
               <div>
                 <Text size="xl" fw={600} mb="lg">
-                  Keyboard Shortcuts
+                  {t("settings.shortcuts.title")}
                 </Text>
                 <Text size="sm" c="dimmed" mb="xl">
-                  View and customize keyboard shortcuts
+                  {t("settings.shortcuts.description")}
                 </Text>
 
                 <Stack gap="md">
@@ -1376,31 +1374,31 @@ export function SettingsModal({
                     >
                       <Group justify="space-between" mb={8}>
                         <Text size="sm" fw={500}>
-                          Command Palette
+                          {t("settings.shortcuts.command_palette")}
                         </Text>
                         <Badge variant="light">Cmd+K</Badge>
                       </Group>
                       <Group justify="space-between" mb={8}>
                         <Text size="sm" fw={500}>
-                          Search
+                          {t("settings.shortcuts.search")}
                         </Text>
                         <Badge variant="light">Cmd+P</Badge>
                       </Group>
                       <Group justify="space-between" mb={8}>
                         <Text size="sm" fw={500}>
-                          Settings
+                          {t("common.settings")}
                         </Text>
                         <Badge variant="light">Cmd+,</Badge>
                       </Group>
                       <Group justify="space-between" mb={8}>
                         <Text size="sm" fw={500}>
-                          Help
+                          {t("settings.shortcuts.help")}
                         </Text>
                         <Badge variant="light">Cmd+?</Badge>
                       </Group>
                       <Group justify="space-between">
                         <Text size="sm" fw={500}>
-                          Toggle Index
+                          {t("settings.shortcuts.toggle_index")}
                         </Text>
                         <Badge variant="light">Cmd+\</Badge>
                       </Group>
@@ -1416,28 +1414,28 @@ export function SettingsModal({
             <Stack gap="xl">
               <div>
                 <Text size="xl" fw={600} mb="lg">
-                  Advanced
+                  {t("settings.advanced.title")}
                 </Text>
                 <Text size="sm" c="dimmed" mb="xl">
-                  Advanced settings and developer options
+                  {t("settings.advanced.description")}
                 </Text>
 
                 <Stack gap="lg">
                   {matchesSearch("cache clear") && (
                     <div>
                       <Text size="sm" fw={500} mb={12}>
-                        Cache
+                        {t("settings.advanced.cache")}
                       </Text>
                       <Button
                         size="sm"
                         variant="light"
                         onClick={() => {
-                          if (window.confirm("Clear application cache?")) {
+                          if (window.confirm(t("settings.advanced.clear_cache_confirm"))) {
                             clearCache();
                           }
                         }}
                       >
-                        Clear Cache
+                        {t("settings.advanced.clear_cache")}
                       </Button>
                     </div>
                   )}
@@ -1445,12 +1443,12 @@ export function SettingsModal({
                   {matchesSearch("updates automatic beta check") && (
                     <div>
                       <Text size="sm" fw={500} mb={12}>
-                        Updates
+                        {t("settings.advanced.updates")}
                       </Text>
                       <Stack gap="md">
                         <Switch
-                          label="Automatic updates"
-                          description="Automatically download and install updates (coming soon)"
+                          label={t("settings.advanced.auto_updates")}
+                          description={t("settings.advanced.auto_updates_desc")}
                           checked={autoUpdate}
                           onChange={(event) =>
                             setAutoUpdate(event.currentTarget.checked)
@@ -1459,8 +1457,8 @@ export function SettingsModal({
                         />
 
                         <Switch
-                          label="Check for updates on startup"
-                          description="Check for new versions when the app starts (coming soon)"
+                          label={t("settings.advanced.check_startup")}
+                          description={t("settings.advanced.check_startup_desc")}
                           checked={checkUpdatesOnStartup}
                           onChange={(event) =>
                             setCheckUpdatesOnStartup(
@@ -1471,8 +1469,8 @@ export function SettingsModal({
                         />
 
                         <Switch
-                          label="Beta updates"
-                          description="Receive beta versions with experimental features (coming soon)"
+                          label={t("settings.advanced.beta_updates")}
+                          description={t("settings.advanced.beta_updates_desc")}
                           checked={betaUpdates}
                           onChange={(event) =>
                             setBetaUpdates(event.currentTarget.checked)
@@ -1487,11 +1485,11 @@ export function SettingsModal({
                             leftSection={<IconDownload size={16} />}
                             disabled
                           >
-                            Check for Updates
+                            {t("settings.advanced.check_updates_btn")}
                           </Button>
                         </Group>
                         <Text size="xs" c="dimmed">
-                          Current version: 0.1.0 (Beta)
+                          {t("settings.advanced.current_version", { version: "0.1.0 (Beta)" })}
                         </Text>
                       </Stack>
                     </div>
@@ -1507,12 +1505,12 @@ export function SettingsModal({
                       }}
                     >
                       <Text size="sm" fw={500} mb={12}>
-                        Developer Options
+                        {t("settings.advanced.developer_options")}
                       </Text>
                       <Stack gap="md">
                         <Switch
-                          label="Anonymous telemetry"
-                          description="Help improve Oxinot by sending anonymous usage data"
+                          label={t("settings.advanced.telemetry")}
+                          description={t("settings.advanced.telemetry_desc")}
                           checked={telemetryEnabled}
                           onChange={(event) =>
                             setTelemetryEnabled(event.currentTarget.checked)
@@ -1532,16 +1530,15 @@ export function SettingsModal({
                       }}
                     >
                       <Text size="sm" fw={500} mb={12} c="red">
-                        Danger Zone
+                        {t("settings.advanced.danger_zone")}
                       </Text>
                       <Stack gap="md">
                         <div>
                           <Text size="sm" fw={500} mb={4}>
-                            Reset All Settings
+                            {t("settings.advanced.reset_settings")}
                           </Text>
                           <Text size="xs" c="dimmed" mb={8}>
-                            This will reset all settings to their default values
-                            and reload the application.
+                            {t("settings.advanced.reset_settings_desc")}
                           </Text>
                           <Button
                             size="sm"
@@ -1551,14 +1548,14 @@ export function SettingsModal({
                             onClick={() => {
                               if (
                                 window.confirm(
-                                  "Are you sure you want to reset all settings? This action cannot be undone.",
+                                  t("settings.advanced.reset_confirm")
                                 )
                               ) {
                                 resetAllSettings();
                               }
                             }}
                           >
-                            Reset All Settings
+                            {t("settings.advanced.reset_settings")}
                           </Button>
                         </div>
                       </Stack>
@@ -1574,21 +1571,21 @@ export function SettingsModal({
             <Stack gap="xl">
               <div>
                 <Text size="xl" fw={600} mb="lg">
-                  About
+                  {t("settings.about.title")}
                 </Text>
 
                 <Stack gap="lg">
                   <div>
                     <Group gap="xs" mb={8}>
                       <Text size="lg" fw={600}>
-                        Oxinot
+                        {t("settings.about.app_name")}
                       </Text>
                       <Badge size="lg" variant="light" color="blue">
-                        Beta
+                        {t("settings.beta")}
                       </Badge>
                     </Group>
                     <Text size="sm" c="dimmed">
-                      Version 0.1.0
+                      {t("settings.about.version", { version: "0.1.0" })}
                     </Text>
                   </div>
 
@@ -1600,23 +1597,22 @@ export function SettingsModal({
                     }}
                   >
                     <Text size="sm" fw={500} mb={8}>
-                      Updates
+                      {t("settings.about.updates_title")}
                     </Text>
                     <Stack gap="xs">
                       <Text size="xs" c="dimmed">
-                        Oxinot is kept up-to-date automatically using Tauri
-                        Updater.
+                        {t("settings.about.updates_desc")}
                       </Text>
                       <Button
                         size="xs"
                         variant="light"
                         onClick={() => {
                           alert(
-                            "Update functionality will be enabled in a future release with Tauri Updater integration.",
+                            t("settings.about.check_update_msg")
                           );
                         }}
                       >
-                        Check for Updates
+                        {t("settings.about.check_updates_btn")}
                       </Button>
                     </Stack>
                   </div>

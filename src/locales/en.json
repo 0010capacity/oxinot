@@ -14,7 +14,18 @@
     "error": "Error",
     "success": "Success",
     "confirm": "Confirm",
-    "new_page": "New page"
+    "new_page": "New page",
+    "home": "Home"
+  },
+  "navigation": {
+    "go_back": "Go back",
+    "go_forward": "Go forward",
+    "toggle_theme": "Toggle theme",
+    "command_palette": "Command Palette (Cmd+K)",
+    "calendar": "Calendar"
+  },
+  "tooltips": {
+    "remove_remote": "Remove remote"
   },
   "settings": {
     "title": "Settings",
@@ -75,13 +86,15 @@
       "title": "Daily Notes",
       "description": "Configure automatic daily note creation",
       "path": "Daily Notes Path",
-      "path_desc": "Path where daily notes will be created (e.g., 'Daily' or 'Notes/Daily')"
+      "path_desc": "Path where daily notes will be created (e.g., 'Daily' or 'Notes/Daily')",
+      "path_placeholder": "Daily"
     },
     "homepage": {
       "title": "Homepage",
       "description": "Choose what to display when opening the app",
       "type": "Homepage Type",
       "type_desc": "Choose what to show when opening the app",
+      "type_placeholder": "Select homepage type",
       "types": {
         "daily_note": "Today's Daily Note",
         "index": "File Tree",
@@ -123,14 +136,17 @@
       "commit_interval_desc": "Automatic commits occur every {{interval}} minute(s)",
       "remote_repo": "Remote Repository",
       "add_remote": "Add Remote URL",
-      "push_pull_hint": "Push and pull buttons are available in the bottom-right corner"
+      "push_pull_hint": "Push and pull buttons are available in the bottom-right corner",
+      "remote_url_placeholder": "https://github.com/user/repo.git",
+      "remove_remote_confirm": "Are you sure you want to remove the remote repository?"
     },
     "shortcuts": {
       "title": "Keyboard Shortcuts",
       "description": "View and customize keyboard shortcuts",
       "command_palette": "Command Palette",
       "search": "Search",
-      "toggle_index": "Toggle Index"
+      "toggle_index": "Toggle Index",
+      "help": "Help"
     },
     "advanced": {
       "title": "Advanced",
@@ -157,9 +173,12 @@
     },
     "about": {
       "title": "About",
+      "app_name": "Oxinot",
+      "version": "Version {{version}}",
       "updates_title": "Updates",
       "updates_desc": "Oxinot is kept up-to-date automatically using Tauri Updater.",
-      "check_update_msg": "Update functionality will be enabled in a future release with Tauri Updater integration."
+      "check_update_msg": "Update functionality will be enabled in a future release with Tauri Updater integration.",
+      "check_updates_btn": "Check for Updates"
     },
     "language": {
       "title": "Language",
