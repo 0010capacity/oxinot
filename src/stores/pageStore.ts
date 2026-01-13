@@ -253,30 +253,34 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
       }
     },
 
-    convertToDirectory: async (id: string) => {
-      try {
+      convertToDirectory: async (id: string) => {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
-          throw new Error("No workspace selected");
+          console.error("No workspace path");
+          return;
         }
 
-        const updatedPage: PageData = await invoke(
-          "convert_page_to_directory",
-          {
-            workspacePath,
-            pageId: id,
-          },
-        );
+        await invoke("convert_page_to_directory", {
+          workspacePath,
+          pageId: id,
+        });
 
+        // Reload pages to reflect the change (icon update etc)
+        await get().loadPages();
+
+        // Also update file tree if it's open
+        // We can dispatch a custom event or rely on file system watcher if implemented
+        // For now, let's trigger a refresh via window event that FileTreeView listens to
+        window.dispatchEvent(new CustomEvent("oxinot:file-tree-refresh"));
+
+        // Update the page object in store to reflect is_directory = true
         set((state) => {
-          if (state.pagesById[id]) {
-            state.pagesById[id] = updatedPage;
+          const page = state.pagesById[id];
+          if (page) {
+            state.pagesById[id] = { ...page, isDirectory: true };
           }
         });
-      } catch (error) {
-        throw error;
-      }
-    },
+      },
 
     // ============ Selectors ============
 

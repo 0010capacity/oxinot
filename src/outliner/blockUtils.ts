@@ -77,12 +77,12 @@ export function buildBlockTree(blocks: Block[]): Block[] {
   if (blocks.length === 0) return [];
 
   // Reset children and parent references to rebuild tree structure
-  blocks.forEach((block) => {
+  for (const block of blocks) {
     if (block) {
       block.children = [];
       block.parent = null;
     }
-  });
+  }
 
   const root: Block[] = [];
   const stack: Block[] = [];

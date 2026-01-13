@@ -49,6 +49,7 @@ export function BlockEditor({
   // Auto-create first block if page is empty
   useEffect(() => {
     if (!isLoading && !error && pageId && currentPageId === pageId) {
+      // biome-ignore lint/complexity/useLiteralKeys: "root" is a reserved key name
       const rootBlocks = childrenMap["root"] || [];
       const hasBlocks = rootBlocks.length > 0;
 
@@ -93,7 +94,7 @@ export function BlockEditor({
   // Determine which blocks to show based on zoom level
   const blocksToShow = focusedBlockId
     ? [focusedBlockId]
-    : childrenMap["root"] || [];
+    : childrenMap.root || [];
 
   return (
     <PageContainer className={isDark ? "theme-dark" : "theme-light"}>

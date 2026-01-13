@@ -225,6 +225,7 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
       {
         key: "Mod-Alt-k",
         run: (view) => {
+          // biome-ignore lint/suspicious/noExplicitAny: DOM element type requires any
           const dom = view.dom as any;
           dom.__pinCompletionOpen = !dom.__pinCompletionOpen;
           if (dom.__pinCompletionOpen) {
@@ -321,6 +322,7 @@ async function navigateToBlockById(blockId: string): Promise<void> {
 
   // Ask backend for the block + its ancestor chain (for zoomPath),
   // so we can navigate without guessing based on currently loaded page.
+  // biome-ignore lint/suspicious/noExplicitAny: type requires any
   let blockWithPath: any | null = null;
   try {
     blockWithPath = await invoke("get_block", {
@@ -416,8 +418,8 @@ function createBlockRefClickHandler(): Extension {
     const directId =
       el.getAttribute("data-block-id") ||
       el.closest?.("[data-block-id]")?.getAttribute("data-block-id") ||
-      (el as any).dataset?.blockId ||
-      (el as any).dataset?.blockid ||
+      (el as HTMLElement).dataset?.blockId ||
+      (el as HTMLElement).dataset?.blockid ||
       "";
     if (directId) {
       void navigateToBlockById(directId);
@@ -567,6 +569,7 @@ function createUnifiedLinkAutocomplete(): Extension {
 
     const q = query.trim();
 
+    // biome-ignore lint/suspicious/noExplicitAny: type requires any
     const options: any[] = [];
 
     for (const id of pageIds) {
@@ -583,12 +586,8 @@ function createUnifiedLinkAutocomplete(): Extension {
           label, // what the user sees in the list
           detail: fullPath !== label ? fullPath : undefined, // show full path as detail
           type: "text",
-          apply: (
-            view: any,
-            _completion: any,
-            fromPos: number,
-            toPos: number,
-          ) => {
+          // biome-ignore lint/suspicious/noExplicitAny: type requires any
+          apply: (view: any, _completion: any, fromPos: number, toPos: number) => {
             const state = view.state;
             const currentDoc = state.doc.toString();
 
@@ -681,12 +680,8 @@ function createUnifiedLinkAutocomplete(): Extension {
             label: "Start typing to search blocks…",
             detail: isEmbed ? "Embed syntax: !((…))" : "Link syntax: ((…))",
             type: "text",
-            apply: (
-              _view: any,
-              _completion: any,
-              _fromPos: number,
-              _toPos: number,
-            ) => {
+            // biome-ignore lint/suspicious/noExplicitAny: type requires any
+            apply: (_view: any, _completion: any, _fromPos: number, _toPos: number) => {
               // No-op placeholder; user should keep typing.
             },
           },
@@ -699,6 +694,7 @@ function createUnifiedLinkAutocomplete(): Extension {
     // but we insert the UUID into (()) or !(()).
     const workspacePath = useWorkspaceStore.getState().workspacePath;
 
+    // biome-ignore lint/suspicious/noExplicitAny: type requires any
     let results: any[] = [];
     try {
       if (workspacePath) {
@@ -713,6 +709,7 @@ function createUnifiedLinkAutocomplete(): Extension {
       results = [];
     }
 
+    // biome-ignore lint/suspicious/noExplicitAny: type requires any
     const options: any[] = results.map((r) => {
       const label = (r.content ?? "").toString();
       const detail = (r.full_path ?? "").toString();
@@ -721,12 +718,8 @@ function createUnifiedLinkAutocomplete(): Extension {
         label,
         detail: detail && detail !== label ? detail : undefined,
         type: "text",
-        apply: (
-          view: any,
-          _completion: any,
-          fromPos: number,
-          toPos: number,
-        ) => {
+        // biome-ignore lint/suspicious/noExplicitAny: type requires any
+        apply: (view: any, _completion: any, fromPos: number, toPos: number) => {
           const state = view.state;
           const currentDoc = state.doc.toString();
           const id = (r.id ?? "").toString();
@@ -980,7 +973,7 @@ function createWikiLinkClickHandler(
     let clickedRaw: string | null = null;
 
     // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
-    while ((match = linkRegex.exec(lineText)) !== null) {
+    while ((match = wikiLinkRegex.exec(lineText)) !== null) {
       const full = match[0];
       const start = match.index;
       const end = start + full.length;

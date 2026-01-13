@@ -54,9 +54,9 @@ export const useAdvancedSettingsStore =
           // Clear browser cache and temporary data
           if ("caches" in window) {
             caches.keys().then((names) => {
-              names.forEach((name) => {
+              for (const name of names) {
                 caches.delete(name);
-              });
+              }
             });
           }
         },

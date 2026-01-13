@@ -45,11 +45,11 @@ export const useClockFormatStore = createWithEqualityFn<ClockFormatStore>()(
 
         if (format === "24h") {
           return `${hours}:${minutes}`;
-        } else {
-          const hour12 = date.getHours() % 12 || 12;
-          const period = date.getHours() >= 12 ? "PM" : "AM";
-          return `${String(hour12).padStart(2, "0")}:${minutes} ${period}`;
         }
+        
+        const hour12 = date.getHours() % 12 || 12;
+        const period = date.getHours() >= 12 ? "PM" : "AM";
+        return `${String(hour12).padStart(2, "0")}:${minutes} ${period}`;
       },
 
       formatDate: (date: Date) => {

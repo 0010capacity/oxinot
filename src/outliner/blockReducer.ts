@@ -13,7 +13,8 @@ function countAllBlocks(blocks: Block[]): number {
   let count = 0;
   const stack = [...blocks];
   while (stack.length > 0) {
-    const block = stack.pop()!;
+    const block = stack.pop();
+    if (!block) continue;
     count++;
     stack.push(...block.children);
   }
@@ -25,7 +26,8 @@ function markBlockAndDescendantsForRemoval(block: Block): Set<string> {
 
   const stack: Block[] = [...block.children];
   while (stack.length > 0) {
-    const current = stack.pop()!;
+    const current = stack.pop();
+    if (!current) continue;
     toRemove.add(current.id);
     stack.push(...current.children);
   }
@@ -38,7 +40,8 @@ function collectDescendants(block: Block): Block[] {
   const stack: Block[] = [...block.children];
 
   while (stack.length > 0) {
-    const current = stack.pop()!;
+    const current = stack.pop();
+    if (!current) continue;
     descendants.push(current);
     stack.push(...current.children);
   }
@@ -50,7 +53,8 @@ function increaseDescendantLevels(block: Block, delta: number) {
   const stack: Block[] = [...block.children];
 
   while (stack.length > 0) {
-    const current = stack.pop()!;
+    const current = stack.pop();
+    if (!current) continue;
     current.level += delta;
     stack.push(...current.children);
   }
@@ -181,9 +185,9 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
       // Also decrease level of all descendants
       increaseDescendantLevels(block, -1);
       // Clamp at 0 after shifting
-      flatBlocks.forEach((b) => {
+      for (const b of flatBlocks) {
         if (b.level < 0) b.level = 0;
-      });
+      }
 
       return buildBlockTree(flatBlocks);
     }
@@ -297,11 +301,11 @@ export function blockReducer(blocks: Block[], action: BlockAction): Block[] {
       previous.content = previous.content + currentBlock.content;
 
       // Move children to previous block
-      currentBlock.children.forEach((child) => {
+      for (const child of currentBlock.children) {
         child.parent = previous;
         child.level = previous.level + 1;
         previous.children.push(child);
-      });
+      }
 
       // Remove current block
       const filtered = flatBlocks.filter((b) => b.id !== blockId);
