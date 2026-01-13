@@ -28,12 +28,13 @@
 - Lint: `npm run lint`
 - Format: `npm run format`
 - Build app: `npm run tauri:build`
-- **Do NOT run**: `npm run dev`, `npm run tauri:dev` (long-running processes)
+- Do NOT run: `npm run dev`, `npm run tauri:dev` (long-running processes)
 
 ## Work Principles
 - Commit per task (feature, bugfix, refactor)
-- No report files after completion (save tokens, report via chat)
-- No emojis (code, commits, comments)
+- Issue-based development: major work gets Issues, minor fixes can skip
+- No report files after completion
+- No emojis in code, commits, or comments
 - Always minimal design
 - CLI allowed except real-time servers
 
@@ -45,11 +46,139 @@
 - Performance: virtualization, memoization, debouncing
 - Zustand with immer for state updates
 
+## Issue and Branch Workflow
+
+### When to Create Issues
+
+Determine issue necessity based on commit type:
+
+Create Issues:
+- feat (new features) - always
+- improve (enhancements) - always
+- fix (major bug fixes) - if substantial or user-impacting
+- perf (performance) - if significant
+
+Skip Issues:
+- fix (minor bugs) - typos, small bugs
+- docs (documentation) - unless significant
+- refactor (refactoring) - internal changes only
+- chore (build/tooling) - no issue needed
+
+### Issue Creation with Templates
+
+Use gh CLI with appropriate templates (template name, not filename):
+
+```bash
+# Bug fix
+gh issue create --title "Bug: ..." --template "Bug Report" --label bug
+
+# New feature
+gh issue create --title "Feature: ..." --template "Feature Request" --label enhancement
+
+# Improvement
+gh issue create --title "Improve: ..." --template "Improvement" --label enhancement
+
+# Documentation
+gh issue create --title "Docs: ..." --template "Documentation" --label documentation
+```
+
+Extract issue number for branch naming:
+```bash
+ISSUE_NUM=$(gh issue create --title "..." --template "..." | grep -oP '#\K\d+')
+git checkout -b feature/issue-${ISSUE_NUM}-description
+```
+
+### Branch Naming Convention
+
+```bash
+# With issue (e.g., issue #42)
+git checkout -b feature/issue-42-description
+
+# Without issue (minor changes)
+git checkout -b fix/description
+```
+
+Format: `type/[issue-NUMBER-]description`
+
+### Development Workflow
+
+1. Assess task scope and create issue if needed
+2. Extract issue number if created
+3. Create branch with appropriate prefix
+4. Make changes and lint: `npm run lint`
+5. Commit with conventional format: `type(scope): message`
+6. Push branch: `git push origin branch-name`
+7. Create PR with issue reference: `gh pr create --title "..." --body "Closes #42"`
+8. CI runs automatically (lint-and-build required)
+9. PR auto-merges when CI passes (branch protection enforced)
+10. Issue auto-closes when PR merges
+
+Branch protection rules active:
+- Direct push to main blocked
+- PR required for all changes
+- CI must pass before merge
+- Auto-merge enabled when CI passes
+
+### Example: Feature with Issue
+
+```bash
+# User request: "Add dark mode toggle"
+# Decision: feat type, create issue
+
+# Create issue and extract number
+ISSUE_NUM=$(gh issue create \
+  --title "Feature: Add dark mode toggle" \
+  --template "Feature Request" \
+  --label enhancement | grep -oP '#\K\d+')
+# Returns: 43
+
+# Create branch with issue number
+git checkout -b feature/issue-${ISSUE_NUM}-dark-mode-toggle
+
+# Make changes and commit
+npm run lint
+git commit -m "feat(theme): add dark mode toggle
+
+Add theme selector to settings menu.
+Uses Mantine's useColorScheme hook.
+
+Closes #43"
+
+# Push and create PR with issue reference
+git push origin feature/issue-${ISSUE_NUM}-dark-mode-toggle
+gh pr create --title "feat(theme): add dark mode toggle" \
+  --body "Add theme toggle to settings menu.
+
+Closes #${ISSUE_NUM}"
+
+# Auto-merge when CI passes, issue auto-closes
+```
+
+### Example: Minor Fix without Issue
+
+```bash
+# User request: "Fix typo in README"
+# Decision: docs type, no issue
+
+# Create branch directly
+git checkout -b fix/readme-typo
+
+# Make changes and commit
+git commit -m "docs: fix typo in README"
+
+# Push and create PR
+git push origin fix/readme-typo
+gh pr create --title "docs: fix typo in README" \
+  --body "Fix typo in README file."
+
+# Auto-merge when CI passes
+```
+
 ## Commit and Versioning Workflow
 
 ### Conventional Commit Format
 
-All commits MUST follow the conventional commits format. This enables automatic changelog generation and semantic versioning.
+All commits MUST follow conventional commits format:
 
 ```
 type(scope): subject
@@ -59,18 +188,20 @@ body
 footer
 ```
 
-#### Commit Types
-- **feat**: New feature (triggers MINOR version bump)
-- **fix**: Bug fix (triggers PATCH version bump)
-- **improve**: Enhancement/improvement (triggers MINOR version bump)
-- **perf**: Performance improvement (triggers PATCH version bump)
-- **refactor**: Code refactoring (no version bump)
-- **docs**: Documentation changes (no version bump)
-- **test**: Test-related changes (no version bump)
-- **chore**: Build, dependency, or tooling changes (no version bump)
+### Commit Types
 
-#### Breaking Changes
-For changes that break backward compatibility, append `BREAKING CHANGE:` in the footer:
+- feat: New feature (triggers MINOR version bump)
+- fix: Bug fix (triggers PATCH version bump)
+- improve: Enhancement/improvement (triggers MINOR version bump)
+- perf: Performance improvement (triggers PATCH version bump)
+- refactor: Code refactoring (no version bump)
+- docs: Documentation changes (no version bump)
+- test: Test-related changes (no version bump)
+- chore: Build, dependency, or tooling changes (no version bump)
+
+### Breaking Changes
+
+For backward-incompatible changes, append in footer:
 
 ```
 feat(block): redesign block structure
@@ -78,21 +209,19 @@ feat(block): redesign block structure
 BREAKING CHANGE: Block data format changed from 'content' to 'text'
 ```
 
-This will trigger a MAJOR version bump.
+This triggers MAJOR version bump.
 
-#### Examples
+### Commit Examples
 
-Good commit message:
 ```
 feat(editor): add block drag-and-drop support
 
-Implement drag-and-drop reordering of blocks with visual feedback.
+Implement drag-and-drop reordering with visual feedback.
 Uses dnd-kit library for robust drag handling.
 
 Fixes #42
 ```
 
-Good fix:
 ```
 fix(composition): handle IME composition events correctly
 
@@ -104,55 +233,35 @@ Fixes #38
 
 ### Changesets Workflow
 
-Changesets is used to manage versioning and track changes automatically.
+Changesets are automatically generated when commits are pushed to main.
 
-#### Changesets Are Auto-Generated (Main Merge Only!)
+#### Changeset Rules
 
-**Changesets are automatically created ONLY on main branch** when a feature branch is merged via PR.
+Changesets auto-generated for:
+- feat: New features
+- fix: Bug fixes
+- perf: Performance improvements
+- improve: Enhancements
 
-**On Feature Branch (No Changesets):**
+No changesets for:
+- refactor: Internal refactoring
+- docs: Documentation only
+- test: Test changes
+- chore: Build/tooling
+
+#### Auto-Changeset Example
+
 ```bash
-git checkout -b issue-123-feature-name
-git commit -m "feat(editor): add block templates"
-git commit -m "feat(editor): integrate templates"
-git push origin issue-123-feature-name
-# → No changesets created yet! Clean feature branch.
+git commit -m "feat(editor): add block templates dropdown
+
+Users can now insert predefined block templates from menu."
+
+# Git hook automatically:
+# → Detects "feat" type
+# → Creates .changeset/happy-cats-jump.md
+# → Stages the file
+# → Ready to push
 ```
-
-**After PR Merge to Main (Auto-Changeset):**
-```bash
-# GitHub: Click "Merge pull request"
-# ↓
-# Git hook runs on main branch
-# ↓
-# Auto-generates a SINGLE changeset for entire feature:
-# .changeset/happy-cats-jump.md
-# 
-# Content:
-# ---
-# "oxinot": minor
-# ---
-# 
-# - Add block templates dropdown component
-# - Integrate templates with editor
-# - Default block templates
-```
-
-**Why This Approach?**
-- ✅ Feature branches stay clean (no changeset files)
-- ✅ PRs are simple (only code changes)
-- ✅ One changeset per feature (grouped)
-- ✅ Main branch has all changesets (trackable)
-
-**Manual Alternative** (if needed):
-```bash
-npx changeset add
-```
-
-This prompts for:
-1. Package selection (select "oxinot")
-2. Bump type (major/minor/patch)
-3. User-friendly description
 
 #### Changeset File Format
 
@@ -166,183 +275,74 @@ Changesets creates files like `.changeset/fancy-cats-jump.md`:
 Added new block templates feature
 ```
 
-The version level should match your commit type:
-- `feat` → `minor`
-- `fix` or `perf` → `patch`
-- `BREAKING CHANGE` → `major`
-- `refactor`, `docs`, `test`, `chore` → no changeset needed
-
-#### When Changesets Are Auto-Generated
-
-Changesets are **automatically created** for:
-- ✅ New features (`feat:`)
-- ✅ Bug fixes (`fix:`)
-- ✅ Performance improvements (`perf:`)
-- ✅ Improvements (`improve:`)
-
-**No action needed** - the Git hook handles it automatically!
-
-#### When Changesets Are NOT Needed
-
-No changesets for these commit types (they're automatically skipped):
-- ❌ Refactoring (`refactor:`) - no version bump
-- ❌ Documentation (`docs:`) - no version bump
-- ❌ Tests (`test:`) - no version bump
-- ❌ Build/tooling (`chore:`) - no version bump
-
-These commits won't trigger changeset creation, which is correct.
-
-#### Example: Auto-Changeset in Action
-
-```bash
-# You make a change and commit
-git commit -m "feat(editor): add block templates dropdown
-
-Users can now insert predefined block templates from a menu."
-
-# Automatically:
-# → Git hook detects "feat" type
-# → Creates .changeset/happy-cats-jump.md
-# → Stages the file automatically
-# → Ready to push!
-
-git push origin main
-# Your changeset is included automatically
-```
-
-Another example:
-```bash
-git commit -m "fix(db): handle concurrent updates"
-# → Changeset auto-created (patch version)
-
-git commit -m "refactor(stores): consolidate state"
-# → No changeset (internal refactor, no version bump)
-
-git commit -m "docs: update README"
-# → No changeset (documentation only)
-```
+Match version level to commit type:
+- feat → minor
+- fix or perf → patch
+- BREAKING CHANGE → major
+- refactor, docs, test, chore → no changeset
 
 ### Branch Strategy
 
-While development is primarily on `main`, use branches for:
-- Large features: `feature/description`
+- Large features: `feature/description` or `feature/issue-NUMBER-description`
 - Bug fixes: `fix/description`
 - Experiments: `experiment/description`
 
-Always merge back to `main` when complete.
+Always merge back to main through PR.
 
-### Workflow Summary (Super Simple!)
+### Workflow Summary
 
-1. **Code**: Make changes to implement features/fixes
-2. **Commit**: Use conventional commit format (`feat:`, `fix:`, etc.)
-   ```bash
-   git commit -m "feat(scope): message"
-   ```
-3. **Auto-Changeset**: Git hook automatically creates changeset (no action needed!)
-4. **Push**: Everything goes together
-   ```bash
-   git push origin main
-   ```
-5. **User Releases**: When ready, user runs `npm run release`
-
-**That's it!** Changesets are completely automatic via Git hooks.
+1. Assess task scope
+2. Create issue with gh CLI if needed (feat, improve types)
+3. Extract issue number if created
+4. Create branch with appropriate prefix and issue number
+5. Make changes and lint: `npm run lint`
+6. Commit with conventional format
+7. Push branch: `git push origin branch-name`
+8. Create PR with issue reference in body: `gh pr create --title "..." --body "Closes #42"`
+9. CI runs automatically (lint-and-build required by branch protection)
+10. PR auto-merges when CI passes
+11. Issue auto-closes when PR merges
+12. Changeset auto-created on main branch
+13. User runs `npm run release` when ready
 
 ### Version File Synchronization
 
-The `sync-versions.js` script automatically synchronizes versions across:
-- `package.json` (version field)
-- `src-tauri/tauri.conf.json` (version field)
-- `src-tauri/Cargo.toml` (version field)
+The `sync-versions.js` script synchronizes versions across:
+- `package.json`
+- `src-tauri/tauri.conf.json`
+- `src-tauri/Cargo.toml`
 
-This is run automatically when executing `npm run version`.
-
-## Example Development Session
-
-### Day 1: Implement Block Templates
-
-```bash
-# 1. Make code changes
-# ... edit src/components/BlockTemplates.tsx ...
-# ... edit src/stores/editorStore.ts ...
-
-# 2. Lint and commit with proper format
-npm run lint
-git add .
-git commit -m "feat(editor): add block templates dropdown
-
-Users can now select from predefined block templates.
-Includes code, quote, and list templates.
-Improves onboarding experience."
-
-# 3. Git hook automatically creates changeset
-#    → You'll see output showing changeset was created
-#    → Changeset is automatically staged
-
-# 4. Push (changeset is already included)
-git push origin main
-```
-
-### Day 2: Fix a Bug
-
-```bash
-# 1. Make code changes
-# ... fix src/db/index.ts ...
-
-# 2. Commit with fix format
-git commit -m "fix(db): prevent race condition in concurrent updates
-
-Add database transaction to ensure atomic block updates.
-Fixes #42"
-
-# 3. Git hook automatically creates changeset (patch version)
-#    → Changeset is automatically staged
-
-# 4. Push
-git push origin main
-```
-
-### Day 3: User Releases (One Command!)
-
-```bash
-# Check what will be released
-npm run changeset:status
-
-# Release! That's it!
-npm run release
-
-# Automatically:
-# → Updates all version files (package.json, tauri.conf.json, Cargo.toml)
-# → Builds application
-# → Pushes to GitHub
-# → GitHub Actions builds for all platforms
-# → Creates GitHub Release with binaries
-
-# You're done! The release is live.
-```
+Runs automatically with `npm run version`.
 
 ## Important Notes for AI Agents
 
-- **Always** use conventional commit format: `type(scope): message`
-- **Changesets are automatic** - Git hooks create them after each commit! No manual action needed.
-- Format and lint code with Biome **before** committing: `npm run lint`
+- Always use conventional commit format: `type(scope): message`
+- Changesets are automatic via Git hooks
+- Issues are optional based on task scope
+- PRs are mandatory, direct commits to main blocked by branch protection
+- Use correct gh CLI syntax: template name not filename
+- Extract issue number after creation for branch naming
+- Lint before committing: `npm run lint`
 - Commit atomically - one logical change per commit
-- If making multiple commits for one feature, each gets its own changeset (automatic)
-- Test locally before committing: `npm run build`
+- Build locally before committing: `npm run build`
 - Never force push to main
-- Pre-commit hook runs linting automatically - fix any issues before committing
+- Include issue reference in PR body: `Closes #42` or `Fixes #42`
+- Create PR with: `gh pr create --title "..." --body "..."`
+- Branch protection enforces: PR required, CI must pass, auto-merge enabled
+- Labels are added via --label flag in gh issue create
 
 ## Release Process (User Only)
 
-Users trigger releases with:
+User triggers releases with:
 
 ```bash
 npm run release
 ```
 
-This command:
-1. Runs `changeset version` to update versions everywhere
-2. Syncs versions across all config files
-3. Builds the application
-4. (GitHub Actions will handle tagging and GitHub release)
+This automatically:
+1. Updates all versions via changeset
+2. Builds application
+3. Pushes to GitHub
+4. GitHub Actions creates release with binaries
 
 See `RELEASE.md` for detailed release documentation.
