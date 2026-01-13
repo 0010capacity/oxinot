@@ -92,7 +92,7 @@ fix/issue-#456-description
 
 **AI 에이전트가 수행**
 
-Feature 브랜치에서 여러 커밋을 수행합니다.
+Feature 브랜치에서 여러 커밋을 수행합니다. **Changeset은 자동으로 생성되지 않습니다** (feature 브랜치이므로).
 
 ```bash
 # 커밋 1: UI 컴포넌트 추가
@@ -103,10 +103,7 @@ Create BlockTemplatesDropdown component with:
 - Click handler to insert selected template
 - Styled with Mantine components"
 
-# ✨ 자동으로:
-# → Post-commit hook 실행
-# → Changeset 생성: .changeset/happy-cats-jump.md
-# → Changeset 스테이징
+# → 그냥 일반 커밋 (changeset 없음)
 
 # 커밋 2: 템플릿 데이터 추가
 git commit -m "feat(editor): add default block templates
@@ -118,8 +115,7 @@ Add predefined templates:
 
 Store in editorStore for easy access"
 
-# ✨ 자동으로:
-# → 또 다른 changeset 생성: .changeset/lazy-eagles-run.md
+# → 그냥 일반 커밋 (changeset 없음)
 
 # 커밋 3: 기능 통합
 git commit -m "feat(editor): integrate templates with editor
@@ -128,16 +124,16 @@ Add button to toolbar to open templates dropdown.
 Clicking template inserts it at current cursor position.
 Tests included for template insertion."
 
-# ✨ 또 다른 changeset 생성
+# → 그냥 일반 커밋 (changeset 없음)
 
-# 모든 커밋과 changeset을 푸시
+# 모든 커밋을 푸시 (changeset 파일 없음)
 git push origin issue-123-add-block-templates
 ```
 
 **여기서 중요한 점:**
-- 각 커밋마다 자동으로 changeset 생성됨
-- 3개의 커밋 = 3개의 changeset이 쌓임
-- 모두 feature 브랜치에만 있음 (main에는 아직 없음)
+- Feature 브랜치에서는 changeset이 생성되지 않음
+- PR이 깔끔함 (코드 파일만)
+- 3개의 커밋이 모두 main으로 전달됨
 
 ### 4단계: Pull Request 생성
 
@@ -193,7 +189,7 @@ git diff main                  # 모든 변경사항 확인
 - ✅ 코드 품질 괜찮은가?
 - ✅ 버그 없는가?
 - ✅ 디자인이 일관적인가?
-- ✅ Changeset이 적절히 생성되었는가?
+- (Changeset은 아직 없음 - main 병합 후 자동 생성됨)
 
 ### 6단계: PR 병합
 
@@ -211,14 +207,32 @@ GitHub Web에서:
 gh pr merge 123 --merge
 ```
 
-**병합 후 상황:**
-```
-main 브랜치에 추가됨:
-.changeset/happy-cats-jump.md (minor)
-.changeset/lazy-eagles-run.md (minor)
-.changeset/brave-tigers-dance.md (minor)
-+ 모든 커밋 이력
-```
+**병합 직후 (자동으로!):**
+
+✨ **Main 브랜치의 post-commit hook이 실행됩니다:**
+
+1. 병합된 모든 커밋 분석
+2. Conventional commits 파싱
+3. 최고 수준의 버전 bump 결정:
+   - 모두 `feat` → `minor` 버전
+4. **한 번의 changeset 생성:**
+   ```
+   .changeset/happy-cats-jump.md
+   ---
+   "oxinot": minor
+   ---
+   
+   - Add block templates dropdown component
+   - Add default block templates
+   - Integrate templates with editor
+   ```
+5. Changeset 자동 스테이징
+
+**결과:**
+- 깔끔한 feature 브랜치 (changeset 파일 없음)
+- 깔끔한 PR (코드 파일만)
+- Main에는 하나의 changeset 파일 (모든 변경사항 묶임)
+- 모든 커밋 이력 보존
 
 ### 7단계: 여러 PR 병합 대기
 
@@ -263,12 +277,13 @@ npm run release
 
 ### 왜 작동하는가?
 
-1. **Feature 브랜치에서도 작동**
-   - 각 커밋마다 changeset 자동 생성
+1. **Feature 브랜치에서는 changeset 생성 안 함**
+   - PR이 깔끔함 (코드 파일만)
    - 모든 커밋이 추적됨
 
-2. **Main에 병합 후에도 완벽**
-   - Changeset들이 main으로 따라옴
+2. **Main에 병합되는 순간 자동 생성**
+   - Post-commit hook이 병합된 커밋들 분석
+   - 하나의 changeset으로 묶음
    - 여러 PR의 changeset이 누적됨
 
 3. **Release 시점에 한 번에 정리**
@@ -282,19 +297,21 @@ npm run release
 ### 현재 워크플로우
 
 ```
-Feature 브랜치에서 커밋
-→ 자동 changeset 생성
+Feature 브랜치에서 여러 커밋
+→ PR 생성 (깔끔함, changeset 없음)
 → PR 병합
-→ Main에 changeset이 쌓임
+→ Main에서 자동 changeset 생성 (한 번!)
+→ 여러 PR의 changeset 누적
 → Release 시 모두 처리
 ```
 
 ### 장점
 
-✅ 각 커밋이 명확히 추적됨
-✅ Changeset이 구체적임
+✅ Feature 브랜치가 깔끔함 (changeset 파일 없음)
+✅ PR이 간결함 (코드 파일만)
+✅ Feature별로 하나의 changeset (명확한 그룹화)
 ✅ 변경사항이 명확히 분류됨
-✅ PR에서 changeset 상태 확인 가능
+✅ Main에 모든 이력 보존
 
 ## 추가 설정 (선택사항)
 
@@ -362,20 +379,21 @@ git push -u origin issue-456-dark-mode
 
 # Step 3: 구현 (AI가 여러 커밋)
 git commit -m "feat(ui): add dark mode theme colors"
-# → changeset 자동 생성
+# → 일반 커밋 (changeset 없음)
 
 git commit -m "feat(settings): add dark mode toggle"
-# → changeset 자동 생성
+# → 일반 커밋 (changeset 없음)
 
 git commit -m "feat(storage): persist dark mode preference"
-# → changeset 자동 생성
+# → 일반 커밋 (changeset 없음)
 
 git push origin issue-456-dark-mode
 
-# Step 4: PR 생성
+# Step 4: PR 생성 (깔끔함!)
 gh pr create --title "Add dark mode support" \
   --body "Closes #456" \
   --base main
+# → PR 파일 변경: ui, settings, storage (changeset 없음!)
 
 # Step 5: 검토 (사용자)
 # GitHub에서 변경사항 확인
@@ -383,8 +401,21 @@ gh pr create --title "Add dark mode support" \
 # Step 6: PR 병합 (사용자)
 gh pr merge 456 --merge
 
+# ✨ Main 병합 직후:
+# → Post-commit hook 실행
+# → 3개 커밋 분석
+# → 하나의 changeset 생성!
+# .changeset/lazy-eagles-run.md
+# ---
+# "oxinot": minor
+# ---
+# 
+# - Add dark mode theme colors
+# - Add dark mode toggle
+# - Persist dark mode preference
+
 # 결과:
-# Main에 3개 changeset 추가
+# Main에 1개 changeset 추가 (모든 변경사항 포함)
 # Main에 3개 커밋 추가
 # Issue #456 자동 closed
 

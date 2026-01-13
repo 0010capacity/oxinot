@@ -106,28 +106,45 @@ Fixes #38
 
 Changesets is used to manage versioning and track changes automatically.
 
-#### Changesets Are Auto-Generated (Git Hooks!)
+#### Changesets Are Auto-Generated (Main Merge Only!)
 
-**Changesets are automatically created** after each commit using Git post-commit hooks.
+**Changesets are automatically created ONLY on main branch** when a feature branch is merged via PR.
 
+**On Feature Branch (No Changesets):**
 ```bash
-# 1. Commit your changes with conventional format
+git checkout -b issue-123-feature-name
 git commit -m "feat(editor): add block templates"
-
-# 2. Git hook automatically runs and:
-#    - Detects the commit type (feat, fix, improve, perf)
-#    - Determines the version bump (minor, patch, major)
-#    - Creates a changeset file in `.changeset/` directory
-#    - Stages it for the next commit
-#    → You'll see: "✓ Auto-generated changeset: happy-cats-jump.md"
-
-# 3. Push (changeset is already staged)
-git push origin main
+git commit -m "feat(editor): integrate templates"
+git push origin issue-123-feature-name
+# → No changesets created yet! Clean feature branch.
 ```
 
-**That's it!** No manual commands needed. The Git hook handles everything automatically.
+**After PR Merge to Main (Auto-Changeset):**
+```bash
+# GitHub: Click "Merge pull request"
+# ↓
+# Git hook runs on main branch
+# ↓
+# Auto-generates a SINGLE changeset for entire feature:
+# .changeset/happy-cats-jump.md
+# 
+# Content:
+# ---
+# "oxinot": minor
+# ---
+# 
+# - Add block templates dropdown component
+# - Integrate templates with editor
+# - Default block templates
+```
 
-**Manual Alternative** (if auto-generation fails):
+**Why This Approach?**
+- ✅ Feature branches stay clean (no changeset files)
+- ✅ PRs are simple (only code changes)
+- ✅ One changeset per feature (grouped)
+- ✅ Main branch has all changesets (trackable)
+
+**Manual Alternative** (if needed):
 ```bash
 npx changeset add
 ```

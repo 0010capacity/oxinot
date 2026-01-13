@@ -1,61 +1,138 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+const fs = require("fs");
+const path = require("path");
+const { execSync } = require("child_process");
 
 /**
- * Auto-generate changesets based on commit message
- * Runs as a post-commit hook
+ * Auto-generate changesets based on commit messages
+ * Only runs on main branch (after PR merge)
+ * Analyzes all commits since last changeset creation
  */
 
-const CHANGESET_DIR = path.join(__dirname, '.changeset');
+const CHANGESET_DIR = path.join(__dirname, ".changeset");
 
-// Get the last commit message
-function getLastCommitMessage() {
+// Get current branch name
+function getCurrentBranch() {
   try {
-    return execSync('git log -1 --pretty=%B', { encoding: 'utf-8' }).trim();
+    return execSync("git rev-parse --abbrev-ref HEAD", {
+      encoding: "utf-8",
+    }).trim();
   } catch {
-    return '';
+    return "";
+  }
+}
+
+// Get all commits since last release tag
+function getCommitsSinceLastRelease() {
+  try {
+    // Get the last version tag
+    const lastTag = execSync(
+      'git describe --tags --abbrev=0 2>/dev/null || echo ""',
+      {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      }
+    ).trim();
+
+    let commitRange;
+    if (lastTag) {
+      commitRange = `${lastTag}..HEAD`;
+    } else {
+      // No tags yet, get all commits
+      commitRange = "HEAD";
+    }
+
+    const commits = execSync(
+      `git log ${commitRange} --pretty=format:"%H|%s|%b" --reverse`,
+      {
+        encoding: "utf-8",
+      }
+    ).trim();
+
+    return commits
+      .split("\n")
+      .filter((c) => c.trim())
+      .map((line) => {
+        const [hash, subject, body] = line.split("|");
+        return { hash, subject, body: body || "" };
+      });
+  } catch {
+    return [];
   }
 }
 
 // Parse commit message to extract type and scope
-function parseCommitMessage(message) {
-  const match = message.match(/^(\w+)(\([\w-]+\))?:\s*(.+)/);
+function parseCommitMessage(subject) {
+  const match = subject.match(/^(\w+)(\([\w-]+\))?:\s*(.+)/);
   if (!match) return null;
 
   return {
     type: match[1],
-    scope: match[2] ? match[2].slice(1, -1) : '',
-    subject: match[3]
+    scope: match[2] ? match[2].slice(1, -1) : "",
+    subject: match[3],
   };
 }
 
 // Determine version bump type based on commit type
 function getVersionBump(commitType) {
   switch (commitType) {
-    case 'feat':
-    case 'improve':
-      return 'minor';
-    case 'fix':
-    case 'perf':
-      return 'patch';
+    case "feat":
+    case "improve":
+      return "minor";
+    case "fix":
+    case "perf":
+      return "patch";
     default:
-      return null; // No changeset needed
+      return null;
   }
 }
 
-// Check if commit message contains breaking change
-function hasBreakingChange(message) {
-  return /^BREAKING CHANGE:/m.test(message);
+// Check if commit has breaking change
+function hasBreakingChange(commitBody, subject) {
+  return (
+    /^BREAKING CHANGE:/m.test(commitBody) || subject.includes("BREAKING CHANGE")
+  );
 }
 
 // Generate a unique changeset filename
 function generateChangesetFilename() {
-  const adjectives = ['happy', 'lazy', 'quiet', 'bright', 'clever', 'swift', 'proud', 'brave', 'kind', 'wise'];
-  const animals = ['bear', 'cat', 'dog', 'eagle', 'fox', 'lion', 'owl', 'panda', 'tiger', 'wolf'];
-  const verbs = ['jump', 'run', 'walk', 'fly', 'swim', 'climb', 'dance', 'sing', 'play', 'laugh'];
+  const adjectives = [
+    "happy",
+    "lazy",
+    "quiet",
+    "bright",
+    "clever",
+    "swift",
+    "proud",
+    "brave",
+    "kind",
+    "wise",
+  ];
+  const animals = [
+    "bear",
+    "cat",
+    "dog",
+    "eagle",
+    "fox",
+    "lion",
+    "owl",
+    "panda",
+    "tiger",
+    "wolf",
+  ];
+  const verbs = [
+    "jump",
+    "run",
+    "walk",
+    "fly",
+    "swim",
+    "climb",
+    "dance",
+    "sing",
+    "play",
+    "laugh",
+  ];
 
   const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
   const animal = animals[Math.floor(Math.random() * animals.length)];
@@ -64,32 +141,8 @@ function generateChangesetFilename() {
   return `${adj}-${animal}s-${verb}`;
 }
 
-// Check if a changeset already exists for this commit
-function changesetAlreadyExists() {
-  const files = fs.readdirSync(CHANGESET_DIR);
-  // If there are any .md files other than README.md and config.json, assume changeset exists
-  const changesetFiles = files.filter(f => f.endsWith('.md') && f !== 'README.md');
-
-  // Get the current timestamp to see if a changeset was just created
-  const now = Date.now();
-  for (const file of changesetFiles) {
-    const filePath = path.join(CHANGESET_DIR, file);
-    const stat = fs.statSync(filePath);
-    // If a changeset was created in the last 5 seconds, assume it's for this commit
-    if (now - stat.mtimeMs < 5000) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 // Create changeset file
 function createChangeset(versionBump, subject, scope) {
-  if (changesetAlreadyExists()) {
-    return; // Changeset already exists for this commit
-  }
-
   const filename = generateChangesetFilename();
   const filepath = path.join(CHANGESET_DIR, `${filename}.md`);
 
@@ -110,37 +163,127 @@ ${description}
 
   // Stage the changeset file
   try {
-    execSync(`git add ${filepath}`, { stdio: 'pipe' });
+    execSync(`git add "${filepath}"`, { stdio: "pipe" });
   } catch {
-    // If git add fails, silently continue
+    // Silently continue
   }
+}
+
+// Group commits by highest version bump needed
+function groupChangesets(commits) {
+  const changesets = [];
+  let currentGroup = [];
+  let highestBump = null;
+
+  for (const commit of commits) {
+    const parsed = parseCommitMessage(commit.subject);
+    if (!parsed) continue;
+
+    // Check for breaking change
+    const versionBump = hasBreakingChange(commit.body, commit.subject)
+      ? "major"
+      : getVersionBump(parsed.type);
+
+    if (!versionBump) continue;
+
+    currentGroup.push({ commit, parsed, versionBump });
+
+    // Track highest bump level
+    if (versionBump === "major") {
+      highestBump = "major";
+    } else if (versionBump === "minor" && highestBump !== "major") {
+      highestBump = "minor";
+    } else if (highestBump === null) {
+      highestBump = "patch";
+    }
+  }
+
+  if (currentGroup.length > 0) {
+    return {
+      commits: currentGroup,
+      highestBump: highestBump,
+    };
+  }
+
+  return null;
+}
+
+// Check if changesets already exist for recent commits
+function haveRecentChangesets() {
+  try {
+    const files = fs.readdirSync(CHANGESET_DIR);
+    const changesetFiles = files.filter(
+      (f) => f.endsWith(".md") && f !== "README.md"
+    );
+
+    if (changesetFiles.length === 0) return false;
+
+    // Check if any changeset was created in the last 30 seconds
+    const now = Date.now();
+    for (const file of changesetFiles) {
+      const filePath = path.join(CHANGESET_DIR, file);
+      const stat = fs.statSync(filePath);
+      if (now - stat.mtimeMs < 30000) {
+        return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
 }
 
 // Main function
 function main() {
-  const commitMessage = getLastCommitMessage();
+  const branch = getCurrentBranch();
 
-  if (!commitMessage) {
-    return; // No commit message found
-  }
-
-  const parsed = parseCommitMessage(commitMessage);
-
-  if (!parsed) {
-    return; // Commit message doesn't follow conventional commits
-  }
-
-  // Check for breaking changes (takes precedence)
-  if (hasBreakingChange(commitMessage)) {
-    createChangeset('major', parsed.subject, parsed.scope);
+  // Only run on main branch
+  if (branch !== "main") {
     return;
   }
 
-  // Get version bump based on commit type
-  const versionBump = getVersionBump(parsed.type);
+  // Skip if we recently created changesets
+  if (haveRecentChangesets()) {
+    return;
+  }
 
-  if (versionBump) {
-    createChangeset(versionBump, parsed.subject, parsed.scope);
+  // Get commits since last release
+  const commits = getCommitsSinceLastRelease();
+
+  if (commits.length === 0) {
+    return;
+  }
+
+  // Group commits and find highest version bump
+  const grouped = groupChangesets(commits);
+
+  if (!grouped) {
+    return;
+  }
+
+  // Create a single changeset for all recent commits
+  const descriptions = grouped.commits
+    .map((item) => `- ${item.parsed.subject}`)
+    .join("\n");
+
+  const filename = generateChangesetFilename();
+  const filepath = path.join(CHANGESET_DIR, `${filename}.md`);
+
+  const content = `---
+"oxinot": ${grouped.highestBump}
+---
+
+${descriptions}
+`;
+
+  fs.writeFileSync(filepath, content);
+
+  // Stage the changeset file
+  try {
+    execSync(`git add "${filepath}"`, { stdio: "pipe" });
+  } catch {
+    // Silently continue
   }
 }
 
