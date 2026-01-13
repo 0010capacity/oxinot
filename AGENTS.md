@@ -109,9 +109,10 @@ Format: `type/[issue-NUMBER-]description`
 5. Commit with conventional format: `type(scope): message`
 6. Push branch: `git push origin branch-name`
 7. Create PR with issue reference: `gh pr create --title "..." --body "Closes #42"`
-8. CI runs automatically (lint-and-build required)
-9. PR auto-merges when CI passes (branch protection enforced)
-10. Issue auto-closes when PR merges
+8. Enable auto-merge: `gh pr merge PR_NUMBER --auto --squash`
+9. CI runs automatically (lint-and-build required)
+10. PR auto-merges when CI passes (branch protection enforced)
+11. Issue auto-closes when PR merges
 
 Branch protection rules active:
 - Direct push to main blocked
@@ -146,10 +147,14 @@ Closes #43"
 
 # Push and create PR with issue reference
 git push origin feature/issue-${ISSUE_NUM}-dark-mode-toggle
-gh pr create --title "feat(theme): add dark mode toggle" \
+PR_URL=$(gh pr create --title "feat(theme): add dark mode toggle" \
   --body "Add theme toggle to settings menu.
 
-Closes #${ISSUE_NUM}"
+Closes #${ISSUE_NUM}")
+
+# Extract PR number and enable auto-merge
+PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')
+gh pr merge "$PR_NUMBER" --auto --squash
 
 # Auto-merge when CI passes, issue auto-closes
 ```
@@ -168,8 +173,12 @@ git commit -m "docs: fix typo in README"
 
 # Push and create PR
 git push origin fix/readme-typo
-gh pr create --title "docs: fix typo in README" \
-  --body "Fix typo in README file."
+PR_URL=$(gh pr create --title "docs: fix typo in README" \
+  --body "Fix typo in README file.")
+
+# Enable auto-merge
+PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')
+gh pr merge "$PR_NUMBER" --auto --squash
 
 # Auto-merge when CI passes
 ```
@@ -307,11 +316,11 @@ Always merge back to main through PR.
 6. Commit with conventional format
 7. Push branch: `git push origin branch-name`
 8. Create PR with issue reference in body: `gh pr create --title "..." --body "Closes #42"`
-9. CI runs automatically (lint-and-build required by branch protection)
-10. PR auto-merges when CI passes
-11. Issue auto-closes when PR merges
-12. GitHub Actions runs auto-changeset workflow
-13. Changeset committed to main branch automatically
+9. Enable auto-merge: `gh pr merge PR_NUMBER --auto --squash`
+10. CI runs automatically (lint-and-build required by branch protection)
+11. PR auto-merges when CI passes
+12. Issue auto-closes when PR merges
+13. Changeset generated and committed to main (if CI passes)
 14. User runs `npm run release` when ready
 
 ### Version File Synchronization
@@ -336,10 +345,12 @@ Runs automatically with `npm run version`.
 - Build locally before committing: `npm run build`
 - Never force push to main
 - Include issue reference in PR body: `Closes #42` or `Fixes #42`
-- Create PR with: `gh pr create --title "..." --body "..."`
-- Branch protection enforces: PR required, CI must pass, auto-merge enabled
+- Always enable auto-merge after creating PR: `gh pr merge PR_NUMBER --auto --squash`
+- Extract PR number from gh pr create output: `PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')`
+- Branch protection enforces: PR required, CI must pass before merge
 - Labels are added via --label flag in gh issue create
-- Changesets are committed automatically by GitHub Actions after PR merge
+- Changesets are generated and committed automatically by CI after PR merge to main
+
 
 ## Release Process (User Only)
 
