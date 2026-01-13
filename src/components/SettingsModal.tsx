@@ -765,66 +765,77 @@ export function SettingsModal({
                         onChange={(value) => {
                           if (value) setTimezone(value);
                         }}
-                        data={[
-                          {
-                            label: "System Default",
-                            value:
-                              Intl.DateTimeFormat().resolvedOptions().timeZone,
-                          },
-                          { label: "UTC", value: "UTC" },
-                          {
-                            label: "America/New_York (EST)",
-                            value: "America/New_York",
-                          },
-                          {
-                            label: "America/Chicago (CST)",
-                            value: "America/Chicago",
-                          },
-                          {
-                            label: "America/Denver (MST)",
-                            value: "America/Denver",
-                          },
-                          {
-                            label: "America/Los_Angeles (PST)",
-                            value: "America/Los_Angeles",
-                          },
-                          {
-                            label: "Europe/London (GMT)",
-                            value: "Europe/London",
-                          },
-                          {
-                            label: "Europe/Paris (CET)",
-                            value: "Europe/Paris",
-                          },
-                          {
-                            label: "Europe/Berlin (CET)",
-                            value: "Europe/Berlin",
-                          },
-                          {
-                            label: "Asia/Seoul (KST)",
-                            value: "Asia/Seoul",
-                          },
-                          {
-                            label: "Asia/Tokyo (JST)",
-                            value: "Asia/Tokyo",
-                          },
-                          {
-                            label: "Asia/Shanghai (CST)",
-                            value: "Asia/Shanghai",
-                          },
-                          {
-                            label: "Asia/Hong_Kong (HKT)",
-                            value: "Asia/Hong_Kong",
-                          },
-                          {
-                            label: "Asia/Singapore (SGT)",
-                            value: "Asia/Singapore",
-                          },
-                          {
-                            label: "Australia/Sydney (AEDT)",
-                            value: "Australia/Sydney",
-                          },
-                        ]}
+                        data={(() => {
+                          const systemTz =
+                            Intl.DateTimeFormat().resolvedOptions().timeZone;
+                          const timezones = [
+                            { label: "UTC", value: "UTC" },
+                            {
+                              label: "America/New_York (EST)",
+                              value: "America/New_York",
+                            },
+                            {
+                              label: "America/Chicago (CST)",
+                              value: "America/Chicago",
+                            },
+                            {
+                              label: "America/Denver (MST)",
+                              value: "America/Denver",
+                            },
+                            {
+                              label: "America/Los_Angeles (PST)",
+                              value: "America/Los_Angeles",
+                            },
+                            {
+                              label: "Europe/London (GMT)",
+                              value: "Europe/London",
+                            },
+                            {
+                              label: "Europe/Paris (CET)",
+                              value: "Europe/Paris",
+                            },
+                            {
+                              label: "Europe/Berlin (CET)",
+                              value: "Europe/Berlin",
+                            },
+                            {
+                              label: "Asia/Seoul (KST)",
+                              value: "Asia/Seoul",
+                            },
+                            {
+                              label: "Asia/Tokyo (JST)",
+                              value: "Asia/Tokyo",
+                            },
+                            {
+                              label: "Asia/Shanghai (CST)",
+                              value: "Asia/Shanghai",
+                            },
+                            {
+                              label: "Asia/Hong_Kong (HKT)",
+                              value: "Asia/Hong_Kong",
+                            },
+                            {
+                              label: "Asia/Singapore (SGT)",
+                              value: "Asia/Singapore",
+                            },
+                            {
+                              label: "Australia/Sydney (AEDT)",
+                              value: "Australia/Sydney",
+                            },
+                          ];
+                          const systemTzExists = timezones.some(
+                            (tz) => tz.value === systemTz,
+                          );
+                          return systemTzExists
+                            ? timezones
+                            : [
+                                {
+                                  label: `System Default (${systemTz})`,
+                                  value: systemTz,
+                                },
+                                ...timezones,
+                              ];
+                        })()}
                         placeholder="Select timezone"
                         searchable
                       />
