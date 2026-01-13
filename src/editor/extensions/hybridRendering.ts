@@ -362,6 +362,7 @@ function buildDecorations(view: EditorView): DecorationSet {
 
       const strikethroughRegex = /~~(.+?)~~/g;
       let match: RegExpExecArray | null;
+      // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
       while ((match = strikethroughRegex.exec(lineText)) !== null) {
         const start = line.from + match.index;
         const end = start + match[0].length;
@@ -435,6 +436,7 @@ function buildDecorations(view: EditorView): DecorationSet {
 
       const footnoteRefRegex = /\[\^([^\]]+)\]/g;
       let match: RegExpExecArray | null;
+      // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
       while ((match = footnoteRefRegex.exec(lineText)) !== null) {
         const refStart = line.from + match.index;
         const refEnd = refStart + match[0].length;

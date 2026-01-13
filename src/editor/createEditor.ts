@@ -296,6 +296,7 @@ function extractBlockRefAtLinePos(
   const re = /(!)?\(\(([^\)\s]+)\)\)/g;
   let m: RegExpExecArray | null;
 
+  // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
   while ((m = re.exec(lineText)) !== null) {
     const full = m[0];
     const start = m.index;
@@ -978,7 +979,8 @@ function createWikiLinkClickHandler(
     let match: RegExpExecArray | null;
     let clickedRaw: string | null = null;
 
-    while ((match = wikiLinkRegex.exec(lineText)) !== null) {
+    // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
+    while ((match = linkRegex.exec(lineText)) !== null) {
       const full = match[0];
       const start = match.index;
       const end = start + full.length;

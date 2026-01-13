@@ -1,5 +1,4 @@
-import { ActionIcon, Tooltip } from "@mantine/core";
-import { useMantineColorScheme } from "@mantine/core";
+import { ActionIcon, Tooltip, useMantineColorScheme } from "@mantine/core";
 import {
   IconCommand,
   IconHelp,
@@ -9,7 +8,6 @@ import {
   IconSettings,
   IconSun,
 } from "@tabler/icons-react";
-import { useMantineColorScheme } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
 interface BottomLeftControlsProps {

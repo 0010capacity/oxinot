@@ -557,7 +557,8 @@ export function FileTreeIndex() {
 
             {/* Floating New Page Button */}
             {!isCreating && (
-              <div
+              <button
+                type="button"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -569,6 +570,8 @@ export function FileTreeIndex() {
                   borderRadius: "var(--radius-sm)",
                   transition: "background-color var(--transition-normal)",
                   opacity: "var(--opacity-hover)",
+                  border: "none",
+                  background: "none",
                 }}
                 onClick={() => setIsCreating(true)}
                 onMouseEnter={(e) => {
@@ -617,7 +620,7 @@ export function FileTreeIndex() {
                 >
                   New page
                 </Text>
-              </div>
+              </button>
             )}
           </Stack>
         </Stack>

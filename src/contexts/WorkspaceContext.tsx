@@ -163,7 +163,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({
           setFileContent("");
         }
 
-        await loadDirectory(currentPath || workspacePath!);
+        if (!workspacePath) throw new Error("No workspace selected");
+        await loadDirectory(currentPath || workspacePath);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to delete item");
         console.error("Error deleting item:", err);
@@ -186,7 +187,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({
           setCurrentFile(newPath);
         }
 
-        await loadDirectory(currentPath || workspacePath!);
+        if (!workspacePath) throw new Error("No workspace selected");
+        await loadDirectory(currentPath || workspacePath);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to rename item");
         console.error("Error renaming item:", err);

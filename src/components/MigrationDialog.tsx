@@ -35,6 +35,11 @@ interface MigrationProgress {
   blocksCreated?: number;
 }
 
+interface MigrationResult {
+  pages: number;
+  blocks: number;
+}
+
 export function MigrationDialog({
   workspacePath,
   isOpen,
@@ -65,9 +70,9 @@ export function MigrationDialog({
       });
 
       // 마이그레이션 시작
-      const result = await invoke("migrate_workspace", {
+      const result = (await invoke("migrate_workspace", {
         workspacePath,
-      });
+      })) as MigrationResult;
 
       console.log("Migration result:", result);
 
@@ -77,8 +82,8 @@ export function MigrationDialog({
           step: "complete",
           message: "Migration completed successfully!",
           progress: 100,
-          pagesCreated: (result as any).pages || 0,
-          blocksCreated: (result as any).blocks || 0,
+          pagesCreated: result.pages || 0,
+          blocksCreated: result.blocks || 0,
         });
       }, 1000);
     } catch (error) {

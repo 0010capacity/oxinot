@@ -39,9 +39,11 @@ export class CommentHandler extends BaseHandler {
 
     // Match comments: %%comment%%
     const commentRegex = /%%([^%]+)%%/g;
-    let match;
+    let match: RegExpExecArray | null = null;
 
-    while ((match = commentRegex.exec(lineText)) !== null) {
+    const execResult = commentRegex.exec(lineText);
+    while (execResult !== null) {
+      match = execResult;
       const start = lineFrom + match.index;
       const end = start + match[0].length;
 

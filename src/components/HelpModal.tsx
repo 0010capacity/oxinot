@@ -238,8 +238,8 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
             padding: "20px 24px",
           }}
         >
-          {/* biome-ignore security/noDangerouslySetInnerHtml: markdown content is sanitized and user-controlled */}
           <div
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: markdown content is sanitized and user-controlled
             dangerouslySetInnerHTML={{ __html: htmlContent }}
             style={{
               color: isDark ? "#c1c2c5" : "#495057",

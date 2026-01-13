@@ -92,7 +92,13 @@ export const useWorkspaceInitializer = (
     };
 
     initializeWorkspace();
-  }, [workspacePath]);
+  }, [
+    workspacePath,
+    loadPages,
+    onWorkspaceNameSet,
+    onInitialComplete,
+    addError,
+  ]);
 
   const handleMigrationComplete = async () => {
     setShowMigration(false);

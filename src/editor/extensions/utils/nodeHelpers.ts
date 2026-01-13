@@ -208,10 +208,11 @@ export function findAllMatches(
   const matches: PatternMatch[] = [];
   const globalPattern = new RegExp(
     pattern.source,
-    pattern.flags.includes("g") ? pattern.flags : pattern.flags + "g",
+    pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
   );
 
   let match: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
   while ((match = globalPattern.exec(text)) !== null) {
     matches.push({
       match,

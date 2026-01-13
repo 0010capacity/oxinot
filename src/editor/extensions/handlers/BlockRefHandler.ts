@@ -62,6 +62,7 @@ function findBlockRefsInLine(lineText: string): BlockRefMatch[] {
   const out: BlockRefMatch[] = [];
   let m: RegExpExecArray | null;
 
+  // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
   while ((m = re.exec(lineText)) !== null) {
     const full = m[0];
     const isEmbed = !!m[1];
@@ -200,6 +201,7 @@ class BlockRefPreviewWidget extends WidgetType {
 
     void (async () => {
       try {
+        // biome-ignore lint/suspicious/noExplicitAny: Tauri invoke returns dynamic response
         const res: any = await invoke("get_block", {
           workspacePath,
           request: { block_id: this.blockId },

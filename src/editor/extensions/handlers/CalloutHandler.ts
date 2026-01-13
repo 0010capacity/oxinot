@@ -105,7 +105,9 @@ export class CalloutHandler extends BaseHandler {
         calloutMatch[3] ||
         calloutType.charAt(0).toUpperCase() + calloutType.slice(1);
 
-      const config = this.CALLOUT_TYPES[calloutType] || this.CALLOUT_TYPES.note;
+      const config =
+        CalloutHandler.CALLOUT_TYPES[calloutType] ||
+        CalloutHandler.CALLOUT_TYPES.note;
 
       // Hide the > [!type] part in preview mode
       if (!isEditMode) {

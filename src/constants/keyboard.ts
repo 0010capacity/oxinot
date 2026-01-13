@@ -186,6 +186,7 @@ export function matchesShortcut(
     Meta?: boolean;
     shift?: boolean;
     alt?: boolean;
+    // biome-ignore lint/suspicious/noExplicitAny: allow any for dynamic modifier keys
     [key: string]: any;
   },
 ): boolean {
@@ -232,6 +233,7 @@ export function matchesShortcut(
  */
 export function formatShortcut(shortcut: {
   key: string;
+  // biome-ignore lint/suspicious/noExplicitAny: allow any for dynamic modifier keys
   [key: string]: any;
 }): string {
   const parts: string[] = [];

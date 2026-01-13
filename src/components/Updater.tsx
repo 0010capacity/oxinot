@@ -95,6 +95,7 @@ export function Updater() {
   };
 
   // Check for updates on mount (silent check)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally checking on mount only
   useEffect(() => {
     checkForUpdates(true);
   }, []);
@@ -192,10 +193,13 @@ export function Updater() {
       </Modal>
 
       {/* Hidden manual check trigger - can be called from settings or help menu */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden element used as data target only */}
       <div
         style={{ display: "none" }}
         data-updater-manual-check
         onClick={handleManualCheck}
+        role="button"
+        tabIndex={-1}
       />
     </>
   );

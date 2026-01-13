@@ -206,8 +206,30 @@ export function createSafeReplacement(
 }
 
 /**
- * Sort decoration specs by position (required by CM6)
- *
+ * Get the startSide property from a decoration, handling both direct properties and spec
+ */
+function getDecorationStartSide(decoration: Decoration): number {
+  const dec = decoration as unknown as Record<string, unknown>;
+  return (
+    (dec.startSide as number) ??
+    (dec.spec as Record<string, unknown>)?.startSide ??
+    0
+  );
+}
+
+/**
+ * Get the endSide property from a decoration, handling both direct properties and spec
+ */
+function getDecorationEndSide(decoration: Decoration): number {
+  const dec = decoration as unknown as Record<string, unknown>;
+  return (
+    (dec.endSide as number) ??
+    (dec.spec as Record<string, unknown>)?.endSide ??
+    0
+  );
+}
+
+/**
  * CM6's RangeSetBuilder requires decorations to be added in sorted order.
  * This helper ensures decorations are properly sorted.
  */
@@ -217,23 +239,11 @@ export function sortDecorations(
   return decorations.sort((a, b) => {
     // RangeSetBuilder requires ranges ordered by `from`, then by `startSide`.
     // For identical `from`/`startSide`, order by `to` and then `endSide` to keep it stable/deterministic.
-    const aStartSide =
-      (a.decoration as any)?.startSide ??
-      (a.decoration as any)?.spec?.startSide ??
-      0;
-    const bStartSide =
-      (b.decoration as any)?.startSide ??
-      (b.decoration as any)?.spec?.startSide ??
-      0;
+    const aStartSide = getDecorationStartSide(a.decoration);
+    const bStartSide = getDecorationStartSide(b.decoration);
 
-    const aEndSide =
-      (a.decoration as any)?.endSide ??
-      (a.decoration as any)?.spec?.endSide ??
-      0;
-    const bEndSide =
-      (b.decoration as any)?.endSide ??
-      (b.decoration as any)?.spec?.endSide ??
-      0;
+    const aEndSide = getDecorationEndSide(a.decoration);
+    const bEndSide = getDecorationEndSide(b.decoration);
 
     if (a.from !== b.from) return a.from - b.from;
     if (aStartSide !== bStartSide) return aStartSide - bStartSide;

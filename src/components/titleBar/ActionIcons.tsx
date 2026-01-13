@@ -1,5 +1,4 @@
-import { ActionIcon, Group } from "@mantine/core";
-import { useMantineColorScheme } from "@mantine/core";
+import { ActionIcon, Group, useMantineColorScheme } from "@mantine/core";
 import {
   IconCalendar,
   IconCommand,
@@ -9,7 +8,6 @@ import {
   IconSettings,
   IconSun,
 } from "@tabler/icons-react";
-import { useMantineColorScheme } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
 interface ActionIconsProps {

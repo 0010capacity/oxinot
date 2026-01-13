@@ -166,16 +166,7 @@ export const useHomepage = (): UseHomepageReturn => {
         showIndex();
       }
     },
-    [
-      pageIds,
-      pagesById,
-      loadPages,
-      createPage,
-      setCurrentPageId,
-      openNote,
-      showIndex,
-      addError,
-    ],
+    [pagesById, setCurrentPageId, openNote, showIndex, addError],
   );
 
   const openHomepage = useCallback(async (): Promise<void> => {

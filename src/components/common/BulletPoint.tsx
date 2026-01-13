@@ -86,6 +86,14 @@ export function BulletPoint({
       className={`bullet-point-wrapper ${className}`}
       style={containerStyle}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && onClick) {
+          e.preventDefault();
+          onClick(e as unknown as React.MouseEvent);
+        }
+      }}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
       onMouseEnter={(e) => {
         const bullet = e.currentTarget.querySelector(
           ".bullet-point",
