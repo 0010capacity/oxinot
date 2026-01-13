@@ -7,10 +7,11 @@ const { execSync } = require("node:child_process");
 /**
  * Auto-generate changesets based on commit messages
  * Only runs on main branch (after PR merge)
- * Analyzes all commits since last changeset creation
+ * Prevents duplicate changeset generation by tracking processed commits
  */
 
 const CHANGESET_DIR = path.join(__dirname, ".changeset");
+const PROCESSED_COMMITS_FILE = path.join(CHANGESET_DIR, ".processed-commits");
 
 // Get current branch name
 function getCurrentBranch() {
@@ -23,7 +24,34 @@ function getCurrentBranch() {
   }
 }
 
-// Get all commits since last release tag
+// Load previously processed commits
+function getProcessedCommits() {
+  try {
+    if (!fs.existsSync(PROCESSED_COMMITS_FILE)) {
+      return new Set();
+    }
+    const content = fs.readFileSync(PROCESSED_COMMITS_FILE, "utf-8");
+    return new Set(content.split("\n").filter((h) => h.trim()));
+  } catch {
+    return new Set();
+  }
+}
+
+// Save processed commit hash
+function markCommitAsProcessed(hash) {
+  try {
+    const processed = getProcessedCommits();
+    processed.add(hash);
+    fs.writeFileSync(
+      PROCESSED_COMMITS_FILE,
+      Array.from(processed).join("\n") + "\n",
+    );
+  } catch {
+    // Silently continue
+  }
+}
+
+// Get commits since last release
 function getCommitsSinceLastRelease() {
   try {
     // Get the last version tag
@@ -32,7 +60,7 @@ function getCommitsSinceLastRelease() {
       {
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
-      }
+      },
     ).trim();
 
     let commitRange;
@@ -47,7 +75,7 @@ function getCommitsSinceLastRelease() {
       `git log ${commitRange} --pretty=format:"%H|%s|%b" --reverse`,
       {
         encoding: "utf-8",
-      }
+      },
     ).trim();
 
     return commits
@@ -143,42 +171,16 @@ function generateChangesetFilename() {
   return `${adj}-${animal}s-${verb}`;
 }
 
-// Create changeset file
-function createChangeset(versionBump, subject, scope) {
-  const filename = generateChangesetFilename();
-  const filepath = path.join(CHANGESET_DIR, `${filename}.md`);
-
-  // Create a user-friendly description from commit subject
-  let description = subject;
-  if (scope) {
-    description = `${description} (${scope})`;
-  }
-
-  const content = `---
-"oxinot": ${versionBump}
----
-
-${description}
-`;
-
-  fs.writeFileSync(filepath, content);
-
-  // Stage the changeset file
-  try {
-    execSync(`git add "${filepath}"`, { stdio: "pipe" });
-  } catch {
-    // Silently continue
-  }
-}
-
 // Group commits by highest version bump needed
-function groupChangesets(commits) {
-  const changesets = [];
-  const currentGroup = [];
+function groupChangesets(commits, processedCommits) {
+  const validCommits = [];
   let highestBump = null;
 
   for (const commit of commits) {
-    if (!commit || !commit.subject) continue;
+    if (!commit || !commit.subject || !commit.hash) continue;
+
+    // Skip already processed commits
+    if (processedCommits.has(commit.hash)) continue;
 
     const parsed = parseCommitMessage(commit.subject);
     if (!parsed) continue;
@@ -190,7 +192,7 @@ function groupChangesets(commits) {
 
     if (!versionBump) continue;
 
-    currentGroup.push({ commit, parsed, versionBump });
+    validCommits.push({ commit, parsed, versionBump });
 
     // Track highest bump level
     if (versionBump === "major") {
@@ -202,40 +204,14 @@ function groupChangesets(commits) {
     }
   }
 
-  if (currentGroup.length > 0) {
+  if (validCommits.length > 0) {
     return {
-      commits: currentGroup,
+      commits: validCommits,
       highestBump: highestBump,
     };
   }
 
   return null;
-}
-
-// Check if changesets already exist for recent commits
-function haveRecentChangesets() {
-  try {
-    const files = fs.readdirSync(CHANGESET_DIR);
-    const changesetFiles = files.filter(
-      (f) => f.endsWith(".md") && f !== "README.md"
-    );
-
-    if (changesetFiles.length === 0) return false;
-
-    // Check if any changeset was created in the last 30 seconds
-    const now = Date.now();
-    for (const file of changesetFiles) {
-      const filePath = path.join(CHANGESET_DIR, file);
-      const stat = fs.statSync(filePath);
-      if (now - stat.mtimeMs < 30000) {
-        return true;
-      }
-    }
-  } catch {
-    return false;
-  }
-
-  return false;
 }
 
 // Main function
@@ -247,10 +223,8 @@ function main() {
     return;
   }
 
-  // Skip if we recently created changesets
-  if (haveRecentChangesets()) {
-    return;
-  }
+  // Get previously processed commits
+  const processedCommits = getProcessedCommits();
 
   // Get commits since last release
   const commits = getCommitsSinceLastRelease();
@@ -260,13 +234,13 @@ function main() {
   }
 
   // Group commits and find highest version bump
-  const grouped = groupChangesets(commits);
+  const grouped = groupChangesets(commits, processedCommits);
 
   if (!grouped) {
     return;
   }
 
-  // Create a single changeset for all recent commits
+  // Create a single changeset for all new commits
   const descriptions = grouped.commits
     .map((item) => `- ${item.parsed.subject}`)
     .join("\n");
@@ -282,6 +256,11 @@ ${descriptions}
 `;
 
   fs.writeFileSync(filepath, content);
+
+  // Mark all commits as processed
+  for (const item of grouped.commits) {
+    markCommitAsProcessed(item.commit.hash);
+  }
 
   // Stage the changeset file
   try {
