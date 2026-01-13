@@ -106,22 +106,36 @@ Fixes #38
 
 Changesets is used to manage versioning and track changes automatically.
 
-#### Adding a Changeset (After Each Commit)
+#### Changesets Are Auto-Generated (Git Hooks!)
 
-After committing your changes, run:
+**Changesets are automatically created** after each commit using Git post-commit hooks.
 
+```bash
+# 1. Commit your changes with conventional format
+git commit -m "feat(editor): add block templates"
+
+# 2. Git hook automatically runs and:
+#    - Detects the commit type (feat, fix, improve, perf)
+#    - Determines the version bump (minor, patch, major)
+#    - Creates a changeset file in `.changeset/` directory
+#    - Stages it for the next commit
+#    → You'll see: "✓ Auto-generated changeset: happy-cats-jump.md"
+
+# 3. Push (changeset is already staged)
+git push origin main
+```
+
+**That's it!** No manual commands needed. The Git hook handles everything automatically.
+
+**Manual Alternative** (if auto-generation fails):
 ```bash
 npx changeset add
 ```
 
-This will prompt you to:
-1. Select which package to version (select "oxinot")
-2. Choose bump type (major/minor/patch)
-3. Provide a brief description of changes
-
-A file will be created in `.changeset/` directory (e.g., `fancy-cats-jump.md`).
-
-**Important**: Commit this changeset file along with your code changes.
+This prompts for:
+1. Package selection (select "oxinot")
+2. Bump type (major/minor/patch)
+3. User-friendly description
 
 #### Changeset File Format
 
@@ -141,23 +155,55 @@ The version level should match your commit type:
 - `BREAKING CHANGE` → `major`
 - `refactor`, `docs`, `test`, `chore` → no changeset needed
 
-#### When to Create a Changeset
+#### When Changesets Are Auto-Generated
 
-Create a changeset for:
-- ✅ New features (feat)
-- ✅ Bug fixes (fix)
-- ✅ Performance improvements (perf)
-- ✅ Improvements (improve)
+Changesets are **automatically created** for:
+- ✅ New features (`feat:`)
+- ✅ Bug fixes (`fix:`)
+- ✅ Performance improvements (`perf:`)
+- ✅ Improvements (`improve:`)
 
-Do NOT create changesets for:
-- ❌ Refactoring (refactor)
-- ❌ Documentation (docs)
-- ❌ Tests (test)
-- ❌ Build/tooling (chore)
+**No action needed** - the Git hook handles it automatically!
 
-#### Skipping Changesets
+#### When Changesets Are NOT Needed
 
-For internal commits that don't affect the app version, you may skip changesets.
+No changesets for these commit types (they're automatically skipped):
+- ❌ Refactoring (`refactor:`) - no version bump
+- ❌ Documentation (`docs:`) - no version bump
+- ❌ Tests (`test:`) - no version bump
+- ❌ Build/tooling (`chore:`) - no version bump
+
+These commits won't trigger changeset creation, which is correct.
+
+#### Example: Auto-Changeset in Action
+
+```bash
+# You make a change and commit
+git commit -m "feat(editor): add block templates dropdown
+
+Users can now insert predefined block templates from a menu."
+
+# Automatically:
+# → Git hook detects "feat" type
+# → Creates .changeset/happy-cats-jump.md
+# → Stages the file automatically
+# → Ready to push!
+
+git push origin main
+# Your changeset is included automatically
+```
+
+Another example:
+```bash
+git commit -m "fix(db): handle concurrent updates"
+# → Changeset auto-created (patch version)
+
+git commit -m "refactor(stores): consolidate state"
+# → No changeset (internal refactor, no version bump)
+
+git commit -m "docs: update README"
+# → No changeset (documentation only)
+```
 
 ### Branch Strategy
 
@@ -168,20 +214,21 @@ While development is primarily on `main`, use branches for:
 
 Always merge back to `main` when complete.
 
-### Workflow Summary
+### Workflow Summary (Super Simple!)
 
-1. **Develop**: Make code changes, following conventional commits
-2. **Commit**: Use proper commit messages (feat:, fix:, etc.)
-3. **Changeset**: Run `npx changeset add` to record the change
-4. **Push**: Commit both code and changeset file
-5. **User Triggers Release**: When user is satisfied, they run `npm run release`
+1. **Code**: Make changes to implement features/fixes
+2. **Commit**: Use conventional commit format (`feat:`, `fix:`, etc.)
+   ```bash
+   git commit -m "feat(scope): message"
+   ```
+3. **Auto-Changeset**: Git hook automatically creates changeset (no action needed!)
+4. **Push**: Everything goes together
+   ```bash
+   git push origin main
+   ```
+5. **User Releases**: When ready, user runs `npm run release`
 
-The user (not AI) handles the release process, which automatically:
-- Updates version in package.json, tauri.conf.json, and Cargo.toml
-- Creates a release commit
-- Creates Git tag
-- Builds the application
-- Publishes GitHub Release
+**That's it!** Changesets are completely automatic via Git hooks.
 
 ### Version File Synchronization
 
@@ -194,44 +241,78 @@ This is run automatically when executing `npm run version`.
 
 ## Example Development Session
 
+### Day 1: Implement Block Templates
+
 ```bash
-# 1. Develop feature
-# ... make changes to src/components/Editor.tsx
+# 1. Make code changes
+# ... edit src/components/BlockTemplates.tsx ...
+# ... edit src/stores/editorStore.ts ...
 
-# 2. Commit with proper format
-git add src/components/Editor.tsx
-git commit -m "feat(editor): add block templates menu
+# 2. Lint and commit with proper format
+npm run lint
+git add .
+git commit -m "feat(editor): add block templates dropdown
 
-Add a dropdown menu to insert predefined block templates.
-Improves user onboarding experience."
+Users can now select from predefined block templates.
+Includes code, quote, and list templates.
+Improves onboarding experience."
 
-# 3. Add changeset
-npx changeset add
-# Choose: oxinot
-# Choose: minor (because it's a new feature)
-# Enter: "Added block templates menu for quick block creation"
+# 3. Git hook automatically creates changeset
+#    → You'll see output showing changeset was created
+#    → Changeset is automatically staged
 
-# 4. Commit changeset
-git add .changeset/
-git commit -m "chore: add changeset for block templates feature"
-
-# 5. Push to main
+# 4. Push (changeset is already included)
 git push origin main
+```
 
-# 6. User reviews and when satisfied, runs:
+### Day 2: Fix a Bug
+
+```bash
+# 1. Make code changes
+# ... fix src/db/index.ts ...
+
+# 2. Commit with fix format
+git commit -m "fix(db): prevent race condition in concurrent updates
+
+Add database transaction to ensure atomic block updates.
+Fixes #42"
+
+# 3. Git hook automatically creates changeset (patch version)
+#    → Changeset is automatically staged
+
+# 4. Push
+git push origin main
+```
+
+### Day 3: User Releases (One Command!)
+
+```bash
+# Check what will be released
+npm run changeset:status
+
+# Release! That's it!
 npm run release
-# This automatically handles versioning and building
+
+# Automatically:
+# → Updates all version files (package.json, tauri.conf.json, Cargo.toml)
+# → Builds application
+# → Pushes to GitHub
+# → GitHub Actions builds for all platforms
+# → Creates GitHub Release with binaries
+
+# You're done! The release is live.
 ```
 
 ## Important Notes for AI Agents
 
-- Always use conventional commit format strictly
-- Always add changesets for feat/fix/improve/perf commits
-- Never commit directly to protected branches without proper messages
-- Keep changesets focused (one per logical change)
-- If you make multiple commits for one feature, only one changeset is needed (group them)
-- Format and lint code with Biome before committing
-- Ensure all tests pass before committing
+- **Always** use conventional commit format: `type(scope): message`
+- **Changesets are automatic** - Git hooks create them after each commit! No manual action needed.
+- Format and lint code with Biome **before** committing: `npm run lint`
+- Commit atomically - one logical change per commit
+- If making multiple commits for one feature, each gets its own changeset (automatic)
+- Test locally before committing: `npm run build`
+- Never force push to main
+- Pre-commit hook runs linting automatically - fix any issues before committing
 
 ## Release Process (User Only)
 

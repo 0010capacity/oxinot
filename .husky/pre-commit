@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# Skip in CI environments
+if [ -n "$CI" ]; then
+  exit 0
+fi
+
+# Run linting
+npm run lint
