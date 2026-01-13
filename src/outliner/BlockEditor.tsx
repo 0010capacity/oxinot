@@ -1,4 +1,6 @@
-import { useMantineColorScheme } from "@mantine/core";
+import {
+  useComputedColorScheme,
+} from "@mantine/core";
 import { useEffect } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
@@ -24,8 +26,8 @@ export function BlockEditor({
   pageName,
   onNavigateHome,
 }: BlockEditorProps) {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
 
   const loadPage = useBlockStore((state) => state.loadPage);
   const createBlock = useBlockStore((state) => state.createBlock);

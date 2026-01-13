@@ -1,5 +1,4 @@
-import { Box, Kbd, Modal, Stack, Text, TextInput } from "@mantine/core";
-import { useMantineColorScheme } from "@mantine/core";
+import { Box, Kbd, Modal, Stack, Text, TextInput, useComputedColorScheme } from "@mantine/core";
 import {
   IconFile,
   IconFolderPlus,
@@ -39,8 +38,8 @@ export function CommandPalette({
   onOpenSettings,
   onOpenHelp,
 }: CommandPaletteProps) {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 

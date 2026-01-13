@@ -1,4 +1,4 @@
-import { Box, Text, useMantineColorScheme } from "@mantine/core";
+import { Box, Text, useComputedColorScheme } from "@mantine/core";
 import { IconCopy, IconEdit } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import type React from "react";
@@ -31,8 +31,8 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
 
   useEffect(() => {
     if (!workspacePath) {
@@ -160,7 +160,7 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
               }}
               readOnly={true}
               lineNumbers={false}
-              theme={colorScheme === "dark" ? "dark" : "light"}
+              theme={isDark ? "dark" : "light"}
               style={{
                 fontSize: "14px",
                 lineHeight: "1.5",

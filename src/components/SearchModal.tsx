@@ -1,5 +1,4 @@
-import { Box, Loader, Modal, Stack, Text, TextInput } from "@mantine/core";
-import { useMantineColorScheme } from "@mantine/core";
+import { Box, Loader, Modal, Stack, Text, TextInput, useComputedColorScheme } from "@mantine/core";
 import { IconFile, IconFolder, IconSearch } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -28,8 +27,8 @@ interface FlatPageItem {
 }
 
 export function SearchModal({ opened, onClose }: SearchModalProps) {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);

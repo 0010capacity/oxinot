@@ -13,6 +13,7 @@ import {
   Text,
   TextInput,
   Tooltip,
+  useComputedColorScheme,
   useMantineColorScheme,
 } from "@mantine/core";
 import {
@@ -82,7 +83,8 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");

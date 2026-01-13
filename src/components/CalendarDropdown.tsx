@@ -1,5 +1,4 @@
-import { ActionIcon, Box, Button, Stack, Text } from "@mantine/core";
-import { useMantineColorScheme } from "@mantine/core";
+import { ActionIcon, Box, Button, Stack, Text, useComputedColorScheme } from "@mantine/core";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
@@ -11,8 +10,8 @@ interface CalendarDropdownProps {
 }
 
 export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
   const [currentDate, setCurrentDate] = useState(new Date());
   const pagesById = usePageStore((state) => state.pagesById);
   const pageIds = usePageStore((state) => state.pageIds);

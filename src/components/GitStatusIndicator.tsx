@@ -1,5 +1,5 @@
 import { useGitManagement } from "@/hooks/useGitManagement";
-import { Button, Stack, Text, useMantineColorScheme } from "@mantine/core";
+import { Button, Stack, Text, useComputedColorScheme } from "@mantine/core";
 
 interface GitStatusIndicatorProps {
   workspacePath: string;
@@ -15,11 +15,9 @@ interface GitStatusIndicatorProps {
  * - Quick commit on dot click
  * - Status tooltips
  */
-export const GitStatusIndicator = ({
-  workspacePath,
-}: GitStatusIndicatorProps) => {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+export function GitStatusIndicator({ workspacePath }: GitStatusIndicatorProps) {
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
 
   const {
     hasChanges,

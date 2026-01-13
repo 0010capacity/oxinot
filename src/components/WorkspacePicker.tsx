@@ -33,6 +33,7 @@ export function WorkspacePicker({
 }: WorkspacePickerProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
+  const [menuOpened, setMenuOpened] = useState(false);
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(
     null,
@@ -106,6 +107,7 @@ export function WorkspacePicker({
   const handleDeleteWorkspace = (path: string) => {
     setWorkspaceToDelete(path);
     setDeleteModalOpened(true);
+    setMenuOpened(false);
   };
 
   const confirmDeleteWorkspace = () => {
@@ -127,6 +129,8 @@ export function WorkspacePicker({
         width={320}
         position="bottom"
         offset={8}
+        opened={menuOpened}
+        onChange={setMenuOpened}
         styles={{ dropdown: { padding: "8px 4px" } }}
       >
         <Menu.Target>

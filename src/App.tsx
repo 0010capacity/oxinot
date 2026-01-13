@@ -242,7 +242,7 @@ function App() {
 
   if (!workspacePath) {
     return (
-      <MantineProvider theme={theme}>
+      <MantineProvider theme={theme} defaultColorScheme="auto">
         <Notifications />
         <ThemeProvider>
           <WorkspaceSelector />
@@ -253,7 +253,7 @@ function App() {
   }
 
   return (
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} defaultColorScheme="auto">
       <ThemeProvider>
         <AppContent workspacePath={workspacePath} />
         <SyncProgress />
