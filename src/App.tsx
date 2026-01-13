@@ -1,5 +1,6 @@
 import {
   AppShell,
+  Button,
   Container,
   MantineProvider,
   Stack,
@@ -39,7 +40,8 @@ const theme = createTheme({
 });
 
 function WorkspaceSelector() {
-  const { selectWorkspace, openWorkspace, getWorkspaces } = useWorkspaceStore();
+  const { selectWorkspace, openWorkspace, getWorkspaces, isLoading } =
+    useWorkspaceStore();
 
   useEffect(() => {
     const workspaces = getWorkspaces();
@@ -55,9 +57,18 @@ function WorkspaceSelector() {
   return (
     <Container size="xs" py="xl">
       <Stack align="center" gap="lg" style={{ marginTop: "25vh" }}>
-        <Text size="sm" c="dimmed">
-          Opening workspace...
-        </Text>
+        {isLoading ? (
+          <Text size="sm" c="dimmed">
+            Opening workspace...
+          </Text>
+        ) : (
+          <>
+            <Text size="sm" c="dimmed">
+              No workspace selected
+            </Text>
+            <Button onClick={() => selectWorkspace()}>Select Workspace</Button>
+          </>
+        )}
       </Stack>
     </Container>
   );

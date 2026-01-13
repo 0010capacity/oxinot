@@ -128,14 +128,14 @@ async fn read_directory(dir_path: String) -> Result<Vec<FileSystemItem>, String>
         });
     }
 
-    // Sort: directories first, then files, alphabetically
+    // Sort: directories first, then files, alphabetically (case-insensitive)
     items.sort_by(|a, b| {
         if a.is_directory && !b.is_directory {
             std::cmp::Ordering::Less
         } else if !a.is_directory && b.is_directory {
             std::cmp::Ordering::Greater
         } else {
-            a.name.cmp(&b.name)
+            a.name.to_lowercase().cmp(&b.name.to_lowercase())
         }
     });
 
