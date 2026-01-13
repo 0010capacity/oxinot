@@ -1,5 +1,5 @@
-import { createWithEqualityFn } from "zustand/traditional";
 import { persist } from "zustand/middleware";
+import { createWithEqualityFn } from "zustand/traditional";
 
 export type TimeFormat = "24h" | "12h";
 export type DateSeparator = "/" | "-" | ".";

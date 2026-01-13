@@ -1,3 +1,5 @@
+import { Button, Group, Loader, Modal, Stack, Text } from "@mantine/core";
+import { IconPlus } from "@tabler/icons-react";
 import React, {
   useEffect,
   useState,
@@ -6,16 +8,14 @@ import React, {
   useMemo,
   memo,
 } from "react";
-import { Stack, Text, Group, Loader, Modal, Button } from "@mantine/core";
-import { IconPlus } from "@tabler/icons-react";
-import { usePageStore, type PageData } from "../stores/pageStore";
-import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
-import { PageContainer } from "./layout/PageContainer";
-import { ContentWrapper } from "./layout/ContentWrapper";
-import { PageHeader } from "./layout/PageHeader";
-import { PageTreeItem } from "./fileTree/PageTreeItem";
+import { type PageData, usePageStore } from "../stores/pageStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 import { NewPageInput } from "./fileTree/NewPageInput";
+import { PageTreeItem } from "./fileTree/PageTreeItem";
+import { ContentWrapper } from "./layout/ContentWrapper";
+import { PageContainer } from "./layout/PageContainer";
+import { PageHeader } from "./layout/PageHeader";
 
 interface DragState {
   isDragging: boolean;

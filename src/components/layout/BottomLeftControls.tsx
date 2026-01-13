@@ -1,14 +1,14 @@
 import { ActionIcon, Tooltip } from "@mantine/core";
-import {
-  IconSun,
-  IconMoon,
-  IconSettings,
-  IconSearch,
-  IconHelp,
-  IconCommand,
-  IconHome,
-} from "@tabler/icons-react";
 import { useMantineColorScheme } from "@mantine/core";
+import {
+  IconCommand,
+  IconHelp,
+  IconHome,
+  IconMoon,
+  IconSearch,
+  IconSettings,
+  IconSun,
+} from "@tabler/icons-react";
 
 interface BottomLeftControlsProps {
   onHomeClick?: () => void;

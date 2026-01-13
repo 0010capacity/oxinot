@@ -1,6 +1,6 @@
-import { createWithEqualityFn } from "zustand/traditional";
-import { immer } from "zustand/middleware/immer";
 import { invoke } from "@tauri-apps/api/core";
+import { immer } from "zustand/middleware/immer";
+import { createWithEqualityFn } from "zustand/traditional";
 import { useWorkspaceStore } from "./workspaceStore";
 
 // ============ Types ============

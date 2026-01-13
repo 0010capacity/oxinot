@@ -9,13 +9,13 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
+import { getHeadingStyle } from "../theme/styles";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
-import { getHeadingStyle } from "../theme/styles";
+import { BaseHandler, type RenderContext } from "./types";
 
 export class SetextHeadingHandler extends BaseHandler {
   constructor() {
@@ -23,7 +23,9 @@ export class SetextHeadingHandler extends BaseHandler {
   }
 
   canHandle(node: SyntaxNode): boolean {
-    return node.type.name === "SetextHeading1" || node.type.name === "SetextHeading2";
+    return (
+      node.type.name === "SetextHeading1" || node.type.name === "SetextHeading2"
+    );
   }
 
   handle(node: SyntaxNode, context: RenderContext): DecorationSpec[] {
@@ -37,7 +39,7 @@ export class SetextHeadingHandler extends BaseHandler {
     const headingText = docText.slice(node.from, node.to);
 
     // Split by newlines to separate text from underline
-    const lines = headingText.split('\n');
+    const lines = headingText.split("\n");
 
     if (lines.length < 2) {
       return decorations;
@@ -52,14 +54,12 @@ export class SetextHeadingHandler extends BaseHandler {
       createStyledText(node.from, textEnd, {
         className: `cm-heading-text cm-heading-${level}`,
         style: getHeadingStyle(level),
-      })
+      }),
     );
 
     // Hide the underline markers (everything after the text line)
     if (textEnd < node.to) {
-      decorations.push(
-        createHiddenMarker(textEnd, node.to, false)
-      );
+      decorations.push(createHiddenMarker(textEnd, node.to, false));
     }
 
     return decorations;

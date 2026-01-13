@@ -1,6 +1,6 @@
 import type React from "react";
-import { createContext, useContext, useState, useCallback } from "react";
-import { tauriAPI, type FileSystemItem } from "../tauri-api";
+import { createContext, useCallback, useContext, useState } from "react";
+import { type FileSystemItem, tauriAPI } from "../tauri-api";
 
 interface WorkspaceContextType {
   workspacePath: string | null;

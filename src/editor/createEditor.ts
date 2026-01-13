@@ -1,41 +1,41 @@
-import { EditorState, type Extension } from "@codemirror/state";
 import {
-  EditorView,
-  keymap,
-  lineNumbers,
-  highlightActiveLineGutter,
-  type KeyBinding,
-  tooltips,
-} from "@codemirror/view";
+  type CompletionContext,
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  closeCompletion,
+  startCompletion,
+} from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import {
-  defaultHighlightStyle,
-  syntaxHighlighting,
-  indentOnInput,
   bracketMatching,
+  defaultHighlightStyle,
+  indentOnInput,
+  syntaxHighlighting,
 } from "@codemirror/language";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import { EditorState, type Extension } from "@codemirror/state";
 import {
-  closeBrackets,
-  closeBracketsKeymap,
-  autocompletion,
-  type CompletionContext,
-  startCompletion,
-  closeCompletion,
-} from "@codemirror/autocomplete";
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+  EditorView,
+  type KeyBinding,
+  highlightActiveLineGutter,
+  keymap,
+  lineNumbers,
+  tooltips,
+} from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
 
+import { useBlockStore } from "../stores/blockStore";
+import { usePageStore } from "../stores/pageStore";
+import { useViewStore } from "../stores/viewStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 import {
   hybridRenderingPlugin,
   hybridRenderingTheme,
-  isFocusedFacet,
   isFocusedCompartment,
+  isFocusedFacet,
 } from "./extensions/hybridRendering";
-import { useWorkspaceStore } from "../stores/workspaceStore";
-import { usePageStore } from "../stores/pageStore";
-import { useViewStore } from "../stores/viewStore";
-import { useBlockStore } from "../stores/blockStore";
 
 type EmbedNavigateDetail = { blockId?: string };
 

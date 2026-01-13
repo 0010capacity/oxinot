@@ -14,19 +14,19 @@
  * - Differentiates between note name and display text
  */
 
+import { Decoration, type EditorView, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
+import { MantineProvider } from "@mantine/core";
+import React from "react";
+import { type Root, createRoot } from "react-dom/client";
+import { EmbeddedPageCard } from "../../../components/EmbeddedPageCard";
+import { ThemeProvider } from "../../../theme/ThemeProvider";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
-import { Decoration, WidgetType, type EditorView } from "@codemirror/view";
-import React from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { EmbeddedPageCard } from "../../../components/EmbeddedPageCard";
-import { MantineProvider } from "@mantine/core";
-import { ThemeProvider } from "../../../theme/ThemeProvider";
+import { BaseHandler, type RenderContext } from "./types";
 
 function getWikiBasename(path: string): string {
   const trimmed = (path ?? "").trim();

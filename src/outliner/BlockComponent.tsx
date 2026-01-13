@@ -1,20 +1,20 @@
-import type React from "react";
-import { memo, useCallback, useRef, useEffect, useMemo, useState } from "react";
+import type { KeyBinding } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 import { useMantineColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
+import type React from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Editor, type EditorRef } from "../components/Editor";
 import {
   useBlock,
-  useChildrenIds,
   useBlockStore,
+  useChildrenIds,
   useFocusedBlockId,
 } from "../stores/blockStore";
+import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
-import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
-import { Editor, type EditorRef } from "../components/Editor";
-import type { KeyBinding } from "@codemirror/view";
-import type { EditorView } from "@codemirror/view";
 import "./BlockComponent.css";
 
 interface BlockComponentProps {

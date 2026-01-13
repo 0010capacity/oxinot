@@ -1,16 +1,16 @@
-import { createContext, useEffect, type ReactNode } from "react";
 import { useMantineColorScheme } from "@mantine/core";
+import { type ReactNode, createContext, useEffect } from "react";
+import { useThemeStore } from "../stores/themeStore";
 import { createColorPalette } from "./colors";
 import {
-  SPACING,
-  TYPOGRAPHY,
-  RADIUS,
   LAYOUT,
-  TRANSITIONS,
   OPACITY,
+  RADIUS,
+  SPACING,
+  TRANSITIONS,
+  TYPOGRAPHY,
 } from "./tokens";
-import type { Theme, ColorScheme } from "./types";
-import { useThemeStore } from "../stores/themeStore";
+import type { ColorScheme, Theme } from "./types";
 
 export const ThemeContext = createContext<Theme | null>(null);
 

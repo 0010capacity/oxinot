@@ -1,19 +1,19 @@
-import { Modal, TextInput, Stack, Text, Box, Kbd } from "@mantine/core";
-import {
-  IconSearch,
-  IconFile,
-  IconGitCommit,
-  IconGitBranch,
-  IconSettings,
-  IconHelp,
-  IconFolderPlus,
-} from "@tabler/icons-react";
-import { useState, useEffect, useMemo } from "react";
+import { Box, Kbd, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
+import {
+  IconFile,
+  IconFolderPlus,
+  IconGitBranch,
+  IconGitCommit,
+  IconHelp,
+  IconSearch,
+  IconSettings,
+} from "@tabler/icons-react";
+import { useEffect, useMemo, useState } from "react";
+import { useGitStore } from "../stores/gitStore";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
-import { useGitStore } from "../stores/gitStore";
 
 interface Command {
   id: string;

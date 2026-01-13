@@ -1,4 +1,4 @@
-import type { ReactNode, CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 interface ContentWrapperProps {
   children: ReactNode;

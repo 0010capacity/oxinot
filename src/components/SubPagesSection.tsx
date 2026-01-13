@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
-import { usePageStore } from "../stores/pageStore";
-import { useBlockStore } from "../stores/blockStore";
-import { useViewStore } from "../stores/viewStore";
 import { useMantineColorScheme } from "@mantine/core";
+import { useMemo, useState } from "react";
+import { useBlockStore } from "../stores/blockStore";
+import { usePageStore } from "../stores/pageStore";
+import { useViewStore } from "../stores/viewStore";
 import { BulletPoint } from "./common/BulletPoint";
 import { CollapseToggle } from "./common/CollapseToggle";
 

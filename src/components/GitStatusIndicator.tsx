@@ -1,5 +1,5 @@
-import { Button, Stack, Text, useMantineColorScheme } from "@mantine/core";
 import { useGitManagement } from "@/hooks/useGitManagement";
+import { Button, Stack, Text, useMantineColorScheme } from "@mantine/core";
 
 interface GitStatusIndicatorProps {
   workspacePath: string;

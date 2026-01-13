@@ -1,6 +1,6 @@
-import { Box, Progress, Text, Group } from "@mantine/core";
-import { useSyncStore } from "../stores/syncStore";
+import { Box, Group, Progress, Text } from "@mantine/core";
 import { IconRefresh } from "@tabler/icons-react";
+import { useSyncStore } from "../stores/syncStore";
 
 export function SyncProgress() {
   const { isReindexing, progress, message } = useSyncStore();

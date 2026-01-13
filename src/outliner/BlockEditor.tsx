@@ -1,14 +1,14 @@
-import { useEffect } from "react";
 import { useMantineColorScheme } from "@mantine/core";
-import { useBlockStore } from "../stores/blockStore";
-import { useViewStore } from "../stores/viewStore";
-import { useThemeStore } from "../stores/themeStore";
-import { BlockComponent } from "./BlockComponent";
-import { PageContainer } from "../components/layout/PageContainer";
-import { ContentWrapper } from "../components/layout/ContentWrapper";
-import { PageHeader } from "../components/layout/PageHeader";
+import { useEffect } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
+import { ContentWrapper } from "../components/layout/ContentWrapper";
+import { PageContainer } from "../components/layout/PageContainer";
+import { PageHeader } from "../components/layout/PageHeader";
+import { useBlockStore } from "../stores/blockStore";
+import { useThemeStore } from "../stores/themeStore";
+import { useViewStore } from "../stores/viewStore";
+import { BlockComponent } from "./BlockComponent";
 import "./BlockEditor.css";
 
 interface BlockEditorProps {

@@ -6,8 +6,8 @@
  * and make the decoration logic more maintainable.
  */
 
-import { Decoration, type WidgetType } from "@codemirror/view";
 import type { Line } from "@codemirror/state";
+import { Decoration, type WidgetType } from "@codemirror/view";
 import { getMarkerStyle } from "../theme/styles";
 
 /**

@@ -1,5 +1,5 @@
+import { CODE_MARKERS, FENCE_MARKERS } from "./constants";
 import type { Block } from "./types";
-import { FENCE_MARKERS, CODE_MARKERS } from "./constants";
 
 /**
  * Check if content should trigger fence block conversion

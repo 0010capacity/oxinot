@@ -1,13 +1,13 @@
-import { useCallback } from "react";
-import { usePageStore } from "@/stores/pageStore";
-import { useViewStore } from "@/stores/viewStore";
 import { useAppSettingsStore } from "@/stores/appSettingsStore";
 import { useErrorStore } from "@/stores/errorStore";
+import { usePageStore } from "@/stores/pageStore";
+import { useViewStore } from "@/stores/viewStore";
 import {
   buildPageBreadcrumb,
-  findPageByPath,
   createPageHierarchy,
+  findPageByPath,
 } from "@/utils/pageUtils";
+import { useCallback } from "react";
 
 export interface UseHomepageReturn {
   openHomepage: () => Promise<void>;

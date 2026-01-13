@@ -7,15 +7,15 @@
  * - Applies monospace font and background styling
  */
 
+import { Decoration, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
+import { useOutlinerSettingsStore } from "../../../stores/outlinerSettingsStore";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
-import { Decoration, WidgetType } from "@codemirror/view";
-import { useOutlinerSettingsStore } from "../../../stores/outlinerSettingsStore";
+import { BaseHandler, type RenderContext } from "./types";
 
 class CodeBlockWidget extends WidgetType {
   private readonly code: string;

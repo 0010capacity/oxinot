@@ -1,7 +1,7 @@
-import { Modal, Box, ScrollArea } from "@mantine/core";
+import { Box, Modal, ScrollArea } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
-import { useMemo } from "react";
 import MarkdownIt from "markdown-it";
+import { useMemo } from "react";
 
 interface HelpModalProps {
   opened: boolean;

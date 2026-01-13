@@ -6,8 +6,8 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
-import type { DecorationHandler, RenderContext } from "./types";
 import type { DecorationSpec } from "../utils/decorationHelpers";
+import type { DecorationHandler, RenderContext } from "./types";
 
 /**
  * Registry for managing decoration handlers

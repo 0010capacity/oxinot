@@ -1,9 +1,9 @@
-import { Modal, TextInput, Stack, Text, Box, Loader } from "@mantine/core";
-import { IconSearch, IconFolder, IconFile } from "@tabler/icons-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { Box, Loader, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
-import { usePageStore, type PageData } from "../stores/pageStore";
+import { IconFile, IconFolder, IconSearch } from "@tabler/icons-react";
+import { invoke } from "@tauri-apps/api/core";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { type PageData, usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 

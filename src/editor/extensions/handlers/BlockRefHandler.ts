@@ -19,18 +19,18 @@
  * - The preview widgets are read-only by design, but become editable when cursor enters the line.
  */
 
+import { Decoration, type EditorView, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
+import { MantineProvider } from "@mantine/core";
+import { invoke } from "@tauri-apps/api/core";
+import React from "react";
+import { type Root, createRoot } from "react-dom/client";
+import { EmbeddedBlockCard } from "../../../components/EmbeddedBlockCard";
+import { useWorkspaceStore } from "../../../stores/workspaceStore";
+import { ThemeProvider } from "../../../theme/ThemeProvider";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import { createHiddenMarker } from "../utils/decorationHelpers";
-import { Decoration, WidgetType, type EditorView } from "@codemirror/view";
-import { invoke } from "@tauri-apps/api/core";
-import { useWorkspaceStore } from "../../../stores/workspaceStore";
-import React from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { EmbeddedBlockCard } from "../../../components/EmbeddedBlockCard";
-import { MantineProvider } from "@mantine/core";
-import { ThemeProvider } from "../../../theme/ThemeProvider";
+import { BaseHandler, type RenderContext } from "./types";
 
 type BlockRefMatch = {
   full: string;

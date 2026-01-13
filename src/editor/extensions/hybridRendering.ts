@@ -12,6 +12,8 @@
  *   are processed only for visible lines (plus a small buffer).
  */
 
+import { syntaxTree } from "@codemirror/language";
+import { Compartment, Facet, RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
@@ -19,32 +21,33 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import { RangeSetBuilder, Facet, Compartment } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
 
-// Import standard markdown handlers
-import { HeadingHandler } from "./handlers/HeadingHandler";
-import { SetextHeadingHandler } from "./handlers/SetextHeadingHandler";
-import { EmphasisHandler } from "./handlers/EmphasisHandler";
-import { StrongHandler } from "./handlers/StrongHandler";
-import { InlineCodeHandler } from "./handlers/InlineCodeHandler";
-import { TaskListHandler } from "./handlers/TaskListHandler";
-import { LinkHandler } from "./handlers/LinkHandler";
 import { BlockquoteHandler } from "./handlers/BlockquoteHandler";
 import { CodeBlockHandler } from "./handlers/CodeBlockHandler";
+import { EmphasisHandler } from "./handlers/EmphasisHandler";
+// Import standard markdown handlers
+import { HeadingHandler } from "./handlers/HeadingHandler";
+import { InlineCodeHandler } from "./handlers/InlineCodeHandler";
+import { LinkHandler } from "./handlers/LinkHandler";
+import { SetextHeadingHandler } from "./handlers/SetextHeadingHandler";
+import { StrongHandler } from "./handlers/StrongHandler";
+import { TaskListHandler } from "./handlers/TaskListHandler";
 
+import { BlockRefHandler } from "./handlers/BlockRefHandler";
+import { CalloutHandler } from "./handlers/CalloutHandler";
+import { CommentHandler } from "./handlers/CommentHandler";
+import { HighlightHandler } from "./handlers/HighlightHandler";
+import { TagHandler } from "./handlers/TagHandler";
 // Import Obsidian-specific handlers
 import { WikiLinkHandler } from "./handlers/WikiLinkHandler";
-import { TagHandler } from "./handlers/TagHandler";
-import { HighlightHandler } from "./handlers/HighlightHandler";
-import { CommentHandler } from "./handlers/CommentHandler";
-import { CalloutHandler } from "./handlers/CalloutHandler";
-import { BlockRefHandler } from "./handlers/BlockRefHandler";
 
 // Import handler system
 import { HandlerRegistry } from "./handlers/HandlerRegistry";
 import type { RenderContext } from "./handlers/types";
-import { type DecorationSpec, sortDecorations } from "./utils/decorationHelpers";
+import {
+  type DecorationSpec,
+  sortDecorations,
+} from "./utils/decorationHelpers";
 import { getCursorInfo } from "./utils/nodeHelpers";
 
 type VisibleRange = { from: number; to: number };

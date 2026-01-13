@@ -1,8 +1,8 @@
 import { Group, Text } from "@mantine/core";
 import { IconChevronRight } from "@tabler/icons-react";
-import { useViewStore, useZoomPath, useBreadcrumb } from "../stores/viewStore";
 import { useBlockStore } from "../stores/blockStore";
 import { usePageStore } from "../stores/pageStore";
+import { useBreadcrumb, useViewStore, useZoomPath } from "../stores/viewStore";
 
 interface BreadcrumbProps {
   workspaceName: string;

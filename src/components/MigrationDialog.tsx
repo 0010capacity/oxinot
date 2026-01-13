@@ -1,16 +1,16 @@
-import { useState } from "react";
 import {
-  Modal,
+  Alert,
   Button,
   Group,
+  Loader,
+  Modal,
+  Progress,
   Stack,
   Text,
-  Progress,
-  Alert,
-  Loader,
 } from "@mantine/core";
 import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
 
 interface MigrationDialogProps {
   workspacePath: string;

@@ -1,5 +1,5 @@
-import { createWithEqualityFn } from "zustand/traditional";
 import { immer } from "zustand/middleware/immer";
+import { createWithEqualityFn } from "zustand/traditional";
 import { useNavigationStore } from "./navigationStore";
 import { usePageStore } from "./pageStore";
 

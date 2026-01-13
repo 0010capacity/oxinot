@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { isMacOS } from "../utils/platform";
+import { NavigationButtons } from "./NavigationButtons";
+import { WorkspacePicker } from "./WorkspacePicker";
 import { Clock } from "./titleBar/Clock";
 import { WindowControls } from "./titleBar/WindowControls";
-import { WorkspacePicker } from "./WorkspacePicker";
-import { NavigationButtons } from "./NavigationButtons";
 
 interface TitleBarProps {
   currentWorkspacePath: string | null;

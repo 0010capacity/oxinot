@@ -1,14 +1,14 @@
 import { ActionIcon, Group } from "@mantine/core";
+import { useMantineColorScheme } from "@mantine/core";
 import {
-  IconSun,
-  IconMoon,
-  IconSettings,
-  IconSearch,
-  IconHelp,
   IconCalendar,
   IconCommand,
+  IconHelp,
+  IconMoon,
+  IconSearch,
+  IconSettings,
+  IconSun,
 } from "@tabler/icons-react";
-import { useMantineColorScheme } from "@mantine/core";
 
 interface ActionIconsProps {
   onSettingsClick: () => void;

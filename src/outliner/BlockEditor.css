@@ -1,156 +1,156 @@
 .block-editor-container {
-    width: 100%;
-    height: 100%;
-    padding: var(--layout-container-padding);
-    font-family: var(--font-family);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    overflow-y: auto;
-    overflow-x: visible;
-    background-color: var(--color-bg-primary);
-    color: var(--color-text-primary);
+  width: 100%;
+  height: 100%;
+  padding: var(--layout-container-padding);
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-y: auto;
+  overflow-x: visible;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
 /* Breadcrumbs */
 .block-breadcrumbs {
-    max-width: var(--layout-max-content-width);
-    margin: 0 auto var(--spacing-lg);
-    padding: var(--spacing-sm) 0;
-    border-bottom: 1px solid var(--color-border-primary);
+  max-width: var(--layout-max-content-width);
+  margin: 0 auto var(--spacing-lg);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-border-primary);
 }
 
 /* Blocks list */
 .blocks-list {
-    max-width: var(--layout-max-content-width);
-    margin: 0 auto;
-    /* The global content wrapper uses a generous bottom padding for comfort,
+  max-width: var(--layout-max-content-width);
+  margin: 0 auto;
+  /* The global content wrapper uses a generous bottom padding for comfort,
        but the outliner block list shouldn't create a large empty scroll area. */
-    padding-bottom: 24px;
-    padding-left: var(--spacing-sm);
+  padding-bottom: 24px;
+  padding-left: var(--spacing-sm);
 }
 
 /* Toggle button */
 .block-toggle {
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    margin-top: 7px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-sm);
-    color: var(--color-text-tertiary);
-    transition: all var(--transition-normal);
-    opacity: 0;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 7px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  transition: all var(--transition-normal);
+  opacity: 0;
 }
 
 .block-line:hover .block-toggle,
 .block-line.focused .block-toggle {
-    opacity: 1;
+  opacity: 1;
 }
 
 .block-toggle:hover {
-    background-color: var(--color-interactive-hover);
-    color: var(--color-text-secondary);
+  background-color: var(--color-interactive-hover);
+  color: var(--color-text-secondary);
 }
 
 .block-toggle.collapsed svg,
 .block-toggle.expanded svg {
-    transition: transform var(--transition-normal);
+  transition: transform var(--transition-normal);
 }
 
 .block-toggle-placeholder {
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    margin-top: 7px;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 7px;
 }
 
 /* Bullet container */
 .block-bullet-container {
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    margin-top: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 10;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
 }
 
 .block-bullet {
-    width: var(--layout-bullet-size);
-    height: var(--layout-bullet-size);
-    border-radius: 50%;
-    background-color: var(--color-bullet-default);
-    transition: all var(--transition-slow);
-    border: 1px solid transparent;
+  width: var(--layout-bullet-size);
+  height: var(--layout-bullet-size);
+  border-radius: 50%;
+  background-color: var(--color-bullet-default);
+  transition: all var(--transition-slow);
+  border: 1px solid transparent;
 }
 
 .block-bullet.active {
-    background-color: var(--color-bullet-active);
-    transform: scale(1.3);
+  background-color: var(--color-bullet-active);
+  transform: scale(1.3);
 }
 
 .block-bullet-container:hover .block-bullet {
-    background-color: var(--color-bullet-hover);
-    transform: scale(1.2);
+  background-color: var(--color-bullet-hover);
+  transform: scale(1.2);
 }
 
 /* Fence blocks */
 .block-bullet.fence {
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-    transform: rotate(45deg);
-    background-color: var(--color-interactive-selected);
-    border-color: var(--color-interactive-focus);
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  transform: rotate(45deg);
+  background-color: var(--color-interactive-selected);
+  border-color: var(--color-interactive-focus);
 }
 
 .block-bullet.fence.active {
-    background-color: var(--color-interactive-focus);
-    border-color: var(--color-accent);
-    transform: rotate(45deg) scale(1.3);
+  background-color: var(--color-interactive-focus);
+  border-color: var(--color-accent);
+  transform: rotate(45deg) scale(1.3);
 }
 
 /* Code blocks */
 .block-bullet.code {
-    width: 8px;
-    height: 8px;
-    border-radius: 1px;
-    background-color: var(--color-success);
-    border: 1px solid var(--color-success);
-    opacity: 0.4;
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  background-color: var(--color-success);
+  border: 1px solid var(--color-success);
+  opacity: 0.4;
 }
 
 .block-bullet.code.active {
-    opacity: 0.7;
-    transform: scale(1.3);
+  opacity: 0.7;
+  transform: scale(1.3);
 }
 
 .block-bullet-container.code:hover .block-bullet {
-    opacity: 0.6;
-    transform: scale(1.2);
+  opacity: 0.6;
+  transform: scale(1.2);
 }
 
 /* Editor wrapper */
 .block-editor-wrap {
-    flex: 1;
-    min-width: 0;
-    position: relative;
+  flex: 1;
+  min-width: 0;
+  position: relative;
 }
 
 /* Override CodeMirror styles for block editors */
 .block-editor-wrap .cm-editor {
-    background: transparent !important;
-    border: none !important;
-    outline: none !important;
-    height: auto !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  height: auto !important;
 }
 
 /* Markdown markers are controlled by handlers based on cursor line position */
@@ -158,96 +158,96 @@
 
 /* Show markdown rendering styles in unfocused blocks */
 .block-editor-wrap .cm-editor:not(.cm-focused) .cm-strong {
-    font-weight: bold !important;
+  font-weight: bold !important;
 }
 
 .block-editor-wrap .cm-editor:not(.cm-focused) .cm-emphasis {
-    font-style: italic !important;
+  font-style: italic !important;
 }
 
 .block-editor-wrap .cm-editor:not(.cm-focused) .cm-inline-code {
-    font-family: var(--font-family-mono) !important;
-    background-color: var(--color-interactive-hover) !important;
-    padding: 0.2em 0.4em !important;
-    border-radius: var(--radius-sm) !important;
-    font-size: 0.9em !important;
+  font-family: var(--font-family-mono) !important;
+  background-color: var(--color-interactive-hover) !important;
+  padding: 0.2em 0.4em !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 0.9em !important;
 }
 
 .block-editor-wrap .cm-editor:not(.cm-focused) .cm-link-text {
-    color: var(--color-text-link) !important;
-    text-decoration: underline !important;
+  color: var(--color-text-link) !important;
+  text-decoration: underline !important;
 }
 
 /* Heading markers are controlled by HeadingHandler based on cursor line */
 
 /* Code block specific styling */
 .code-block-editor .cm-editor {
-    background: var(--color-interactive-hover) !important;
-    border-radius: var(--radius-sm) !important;
+  background: var(--color-interactive-hover) !important;
+  border-radius: var(--radius-sm) !important;
 }
 
 .code-block-editor .cm-content {
-    font-family: var(--font-family-mono) !important;
-    font-size: var(--font-size-sm) !important;
-    line-height: var(--line-height-relaxed) !important;
+  font-family: var(--font-family-mono) !important;
+  font-size: var(--font-size-sm) !important;
+  line-height: var(--line-height-relaxed) !important;
 }
 
 /* Fence block specific styling - subtle, minimal difference */
 .fence-block-editor .cm-content {
-    line-height: var(--line-height-relaxed) !important;
+  line-height: var(--line-height-relaxed) !important;
 }
 
 .block-editor-wrap .cm-scroller {
-    overflow: visible !important;
-    padding: 0 !important;
+  overflow: visible !important;
+  padding: 0 !important;
 }
 
 .block-editor-wrap .cm-content {
-    padding: var(--spacing-xs) 12px !important;
-    min-height: 32px !important;
-    font-size: var(--font-size-md) !important;
-    line-height: var(--line-height-normal) !important;
+  padding: var(--spacing-xs) 12px !important;
+  min-height: 32px !important;
+  font-size: var(--font-size-md) !important;
+  line-height: var(--line-height-normal) !important;
 }
 
 .block-editor-wrap .cm-line {
-    padding: 0 !important;
+  padding: 0 !important;
 }
 
 /* Block children */
 .block-children {
-    position: relative;
-    padding-left: 0;
+  position: relative;
+  padding-left: 0;
 }
 
 /* Empty state */
 .empty-state {
-    padding: 20px 0;
+  padding: 20px 0;
 }
 
 .empty-state .block-line {
-    opacity: 0.6;
+  opacity: 0.6;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-    .block-editor-container {
-        padding: var(--layout-container-padding-mobile);
-    }
+  .block-editor-container {
+    padding: var(--layout-container-padding-mobile);
+  }
 
-    .blocks-list {
-        max-width: 100%;
-        padding-bottom: 150px;
-    }
+  .blocks-list {
+    max-width: 100%;
+    padding-bottom: 150px;
+  }
 
-    .block-breadcrumbs {
-        max-width: 100%;
-    }
+  .block-breadcrumbs {
+    max-width: 100%;
+  }
 }
 
 /* Empty state */
 .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--color-text-tertiary);
-    opacity: var(--opacity-dimmed);
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-text-tertiary);
+  opacity: var(--opacity-dimmed);
 }

@@ -1,28 +1,28 @@
 import {
-  Menu,
-  Text,
-  Group,
-  UnstyledButton,
-  Divider,
   ActionIcon,
-  Modal,
   Button,
+  Divider,
+  Group,
+  Menu,
+  Modal,
   Stack,
+  Text,
+  UnstyledButton,
 } from "@mantine/core";
+import { useMantineColorScheme } from "@mantine/core";
 import {
-  IconFolder,
-  IconPlus,
   IconCheck,
   IconChevronDown,
+  IconFolder,
+  IconPlus,
   IconRefresh,
   IconTrash,
 } from "@tabler/icons-react";
-import { useWorkspaceStore } from "../stores/workspaceStore";
-import { useMantineColorScheme } from "@mantine/core";
-import { tauriAPI } from "../tauri-api";
-import { useSyncStore } from "../stores/syncStore";
-import { showToast, showNotification } from "../utils/toast";
 import { useState } from "react";
+import { useSyncStore } from "../stores/syncStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
+import { tauriAPI } from "../tauri-api";
+import { showNotification, showToast } from "../utils/toast";
 
 interface WorkspacePickerProps {
   currentWorkspacePath: string | null;

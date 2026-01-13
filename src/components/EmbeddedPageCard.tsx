@@ -1,12 +1,12 @@
+import { Box, Text, useMantineColorScheme } from "@mantine/core";
+import { IconCopy, IconEdit } from "@tabler/icons-react";
+import { invoke } from "@tauri-apps/api/core";
 import type React from "react";
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { type PageData, usePageStore } from "../stores/pageStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
-import { usePageStore, type PageData } from "../stores/pageStore";
-import { Editor } from "./Editor";
-import { Box, Text, useMantineColorScheme } from "@mantine/core";
-import { IconEdit, IconCopy } from "@tabler/icons-react";
 import { showToast } from "../utils/toast";
+import { Editor } from "./Editor";
 
 interface EmbeddedBlock {
   id: string;

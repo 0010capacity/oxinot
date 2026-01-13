@@ -12,9 +12,9 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import { createStyledText } from "../utils/decorationHelpers";
+import { BaseHandler, type RenderContext } from "./types";
 
 export class TagHandler extends BaseHandler {
   constructor() {

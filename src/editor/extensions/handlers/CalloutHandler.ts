@@ -14,10 +14,10 @@
  * - Supports collapsible callouts with +/-
  */
 
-import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
-import type { DecorationSpec } from "../utils/decorationHelpers";
 import { Decoration } from "@codemirror/view";
+import type { SyntaxNode } from "@lezer/common";
+import type { DecorationSpec } from "../utils/decorationHelpers";
+import { BaseHandler, type RenderContext } from "./types";
 
 export class CalloutHandler extends BaseHandler {
   constructor() {

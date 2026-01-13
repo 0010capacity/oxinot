@@ -7,13 +7,13 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
+import { getBlockquoteStyle } from "../theme/styles";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
-import { getBlockquoteStyle } from "../theme/styles";
+import { BaseHandler, type RenderContext } from "./types";
 
 export class BlockquoteHandler extends BaseHandler {
   constructor() {

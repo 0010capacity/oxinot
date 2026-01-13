@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
-import { Box, Text, Accordion, Loader, Stack } from "@mantine/core";
+import { Accordion, Box, Loader, Stack, Text } from "@mantine/core";
 import { invoke } from "@tauri-apps/api/core";
-import { useWorkspaceStore } from "../stores/workspaceStore";
+import { useEffect, useState } from "react";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 
 interface PageBacklink {
   page_id: string;
@@ -48,7 +48,9 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
         setBacklinks(result);
       } catch (err) {
         console.error("[LinkedReferences] Failed to fetch backlinks:", err);
-        setError(err instanceof Error ? err.message : "Failed to load backlinks");
+        setError(
+          err instanceof Error ? err.message : "Failed to load backlinks",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -81,16 +83,19 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
   };
 
   // Group backlinks by page
-  const groupedBacklinks: GroupedBacklinks = backlinks.reduce((acc, backlink) => {
-    if (!acc[backlink.page_id]) {
-      acc[backlink.page_id] = {
-        pageTitle: backlink.page_title,
-        blocks: [],
-      };
-    }
-    acc[backlink.page_id].blocks.push(backlink);
-    return acc;
-  }, {} as GroupedBacklinks);
+  const groupedBacklinks: GroupedBacklinks = backlinks.reduce(
+    (acc, backlink) => {
+      if (!acc[backlink.page_id]) {
+        acc[backlink.page_id] = {
+          pageTitle: backlink.page_title,
+          blocks: [],
+        };
+      }
+      acc[backlink.page_id].blocks.push(backlink);
+      return acc;
+    },
+    {} as GroupedBacklinks,
+  );
 
   const backlinkCount = backlinks.length;
   const pageCount = Object.keys(groupedBacklinks).length;
@@ -213,7 +218,8 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
                   {data.pageTitle}
                 </Text>
                 <Text size="xs" c="dimmed">
-                  ({data.blocks.length} reference{data.blocks.length !== 1 ? "s" : ""})
+                  ({data.blocks.length} reference
+                  {data.blocks.length !== 1 ? "s" : ""})
                 </Text>
               </Box>
             </Accordion.Control>

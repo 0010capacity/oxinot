@@ -8,12 +8,12 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
+import { BaseHandler, type RenderContext } from "./types";
 
 export class HighlightHandler extends BaseHandler {
   constructor() {

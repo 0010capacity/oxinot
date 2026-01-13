@@ -1,10 +1,10 @@
-import { Stack, Text, Box, Button, ActionIcon } from "@mantine/core";
+import { ActionIcon, Box, Button, Stack, Text } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
+import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
+import { useAppSettingsStore } from "../stores/appSettingsStore";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
-import { useAppSettingsStore } from "../stores/appSettingsStore";
-import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 
 interface CalendarDropdownProps {
   onClose: () => void;

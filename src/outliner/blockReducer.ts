@@ -1,13 +1,13 @@
-import type { BlockAction, Block } from "./types";
 import {
-  createBlock,
-  flattenBlocks,
   buildBlockTree,
   canIndent,
   canOutdent,
+  createBlock,
+  flattenBlocks,
   getPreviousBlock,
 } from "./blockUtils";
 import { debug } from "./debug";
+import type { Block, BlockAction } from "./types";
 
 function countAllBlocks(blocks: Block[]): number {
   let count = 0;
