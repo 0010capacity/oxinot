@@ -167,7 +167,16 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📝 License
 
-[Your License Here]
+This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](LICENSE) file for details.
+
+### What this means:
+- ✅ You can use, modify, and distribute this software
+- ✅ You can use it commercially
+- ⚠️ If you distribute or modify it, you must share your changes under the same GPL v3 license
+- ⚠️ You must provide access to the source code
+- ⚠️ Include a copy of the license and state what changes you made
+
+For more information, visit [GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0.html)
 
 ## 🙏 Acknowledgments
 
