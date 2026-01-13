@@ -30,8 +30,7 @@
   "settings": {
     "title": "설정",
     "search_placeholder": "설정 검색...",
-    "search_active": "검색이 활성화되었습니다. 일치하는 섹션이 보이지 않으면 다른 키워드를 시도해보세요.",
-    "beta": "베타",
+    "search_active": "검색 중입니다. 일치하는 항목이 보이지 않으면 다른 검색어를 시도해보세요.",
     "tabs": {
       "appearance": "모양",
       "theme": "테마",
@@ -158,9 +157,7 @@
       "auto_updates": "자동 업데이트",
       "auto_updates_desc": "업데이트를 자동으로 다운로드하고 설치합니다 (준비 중)",
       "check_startup": "시작 시 업데이트 확인",
-      "check_startup_desc": "앱이 시작될 때 새 버전을 확인합니다 (준비 중)",
-      "beta_updates": "베타 업데이트",
-      "beta_updates_desc": "실험적 기능이 포함된 베타 버전을 받습니다 (준비 중)",
+      "check_startup_desc": "앱 시작 시 새 버전을 확인합니다 (준비 중)",
       "check_updates_btn": "업데이트 확인",
       "current_version": "현재 버전: {{version}}",
       "developer_options": "개발자 옵션",
