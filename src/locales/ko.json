@@ -1,0 +1,170 @@
+{
+  "common": {
+    "search": "검색",
+    "settings": "설정",
+    "help": "도움말",
+    "close": "닫기",
+    "cancel": "취소",
+    "save": "저장",
+    "delete": "삭제",
+    "edit": "편집",
+    "create": "생성",
+    "back": "뒤로",
+    "loading": "로딩 중...",
+    "error": "오류",
+    "success": "성공",
+    "confirm": "확인",
+    "new_page": "새 페이지"
+  },
+  "settings": {
+    "title": "설정",
+    "search_placeholder": "설정 검색...",
+    "search_active": "검색이 활성화되었습니다. 일치하는 섹션이 보이지 않으면 다른 키워드를 시도해보세요.",
+    "beta": "베타",
+    "tabs": {
+      "appearance": "모양",
+      "theme": "테마",
+      "datetime": "날짜 및 시간",
+      "daily_notes": "데일리 노트",
+      "homepage": "홈페이지",
+      "outliner": "아웃라이너",
+      "version_control": "버전 관리",
+      "shortcuts": "단축키",
+      "advanced": "고급",
+      "about": "정보",
+      "language": "언어"
+    },
+    "appearance": {
+      "title": "모양",
+      "description": "에디터의 모양과 느낌을 사용자 정의합니다",
+      "font_family": "글꼴",
+      "font_family_desc": "애플리케이션 전체에서 사용할 글꼴을 선택하세요",
+      "editor_font_size": "에디터 글꼴 크기",
+      "editor_font_size_desc": "에디터의 글꼴 크기를 조정합니다",
+      "editor_line_height": "에디터 줄 높이",
+      "editor_line_height_desc": "줄 간격을 조정합니다"
+    },
+    "theme": {
+      "title": "테마",
+      "color_mode": "색상 모드",
+      "modes": {
+        "light": "라이트",
+        "dark": "다크",
+        "auto": "자동"
+      },
+      "color_variant": "색상 변형",
+      "variants": {
+        "default": "기본",
+        "blue": "파랑",
+        "purple": "보라",
+        "green": "초록",
+        "amber": "호박색"
+      }
+    },
+    "datetime": {
+      "title": "날짜 및 시간",
+      "description": "날짜와 시간이 표시되는 방식을 설정합니다",
+      "time_format": "시간 형식",
+      "date_order": "날짜 순서",
+      "date_separator": "날짜 구분 기호",
+      "date_separator_desc": "년, 월, 일의 순서를 선택하세요",
+      "timezone": "시간대",
+      "preview": "미리보기"
+    },
+    "daily_notes": {
+      "title": "데일리 노트",
+      "description": "자동 데일리 노트 생성을 설정합니다",
+      "path": "데일리 노트 경로",
+      "path_desc": "데일리 노트가 생성될 경로 (예: 'Daily' 또는 'Notes/Daily')"
+    },
+    "homepage": {
+      "title": "홈페이지",
+      "description": "앱을 열 때 표시할 화면을 선택합니다",
+      "type": "홈페이지 유형",
+      "type_desc": "앱을 열 때 보여줄 내용을 선택하세요",
+      "types": {
+        "daily_note": "오늘의 데일리 노트",
+        "index": "파일 트리",
+        "custom_page": "사용자 정의 페이지"
+      },
+      "custom_page": "사용자 정의 홈페이지",
+      "custom_page_placeholder": "페이지 선택"
+    },
+    "outliner": {
+      "title": "아웃라이너",
+      "description": "블록 에디터 동작을 사용자 정의합니다",
+      "indent_guides": "들여쓰기 가이드 표시",
+      "indent_guides_desc": "들여쓰기 수준을 보여주는 수직선을 표시합니다",
+      "auto_expand": "블록 자동 펼치기",
+      "auto_expand_desc": "탐색 시 접힌 블록을 자동으로 펼칩니다",
+      "block_count": "블록 수 표시",
+      "block_count_desc": "각 부모 블록의 자식 블록 수를 표시합니다",
+      "code_block_line_numbers": "코드 블록 줄 번호 표시",
+      "code_block_line_numbers_desc": "코드 블록에 줄 번호를 표시합니다",
+      "indent_size": "들여쓰기 크기"
+    },
+    "git": {
+      "title": "버전 관리",
+      "description": "워크스페이스를 위한 Git 기반 버전 관리",
+      "init_button": "Git 저장소 초기화",
+      "why_git": "왜 Git을 사용하나요?",
+      "why_git_desc": "• 노트의 모든 변경 사항 추적\n• 작업 손실 방지 - 전체 기록 사용 가능\n• 원격 저장소로 여러 기기 간 동기화\n• GitHub, GitLab 등을 사용하여 다른 사람과 협업",
+      "repo_location": "저장소 위치",
+      "current_status": "현재 상태",
+      "commit_changes": "변경 사항 커밋",
+      "no_changes": "변경 사항 없음",
+      "refresh": "새로고침",
+      "uncommitted_changes": "⚠️ 커밋되지 않은 변경 사항이 있습니다",
+      "all_committed": "✓ 모든 변경 사항이 커밋되었습니다",
+      "auto_commit": "자동 커밋",
+      "enable_auto_commit": "자동 커밋 활성화",
+      "enable_auto_commit_desc": "일정한 간격으로 변경 사항을 자동으로 커밋합니다",
+      "commit_interval": "커밋 간격",
+      "commit_interval_desc": "자동 커밋은 {{interval}}분마다 발생합니다",
+      "remote_repo": "원격 저장소",
+      "add_remote": "원격 URL 추가",
+      "push_pull_hint": "푸시 및 풀 버튼은 오른쪽 하단 모서리에 있습니다"
+    },
+    "shortcuts": {
+      "title": "단축키",
+      "description": "키보드 단축키를 확인하고 사용자 정의합니다",
+      "command_palette": "명령 팔레트",
+      "search": "검색",
+      "toggle_index": "인덱스 토글"
+    },
+    "advanced": {
+      "title": "고급",
+      "description": "고급 설정 및 개발자 옵션",
+      "cache": "캐시",
+      "clear_cache": "캐시 지우기",
+      "clear_cache_confirm": "애플리케이션 캐시를 지우시겠습니까?",
+      "updates": "업데이트",
+      "auto_updates": "자동 업데이트",
+      "auto_updates_desc": "업데이트를 자동으로 다운로드하고 설치합니다 (준비 중)",
+      "check_startup": "시작 시 업데이트 확인",
+      "check_startup_desc": "앱이 시작될 때 새 버전을 확인합니다 (준비 중)",
+      "beta_updates": "베타 업데이트",
+      "beta_updates_desc": "실험적 기능이 포함된 베타 버전을 받습니다 (준비 중)",
+      "check_updates_btn": "업데이트 확인",
+      "current_version": "현재 버전: {{version}}",
+      "developer_options": "개발자 옵션",
+      "telemetry": "익명 원격 측정",
+      "telemetry_desc": "익명 사용 데이터를 보내 Oxinot 개선을 돕습니다",
+      "danger_zone": "위험 구역",
+      "reset_settings": "모든 설정 초기화",
+      "reset_settings_desc": "모든 설정을 기본값으로 초기화하고 애플리케이션을 다시 로드합니다.",
+      "reset_confirm": "모든 설정을 초기화하시겠습니까? 이 작업은 취소할 수 없습니다."
+    },
+    "about": {
+      "title": "정보",
+      "updates_title": "업데이트",
+      "updates_desc": "Oxinot은 Tauri Updater를 사용하여 자동으로 최신 상태를 유지합니다.",
+      "check_update_msg": "업데이트 기능은 Tauri Updater 통합과 함께 향후 릴리스에서 활성화될 예정입니다."
+    },
+    "language": {
+      "title": "언어",
+      "select": "언어 선택",
+      "description": "사용자 인터페이스의 언어를 선택하세요"
+    }
+  }
+}
