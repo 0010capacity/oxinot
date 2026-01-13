@@ -74,9 +74,7 @@ jobs:
         run: |
           PR_URL=$(gh pr create \
             --title "chore: auto-generate changeset" \
-            --body "Automatically generated changeset from merged PR.
-
-This PR will be auto-merged when CI passes." \
+            --body "Automatically generated changeset from merged PR. This PR will be auto-merged when CI passes." \
             --label changeset \
             --head "${{ steps.commit.outputs.branch_name }}")
 
