@@ -64,6 +64,8 @@ function getCommitsSinceLastRelease() {
 
 // Parse commit message to extract type and scope
 function parseCommitMessage(subject) {
+  if (!subject || typeof subject !== "string") return null;
+
   const match = subject.match(/^(\w+)(\([\w-]+\))?:\s*(.+)/);
   if (!match) return null;
 
@@ -176,6 +178,8 @@ function groupChangesets(commits) {
   let highestBump = null;
 
   for (const commit of commits) {
+    if (!commit || !commit.subject) continue;
+
     const parsed = parseCommitMessage(commit.subject);
     if (!parsed) continue;
 
