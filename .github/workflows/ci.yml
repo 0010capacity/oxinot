@@ -14,8 +14,12 @@ env:
 jobs:
   lint-and-build:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -49,3 +53,18 @@ jobs:
       - name: Build Tauri (check only)
         run: npm run tauri:build
         continue-on-error: true
+
+      - name: Generate changeset
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          npm run changeset:auto
+          git add .changeset
+          if ! git diff --staged --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: auto-generate changeset"
+            git push origin main
+            echo "✅ Changeset generated and committed"
+          else
+            echo "ℹ️ No changeset generated (no qualifying commits)"
+          fi
