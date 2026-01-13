@@ -410,4 +410,18 @@ span.cm-wiki-link,
   }
 
   /* Additional print styles in styles/base.css */
+
+  /* Additional print styles in styles/base.css */
+}
+
+/* Context Menu */
+/* Disable default browser context menu globally */
+* {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Allow text selection but prevent default context menu on right-click */
+body {
+  -webkit-touch-callout: none;
 }
