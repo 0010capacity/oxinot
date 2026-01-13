@@ -153,6 +153,8 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
             currentFile: null,
             fileContent: "",
             fileTree: [],
+            isLoading: false,
+            error: null,
           }),
         });
       },
