@@ -37,6 +37,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAdvancedSettingsStore } from "../stores/advancedSettingsStore";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
+import { useUpdaterStore } from "../stores/updaterStore";
 import {
   type DateOrder,
   type DateSeparator,
@@ -91,23 +92,7 @@ export function SettingsModal({
   const [activeTab, setActiveTab] = useState("appearance");
 
   // Advanced settings
-  const autoUpdate = useAdvancedSettingsStore((state) => state.autoUpdate);
-  const setAutoUpdate = useAdvancedSettingsStore(
-    (state) => state.setAutoUpdate,
-  );
-  const checkUpdatesOnStartup = useAdvancedSettingsStore(
-    (state) => state.checkUpdatesOnStartup,
-  );
-  const setCheckUpdatesOnStartup = useAdvancedSettingsStore(
-    (state) => state.setCheckUpdatesOnStartup,
-  );
-  const betaUpdates = useAdvancedSettingsStore((state) => state.betaUpdates);
-  const setBetaUpdates = useAdvancedSettingsStore(
-    (state) => state.setBetaUpdates,
-  );
-  const telemetryEnabled = useAdvancedSettingsStore(
-    (state) => state.telemetryEnabled,
-  );
+  const telemetryEnabled = useAdvancedSettingsStore((state) => state.telemetryEnabled);
   const setTelemetryEnabled = useAdvancedSettingsStore(
     (state) => state.setTelemetryEnabled,
   );
@@ -352,7 +337,6 @@ export function SettingsModal({
       ],
       advanced: [
         t("settings.advanced.updates").toLowerCase(),
-        t("settings.advanced.beta_updates").toLowerCase(),
         "check updates",
         t("settings.advanced.telemetry").toLowerCase(),
         t("settings.advanced.developer_options").toLowerCase(),
@@ -362,7 +346,6 @@ export function SettingsModal({
       about: [
         "version",
         "changelog",
-        "beta",
         "oxinot",
         "info",
         "update",
@@ -388,9 +371,6 @@ export function SettingsModal({
           <Text size="lg" fw={600}>
             {t("settings.title")}
           </Text>
-          <Badge size="sm" variant="light" color="blue">
-            {t("settings.beta")}
-          </Badge>
         </Group>
       }
       size="xl"
@@ -1442,61 +1422,6 @@ export function SettingsModal({
                     </div>
                   )}
 
-                  {matchesSearch("updates automatic beta check") && (
-                    <div>
-                      <Text size="sm" fw={500} mb={12}>
-                        {t("settings.advanced.updates")}
-                      </Text>
-                      <Stack gap="md">
-                        <Switch
-                          label={t("settings.advanced.auto_updates")}
-                          description={t("settings.advanced.auto_updates_desc")}
-                          checked={autoUpdate}
-                          onChange={(event) =>
-                            setAutoUpdate(event.currentTarget.checked)
-                          }
-                          disabled
-                        />
-
-                        <Switch
-                          label={t("settings.advanced.check_startup")}
-                          description={t("settings.advanced.check_startup_desc")}
-                          checked={checkUpdatesOnStartup}
-                          onChange={(event) =>
-                            setCheckUpdatesOnStartup(
-                              event.currentTarget.checked,
-                            )
-                          }
-                          disabled
-                        />
-
-                        <Switch
-                          label={t("settings.advanced.beta_updates")}
-                          description={t("settings.advanced.beta_updates_desc")}
-                          checked={betaUpdates}
-                          onChange={(event) =>
-                            setBetaUpdates(event.currentTarget.checked)
-                          }
-                          disabled
-                        />
-
-                        <Group gap="xs">
-                          <Button
-                            size="sm"
-                            variant="light"
-                            leftSection={<IconDownload size={16} />}
-                            disabled
-                          >
-                            {t("settings.advanced.check_updates_btn")}
-                          </Button>
-                        </Group>
-                        <Text size="xs" c="dimmed">
-                          {t("settings.advanced.current_version", { version: "0.1.0 (Beta)" })}
-                        </Text>
-                      </Stack>
-                    </div>
-                  )}
-
                   {matchesSearch("developer telemetry anonymous") && (
                     <div
                       style={{
@@ -1582,9 +1507,6 @@ export function SettingsModal({
                       <Text size="lg" fw={600}>
                         {t("settings.about.app_name")}
                       </Text>
-                      <Badge size="lg" variant="light" color="blue">
-                        {t("settings.beta")}
-                      </Badge>
                     </Group>
                     <Text size="sm" c="dimmed">
                       {t("settings.about.version", { version: "0.1.0" })}
@@ -1608,11 +1530,8 @@ export function SettingsModal({
                       <Button
                         size="xs"
                         variant="light"
-                        onClick={() => {
-                          alert(
-                            t("settings.about.check_update_msg")
-                          );
-                        }}
+                        onClick={() => useUpdaterStore.getState().triggerManualCheck()}
+                        leftSection={<IconDownload size={16} />}
                       >
                         {t("settings.about.check_updates_btn")}
                       </Button>

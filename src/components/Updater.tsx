@@ -11,6 +11,7 @@ import { IconAlertCircle, IconDownload } from "@tabler/icons-react";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { useEffect, useState } from "react";
+import { useUpdaterStore } from "../stores/updaterStore";
 
 export function Updater() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -20,6 +21,10 @@ export function Updater() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [_isChecking, setIsChecking] = useState(false);
+
+  const manualCheckTrigger = useUpdaterStore(
+    (state) => state.manualCheckTrigger,
+  );
 
   const checkForUpdates = async (silent = true) => {
     try {
@@ -34,11 +39,13 @@ export function Updater() {
         setUpdateNotes(update.body || "");
       } else if (!silent) {
         // Only show "no updates" message if user manually checked
+        setUpdateAvailable(true); // Open modal to show "no update" or error
         setError("You are already running the latest version.");
       }
     } catch (err) {
       console.error("Failed to check for updates:", err);
       if (!silent) {
+        setUpdateAvailable(true); // Open modal to show error
         setError("Failed to check for updates. Please try again later.");
       }
     } finally {
@@ -100,6 +107,13 @@ export function Updater() {
     checkForUpdates(true);
   }, []);
 
+  // Listen for manual check trigger
+  useEffect(() => {
+    if (manualCheckTrigger > 0) {
+      checkForUpdates(false);
+    }
+  }, [manualCheckTrigger]);
+
   const handleClose = () => {
     if (!isDownloading) {
       setUpdateAvailable(false);
@@ -107,101 +121,85 @@ export function Updater() {
     }
   };
 
-  const handleManualCheck = () => {
-    checkForUpdates(false);
-  };
-
   return (
-    <>
-      <Modal
-        opened={updateAvailable}
-        onClose={handleClose}
-        title={
-          <Group gap="xs">
-            <IconDownload size={20} />
-            <Text fw={600}>Update Available</Text>
-          </Group>
-        }
-        closeOnClickOutside={!isDownloading}
-        closeOnEscape={!isDownloading}
-        withCloseButton={!isDownloading}
-      >
-        <Stack gap="md">
-          {error && (
-            <Alert
-              icon={<IconAlertCircle size={16} />}
-              color="red"
-              title="Error"
-            >
-              {error}
-            </Alert>
-          )}
+    <Modal
+      opened={updateAvailable}
+      onClose={handleClose}
+      title={
+        <Group gap="xs">
+          <IconDownload size={20} />
+          <Text fw={600}>Update Available</Text>
+        </Group>
+      }
+      closeOnClickOutside={!isDownloading}
+      closeOnEscape={!isDownloading}
+      withCloseButton={!isDownloading}
+    >
+      <Stack gap="md">
+        {error && (
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            color={error.includes("latest version") ? "blue" : "red"}
+            title={error.includes("latest version") ? "Up to Date" : "Error"}
+          >
+            {error}
+          </Alert>
+        )}
 
-          {!error && (
-            <>
-              <Text size="sm">
-                A new version{" "}
-                <Text span fw={600}>
-                  {updateVersion}
-                </Text>{" "}
-                is available.
-              </Text>
+        {!error && (
+          <>
+            <Text size="sm">
+              A new version{" "}
+              <Text span fw={600}>
+                {updateVersion}
+              </Text>{" "}
+              is available.
+            </Text>
 
-              {updateNotes && (
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>
-                    Release Notes:
-                  </Text>
-                  <Text size="sm" c="dimmed" style={{ whiteSpace: "pre-wrap" }}>
-                    {updateNotes}
-                  </Text>
-                </Stack>
-              )}
-
-              {isDownloading && (
-                <Stack gap="xs">
-                  <Text size="sm">Downloading update...</Text>
-                  <Progress value={downloadProgress} animated />
-                  <Text size="xs" c="dimmed">
-                    {Math.round(downloadProgress)}%
-                  </Text>
-                </Stack>
-              )}
-
-              {!isDownloading && (
-                <Group justify="flex-end" mt="md">
-                  <Button variant="subtle" onClick={handleClose}>
-                    Later
-                  </Button>
-                  <Button
-                    onClick={installUpdate}
-                    leftSection={<IconDownload size={16} />}
-                  >
-                    Download and Install
-                  </Button>
-                </Group>
-              )}
-
-              {isDownloading && (
-                <Text size="xs" c="dimmed" ta="center">
-                  Please don't close the application during the update.
+            {updateNotes && (
+              <Stack gap="xs">
+                <Text size="sm" fw={500}>
+                  Release Notes:
                 </Text>
-              )}
-            </>
-          )}
-        </Stack>
-      </Modal>
+                <Text size="sm" c="dimmed" style={{ whiteSpace: "pre-wrap" }}>
+                  {updateNotes}
+                </Text>
+              </Stack>
+            )}
 
-      {/* Hidden manual check trigger - can be called from settings or help menu */}
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden element used as data target only */}
-      <div
-        style={{ display: "none" }}
-        data-updater-manual-check
-        onClick={handleManualCheck}
-        role="button"
-        tabIndex={-1}
-      />
-    </>
+            {isDownloading && (
+              <Stack gap="xs">
+                <Text size="sm">Downloading update...</Text>
+                <Progress value={downloadProgress} animated />
+                <Text size="xs" c="dimmed">
+                  {Math.round(downloadProgress)}%
+                </Text>
+              </Stack>
+            )}
+
+            {!isDownloading && (
+              <Group justify="flex-end" mt="md">
+                <Button variant="subtle" onClick={handleClose}>
+                  Later
+                </Button>
+                <Button
+                  onClick={installUpdate}
+                  leftSection={<IconDownload size={16} />}
+                >
+                  Download and Install
+                </Button>
+              </Group>
+            )}
+
+            {isDownloading && (
+              <Text size="xs" c="dimmed" ta="center">
+                Please don't close the application during the update.
+              </Text>
+            )}
+          </>
+        )}
+      </Stack>
+    </Modal>
   );
 }
 
