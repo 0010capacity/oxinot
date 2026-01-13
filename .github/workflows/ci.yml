@@ -74,15 +74,32 @@ jobs:
 
       - name: Generate changeset
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm run changeset:auto
           git add .changeset
           if ! git diff --staged --quiet; then
+            CHANGESET_FILE=$(git diff --staged --name-only | grep ".changeset/" | head -1)
+            CHANGESET_NAME=$(basename "$CHANGESET_FILE" .md)
+            BRANCH_NAME="changeset/$CHANGESET_NAME"
+
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            git checkout -b "$BRANCH_NAME"
             git commit -m "chore: auto-generate changeset"
-            git push origin main
-            echo "✅ Changeset generated and committed"
+            git push origin "$BRANCH_NAME"
+
+            PR_URL=$(gh pr create \
+              --title "chore: auto-generate changeset" \
+              --body "Automatically generated changeset from merged PR." \
+              --head "$BRANCH_NAME")
+
+            PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')
+            gh pr merge "$PR_NUMBER" --auto --squash
+
+            echo "✅ Changeset PR created and auto-merge enabled: $PR_URL"
           else
             echo "ℹ️ No changeset generated (no qualifying commits)"
           fi
