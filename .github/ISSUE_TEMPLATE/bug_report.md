@@ -1,48 +1,47 @@
 ---
-name: 버그 리포트
-about: 버그를 리포트해주세요
-title: "[Bug] "
+name: Bug Report
+about: Report a bug or issue
+title: "[BUG] "
 labels: ["bug"]
 ---
 
-## 버그 설명
-버그가 무엇인지 명확하고 간결하게 설명해주세요.
+## Bug Description
+A clear and concise description of what the bug is.
 
-## 재현 단계
-버그를 재현하는 방법을 단계별로 작성해주세요.
+## Steps to Reproduce
+Steps to reproduce the behavior:
 
-1. 단계 1
-2. 단계 2
-3. 단계 3
-4. 버그 발생
+1. Go to...
+2. Click on...
+3. Enter...
+4. See error
 
-## 예상 동작
-무엇이 일어나야 했는지 설명해주세요.
+## Expected Behavior
+Describe what you expected to happen.
 
-## 실제 동작
-실제로 무엇이 일어났는지 설명해주세요.
+## Actual Behavior
+Describe what actually happened instead.
 
-## 환경
-- OS: (예: macOS 14.0)
-- 브라우저: (예: Chrome 120)
-- Oxinot 버전: (예: v0.1.0)
-- 기타 정보:
+## Environment
+- **OS**: (e.g., macOS 14.0, Windows 11, Ubuntu 22.04)
+- **Oxinot Version**: (e.g., v0.1.0)
+- **Browser**: (if applicable - e.g., Chrome 120)
 
-## 스크린샷
-문제를 보여주는 스크린샷이 있다면 첨부해주세요.
+## Screenshots/Videos
+If applicable, add screenshots or videos showing the bug.
 
-## 로그/에러 메시지
-브라우저 console이나 애플리케이션 로그에 나타나는 에러 메시지가 있다면 작성해주세요.
+## Error Messages/Logs
+Paste any error messages or logs from the browser console or application logs.
 
 ```
 paste error message here
 ```
 
-## 추가 정보
-다른 관련 정보가 있으면 작성해주세요.
+## Additional Context
+Add any other relevant information about the bug.
 
-## 우선순위
-- [ ] Critical (앱이 죽음)
-- [ ] High (주요 기능이 안 됨)
-- [ ] Medium (일부 기능이 제대로 안 됨)
-- [ ] Low (사소한 이슈)
+## Priority
+- [ ] Critical (app crashes, data loss)
+- [ ] High (major feature broken)
+- [ ] Medium (partial impact)
+- [ ] Low (minor issue)

@@ -1,34 +1,40 @@
-## 설명
-이 PR이 해결하는 내용을 간단히 설명해주세요.
+## Description
+Describe the changes in this PR and what problem they solve.
 
-## 관련 이슈
+## Type of Change
+- [ ] Bug fix (non-breaking)
+- [ ] New feature (non-breaking)
+- [ ] Breaking change
+- [ ] Documentation update
+
+## Related Issues
 Closes #
 
-## 변경사항
-이 PR에서 변경한 내용을 나열해주세요.
+## Changes Made
+List the specific changes made in this PR:
 
-- [ ] 변경사항 1
-- [ ] 변경사항 2
-- [ ] 변경사항 3
+- [ ] Change 1
+- [ ] Change 2
+- [ ] Change 3
 
-## 검증 방법
-이 PR이 제대로 작동하는지 어떻게 검증했나요?
+## Testing
+How was this change tested?
 
-1. 단계 1
-2. 단계 2
-3. 단계 3
+1. Step 1
+2. Step 2
+3. Step 3
 
-## 체크리스트
-- [ ] 코드가 스타일 가이드를 따르고 있습니다
-- [ ] 자체 검토를 완료했습니다
-- [ ] 주석을 추가했습니다 (복잡한 부분)
-- [ ] 문서를 업데이트했습니다
-- [ ] 새로운 경고를 생성하지 않습니다
-- [ ] 테스트를 추가했습니다
-- [ ] 기존 테스트가 통과합니다
+## Checklist
+- [ ] My code follows the project style guidelines
+- [ ] I have performed a self-review of my code
+- [ ] I have commented complex or unclear parts
+- [ ] I have updated relevant documentation
+- [ ] No new warnings or errors have been generated
+- [ ] Tests pass locally
+- [ ] Existing functionality is not broken
 
-## 스크린샷 (해당되면)
-UI/UX 변경사항이 있으면 스크린샷을 첨부해주세요.
+## Screenshots (if applicable)
+If this includes UI changes, add screenshots or videos.
 
-## 추가 정보
-다른 관련 정보가 있으면 작성해주세요.
+## Additional Information
+Any other relevant information or context.

@@ -1,42 +1,42 @@
 ---
-name: Improvement (개선 사항)
-about: 기존 기능을 개선합니다
-title: "[Improvement] "
+name: Improvement
+about: Suggest an improvement to an existing feature
+title: "[IMPROVEMENT] "
 labels: ["improvement"]
 ---
 
-## 현재 상황
-현재 어떻게 작동하고 있는지 설명해주세요.
+## Current Behavior
+Describe how the feature currently works.
 
-## 개선 내용
-어떤 부분을 개선하고 싶은지 설명해주세요.
+## Proposed Improvement
+Describe what you want to improve and why.
 
-## 개선 방향
-어떻게 개선해야 한다고 생각하는지 설명해주세요.
+## Benefits
+What benefits will this improvement bring?
 
-- [ ] 개선 사항 1
-- [ ] 개선 사항 2
-- [ ] 개선 사항 3
+- [ ] Performance improvement
+- [ ] Better user experience
+- [ ] Code quality improvement
+- [ ] UI/UX enhancement
+- [ ] Other: 
 
-## 기대 효과
-이 개선으로 얻을 수 있는 효과는 무엇인가요?
+## Affected Areas
+What parts of the application will be affected?
 
-- 성능 향상
-- 사용성 개선
-- 코드 품질 향상
-- 기타: ...
+- [ ] User interface
+- [ ] Performance
+- [ ] Memory usage
+- [ ] Mobile experience
+- [ ] Other: 
 
-## 구현 방법 (선택사항)
-구현 방법에 대한 아이디어가 있으면 작성해주세요.
+## Implementation Suggestions
+(Optional) Do you have ideas on how this could be implemented?
 
-## 영향 범위
-이 개선이 다른 기능에 영향을 미칠 수 있는 부분이 있나요?
+## Additional Context
+Add any relevant information, benchmarks, or examples.
 
-## 추가 정보
-스크린샷, 참고 자료, 벤치마크 데이터 등 추가 정보가 있으면 작성해주세요.
-
-## 우선순위
-- [ ] Critical
-- [ ] High
-- [ ] Medium
-- [ ] Low
+## Priority
+- [ ] Critical (implement immediately)
+- [ ] High (implement soon)
+- [ ] Medium (implement eventually)
+- [ ] Low (nice to have)

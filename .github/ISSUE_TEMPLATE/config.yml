@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
-  - name: 문서 확인
+  - name: Documentation
     url: https://github.com/0010capacity/oxinot#readme
-    about: 먼저 README를 확인해주세요
+    about: Check the README first
   - name: GitHub Discussions
     url: https://github.com/0010capacity/oxinot/discussions
-    about: 일반적인 질문이나 토론
+    about: For questions and discussions

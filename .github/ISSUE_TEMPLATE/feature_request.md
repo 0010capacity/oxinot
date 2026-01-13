@@ -1,54 +1,49 @@
 ---
-name: 기능 요청
-about: 새로운 기능을 제안합니다
-title: "[기능] "
-labels: enhancement
-assignees: ''
-
+name: Feature Request
+about: Suggest a new feature or enhancement
+title: "[Feature] "
+labels: ["enhancement"]
 ---
 
-## 설명
-이 기능이 어떤 문제를 해결하거나 어떤 가치를 제공하는지 설명해주세요.
+## Description
+A clear and concise description of what you want to add.
 
-## 문제 상황
-이 기능이 필요한 이유는 무엇인가요? 어떤 문제를 해결하나요?
+## Problem Statement
+What problem does this feature solve? Why is it needed?
 
-## 요구사항
-사용자 관점에서 필요한 요구사항을 나열해주세요.
+## Requirements
+List the specific requirements for this feature:
 
-- [ ] 요구사항 1
-- [ ] 요구사항 2
-- [ ] 요구사항 3
-- [ ] 요구사항 4
+- [ ] Requirement 1
+- [ ] Requirement 2
+- [ ] Requirement 3
+- [ ] Requirement 4
 
-## 사용자 경험
-사용자가 이 기능을 어떻게 사용할 것인지 설명해주세요. UI/UX 상세사항이 있다면 포함해주세요.
+## User Experience
+Describe how users will interact with this feature. Include UI/UX details if applicable.
 
-## 기술적 상세사항
-구현 시 고려해야 할 기술적 사항이나 아키텍처 변경사항이 있다면 작성해주세요.
+## Technical Details
+Any technical considerations, architecture changes, or implementation notes.
 
-## 수락 기준
-이 기능이 완성되었다고 판단하는 기준은 무엇인가요?
+## Acceptance Criteria
+How will we know when this feature is complete?
 
-- [ ] 기준 1
-- [ ] 기준 2
-- [ ] 기준 3
+- [ ] Criterion 1
+- [ ] Criterion 2
+- [ ] Criterion 3
 
-## 관련 이슈
-관련된 다른 이슈가 있으면 링크해주세요.
+## Related Issues
+Link any related issues:
 
-- 관련: #
-- 의존: #
-- 차단: #
+- Related to: #
+- Depends on: #
+- Blocks: #
 
-## 추가 정보
-스크린샷, 목업, 예제 등 추가 컨텍스트가 있으면 작성해주세요.
+## Additional Context
+Add any other context, screenshots, mockups, or examples.
 
-## 우선순위
-- [ ] Critical (지금 바로)
-- [ ] High (곧)
-- [ ] Medium (언젠가)
-- [ ] Low (좋으면 좋음)
-```
-
-이제 버그 리포트 템플릿을 만들겠습니다:
+## Priority
+- [ ] Critical (do immediately)
+- [ ] High (do soon)
+- [ ] Medium (do eventually)
+- [ ] Low (nice to have)

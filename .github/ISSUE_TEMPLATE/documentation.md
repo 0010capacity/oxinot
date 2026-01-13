@@ -1,42 +1,47 @@
 ---
-name: Documentation (문서 개선)
-about: 문서를 개선하거나 추가합니다
-title: "[Docs] "
+name: Documentation
+about: Report missing or improve existing documentation
+title: "[DOCS] "
 labels: ["documentation"]
 ---
 
-## 문서 개선 사항
-어떤 문서를 개선하거나 추가하려고 하는지 설명해주세요.
+## What Documentation Needs Improvement?
+Describe which documentation should be improved or added.
 
-## 현재 상황
-현재 문서의 어떤 부분이 부족하거나 잘못되었나요?
+## Current State
+What's currently missing or unclear about the documentation?
 
-## 개선 방향
-어떻게 개선하면 좋을까요?
+- [ ] Documentation is missing
+- [ ] Documentation is incomplete
+- [ ] Documentation is outdated
+- [ ] Examples are insufficient
+- [ ] Unclear instructions
+- [ ] Other: 
 
-- [ ] 내용 추가
-- [ ] 내용 수정
-- [ ] 오류 수정
-- [ ] 예제 추가
-- [ ] 그림/다이어그램 추가
-- [ ] 기타: 
+## Proposed Improvement
+How should this documentation be improved?
 
-## 영향받는 문서
-개선이 필요한 문서들을 나열해주세요.
+- [ ] Add explanation
+- [ ] Add examples
+- [ ] Add screenshots
+- [ ] Add video
+- [ ] Add step-by-step guide
+- [ ] Clarify existing content
+- [ ] Other: 
+
+## Affected Documentation
+Which documents need improvement?
 
 - [ ] README.md
 - [ ] AGENTS.md
-- [ ] VERSION.md
-- [ ] RELEASE.md
-- [ ] DEVELOPMENT_WORKFLOW.md
 - [ ] GITHUB_WORKFLOW.md
-- [ ] 기타: 
+- [ ] RELEASE.md
+- [ ] VERSION.md
+- [ ] DEVELOPMENT_WORKFLOW.md
+- [ ] Other: 
 
-## 제안하는 내용
-개선된 내용이나 추가할 내용을 작성해주세요.
+## Detailed Description
+Describe in detail what needs to be added or improved.
 
-## 추가 정보
-참고할 링크나 추가 정보가 있으면 작성해주세요.
-```
-
-이제 모든 템플릿을 커밋하겠습니다:
+## Additional Resources
+Links, references, or examples that would help.
