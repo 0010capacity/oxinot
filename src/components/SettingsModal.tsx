@@ -13,7 +13,6 @@ import {
   Tabs,
   Badge,
   Slider,
-  Alert,
   Tooltip,
 } from "@mantine/core";
 import {
@@ -24,11 +23,9 @@ import {
   IconHome,
   IconList,
   IconBrandGit,
-  IconInfoCircle,
   IconKeyboard,
   IconSettings,
   IconDownload,
-  IconAlertTriangle,
   IconTrash,
   IconSearch,
   IconPlus,
@@ -84,9 +81,27 @@ export function SettingsModal({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  // Color mode state (light/dark/auto)
+  const [colorMode, setColorMode] = useState<"light" | "dark" | "auto">(() => {
+    const stored = localStorage.getItem("mantine-color-scheme");
+    return (stored as "light" | "dark" | "auto") || "auto";
+  });
+
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("appearance");
+
+  // Apply color mode to document
+  useEffect(() => {
+    const html = document.documentElement;
+    if (colorMode === "auto") {
+      html.removeAttribute("data-color-scheme");
+      localStorage.removeItem("mantine-color-scheme");
+    } else {
+      html.setAttribute("data-color-scheme", colorMode);
+      localStorage.setItem("mantine-color-scheme", colorMode);
+    }
+  }, [colorMode]);
 
   // Advanced settings
   const autoUpdate = useAdvancedSettingsStore((state) => state.autoUpdate);
@@ -139,6 +154,8 @@ export function SettingsModal({
   const setDateSeparator = useClockFormatStore(
     (state) => state.setDateSeparator,
   );
+  const timezone = useClockFormatStore((state) => state.timezone);
+  const setTimezone = useClockFormatStore((state) => state.setTimezone);
 
   // App Settings
   const dailyNotesPath = useAppSettingsStore((state) => state.dailyNotesPath);
@@ -179,6 +196,10 @@ export function SettingsModal({
   const setShowCodeBlockLineNumbers = useOutlinerSettingsStore(
     (state) => state.setShowCodeBlockLineNumbers,
   );
+  const indentSize = useOutlinerSettingsStore((state) => state.indentSize);
+  const setIndentSize = useOutlinerSettingsStore(
+    (state) => state.setIndentSize,
+  );
 
   // Git
   const isGitRepo = useGitStore((state) => state.isRepo);
@@ -198,6 +219,7 @@ export function SettingsModal({
   const getRemoteUrl = useGitStore((state) => state.getRemoteUrl);
   const setRemoteUrl = useGitStore((state) => state.setRemoteUrl);
   const removeRemote = useGitStore((state) => state.removeRemote);
+  const clearCache = useAdvancedSettingsStore((state) => state.clearCache);
 
   // Remote URL management state
   const [remoteUrlInput, setRemoteUrlInput] = useState("");
@@ -269,14 +291,17 @@ export function SettingsModal({
         "preview",
       ],
       theme: [
+        "color mode",
+        "light",
+        "dark",
+        "auto",
         "color variant",
-        "accent color",
+        "accent",
         "default",
         "blue",
         "purple",
         "green",
         "amber",
-        "dark mode",
       ],
       datetime: [
         "time format",
@@ -340,7 +365,7 @@ export function SettingsModal({
         "reset settings",
         "danger",
       ],
-      about: ["version", "changelog", "beta", "oxinot", "info"],
+      about: ["version", "changelog", "beta", "oxinot", "info", "update"],
     };
 
     return tabContent[tabValue]?.some((item) => item.includes(query)) ?? false;
@@ -465,7 +490,7 @@ export function SettingsModal({
             </Tabs.Tab>
           )}
           {hasMatchInTab("about") && (
-            <Tabs.Tab value="about" leftSection={<IconInfoCircle size={16} />}>
+            <Tabs.Tab value="about" leftSection={<IconSettings size={16} />}>
               About
             </Tabs.Tab>
           )}
@@ -610,11 +635,28 @@ export function SettingsModal({
                 <Text size="xl" fw={600} mb="lg">
                   Theme
                 </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  Personalize your color scheme
-                </Text>
 
                 <Stack gap="lg">
+                  {matchesSearch("color mode light dark") && (
+                    <div>
+                      <Text size="sm" fw={500} mb={8}>
+                        Color Mode
+                      </Text>
+                      <SegmentedControl
+                        value={colorMode}
+                        onChange={(value) =>
+                          setColorMode(value as "light" | "dark" | "auto")
+                        }
+                        data={[
+                          { label: "Light", value: "light" },
+                          { label: "Dark", value: "dark" },
+                          { label: "Auto", value: "auto" },
+                        ]}
+                        fullWidth
+                      />
+                    </div>
+                  )}
+
                   {matchesSearch("Color Variant accent") && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
@@ -634,24 +676,14 @@ export function SettingsModal({
                         ]}
                         fullWidth
                       />
-                      <Text size="xs" c="dimmed" mt={4}>
-                        Choose your preferred accent color theme
-                      </Text>
                     </div>
                   )}
-
-                  <Alert
-                    icon={<IconInfoCircle size={16} />}
-                    color="blue"
-                    variant="light"
-                  >
-                    The theme automatically adapts to your system's dark mode
-                    setting
-                  </Alert>
                 </Stack>
               </div>
             </Stack>
           </Tabs.Panel>
+
+          {/* DateTime Tab */}
 
           {/* Date & Time Tab */}
           <Tabs.Panel value="datetime">
@@ -723,6 +755,93 @@ export function SettingsModal({
                     </div>
                   )}
 
+                  {matchesSearch("timezone") && (
+                    <div>
+                      <Text size="sm" fw={500} mb={8}>
+                        Timezone
+                      </Text>
+                      <Select
+                        value={timezone}
+                        onChange={(value) => {
+                          if (value) setTimezone(value);
+                        }}
+                        data={(() => {
+                          const systemTz =
+                            Intl.DateTimeFormat().resolvedOptions().timeZone;
+                          const timezones = [
+                            { label: "UTC", value: "UTC" },
+                            {
+                              label: "America/New_York (EST)",
+                              value: "America/New_York",
+                            },
+                            {
+                              label: "America/Chicago (CST)",
+                              value: "America/Chicago",
+                            },
+                            {
+                              label: "America/Denver (MST)",
+                              value: "America/Denver",
+                            },
+                            {
+                              label: "America/Los_Angeles (PST)",
+                              value: "America/Los_Angeles",
+                            },
+                            {
+                              label: "Europe/London (GMT)",
+                              value: "Europe/London",
+                            },
+                            {
+                              label: "Europe/Paris (CET)",
+                              value: "Europe/Paris",
+                            },
+                            {
+                              label: "Europe/Berlin (CET)",
+                              value: "Europe/Berlin",
+                            },
+                            {
+                              label: "Asia/Seoul (KST)",
+                              value: "Asia/Seoul",
+                            },
+                            {
+                              label: "Asia/Tokyo (JST)",
+                              value: "Asia/Tokyo",
+                            },
+                            {
+                              label: "Asia/Shanghai (CST)",
+                              value: "Asia/Shanghai",
+                            },
+                            {
+                              label: "Asia/Hong_Kong (HKT)",
+                              value: "Asia/Hong_Kong",
+                            },
+                            {
+                              label: "Asia/Singapore (SGT)",
+                              value: "Asia/Singapore",
+                            },
+                            {
+                              label: "Australia/Sydney (AEDT)",
+                              value: "Australia/Sydney",
+                            },
+                          ];
+                          const systemTzExists = timezones.some(
+                            (tz) => tz.value === systemTz,
+                          );
+                          return systemTzExists
+                            ? timezones
+                            : [
+                                {
+                                  label: `System Default (${systemTz})`,
+                                  value: systemTz,
+                                },
+                                ...timezones,
+                              ];
+                        })()}
+                        placeholder="Select timezone"
+                        searchable
+                      />
+                    </div>
+                  )}
+
                   {matchesSearch("preview") && (
                     <div
                       style={{
@@ -773,15 +892,6 @@ export function SettingsModal({
                       />
                     </div>
                   )}
-
-                  <Alert
-                    icon={<IconInfoCircle size={16} />}
-                    color="blue"
-                    variant="light"
-                  >
-                    Daily notes are automatically created with today's date when
-                    you click the home button
-                  </Alert>
                 </Stack>
               </div>
             </Stack>
@@ -901,6 +1011,25 @@ export function SettingsModal({
                       }
                     />
                   )}
+
+                  {matchesSearch("indent size") && (
+                    <div>
+                      <Text size="sm" fw={500} mb={8}>
+                        Indent Size
+                      </Text>
+                      <NumberInput
+                        value={indentSize}
+                        onChange={(value) => {
+                          if (typeof value === "number") {
+                            setIndentSize(value);
+                          }
+                        }}
+                        min={12}
+                        max={48}
+                        step={2}
+                      />
+                    </div>
+                  )}
                 </Stack>
               </div>
             </Stack>
@@ -921,21 +1050,6 @@ export function SettingsModal({
                   {!isGitRepo ? (
                     matchesSearch("initialize git repository") && (
                       <>
-                        <Alert
-                          icon={<IconAlertTriangle size={16} />}
-                          color="yellow"
-                          variant="light"
-                        >
-                          <Text size="sm" fw={500} mb={4}>
-                            Git Not Initialized
-                          </Text>
-                          <Text size="sm">
-                            This workspace is not a Git repository yet.
-                            Initialize Git to enable version control and
-                            automatic backups.
-                          </Text>
-                        </Alert>
-
                         <Button
                           leftSection={<IconBrandGit size={16} />}
                           onClick={() =>
@@ -971,18 +1085,6 @@ export function SettingsModal({
                     )
                   ) : (
                     <>
-                      {matchesSearch("git repository tracked") && (
-                        <Alert
-                          icon={<IconInfoCircle size={16} />}
-                          color="blue"
-                          variant="light"
-                        >
-                          Your workspace is a Git repository. All changes are
-                          tracked locally and can be synced to remote
-                          repositories.
-                        </Alert>
-                      )}
-
                       {matchesSearch("repository location path") && (
                         <div>
                           <Text size="sm" fw={500} mb={8}>
@@ -1174,29 +1276,6 @@ export function SettingsModal({
                           )}
                         </div>
                       )}
-
-                      {matchesSearch("tip using git backup") && (
-                        <Alert
-                          icon={<IconInfoCircle size={16} />}
-                          color="grape"
-                          variant="light"
-                        >
-                          <Text size="sm" fw={500} mb={4}>
-                            Tip: Using Git with Oxinot
-                          </Text>
-                          <Text size="xs">
-                            • All markdown files and changes are tracked
-                            automatically
-                            <br />
-                            • Use auto-commit for continuous backup
-                            <br />
-                            • Push to remote repositories (GitHub, GitLab, etc.)
-                            for cloud backup
-                            <br />• Click the yellow dot in bottom-right corner
-                            for quick commits
-                          </Text>
-                        </Alert>
-                      )}
                     </>
                   )}
                 </Stack>
@@ -1256,15 +1335,6 @@ export function SettingsModal({
                       </Group>
                     </div>
                   )}
-
-                  <Alert
-                    icon={<IconInfoCircle size={16} />}
-                    color="blue"
-                    variant="light"
-                  >
-                    Custom keyboard shortcuts will be available in a future
-                    update
-                  </Alert>
                 </Stack>
               </div>
             </Stack>
@@ -1282,21 +1352,31 @@ export function SettingsModal({
                 </Text>
 
                 <Stack gap="lg">
+                  {matchesSearch("cache clear") && (
+                    <div>
+                      <Text size="sm" fw={500} mb={12}>
+                        Cache
+                      </Text>
+                      <Button
+                        size="sm"
+                        variant="light"
+                        onClick={() => {
+                          if (window.confirm("Clear application cache?")) {
+                            clearCache();
+                          }
+                        }}
+                      >
+                        Clear Cache
+                      </Button>
+                    </div>
+                  )}
+
                   {matchesSearch("updates automatic beta check") && (
                     <div>
                       <Text size="sm" fw={500} mb={12}>
                         Updates
                       </Text>
                       <Stack gap="md">
-                        <Alert
-                          icon={<IconInfoCircle size={16} />}
-                          color="blue"
-                          variant="light"
-                        >
-                          Auto-update functionality will be available in a
-                          future release.
-                        </Alert>
-
                         <Switch
                           label="Automatic updates"
                           description="Automatically download and install updates (coming soon)"
@@ -1367,14 +1447,6 @@ export function SettingsModal({
                             setTelemetryEnabled(event.currentTarget.checked)
                           }
                         />
-                        <Alert
-                          icon={<IconInfoCircle size={16} />}
-                          color="gray"
-                          variant="light"
-                        >
-                          Telemetry is disabled by default. No personal data is
-                          collected.
-                        </Alert>
                       </Stack>
                     </div>
                   )}
@@ -1433,9 +1505,6 @@ export function SettingsModal({
                 <Text size="xl" fw={600} mb="lg">
                   About
                 </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  Application information
-                </Text>
 
                 <Stack gap="lg">
                   <div>
@@ -1454,62 +1523,32 @@ export function SettingsModal({
 
                   <div
                     style={{
-                      padding: 16,
+                      padding: 12,
                       borderRadius: 6,
                       backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
                     }}
                   >
-                    <Text size="sm" fw={500} mb={12}>
-                      What's New in v0.1.0
+                    <Text size="sm" fw={500} mb={8}>
+                      Updates
                     </Text>
-                    <Text size="sm" c="dimmed" mb={8}>
-                      <strong>Settings Redesign</strong>
-                    </Text>
-                    <Text size="sm" c="dimmed" mb={12}>
-                      • Modern tabbed interface with 10 categories
-                      <br />
-                      • Better organization and discoverability
-                      <br />• Beta badge to indicate development status
-                    </Text>
-                    <Text size="sm" c="dimmed" mb={8}>
-                      <strong>Appearance Enhancements</strong>
-                    </Text>
-                    <Text size="sm" c="dimmed" mb={12}>
-                      • Editor font size control (12-24px)
-                      <br />
-                      • Line height adjustment (1.2-2.0)
-                      <br />
-                      • 12 font family options including monospace
-                      <br />• Live preview for typography settings
-                    </Text>
-                    <Text size="sm" c="dimmed" mb={8}>
-                      <strong>Outliner Improvements</strong>
-                    </Text>
-                    <Text size="sm" c="dimmed" mb={12}>
-                      • Auto-expand blocks option
-                      <br />
-                      • Show block count toggle
-                      <br />• Enhanced indent guides
-                    </Text>
-                    <Text size="sm" c="dimmed" mb={8}>
-                      <strong>Keyboard Shortcuts</strong>
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      • Cmd+, to open Settings
-                      <br />
-                      • Cmd+? to open Help
-                      <br />• Complete shortcuts reference in Settings
-                    </Text>
+                    <Stack gap="xs">
+                      <Text size="xs" c="dimmed">
+                        Oxinot is kept up-to-date automatically using Tauri
+                        Updater.
+                      </Text>
+                      <Button
+                        size="xs"
+                        variant="light"
+                        onClick={() => {
+                          alert(
+                            "Update functionality will be enabled in a future release with Tauri Updater integration.",
+                          );
+                        }}
+                      >
+                        Check for Updates
+                      </Button>
+                    </Stack>
                   </div>
-
-                  <Alert
-                    icon={<IconInfoCircle size={16} />}
-                    color="blue"
-                    variant="light"
-                  >
-                    This is a beta version. Some features are still in
-                    development.
-                  </Alert>
                 </Stack>
               </div>
             </Stack>
