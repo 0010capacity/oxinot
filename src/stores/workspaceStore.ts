@@ -141,8 +141,21 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
       },
 
       removeWorkspace: (path: string) => {
+        const { workspacePath } = get();
+        const isActiveWorkspace = workspacePath === path;
+        
         set({
           workspaces: get().workspaces.filter((w) => w.path !== path),
+          // Reset workspace path if removing the active workspace
+          ...(isActiveWorkspace && { 
+            workspacePath: null,
+            currentPath: null,
+            currentFile: null,
+            fileContent: "",
+            fileTree: [],
+            isLoading: false,
+            error: null,
+          }),
         });
       },
 

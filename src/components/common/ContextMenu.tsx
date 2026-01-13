@@ -1,0 +1,67 @@
+import { Menu } from "@mantine/core";
+import type React from "react";
+
+export interface ContextMenuItem {
+  label: string;
+  icon?: React.ReactNode;
+  color?: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+export interface ContextMenuSection {
+  items: ContextMenuItem[];
+}
+
+interface ContextMenuProps {
+  children: React.ReactNode;
+  sections: ContextMenuSection[];
+  disabled?: boolean;
+}
+
+export const ContextMenu: React.FC<ContextMenuProps> = ({
+  children,
+  sections,
+  disabled = false,
+}) => {
+  if (disabled) {
+    return <>{children}</>;
+  }
+
+  return (
+    <Menu shadow="md" width={200} position="right-start" withArrow>
+      <Menu.Target>
+        <div
+          onContextMenu={(e) => {
+            e.preventDefault();
+          }}
+        >
+          {children}
+        </div>
+      </Menu.Target>
+
+      <Menu.Dropdown>
+        {sections.map((section, sectionIndex) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: Section order is stable
+          <div key={sectionIndex}>
+            {section.items.map((item) => (
+              <Menu.Item
+                key={item.label}
+                leftSection={item.icon}
+                color={item.color}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  item.onClick();
+                }}
+                disabled={item.disabled}
+              >
+                {item.label}
+              </Menu.Item>
+            ))}
+            {sectionIndex < sections.length - 1 && <Menu.Divider />}
+          </div>
+        ))}
+      </Menu.Dropdown>
+    </Menu>
+  );
+};

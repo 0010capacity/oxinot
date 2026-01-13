@@ -1,7 +1,9 @@
+import { IconEdit, IconTrash } from "@tabler/icons-react";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { type FileSystemItem, tauriAPI } from "../tauri-api";
+import { ContextMenu, type ContextMenuSection } from "./common/ContextMenu";
 
 interface FileTreeNodeProps {
   item: FileSystemItem;
@@ -16,7 +18,17 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [children, setChildren] = useState<FileSystemItem[]>([]);
-  const { deleteItem } = useWorkspaceStore();
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newName, setNewName] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const { deleteItem, renameItem } = useWorkspaceStore();
+
+  useEffect(() => {
+    if (isRenaming && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [isRenaming]);
 
   const handleToggle = async () => {
     if (item.is_directory) {
@@ -46,6 +58,68 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
     }
   };
 
+  const handleRename = () => {
+    const currentName = item.name.replace(".md", "");
+    setNewName(currentName);
+    setIsRenaming(true);
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!newName.trim() || newName === item.name.replace(".md", "")) {
+      setIsRenaming(false);
+      return;
+    }
+
+    const finalName =
+      item.is_file && !newName.endsWith(".md") ? `${newName}.md` : newName;
+
+    try {
+      await renameItem(item.path, finalName);
+      setIsRenaming(false);
+    } catch (error) {
+      console.error("Error renaming item:", error);
+      setIsRenaming(false);
+    }
+  };
+
+  const handleRenameCancel = () => {
+    setIsRenaming(false);
+    setNewName("");
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleRenameSubmit();
+    } else if (e.key === "Escape") {
+      handleRenameCancel();
+    }
+  };
+
+  const contextMenuSections: ContextMenuSection[] = [
+    {
+      items: [
+        {
+          label: "Rename",
+          icon: <IconEdit size={16} />,
+          onClick: handleRename,
+        },
+        {
+          label: "Delete",
+          icon: <IconTrash size={16} />,
+          color: "red",
+          onClick: () => {
+            if (confirm(`Are you sure you want to delete ${item.name}?`)) {
+              deleteItem(item.path).catch((error) => {
+                console.error("Error deleting item:", error);
+              });
+            }
+          },
+        },
+      ],
+    },
+  ];
+
   const isMarkdownFile = item.is_file && item.name.endsWith(".md");
   const showItem = item.is_directory || isMarkdownFile;
 
@@ -55,66 +129,92 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
 
   return (
     <>
-      <div className="group/node relative">
-        {item.is_directory && (
-          <button
-            type="button"
-            className="absolute -left-6 top-1.5 p-0.5 opacity-0 group-hover/node:opacity-100 transition-opacity cursor-pointer text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 select-none z-10 border-0 bg-transparent"
-            title={isExpanded ? "Collapse" : "Expand"}
-            onClick={handleToggle}
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              {isExpanded ? "arrow_drop_down" : "arrow_right"}
-            </span>
-          </button>
-        )}
-
-        <div
-          className={`flex items-start gap-2 py-1 -ml-2 pl-2 rounded-md hover:bg-surface-light dark:hover:bg-white/5 transition-colors pr-2 cursor-pointer ${
-            item.is_directory ? "" : ""
-          }`}
-          onClick={handleToggle}
-        >
-          <div className="relative flex items-center justify-center h-6 w-6 shrink-0 cursor-pointer mt-0.5 group/bullet">
-            {item.is_directory ? (
-              <span className="material-symbols-outlined text-[18px] text-gray-500 dark:text-gray-400">
-                folder
+      <ContextMenu sections={contextMenuSections}>
+        <div className="group/node relative">
+          {item.is_directory && (
+            <button
+              type="button"
+              className="absolute -left-6 top-1.5 p-0.5 opacity-0 group-hover/node:opacity-100 transition-opacity cursor-pointer text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 select-none z-10 border-0 bg-transparent"
+              title={isExpanded ? "Collapse" : "Expand"}
+              onClick={handleToggle}
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {isExpanded ? "arrow_drop_down" : "arrow_right"}
               </span>
+            </button>
+          )}
+
+          <div
+            className={`flex items-start gap-2 py-1 -ml-2 pl-2 rounded-md hover:bg-surface-light dark:hover:bg-white/5 transition-colors pr-2 cursor-pointer ${
+              item.is_directory ? "" : ""
+            }`}
+            onClick={handleToggle}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleToggle();
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="relative flex items-center justify-center h-6 w-6 shrink-0 cursor-pointer mt-0.5 group/bullet">
+              {item.is_directory ? (
+                <span className="material-symbols-outlined text-[18px] text-gray-500 dark:text-gray-400">
+                  folder
+                </span>
+              ) : (
+                <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-600 group-hover/bullet:bg-gray-600 dark:group-hover/bullet:bg-gray-400 transition-colors" />
+              )}
+            </div>
+
+            {isRenaming ? (
+              <input
+                ref={renameInputRef}
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={handleRenameKeyDown}
+                onBlur={handleRenameSubmit}
+                className="flex-1 min-w-0 px-2 py-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded outline-none focus:border-blue-500 dark:focus:border-blue-400 text-gray-800 dark:text-gray-200"
+                onClick={(e) => e.stopPropagation()}
+              />
             ) : (
-              <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-600 group-hover/bullet:bg-gray-600 dark:group-hover/bullet:bg-gray-400 transition-colors"></div>
+              <>
+                <div className="flex-1 min-w-0 break-words outline-none text-gray-800 dark:text-gray-200">
+                  {item.name.replace(".md", "")}
+                </div>
+
+                <div className="flex items-center gap-1 opacity-0 group-hover/node:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 hover:text-red-500 transition-colors"
+                    title="Delete"
+                    onClick={handleDelete}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      delete
+                    </span>
+                  </button>
+                </div>
+              </>
             )}
           </div>
 
-          <div className="flex-1 min-w-0 break-words outline-none text-gray-800 dark:text-gray-200">
-            {item.name.replace(".md", "")}
-          </div>
-
-          <div className="flex items-center gap-1 opacity-0 group-hover/node:opacity-100 transition-opacity">
-            <button
-              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 hover:text-red-500 transition-colors"
-              title="Delete"
-              onClick={handleDelete}
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                delete
-              </span>
-            </button>
-          </div>
+          {item.is_directory && isExpanded && children.length > 0 && (
+            <div className="pl-6 ml-[11px] border-l border-gray-100 dark:border-white/5 flex flex-col mt-0.5">
+              {children.map((child) => (
+                <FileTreeNode
+                  key={child.path}
+                  item={child}
+                  level={level + 1}
+                  onFileClick={onFileClick}
+                />
+              ))}
+            </div>
+          )}
         </div>
-
-        {item.is_directory && isExpanded && children.length > 0 && (
-          <div className="pl-6 ml-[11px] border-l border-gray-100 dark:border-white/5 flex flex-col mt-0.5">
-            {children.map((child) => (
-              <FileTreeNode
-                key={child.path}
-                item={child}
-                level={level + 1}
-                onFileClick={onFileClick}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      </ContextMenu>
     </>
   );
 };
