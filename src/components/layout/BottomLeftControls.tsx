@@ -9,6 +9,7 @@ import {
   IconHome,
 } from "@tabler/icons-react";
 import { useMantineColorScheme } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 
 interface BottomLeftControlsProps {
   onHomeClick?: () => void;
@@ -29,6 +30,7 @@ export function BottomLeftControls({
   onHelpClick,
   onCommandPaletteClick,
 }: BottomLeftControlsProps) {
+  const { t } = useTranslation();
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -53,7 +55,7 @@ export function BottomLeftControls({
         alignItems: "center",
       }}
     >
-      <Tooltip label="Home" position="top">
+      <Tooltip label={t("common.home")} position="top">
         <ActionIcon
           variant="subtle"
           size="md"
@@ -64,7 +66,7 @@ export function BottomLeftControls({
         </ActionIcon>
       </Tooltip>
 
-      <Tooltip label="Settings" position="top">
+      <Tooltip label={t("common.settings")} position="top">
         <ActionIcon
           variant="subtle"
           size="md"
@@ -75,7 +77,7 @@ export function BottomLeftControls({
         </ActionIcon>
       </Tooltip>
 
-      <Tooltip label="Help" position="top">
+      <Tooltip label={t("common.help")} position="top">
         <ActionIcon
           variant="subtle"
           size="md"
@@ -86,7 +88,7 @@ export function BottomLeftControls({
         </ActionIcon>
       </Tooltip>
 
-      <Tooltip label="Toggle theme" position="top">
+      <Tooltip label={t("navigation.toggle_theme")} position="top">
         <ActionIcon
           variant="subtle"
           size="md"
@@ -97,7 +99,7 @@ export function BottomLeftControls({
         </ActionIcon>
       </Tooltip>
 
-      <Tooltip label="Search" position="top">
+      <Tooltip label={t("common.search")} position="top">
         <ActionIcon
           variant="subtle"
           size="md"
@@ -108,7 +110,7 @@ export function BottomLeftControls({
         </ActionIcon>
       </Tooltip>
 
-      <Tooltip label="Command Palette (Cmd+K)" position="top">
+      <Tooltip label={t("navigation.command_palette")} position="top">
         <ActionIcon
           variant="subtle"
           size="md"

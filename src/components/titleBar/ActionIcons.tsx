@@ -9,6 +9,7 @@ import {
   IconCommand,
 } from "@tabler/icons-react";
 import { useMantineColorScheme } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 
 interface ActionIconsProps {
   onSettingsClick: () => void;
@@ -29,6 +30,7 @@ export function ActionIcons({
   onCalendarClick,
   onCommandPaletteClick,
 }: ActionIconsProps) {
+  const { t } = useTranslation();
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -46,7 +48,7 @@ export function ActionIcons({
       <ActionIcon
         variant="subtle"
         size="md"
-        title="Command Palette (Cmd+K)"
+        title={t("navigation.command_palette")}
         onClick={onCommandPaletteClick}
         styles={iconButtonStyles}
       >
@@ -56,7 +58,7 @@ export function ActionIcons({
       <ActionIcon
         variant="subtle"
         size="md"
-        title="Search"
+        title={t("common.search")}
         onClick={onSearchClick}
         styles={iconButtonStyles}
       >
@@ -66,7 +68,7 @@ export function ActionIcons({
       <ActionIcon
         variant="subtle"
         size="md"
-        title="Calendar"
+        title={t("navigation.calendar")}
         onClick={onCalendarClick}
         styles={iconButtonStyles}
       >
@@ -76,7 +78,7 @@ export function ActionIcons({
       <ActionIcon
         variant="subtle"
         size="md"
-        title="Help"
+        title={t("common.help")}
         onClick={onHelpClick}
         styles={iconButtonStyles}
       >
@@ -87,7 +89,7 @@ export function ActionIcons({
         variant="subtle"
         onClick={toggleColorScheme}
         size="md"
-        title="Toggle theme"
+        title={t("navigation.toggle_theme")}
         styles={iconButtonStyles}
       >
         {isDark ? <IconSun size={16} /> : <IconMoon size={16} />}
@@ -96,7 +98,7 @@ export function ActionIcons({
       <ActionIcon
         variant="subtle"
         size="md"
-        title="Settings"
+        title={t("common.settings")}
         onClick={onSettingsClick}
         styles={iconButtonStyles}
       >
