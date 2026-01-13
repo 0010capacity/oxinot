@@ -1,5 +1,7 @@
 name: Auto Changeset
 
+# This workflow automatically generates changesets when PRs are merged to main
+
 on:
   pull_request:
     types: [closed]
