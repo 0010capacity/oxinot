@@ -12,11 +12,10 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  lint-and-build:
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-      pull-requests: write
+  check-changeset-only:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.changeset_check.outputs.skip }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,6 +33,18 @@ jobs:
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
+
+  lint-and-build:
+    needs: check-changeset-only
+    if: needs.check-changeset-only.outputs.skip != 'true'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -55,20 +66,16 @@ jobs:
           workspaces: ./src-tauri
 
       - name: Install dependencies
-        if: steps.changeset_check.outputs.skip != 'true'
         run: npm install
 
       - name: Lint
-        if: steps.changeset_check.outputs.skip != 'true'
         run: npm run lint
         continue-on-error: true
 
       - name: Build frontend
-        if: steps.changeset_check.outputs.skip != 'true'
         run: npm run build
 
       - name: Build Tauri (check only)
-        if: steps.changeset_check.outputs.skip != 'true'
         run: npm run tauri:build
         continue-on-error: true
 
