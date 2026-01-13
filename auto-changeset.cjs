@@ -6,7 +6,7 @@ const { execSync } = require("node:child_process");
 
 /**
  * Auto-generate changesets based on commit messages
- * Only runs on main branch (after PR merge)
+ * Runs in GitHub Actions after PR merge to main branch
  * Prevents duplicate changeset generation by tracking processed commits
  */
 
@@ -44,7 +44,7 @@ function markCommitAsProcessed(hash) {
     processed.add(hash);
     fs.writeFileSync(
       PROCESSED_COMMITS_FILE,
-      Array.from(processed).join("\n") + "\n",
+      `${Array.from(processed).join("\n")}\n`,
     );
   } catch {
     // Silently continue
@@ -216,57 +216,65 @@ function groupChangesets(commits, processedCommits) {
 
 // Main function
 function main() {
-  const branch = getCurrentBranch();
+  try {
+    const branch = getCurrentBranch();
 
-  // Only run on main branch
-  if (branch !== "main") {
-    return;
-  }
+    // Only run on main branch
+    if (branch !== "main") {
+      console.log("Not on main branch, skipping changeset generation");
+      process.exit(0);
+    }
 
-  // Get previously processed commits
-  const processedCommits = getProcessedCommits();
+    // Get previously processed commits
+    const processedCommits = getProcessedCommits();
 
-  // Get commits since last release
-  const commits = getCommitsSinceLastRelease();
+    // Get commits since last release
+    const commits = getCommitsSinceLastRelease();
 
-  if (commits.length === 0) {
-    return;
-  }
+    if (commits.length === 0) {
+      console.log("No commits found since last release");
+      process.exit(0);
+    }
 
-  // Group commits and find highest version bump
-  const grouped = groupChangesets(commits, processedCommits);
+    // Group commits and find highest version bump
+    const grouped = groupChangesets(commits, processedCommits);
 
-  if (!grouped) {
-    return;
-  }
+    if (!grouped) {
+      console.log(
+        "No qualifying commits found (all already processed or invalid format)",
+      );
+      process.exit(0);
+    }
 
-  // Create a single changeset for all new commits
-  const descriptions = grouped.commits
-    .map((item) => `- ${item.parsed.subject}`)
-    .join("\n");
+    // Create a single changeset for all new commits
+    const descriptions = grouped.commits
+      .map((item) => `- ${item.parsed.subject}`)
+      .join("\n");
 
-  const filename = generateChangesetFilename();
-  const filepath = path.join(CHANGESET_DIR, `${filename}.md`);
+    const filename = generateChangesetFilename();
+    const filepath = path.join(CHANGESET_DIR, `${filename}.md`);
 
-  const content = `---
+    const content = `---
 "oxinot": ${grouped.highestBump}
 ---
 
 ${descriptions}
 `;
 
-  fs.writeFileSync(filepath, content);
+    fs.writeFileSync(filepath, content);
 
-  // Mark all commits as processed
-  for (const item of grouped.commits) {
-    markCommitAsProcessed(item.commit.hash);
-  }
+    // Mark all commits as processed
+    for (const item of grouped.commits) {
+      markCommitAsProcessed(item.commit.hash);
+    }
 
-  // Stage the changeset file
-  try {
-    execSync(`git add "${filepath}"`, { stdio: "pipe" });
-  } catch {
-    // Silently continue
+    console.log(
+      `✓ Generated changeset: ${filename}.md (${grouped.highestBump} bump, ${grouped.commits.length} commits)`,
+    );
+    process.exit(0);
+  } catch (error) {
+    console.error("✗ Failed to generate changeset:", error.message);
+    process.exit(1);
   }
 }
 
