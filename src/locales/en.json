@@ -1,0 +1,170 @@
+{
+  "common": {
+    "search": "Search",
+    "settings": "Settings",
+    "help": "Help",
+    "close": "Close",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "back": "Back",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "confirm": "Confirm",
+    "new_page": "New page"
+  },
+  "settings": {
+    "title": "Settings",
+    "search_placeholder": "Search settings...",
+    "search_active": "Search is active. If you don't see any matching sections, try a different keyword.",
+    "beta": "Beta",
+    "tabs": {
+      "appearance": "Appearance",
+      "theme": "Theme",
+      "datetime": "Date & Time",
+      "daily_notes": "Daily Notes",
+      "homepage": "Homepage",
+      "outliner": "Outliner",
+      "version_control": "Version Control",
+      "shortcuts": "Shortcuts",
+      "advanced": "Advanced",
+      "about": "About",
+      "language": "Language"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "description": "Customize the look and feel of the editor",
+      "font_family": "Font Family",
+      "font_family_desc": "Choose the font used throughout the application",
+      "editor_font_size": "Editor Font Size",
+      "editor_font_size_desc": "Adjust the font size in the editor",
+      "editor_line_height": "Editor Line Height",
+      "editor_line_height_desc": "Adjust spacing between lines"
+    },
+    "theme": {
+      "title": "Theme",
+      "color_mode": "Color Mode",
+      "modes": {
+        "light": "Light",
+        "dark": "Dark",
+        "auto": "Auto"
+      },
+      "color_variant": "Color Variant",
+      "variants": {
+        "default": "Default",
+        "blue": "Blue",
+        "purple": "Purple",
+        "green": "Green",
+        "amber": "Amber"
+      }
+    },
+    "datetime": {
+      "title": "Date & Time",
+      "description": "Configure how dates and times are displayed",
+      "time_format": "Time Format",
+      "date_order": "Date Order",
+      "date_separator": "Date Separator",
+      "date_separator_desc": "Choose the order of year, month, and day",
+      "timezone": "Timezone",
+      "preview": "Preview"
+    },
+    "daily_notes": {
+      "title": "Daily Notes",
+      "description": "Configure automatic daily note creation",
+      "path": "Daily Notes Path",
+      "path_desc": "Path where daily notes will be created (e.g., 'Daily' or 'Notes/Daily')"
+    },
+    "homepage": {
+      "title": "Homepage",
+      "description": "Choose what to display when opening the app",
+      "type": "Homepage Type",
+      "type_desc": "Choose what to show when opening the app",
+      "types": {
+        "daily_note": "Today's Daily Note",
+        "index": "File Tree",
+        "custom_page": "Custom Page"
+      },
+      "custom_page": "Custom Homepage",
+      "custom_page_placeholder": "Select a page"
+    },
+    "outliner": {
+      "title": "Outliner",
+      "description": "Customize the block editor behavior",
+      "indent_guides": "Show indent guides",
+      "indent_guides_desc": "Display vertical lines to show indentation levels",
+      "auto_expand": "Auto-expand blocks",
+      "auto_expand_desc": "Automatically expand collapsed blocks when navigating",
+      "block_count": "Show block count",
+      "block_count_desc": "Display the number of child blocks for each parent",
+      "code_block_line_numbers": "Show code block line numbers",
+      "code_block_line_numbers_desc": "Display line numbers in code blocks",
+      "indent_size": "Indent Size"
+    },
+    "git": {
+      "title": "Version Control",
+      "description": "Git-based version control for your workspace",
+      "init_button": "Initialize Git Repository",
+      "why_git": "Why Use Git?",
+      "why_git_desc": "• Track all changes to your notes\n• Never lose work - full history available\n• Sync across devices with remote repositories\n• Collaborate with others using GitHub, GitLab, etc.",
+      "repo_location": "Repository Location",
+      "current_status": "Current Status",
+      "commit_changes": "Commit Changes",
+      "no_changes": "No Changes",
+      "refresh": "Refresh",
+      "uncommitted_changes": "⚠️ You have uncommitted changes",
+      "all_committed": "✓ All changes committed",
+      "auto_commit": "Auto-commit",
+      "enable_auto_commit": "Enable auto-commit",
+      "enable_auto_commit_desc": "Automatically commit changes at regular intervals",
+      "commit_interval": "Commit Interval",
+      "commit_interval_desc": "Automatic commits occur every {{interval}} minute(s)",
+      "remote_repo": "Remote Repository",
+      "add_remote": "Add Remote URL",
+      "push_pull_hint": "Push and pull buttons are available in the bottom-right corner"
+    },
+    "shortcuts": {
+      "title": "Keyboard Shortcuts",
+      "description": "View and customize keyboard shortcuts",
+      "command_palette": "Command Palette",
+      "search": "Search",
+      "toggle_index": "Toggle Index"
+    },
+    "advanced": {
+      "title": "Advanced",
+      "description": "Advanced settings and developer options",
+      "cache": "Cache",
+      "clear_cache": "Clear Cache",
+      "clear_cache_confirm": "Clear application cache?",
+      "updates": "Updates",
+      "auto_updates": "Automatic updates",
+      "auto_updates_desc": "Automatically download and install updates (coming soon)",
+      "check_startup": "Check for updates on startup",
+      "check_startup_desc": "Check for new versions when the app starts (coming soon)",
+      "beta_updates": "Beta updates",
+      "beta_updates_desc": "Receive beta versions with experimental features (coming soon)",
+      "check_updates_btn": "Check for Updates",
+      "current_version": "Current version: {{version}}",
+      "developer_options": "Developer Options",
+      "telemetry": "Anonymous telemetry",
+      "telemetry_desc": "Help improve Oxinot by sending anonymous usage data",
+      "danger_zone": "Danger Zone",
+      "reset_settings": "Reset All Settings",
+      "reset_settings_desc": "This will reset all settings to their default values and reload the application.",
+      "reset_confirm": "Are you sure you want to reset all settings? This action cannot be undone."
+    },
+    "about": {
+      "title": "About",
+      "updates_title": "Updates",
+      "updates_desc": "Oxinot is kept up-to-date automatically using Tauri Updater.",
+      "check_update_msg": "Update functionality will be enabled in a future release with Tauri Updater integration."
+    },
+    "language": {
+      "title": "Language",
+      "select": "Select Language",
+      "description": "Choose the language for the user interface"
+    }
+  }
+}
