@@ -238,6 +238,7 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
             padding: "20px 24px",
           }}
         >
+          {/* biome-ignore security/noDangerouslySetInnerHtml: markdown content is sanitized and user-controlled */}
           <div
             dangerouslySetInnerHTML={{ __html: htmlContent }}
             style={{

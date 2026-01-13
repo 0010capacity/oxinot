@@ -146,6 +146,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     }));
 
     // Initialize editor (create/destroy only when core configuration changes)
+    // biome-ignore lint/correctness/useExhaustiveDependencies: value and isFocused handled via latestRef to prevent re-creation on every keystroke
     useEffect(() => {
       if (!containerRef.current) return;
 

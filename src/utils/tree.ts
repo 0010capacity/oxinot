@@ -3,7 +3,7 @@
  * Provides helpers for working with hierarchical tree structures
  */
 
-export interface TreeNode<T = any> {
+export interface TreeNode<T = unknown> {
   id: string;
   parentId: string | null;
   children?: TreeNode<T>[];
@@ -24,13 +24,15 @@ export function buildTree<T extends { id: string; parentId: string | null }>(
   const roots: (T & { children?: T[] })[] = [];
 
   // First pass: create map of all nodes
-  nodes.forEach((node) => {
+  for (const node of nodes) {
     nodeMap.set(node.id, { ...node, children: [] });
-  });
+  }
 
   // Second pass: build tree structure
-  nodes.forEach((node) => {
-    const currentNode = nodeMap.get(node.id)!;
+  for (const node of nodes) {
+    const currentNode = nodeMap.get(node.id);
+    if (!currentNode) continue;
+
     if (node.parentId === rootParentId) {
       roots.push(currentNode);
     } else if (node.parentId) {
@@ -42,7 +44,7 @@ export function buildTree<T extends { id: string; parentId: string | null }>(
         parent.children.push(currentNode);
       }
     }
-  });
+  }
 
   return roots;
 }
@@ -62,14 +64,20 @@ export function flattenTree<T extends { id: string; children?: T[] }>(
   function traverse(node: T, depth = 0) {
     const { children, ...rest } = node;
     result.push(
-      includeDepth ? { ...rest, depth, children } as T & { depth: number } : node,
+      includeDepth
+        ? ({ ...rest, depth, children } as T & { depth: number })
+        : node,
     );
     if (children && children.length > 0) {
-      children.forEach((child) => traverse(child, depth + 1));
+      for (const child of children) {
+        traverse(child, depth + 1);
+      }
     }
   }
 
-  roots.forEach((root) => traverse(root));
+  for (const root of roots) {
+    traverse(root);
+  }
   return result;
 }
 
@@ -107,10 +115,9 @@ export function findNodeById<T extends { id: string; children?: T[] }>(
  * @param nodeId - ID of node to get parents for
  * @returns Array of parent IDs from root to immediate parent
  */
-export function getParentChain<T extends { id: string; parentId: string | null }>(
-  nodes: T[],
-  nodeId: string,
-): string[] {
+export function getParentChain<
+  T extends { id: string; parentId: string | null },
+>(nodes: T[], nodeId: string): string[] {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const parents: string[] = [];
 
@@ -129,17 +136,16 @@ export function getParentChain<T extends { id: string; parentId: string | null }
  * @param parentId - ID of parent node
  * @returns Array of all descendant nodes
  */
-export function getDescendants<T extends { id: string; parentId: string | null }>(
-  nodes: T[],
-  parentId: string,
-): T[] {
+export function getDescendants<
+  T extends { id: string; parentId: string | null },
+>(nodes: T[], parentId: string): T[] {
   const descendants: T[] = [];
   const children = nodes.filter((n) => n.parentId === parentId);
 
-  children.forEach((child) => {
+  for (const child of children) {
     descendants.push(child);
     descendants.push(...getDescendants(nodes, child.id));
-  });
+  }
 
   return descendants;
 }
@@ -205,11 +211,11 @@ export function sortTree<T extends { id: string; children?: T[] }>(
   comparator: (a: T, b: T) => number,
 ): T[] {
   roots.sort(comparator);
-  roots.forEach((root) => {
+  for (const root of roots) {
     if (root.children && root.children.length > 0) {
       sortTree(root.children, comparator);
     }
-  });
+  }
   return roots;
 }
 
@@ -219,14 +225,16 @@ export function sortTree<T extends { id: string; children?: T[] }>(
  * @param mapper - Mapping function
  * @returns New tree with mapped nodes
  */
-export function mapTree<T extends { children?: T[] }, R extends { children?: R[] }>(
-  roots: T[],
-  mapper: (node: T, depth: number) => R,
-): R[] {
+export function mapTree<
+  T extends { children?: T[] },
+  R extends { children?: R[] },
+>(roots: T[], mapper: (node: T, depth: number) => R): R[] {
   function traverse(node: T, depth = 0): R {
     const mapped = mapper(node, depth);
     if (node.children && node.children.length > 0) {
-      mapped.children = node.children.map((child) => traverse(child, depth + 1));
+      mapped.children = node.children.map((child) =>
+        traverse(child, depth + 1),
+      );
     }
     return mapped;
   }

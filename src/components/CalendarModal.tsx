@@ -55,9 +55,8 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
 
   const getDailyNotePage = (date: Date) => {
     const dateStr = formatDateForPage(date);
-    return pageIds.find((id) => pagesById[id]?.title === dateStr)
-      ? pagesById[pageIds.find((id) => pagesById[id]?.title === dateStr)!]
-      : undefined;
+    const pageId = pageIds.find((id) => pagesById[id]?.title === dateStr);
+    return pageId ? pagesById[pageId] : undefined;
   };
 
   const handleDayClick = async (day: number) => {

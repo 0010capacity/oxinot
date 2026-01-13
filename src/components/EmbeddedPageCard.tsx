@@ -87,12 +87,12 @@ export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
           return;
         }
 
-        const res: any = await invoke("get_page_blocks", {
+        const res = (await invoke("get_page_blocks", {
           workspacePath,
           pageId: foundPageId,
-        });
+        })) as Array<Record<string, unknown>>;
 
-        const fetchedBlocks: EmbeddedBlock[] = (res ?? []).map((b: any) => ({
+        const fetchedBlocks: EmbeddedBlock[] = (res ?? []).map((b) => ({
           id: b.id,
           parent_id: b.parentId ?? b.parent_id ?? null,
           content: (b.content ?? "").toString(),

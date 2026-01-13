@@ -45,7 +45,7 @@ export function Breadcrumb({
 
   const truncateText = (text: string, maxLength = 30) => {
     if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength) + "...";
+    return `${text.slice(0, maxLength)}...`;
   };
 
   // Use breadcrumb array from store which includes all parent pages
@@ -60,7 +60,7 @@ export function Breadcrumb({
         const isWorkspace = index === 0;
 
         return (
-          <Group gap="xs" wrap="nowrap" key={`${item}-${index}`}>
+          <Group gap="xs" wrap="nowrap" key={item}>
             {!isFirst && <IconChevronRight size={16} opacity={0.3} />}
             <Text
               size="xl"

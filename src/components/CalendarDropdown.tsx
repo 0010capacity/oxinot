@@ -57,40 +57,26 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
 
   const getDailyNotePage = (date: Date) => {
     const fullPath = getFullDailyNotePath(date);
-    return pageIds.find((id) => {
-      const page = pagesById[id];
-      if (!page) return false;
 
-      // Build the full path from parent hierarchy
-      const buildPath = (pageId: string): string => {
-        const p = pagesById[pageId];
-        if (!p) return "";
-        if (p.parentId) {
-          const parentPath = buildPath(p.parentId);
-          return parentPath ? `${parentPath}/${p.title}` : p.title;
-        }
-        return p.title;
-      };
+    const getPageIdByPath = (path: string): string | undefined => {
+      return pageIds.find((id) => {
+        const page = pagesById[id];
+        if (!page) return false;
+        const buildPath = (pageId: string): string => {
+          const p = pagesById[pageId];
+          if (!p) return "";
+          if (p.parentId) {
+            const parentPath = buildPath(p.parentId);
+            return parentPath ? `${parentPath}/${p.title}` : p.title;
+          }
+          return p.title;
+        };
+        return buildPath(id) === path;
+      });
+    };
 
-      return buildPath(id) === fullPath;
-    })
-      ? pagesById[
-          pageIds.find((id) => {
-            const page = pagesById[id];
-            if (!page) return false;
-            const buildPath = (pageId: string): string => {
-              const p = pagesById[pageId];
-              if (!p) return "";
-              if (p.parentId) {
-                const parentPath = buildPath(p.parentId);
-                return parentPath ? `${parentPath}/${p.title}` : p.title;
-              }
-              return p.title;
-            };
-            return buildPath(id) === fullPath;
-          })!
-        ]
-      : undefined;
+    const pageId = getPageIdByPath(fullPath);
+    return pageId ? pagesById[pageId] : undefined;
   };
 
   const handleDayClick = async (day: number) => {

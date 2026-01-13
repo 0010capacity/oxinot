@@ -50,7 +50,8 @@ export const GitStatusIndicator = ({
       onMouseLeave={() => setGitMenuOpen(false)}
     >
       {/* Status Dot */}
-      <div
+      <button
+        type="button"
         style={{
           width: "8px",
           height: "8px",
@@ -65,6 +66,8 @@ export const GitStatusIndicator = ({
           cursor: "pointer",
           opacity: hasChanges ? 1 : 0.4,
           transition: "opacity 0.2s ease, background-color 0.2s ease",
+          border: "none",
+          padding: 0,
         }}
         onClick={handleGitCommit}
         title={hasChanges ? "Click to commit changes" : "No changes"}

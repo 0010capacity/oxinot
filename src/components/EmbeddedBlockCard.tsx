@@ -44,12 +44,12 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
     const fetchSubtree = async () => {
       try {
         setLoading(true);
-        const res: any = await invoke("get_block_subtree", {
+        const res = (await invoke("get_block_subtree", {
           workspacePath,
           request: { block_id: blockId, max_depth: 1000 },
-        });
+        })) as Array<Record<string, unknown>>;
 
-        const fetchedBlocks: EmbeddedBlock[] = (res ?? []).map((b: any) => ({
+        const fetchedBlocks: EmbeddedBlock[] = (res ?? []).map((b) => ({
           id: b.id,
           parent_id: b.parentId ?? b.parent_id ?? null,
           content: (b.content ?? "").toString(),

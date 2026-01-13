@@ -57,15 +57,16 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
     <>
       <div className="group/node relative">
         {item.is_directory && (
-          <div
-            className="absolute -left-6 top-1.5 p-0.5 opacity-0 group-hover/node:opacity-100 transition-opacity cursor-pointer text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 select-none z-10"
+          <button
+            type="button"
+            className="absolute -left-6 top-1.5 p-0.5 opacity-0 group-hover/node:opacity-100 transition-opacity cursor-pointer text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 select-none z-10 border-0 bg-transparent"
             title={isExpanded ? "Collapse" : "Expand"}
             onClick={handleToggle}
           >
             <span className="material-symbols-outlined text-[18px]">
               {isExpanded ? "arrow_drop_down" : "arrow_right"}
             </span>
-          </div>
+          </button>
         )}
 
         <div
