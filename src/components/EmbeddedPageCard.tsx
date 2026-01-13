@@ -93,10 +93,13 @@ export const EmbeddedPageCard: React.FC<EmbeddedPageCardProps> = ({
         })) as Array<Record<string, unknown>>;
 
         const fetchedBlocks: EmbeddedBlock[] = (res ?? []).map((b) => ({
-          id: b.id,
-          parent_id: b.parentId ?? b.parent_id ?? null,
+          id: String(b.id),
+          parent_id:
+            (b.parentId as string | null) ??
+            (b.parent_id as string | null) ??
+            null,
           content: (b.content ?? "").toString(),
-          order_weight: b.orderWeight ?? b.order_weight ?? 0,
+          order_weight: Number(b.orderWeight ?? b.order_weight ?? 0),
           is_collapsed: !!(b.isCollapsed ?? b.is_collapsed),
         }));
 
