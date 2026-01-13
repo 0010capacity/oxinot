@@ -49,3 +49,6 @@ src-tauri/target
 
 # App data
 .oxinot-data
+
+# Changeset processing
+.changeset/.processed-commits

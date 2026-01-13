@@ -20,12 +20,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "signingIdentity": null,
-      "certificateChain": [],
-      "timestampUrl": "",
-      "dmg": {
-        "title": "Oxinot"
-      }
+      "signingIdentity": null
     }
   },
   "app": {
