@@ -20,7 +20,9 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "signingIdentity": null
+      "signingIdentity": null,
+      "entitlements": null,
+      "provisioningProfile": null
     }
   },
   "app": {
