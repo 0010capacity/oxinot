@@ -17,6 +17,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,12 +48,32 @@ jobs:
             echo "No changeset generated (no qualifying commits)"
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
+            # Get changeset filename
+            CHANGESET_FILE=$(git diff --staged --name-only | grep ".changeset/" | head -1)
+            CHANGESET_NAME=$(basename "$CHANGESET_FILE" .md)
+            echo "changeset_name=$CHANGESET_NAME" >> $GITHUB_OUTPUT
           fi
 
-      - name: Commit and push changeset
+      - name: Create Pull Request
+        if: steps.check.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: auto-generate changeset"
+          branch: changeset/${{ steps.check.outputs.changeset_name }}
+          delete-branch: true
+          title: "chore: auto-generate changeset"
+          body: |
+            Automatically generated changeset from merged PR.
+
+            This PR will be auto-merged when CI passes.
+          labels: changeset
+
+      - name: Enable auto-merge
         if: steps.check.outputs.has_changes == 'true'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: auto-generate changeset [skip ci]"
-          git push origin main
+          sleep 5
+          PR_NUMBER=$(gh pr list --head changeset/${{ steps.check.outputs.changeset_name }} --json number -q '.[0].number')
+          gh pr merge $PR_NUMBER --auto --squash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
