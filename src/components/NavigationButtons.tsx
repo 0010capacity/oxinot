@@ -1,5 +1,6 @@
 import { ActionIcon, Tooltip } from "@mantine/core";
 import { IconArrowLeft, IconArrowRight } from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
 import { useNavigationStore } from "../stores/navigationStore";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
@@ -9,6 +10,7 @@ interface NavigationButtonsProps {
 }
 
 export function NavigationButtons({ compact = false }: NavigationButtonsProps) {
+  const { t } = useTranslation();
   const canGoBack = useNavigationStore((state) => state.canGoBack());
   const canGoForward = useNavigationStore((state) => state.canGoForward());
   const goBack = useNavigationStore((state) => state.goBack);
@@ -76,7 +78,7 @@ export function NavigationButtons({ compact = false }: NavigationButtonsProps) {
         marginLeft: compact ? "16px" : "0px",
       }}
     >
-      <Tooltip label="뒤로가기" position="bottom" withArrow>
+      <Tooltip label={t("navigation.go_back")} position="bottom" withArrow>
         <ActionIcon
           variant={compact ? "transparent" : "subtle"}
           size={compact ? "md" : "md"}
@@ -93,7 +95,7 @@ export function NavigationButtons({ compact = false }: NavigationButtonsProps) {
         </ActionIcon>
       </Tooltip>
 
-      <Tooltip label="앞으로가기" position="bottom" withArrow>
+      <Tooltip label={t("navigation.go_forward")} position="bottom" withArrow>
         <ActionIcon
           variant={compact ? "transparent" : "subtle"}
           size={compact ? "md" : "md"}
