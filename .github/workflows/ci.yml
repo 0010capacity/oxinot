@@ -16,10 +16,24 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Check if changeset-only PR
+        id: changeset_check
+        if: github.event_name == 'pull_request'
+        run: |
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          NON_CHANGESET_FILES=$(echo "$FILES" | grep -v "^\.changeset/" || true)
+          if [ -z "$NON_CHANGESET_FILES" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "ℹ️ Changeset-only PR detected, skipping CI checks"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -41,16 +55,20 @@ jobs:
           workspaces: ./src-tauri
 
       - name: Install dependencies
+        if: steps.changeset_check.outputs.skip != 'true'
         run: npm install
 
       - name: Lint
+        if: steps.changeset_check.outputs.skip != 'true'
         run: npm run lint
         continue-on-error: true
 
       - name: Build frontend
+        if: steps.changeset_check.outputs.skip != 'true'
         run: npm run build
 
       - name: Build Tauri (check only)
+        if: steps.changeset_check.outputs.skip != 'true'
         run: npm run tauri:build
         continue-on-error: true
 
