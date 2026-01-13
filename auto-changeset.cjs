@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const fs = require("fs");
-const path = require("path");
-const { execSync } = require("child_process");
+const fs = require("node:fs");
+const path = require("node:path");
+const { execSync } = require("node:child_process");
 
 /**
  * Auto-generate changesets based on commit messages
@@ -174,7 +174,7 @@ ${description}
 // Group commits by highest version bump needed
 function groupChangesets(commits) {
   const changesets = [];
-  let currentGroup = [];
+  const currentGroup = [];
   let highestBump = null;
 
   for (const commit of commits) {
