@@ -1,5 +1,5 @@
-import type React from "react";
 import { Menu } from "@mantine/core";
+import type React from "react";
 
 export interface ContextMenuItem {
   label: string;
@@ -42,10 +42,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
       <Menu.Dropdown>
         {sections.map((section, sectionIndex) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: Section order is stable
           <div key={sectionIndex}>
-            {section.items.map((item, itemIndex) => (
+            {section.items.map((item) => (
               <Menu.Item
-                key={itemIndex}
+                key={item.label}
                 leftSection={item.icon}
                 color={item.color}
                 onClick={(e) => {

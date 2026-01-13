@@ -10,15 +10,15 @@
 
 /* Titlebar Drag Region */
 [data-tauri-drag-region] {
-    -webkit-app-region: drag;
-    app-region: drag;
-    -webkit-user-select: none;
-    user-select: none;
+  -webkit-app-region: drag;
+  app-region: drag;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 [data-tauri-drag-region] * {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 [data-tauri-drag-region] button,
@@ -27,40 +27,40 @@
 [data-tauri-drag-region] select,
 [data-tauri-drag-region] textarea,
 [data-tauri-drag-region] [role="button"] {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 /* Note: Global styles, box-sizing, html, body, and #root styles moved to styles/base.css */
 
 /* Material Symbols Icon */
 .material-symbols-outlined {
-    font-family: "Material Symbols Outlined";
-    font-weight: normal;
-    font-style: normal;
-    font-size: 24px;
-    line-height: 1;
-    letter-spacing: normal;
-    text-transform: none;
-    display: inline-block;
-    white-space: nowrap;
-    word-wrap: normal;
-    direction: ltr;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    font-feature-settings: "liga";
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "liga";
 }
 
 /* Utility Classes */
 /* Utility class to hide scrollbars */
 .no-scrollbar::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
 .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Note: Content editable styles moved to styles/base.css */
@@ -108,76 +108,68 @@ span[class*="heading"],
 .cm-heading-5,
 .cm-heading-6,
 .mantine-Title-root {
-    text-decoration: none !important;
-    border-bottom: none !important;
-    border-top: none !important;
-    text-decoration-line: none !important;
-    text-decoration-style: none !important;
-    text-decoration-color: transparent !important;
-    border-bottom-width: 0 !important;
-    border-bottom-style: none !important;
+  text-decoration: none !important;
+  border-bottom: none !important;
+  border-top: none !important;
+  text-decoration-line: none !important;
+  text-decoration-style: none !important;
+  text-decoration-color: transparent !important;
+  border-bottom-width: 0 !important;
+  border-bottom-style: none !important;
 }
 
 /* Add subtle divider lines under H1 and H2 for section separation */
 .cm-line.cm-activeLine:has(.cm-heading-1)::after,
 .cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-1)::after {
-    content: "";
-    display: block;
-    width: 100%;
-    height: 0;
-    border-bottom: 2px solid rgba(127, 127, 127, 0.2);
-    margin-top: 0.3em;
-    margin-bottom: 0.5em;
+  content: "";
+  display: block;
+  width: 100%;
+  height: 0;
+  border-bottom: 2px solid rgba(127, 127, 127, 0.2);
+  margin-top: 0.3em;
+  margin-bottom: 0.5em;
 }
 
 .cm-line.cm-activeLine:has(.cm-heading-2)::after,
 .cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-2)::after {
-    content: "";
-    display: block;
-    width: 100%;
-    height: 0;
-    border-bottom: 1px solid rgba(127, 127, 127, 0.15);
-    margin-top: 0.25em;
-    margin-bottom: 0.4em;
+  content: "";
+  display: block;
+  width: 100%;
+  height: 0;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.15);
+  margin-top: 0.25em;
+  margin-bottom: 0.4em;
 }
 
 /* Dark mode adjustments for heading dividers */
 .cm-editor.cm-focused .cm-line.cm-activeLine:has(.cm-heading-1)::after,
 .cm-editor.cm-focused
-    .cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-1)::after {
-    border-bottom-color: rgba(200, 200, 200, 0.25);
+  .cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-1)::after {
+  border-bottom-color: rgba(200, 200, 200, 0.25);
 }
 
 .cm-editor.cm-focused .cm-line.cm-activeLine:has(.cm-heading-2)::after,
 .cm-editor.cm-focused
-    .cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-2)::after {
-    border-bottom-color: rgba(200, 200, 200, 0.2);
+  .cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-2)::after {
+  border-bottom-color: rgba(200, 200, 200, 0.2);
 }
 
 /* CodeMirror Editor Styles */
 .cm-editor {
-    height: 100%;
+  height: 100%;
 }
 
 .cm-scroller {
-    overflow: auto;
-    font-family:
-        "Inter",
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        Roboto,
-        Oxygen,
-        Ubuntu,
-        Cantarell,
-        sans-serif;
+  overflow: auto;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 /* Task Checkbox Styles */
 .cm-task-checkbox {
-    margin-right: 0.5em;
-    cursor: pointer;
-    vertical-align: middle;
+  margin-right: 0.5em;
+  cursor: pointer;
+  vertical-align: middle;
 }
 
 /* Heading Styles - Additional enforcement */
@@ -195,46 +187,46 @@ span[class*="heading"],
 .cm-heading-5 *,
 .cm-heading-6,
 .cm-heading-6 * {
-    display: inline-block;
-    text-decoration: none !important;
-    border-bottom: none !important;
-    text-decoration-line: none !important;
-    border-bottom-width: 0 !important;
+  display: inline-block;
+  text-decoration: none !important;
+  border-bottom: none !important;
+  text-decoration-line: none !important;
+  border-bottom-width: 0 !important;
 }
 
 /* Code Block Styles */
 .cm-code-block {
-    margin: 0.5em 0;
-    border-radius: 4px;
-    overflow: hidden;
+  margin: 0.5em 0;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .cm-code-block-language {
-    background: rgba(128, 128, 128, 0.2);
-    padding: 0.25em 0.5em;
-    font-size: 0.85em;
-    font-family: monospace;
-    color: #888;
+  background: rgba(128, 128, 128, 0.2);
+  padding: 0.25em 0.5em;
+  font-size: 0.85em;
+  font-family: monospace;
+  color: #888;
 }
 
 /* Inline Code Styles */
 .cm-inline-code {
-    font-family: "Monaco", "Menlo", "Ubuntu Mono", "Courier New", monospace;
-    background: rgba(128, 128, 128, 0.15);
-    padding: 0.1em 0.3em;
-    border-radius: 3px;
-    font-size: 0.9em;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", "Courier New", monospace;
+  background: rgba(128, 128, 128, 0.15);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
 }
 
 /* Link Styles */
 .cm-link-text {
-    color: #4dabf7;
-    text-decoration: underline;
-    cursor: pointer;
+  color: #4dabf7;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .cm-link-text:hover {
-    color: #339af0;
+  color: #339af0;
 }
 
 /* Wiki Link Styles - NUCLEAR OPTION: Override all possible CodeMirror classes */
@@ -246,50 +238,50 @@ span.cm-wiki-link,
 .cm-line span.cm-wiki-link,
 .cm-content .cm-line .cm-wiki-link,
 .cm-content .cm-line span.cm-wiki-link {
-    text-decoration: none !important;
-    text-decoration-line: none !important;
-    text-decoration-style: none !important;
-    text-decoration-color: transparent !important;
-    border-bottom: none !important;
-    border-bottom-width: 0 !important;
-    border-bottom-style: none !important;
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  text-decoration-style: none !important;
+  text-decoration-color: transparent !important;
+  border-bottom: none !important;
+  border-bottom-width: 0 !important;
+  border-bottom-style: none !important;
 }
 
 /* Blockquote Styles */
 .cm-blockquote {
-    border-left: 3px solid #ccc;
-    padding-left: 1em;
-    margin-left: 0;
-    color: #666;
-    font-style: italic;
+  border-left: 3px solid #ccc;
+  padding-left: 1em;
+  margin-left: 0;
+  color: #666;
+  font-style: italic;
 }
 
 /* Embed widgets */
 .cm-block-embed-subtree,
 .cm-page-embed {
-    display: inline-block;
-    width: 100%;
-    pointer-events: auto !important;
-    cursor: default;
+  display: inline-block;
+  width: 100%;
+  pointer-events: auto !important;
+  cursor: default;
 }
 
 .cm-block-embed-subtree *,
 .cm-page-embed * {
-    pointer-events: auto !important;
+  pointer-events: auto !important;
 }
 
 /* Remove any backgrounds/borders from lines containing embed widgets */
 .cm-line:has(.cm-block-embed-subtree),
 .cm-line:has(.cm-page-embed) {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 /* Also ensure the content wrapper doesn't add backgrounds */
 .cm-content:has(.cm-block-embed-subtree),
 .cm-content:has(.cm-page-embed) {
-    background: transparent !important;
+  background: transparent !important;
 }
 
 /* Hidden/Dimmed Syntax Styles */
@@ -300,30 +292,30 @@ span.cm-wiki-link,
    "not show up" until the DOM is re-laid out (often after a whitespace).
    We instead rely on opacity/font-size to visually hide while preserving layout/IME behavior. */
 .cm-hidden {
-    display: inline !important;
-    opacity: 0 !important;
-    font-size: 0.01em !important;
-    text-decoration: none !important;
-    text-decoration-line: none !important;
-    border-bottom: none !important;
-    pointer-events: none !important;
+  display: inline !important;
+  opacity: 0 !important;
+  font-size: 0.01em !important;
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  border-bottom: none !important;
+  pointer-events: none !important;
 }
 
 .cm-dim-marker {
-    opacity: 0.4 !important;
-    font-size: 0.85em !important;
-    color: rgba(127, 127, 127, 0.6) !important;
-    text-decoration: none !important;
-    text-decoration-line: none !important;
-    border-bottom: none !important;
+  opacity: 0.4 !important;
+  font-size: 0.85em !important;
+  color: rgba(127, 127, 127, 0.6) !important;
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  border-bottom: none !important;
 }
 
 /* Token spans inside markers can get their own generated classes (e.g. .c7) that re-apply underline.
    Force-disable underline for anything inside the marker wrapper. */
 .cm-dim-marker * {
-    text-decoration: none !important;
-    text-decoration-line: none !important;
-    border-bottom: none !important;
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  border-bottom: none !important;
 }
 
 /* Selection Styles */
@@ -333,101 +325,101 @@ span.cm-wiki-link,
    - Avoid clipping while keeping CodeMirror's own positioning logic intact.
    - Do NOT force fixed positioning (it breaks placement and can pin the panel to top-left). */
 .md-autocomplete-tooltip {
-    /* High enough to float over editor/content, but let app-level overlays win if needed */
-    z-index: 2000;
+  /* High enough to float over editor/content, but let app-level overlays win if needed */
+  z-index: 2000;
 
-    /* Keep CM positioning (usually absolute) */
-    position: static;
+  /* Keep CM positioning (usually absolute) */
+  position: static;
 
-    max-height: min(360px, 60vh);
-    min-width: 260px;
-    max-width: min(680px, 92vw);
-    overflow: auto;
-    border-radius: 8px;
+  max-height: min(360px, 60vh);
+  min-width: 260px;
+  max-width: min(680px, 92vw);
+  overflow: auto;
+  border-radius: 8px;
 
-    /* Make it easier to read against varying backgrounds */
-    background: var(--color-surface, rgba(20, 20, 20, 0.95));
-    border: 1px solid rgba(127, 127, 127, 0.25);
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  /* Make it easier to read against varying backgrounds */
+  background: var(--color-surface, rgba(20, 20, 20, 0.95));
+  border: 1px solid rgba(127, 127, 127, 0.25);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
 
-    /* Ensure the list doesn't get squeezed */
-    padding: 4px;
+  /* Ensure the list doesn't get squeezed */
+  padding: 4px;
 }
 
 .md-autocomplete-tooltip.cm-tooltip {
-    /* Keep CodeMirror default positioning */
-    position: absolute;
+  /* Keep CodeMirror default positioning */
+  position: absolute;
 }
 
 .md-autocomplete-tooltip .cm-tooltip-autocomplete {
-    max-height: inherit;
-    overflow: visible;
+  max-height: inherit;
+  overflow: visible;
 }
 
 .md-autocomplete-tooltip .cm-tooltip-autocomplete > ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 
-    /* Ensure items have room */
-    min-width: 260px;
+  /* Ensure items have room */
+  min-width: 260px;
 }
 
 .md-autocomplete-tooltip .cm-tooltip-autocomplete > ul > li {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 
-    padding: 6px 8px;
-    border-radius: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
 
-    /* Prevent text from being clipped by line-height issues */
-    line-height: 1.2;
+  /* Prevent text from being clipped by line-height issues */
+  line-height: 1.2;
 }
 
 .md-autocomplete-tooltip
-    .cm-tooltip-autocomplete
-    > ul
-    > li[aria-selected="true"] {
-    background: rgba(77, 171, 247, 0.18);
+  .cm-tooltip-autocomplete
+  > ul
+  > li[aria-selected="true"] {
+  background: rgba(77, 171, 247, 0.18);
 }
 
 .md-autocomplete-tooltip .cm-completionLabel {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .md-autocomplete-tooltip .cm-completionDetail {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    opacity: 0.75;
-    font-size: 0.85em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.75;
+  font-size: 0.85em;
 }
 
 /* Smooth Transitions */
 .cm-line {
-    transition: padding 0.1s ease;
+  transition: padding 0.1s ease;
 }
 
 /* Print Styles - CodeMirror specific */
 @media print {
-    .cm-gutters {
-        display: none;
-    }
+  .cm-gutters {
+    display: none;
+  }
 
-    /* Additional print styles in styles/base.css */
+  /* Additional print styles in styles/base.css */
 }
 
 /* Context Menu */
 /* Disable default browser context menu globally */
 * {
-    -webkit-user-select: text;
-    user-select: text;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Allow text selection but prevent default context menu on right-click */
 body {
-    -webkit-touch-callout: none;
+  -webkit-touch-callout: none;
 }

@@ -1,6 +1,6 @@
-import type React from "react";
-import { useState } from "react";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { type FileSystemItem, tauriAPI } from "../tauri-api";
 import { ContextMenu, type ContextMenuSection } from "./common/ContextMenu";
@@ -20,7 +20,15 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
   const [children, setChildren] = useState<FileSystemItem[]>([]);
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const { deleteItem, renameItem } = useWorkspaceStore();
+
+  useEffect(() => {
+    if (isRenaming && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [isRenaming]);
 
   const handleToggle = async () => {
     if (item.is_directory) {
@@ -62,9 +70,8 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
       return;
     }
 
-    const finalName = item.is_file && !newName.endsWith(".md") 
-      ? `${newName}.md` 
-      : newName;
+    const finalName =
+      item.is_file && !newName.endsWith(".md") ? `${newName}.md` : newName;
 
     try {
       await renameItem(item.path, finalName);
@@ -142,6 +149,14 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
               item.is_directory ? "" : ""
             }`}
             onClick={handleToggle}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleToggle();
+              }
+            }}
+            role="button"
+            tabIndex={0}
           >
             <div className="relative flex items-center justify-center h-6 w-6 shrink-0 cursor-pointer mt-0.5 group/bullet">
               {item.is_directory ? (
@@ -149,18 +164,18 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
                   folder
                 </span>
               ) : (
-                <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-600 group-hover/bullet:bg-gray-600 dark:group-hover/bullet:bg-gray-400 transition-colors"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-600 group-hover/bullet:bg-gray-600 dark:group-hover/bullet:bg-gray-400 transition-colors" />
               )}
             </div>
 
             {isRenaming ? (
               <input
+                ref={renameInputRef}
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={handleRenameKeyDown}
                 onBlur={handleRenameSubmit}
-                autoFocus
                 className="flex-1 min-w-0 px-2 py-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded outline-none focus:border-blue-500 dark:focus:border-blue-400 text-gray-800 dark:text-gray-200"
                 onClick={(e) => e.stopPropagation()}
               />
