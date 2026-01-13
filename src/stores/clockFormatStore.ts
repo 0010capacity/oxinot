@@ -4,17 +4,20 @@ import { persist } from "zustand/middleware";
 export type TimeFormat = "24h" | "12h";
 export type DateSeparator = "/" | "-" | ".";
 export type DateOrder = "MDY" | "DMY" | "YMD";
+export type Timezone = string;
 
 interface ClockFormatSettings {
   timeFormat: TimeFormat;
   dateOrder: DateOrder;
   dateSeparator: DateSeparator;
+  timezone: Timezone;
 }
 
 interface ClockFormatStore extends ClockFormatSettings {
   setTimeFormat: (format: TimeFormat) => void;
   setDateOrder: (order: DateOrder) => void;
   setDateSeparator: (separator: DateSeparator) => void;
+  setTimezone: (timezone: Timezone) => void;
   formatTime: (date: Date) => string;
   formatDate: (date: Date) => string;
 }
@@ -26,12 +29,14 @@ export const useClockFormatStore = createWithEqualityFn<ClockFormatStore>()(
       timeFormat: "24h",
       dateOrder: "MDY",
       dateSeparator: "/",
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 
       // Actions
       setTimeFormat: (format: TimeFormat) => set({ timeFormat: format }),
       setDateOrder: (order: DateOrder) => set({ dateOrder: order }),
       setDateSeparator: (separator: DateSeparator) =>
         set({ dateSeparator: separator }),
+      setTimezone: (timezone: Timezone) => set({ timezone }),
 
       formatTime: (date: Date) => {
         const hours = String(date.getHours()).padStart(2, "0");

@@ -90,6 +90,7 @@ interface OutlinerSettings {
   autoExpandBlocks: boolean;
   showBlockCount: boolean;
   showCodeBlockLineNumbers: boolean;
+  indentSize: number;
 }
 
 interface OutlinerSettingsStore extends OutlinerSettings {
@@ -100,6 +101,7 @@ interface OutlinerSettingsStore extends OutlinerSettings {
   setAutoExpandBlocks: (value: boolean) => void;
   setShowBlockCount: (value: boolean) => void;
   setShowCodeBlockLineNumbers: (value: boolean) => void;
+  setIndentSize: (size: number) => void;
 }
 
 export const useOutlinerSettingsStore =
@@ -112,6 +114,7 @@ export const useOutlinerSettingsStore =
         autoExpandBlocks: true,
         showBlockCount: false,
         showCodeBlockLineNumbers: true,
+        indentSize: 24,
 
         // Actions
         toggleIndentGuides: () =>
@@ -127,6 +130,8 @@ export const useOutlinerSettingsStore =
 
         setShowCodeBlockLineNumbers: (value: boolean) =>
           set({ showCodeBlockLineNumbers: value }),
+
+        setIndentSize: (size: number) => set({ indentSize: size }),
 
         setFontFamily: (font: FontFamily) => {
           set({ fontFamily: font });

@@ -14,6 +14,7 @@ interface AdvancedSettingsStore extends AdvancedSettings {
   setBetaUpdates: (value: boolean) => void;
   setTelemetryEnabled: (value: boolean) => void;
   resetAllSettings: () => void;
+  clearCache: () => void;
 }
 
 const defaultSettings: AdvancedSettings = {
@@ -47,6 +48,17 @@ export const useAdvancedSettingsStore =
           localStorage.removeItem("advanced-settings");
           // Reload to apply changes
           window.location.reload();
+        },
+
+        clearCache: () => {
+          // Clear browser cache and temporary data
+          if ("caches" in window) {
+            caches.keys().then((names) => {
+              names.forEach((name) => {
+                caches.delete(name);
+              });
+            });
+          }
         },
       }),
       {
