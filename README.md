@@ -2,6 +2,8 @@
 
 A modern markdown outliner application built with Tauri, React, and TypeScript. This app combines the power of block-based outliner editing (like Logseq) with a unique file tree navigation system.
 
+<!-- Testing auto-changeset PR workflow -->
+
 ## 🌟 Features
 
 ### Modern Desktop UI
