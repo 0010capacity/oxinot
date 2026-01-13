@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Modal,
   Stack,
@@ -30,6 +31,7 @@ import {
   IconSearch,
   IconPlus,
   IconX,
+  IconLanguage,
 } from "@tabler/icons-react";
 import {
   useThemeStore,
@@ -78,6 +80,7 @@ export function SettingsModal({
   pagesById,
   pageIds,
 }: SettingsModalProps) {
+  const { t, i18n } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -280,9 +283,9 @@ export function SettingsModal({
     // Define searchable content for each tab
     const tabContent: Record<string, string[]> = {
       appearance: [
-        "font family",
-        "editor font size",
-        "line height",
+        t("settings.appearance.font_family").toLowerCase(),
+        t("settings.appearance.editor_font_size").toLowerCase(),
+        t("settings.appearance.editor_line_height").toLowerCase(),
         "typography",
         "inter",
         "system",
@@ -291,24 +294,24 @@ export function SettingsModal({
         "preview",
       ],
       theme: [
-        "color mode",
-        "light",
-        "dark",
-        "auto",
-        "color variant",
+        t("settings.theme.color_mode").toLowerCase(),
+        t("settings.theme.modes.light").toLowerCase(),
+        t("settings.theme.modes.dark").toLowerCase(),
+        t("settings.theme.modes.auto").toLowerCase(),
+        t("settings.theme.color_variant").toLowerCase(),
         "accent",
-        "default",
-        "blue",
-        "purple",
-        "green",
-        "amber",
+        t("settings.theme.variants.default").toLowerCase(),
+        t("settings.theme.variants.blue").toLowerCase(),
+        t("settings.theme.variants.purple").toLowerCase(),
+        t("settings.theme.variants.green").toLowerCase(),
+        t("settings.theme.variants.amber").toLowerCase(),
       ],
       datetime: [
-        "time format",
+        t("settings.datetime.time_format").toLowerCase(),
         "24 hour",
         "12 hour",
-        "date order",
-        "date separator",
+        t("settings.datetime.date_order").toLowerCase(),
+        t("settings.datetime.date_separator").toLowerCase(),
         "mdy",
         "dmy",
         "ymd",
@@ -317,55 +320,76 @@ export function SettingsModal({
         "dot",
         "clock",
       ],
-      daily: ["daily notes path", "folder", "path", "daily"],
+      daily: [
+        t("settings.daily_notes.path").toLowerCase(),
+        "folder",
+        "path",
+        "daily",
+      ],
       homepage: [
-        "homepage type",
-        "daily note",
-        "file tree",
-        "index",
-        "custom page",
+        t("settings.homepage.type").toLowerCase(),
+        t("settings.homepage.types.daily_note").toLowerCase(),
+        t("settings.homepage.types.index").toLowerCase(),
+        t("settings.homepage.types.custom_page").toLowerCase(),
+        t("settings.homepage.custom_page").toLowerCase(),
         "start page",
         "default",
       ],
       outliner: [
-        "indent guides",
-        "auto expand",
-        "block count",
+        t("settings.outliner.indent_guides").toLowerCase(),
+        t("settings.outliner.auto_expand").toLowerCase(),
+        t("settings.outliner.block_count").toLowerCase(),
+        t("settings.outliner.code_block_line_numbers").toLowerCase(),
+        t("settings.outliner.indent_size").toLowerCase(),
         "blocks",
         "code block",
         "line numbers",
       ],
       git: [
-        "version control",
+        t("settings.git.title").toLowerCase(),
         "git",
         "repository",
         "commit",
-        "auto commit",
-        "remote",
+        t("settings.git.auto_commit").toLowerCase(),
+        t("settings.git.remote_repo").toLowerCase(),
         "push",
         "pull",
         "interval",
         "status",
       ],
       shortcuts: [
-        "keyboard shortcuts",
+        t("settings.shortcuts.title").toLowerCase(),
         "hotkey",
-        "command palette",
-        "search",
-        "settings",
+        t("settings.shortcuts.command_palette").toLowerCase(),
+        t("settings.shortcuts.search").toLowerCase(),
+        t("settings.shortcuts.toggle_index").toLowerCase(),
         "help",
         "toggle",
       ],
       advanced: [
-        "automatic updates",
-        "beta updates",
+        t("settings.advanced.updates").toLowerCase(),
+        t("settings.advanced.beta_updates").toLowerCase(),
         "check updates",
-        "telemetry",
-        "developer",
-        "reset settings",
+        t("settings.advanced.telemetry").toLowerCase(),
+        t("settings.advanced.developer_options").toLowerCase(),
+        t("settings.advanced.reset_settings").toLowerCase(),
         "danger",
       ],
-      about: ["version", "changelog", "beta", "oxinot", "info", "update"],
+      about: [
+        "version",
+        "changelog",
+        "beta",
+        "oxinot",
+        "info",
+        "update",
+        t("settings.about.updates_title").toLowerCase(),
+      ],
+      language: [
+        t("settings.language.title").toLowerCase(),
+        "english",
+        "korean",
+        "locale",
+      ],
     };
 
     return tabContent[tabValue]?.some((item) => item.includes(query)) ?? false;
@@ -378,10 +402,10 @@ export function SettingsModal({
       title={
         <Group gap="xs">
           <Text size="lg" fw={600}>
-            Settings
+            {t("settings.title")}
           </Text>
           <Badge size="sm" variant="light" color="blue">
-            Beta
+            {t("settings.beta")}
           </Badge>
         </Group>
       }
@@ -402,7 +426,7 @@ export function SettingsModal({
         }}
       >
         <TextInput
-          placeholder="Search settings..."
+          placeholder={t("settings.search_placeholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.currentTarget.value)}
           leftSection={<IconSearch size={16} />}
@@ -418,8 +442,7 @@ export function SettingsModal({
         />
         {searchQuery && (
           <Text size="xs" c="dimmed" mt={8}>
-            Search is active. If you don't see any matching sections, try a
-            different keyword.
+            {t("settings.search_active")}
           </Text>
         )}
       </div>
@@ -443,37 +466,42 @@ export function SettingsModal({
               value="appearance"
               leftSection={<IconAppWindow size={16} />}
             >
-              Appearance
+              {t("settings.tabs.appearance")}
+            </Tabs.Tab>
+          )}
+          {hasMatchInTab("language") && (
+            <Tabs.Tab value="language" leftSection={<IconLanguage size={16} />}>
+              {t("settings.tabs.language")}
             </Tabs.Tab>
           )}
           {hasMatchInTab("theme") && (
             <Tabs.Tab value="theme" leftSection={<IconPalette size={16} />}>
-              Theme
+              {t("settings.tabs.theme")}
             </Tabs.Tab>
           )}
           {hasMatchInTab("datetime") && (
             <Tabs.Tab value="datetime" leftSection={<IconClock size={16} />}>
-              Date & Time
+              {t("settings.tabs.datetime")}
             </Tabs.Tab>
           )}
           {hasMatchInTab("daily") && (
             <Tabs.Tab value="daily" leftSection={<IconCalendar size={16} />}>
-              Daily Notes
+              {t("settings.tabs.daily_notes")}
             </Tabs.Tab>
           )}
           {hasMatchInTab("homepage") && (
             <Tabs.Tab value="homepage" leftSection={<IconHome size={16} />}>
-              Homepage
+              {t("settings.tabs.homepage")}
             </Tabs.Tab>
           )}
           {hasMatchInTab("outliner") && (
             <Tabs.Tab value="outliner" leftSection={<IconList size={16} />}>
-              Outliner
+              {t("settings.tabs.outliner")}
             </Tabs.Tab>
           )}
           {hasMatchInTab("git") && (
             <Tabs.Tab value="git" leftSection={<IconBrandGit size={16} />}>
-              Version Control
+              {t("settings.tabs.version_control")}
             </Tabs.Tab>
           )}
           {hasMatchInTab("shortcuts") && (
@@ -481,17 +509,17 @@ export function SettingsModal({
               value="shortcuts"
               leftSection={<IconKeyboard size={16} />}
             >
-              Shortcuts
+              {t("settings.tabs.shortcuts")}
             </Tabs.Tab>
           )}
           {hasMatchInTab("advanced") && (
             <Tabs.Tab value="advanced" leftSection={<IconSettings size={16} />}>
-              Advanced
+              {t("settings.tabs.advanced")}
             </Tabs.Tab>
           )}
           {hasMatchInTab("about") && (
             <Tabs.Tab value="about" leftSection={<IconSettings size={16} />}>
-              About
+              {t("settings.tabs.about")}
             </Tabs.Tab>
           )}
         </Tabs.List>
@@ -509,17 +537,17 @@ export function SettingsModal({
             <Stack gap="xl">
               <div>
                 <Text size="xl" fw={600} mb="lg">
-                  Appearance
+                  {t("settings.appearance.title")}
                 </Text>
                 <Text size="sm" c="dimmed" mb="xl">
-                  Customize the look and feel of the editor
+                  {t("settings.appearance.description")}
                 </Text>
 
                 <Stack gap="lg">
-                  {matchesSearch("Font Family") && (
+                  {matchesSearch(t("settings.appearance.font_family")) && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Font Family
+                        {t("settings.appearance.font_family")}
                       </Text>
                       <Select
                         value={fontFamily}
@@ -527,11 +555,11 @@ export function SettingsModal({
                           if (value) setFontFamily(value as FontFamily);
                         }}
                         data={FONT_OPTIONS}
-                        placeholder="Select font"
+                        placeholder={t("settings.appearance.font_family")}
                         searchable
                       />
                       <Text size="xs" c="dimmed" mt={4}>
-                        Choose the font used throughout the application
+                        {t("settings.appearance.font_family_desc")}
                       </Text>
                       <div
                         style={{
@@ -557,10 +585,10 @@ export function SettingsModal({
                     </div>
                   )}
 
-                  {matchesSearch("Editor Font Size") && (
+                  {matchesSearch(t("settings.appearance.editor_font_size")) && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Editor Font Size
+                        {t("settings.appearance.editor_font_size")}
                       </Text>
                       <Group gap="md" align="center">
                         <Slider
@@ -586,15 +614,17 @@ export function SettingsModal({
                         </Text>
                       </Group>
                       <Text size="xs" c="dimmed" mt={4}>
-                        Adjust the font size in the editor
+                        {t("settings.appearance.editor_font_size_desc")}
                       </Text>
                     </div>
                   )}
 
-                  {matchesSearch("Editor Line Height") && (
+                  {matchesSearch(
+                    t("settings.appearance.editor_line_height"),
+                  ) && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Editor Line Height
+                        {t("settings.appearance.editor_line_height")}
                       </Text>
                       <Group gap="md" align="center">
                         <Slider
@@ -619,10 +649,41 @@ export function SettingsModal({
                         </Text>
                       </Group>
                       <Text size="xs" c="dimmed" mt={4}>
-                        Adjust spacing between lines
+                        {t("settings.appearance.editor_line_height_desc")}
                       </Text>
                     </div>
                   )}
+                </Stack>
+              </div>
+            </Stack>
+          </Tabs.Panel>
+
+          {/* Language Tab */}
+          <Tabs.Panel value="language">
+            <Stack gap="xl">
+              <div>
+                <Text size="xl" fw={600} mb="lg">
+                  {t("settings.tabs.language")}
+                </Text>
+                <Text size="sm" c="dimmed" mb="xl">
+                  {t("settings.language.description")}
+                </Text>
+
+                <Stack gap="lg">
+                  <div>
+                    <Text size="sm" fw={500} mb={8}>
+                      {t("settings.language.select")}
+                    </Text>
+                    <Select
+                      value={i18n.language}
+                      onChange={(value) => i18n.changeLanguage(value || "en")}
+                      data={[
+                        { label: "English", value: "en" },
+                        { label: "한국어", value: "ko" },
+                      ]}
+                      allowDeselect={false}
+                    />
+                  </div>
                 </Stack>
               </div>
             </Stack>
@@ -633,14 +694,14 @@ export function SettingsModal({
             <Stack gap="xl">
               <div>
                 <Text size="xl" fw={600} mb="lg">
-                  Theme
+                  {t("settings.theme.title")}
                 </Text>
 
                 <Stack gap="lg">
-                  {matchesSearch("color mode light dark") && (
+                  {matchesSearch(t("settings.theme.color_mode")) && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Color Mode
+                        {t("settings.theme.color_mode")}
                       </Text>
                       <SegmentedControl
                         value={colorMode}
@@ -648,19 +709,28 @@ export function SettingsModal({
                           setColorMode(value as "light" | "dark" | "auto")
                         }
                         data={[
-                          { label: "Light", value: "light" },
-                          { label: "Dark", value: "dark" },
-                          { label: "Auto", value: "auto" },
+                          {
+                            label: t("settings.theme.modes.light"),
+                            value: "light",
+                          },
+                          {
+                            label: t("settings.theme.modes.dark"),
+                            value: "dark",
+                          },
+                          {
+                            label: t("settings.theme.modes.auto"),
+                            value: "auto",
+                          },
                         ]}
                         fullWidth
                       />
                     </div>
                   )}
 
-                  {matchesSearch("Color Variant accent") && (
+                  {matchesSearch(t("settings.theme.color_variant")) && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Color Variant
+                        {t("settings.theme.color_variant")}
                       </Text>
                       <SegmentedControl
                         value={colorVariant}
@@ -668,11 +738,26 @@ export function SettingsModal({
                           setColorVariant(value as ColorVariant)
                         }
                         data={[
-                          { label: "Default", value: "default" },
-                          { label: "Blue", value: "blue" },
-                          { label: "Purple", value: "purple" },
-                          { label: "Green", value: "green" },
-                          { label: "Amber", value: "amber" },
+                          {
+                            label: t("settings.theme.variants.default"),
+                            value: "default",
+                          },
+                          {
+                            label: t("settings.theme.variants.blue"),
+                            value: "blue",
+                          },
+                          {
+                            label: t("settings.theme.variants.purple"),
+                            value: "purple",
+                          },
+                          {
+                            label: t("settings.theme.variants.green"),
+                            value: "green",
+                          },
+                          {
+                            label: t("settings.theme.variants.amber"),
+                            value: "amber",
+                          },
                         ]}
                         fullWidth
                       />
@@ -690,17 +775,17 @@ export function SettingsModal({
             <Stack gap="xl">
               <div>
                 <Text size="xl" fw={600} mb="lg">
-                  Date & Time
+                  {t("settings.datetime.title")}
                 </Text>
                 <Text size="sm" c="dimmed" mb="xl">
-                  Configure how dates and times are displayed
+                  {t("settings.datetime.description")}
                 </Text>
 
                 <Stack gap="lg">
-                  {matchesSearch("Time Format 24 12 hour clock") && (
+                  {matchesSearch(t("settings.datetime.time_format")) && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Time Format
+                        {t("settings.datetime.time_format")}
                       </Text>
                       <Select
                         value={timeFormat}
@@ -709,15 +794,15 @@ export function SettingsModal({
                           { label: "24-Hour (13:34)", value: "24h" },
                           { label: "12-Hour (01:34 PM)", value: "12h" },
                         ]}
-                        placeholder="Select time format"
+                        placeholder={t("settings.datetime.time_format")}
                       />
                     </div>
                   )}
 
-                  {matchesSearch("Date Order MDY DMY YMD") && (
+                  {matchesSearch(t("settings.datetime.date_order")) && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Date Order
+                        {t("settings.datetime.date_order")}
                       </Text>
                       <Select
                         value={dateOrder}
@@ -727,18 +812,18 @@ export function SettingsModal({
                           { label: "Day/Month/Year (DMY)", value: "DMY" },
                           { label: "Year/Month/Day (YMD)", value: "YMD" },
                         ]}
-                        placeholder="Select date order"
+                        placeholder={t("settings.datetime.date_order")}
                       />
                       <Text size="xs" c="dimmed" mt={4}>
-                        Choose the order of year, month, and day
+                        {t("settings.datetime.date_separator_desc")}
                       </Text>
                     </div>
                   )}
 
-                  {matchesSearch("Date Separator slash hyphen dot") && (
+                  {matchesSearch(t("settings.datetime.date_separator")) && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Date Separator
+                        {t("settings.datetime.date_separator")}
                       </Text>
                       <Select
                         value={dateSeparator}
@@ -750,15 +835,15 @@ export function SettingsModal({
                           { label: "Hyphen (-)", value: "-" },
                           { label: "Dot (.)", value: "." },
                         ]}
-                        placeholder="Select separator"
+                        placeholder={t("settings.datetime.date_separator")}
                       />
                     </div>
                   )}
 
-                  {matchesSearch("timezone") && (
+                  {matchesSearch(t("settings.datetime.timezone")) && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
-                        Timezone
+                        {t("settings.datetime.timezone")}
                       </Text>
                       <Select
                         value={timezone}
@@ -836,13 +921,13 @@ export function SettingsModal({
                                 ...timezones,
                               ];
                         })()}
-                        placeholder="Select timezone"
+                        placeholder={t("settings.datetime.timezone")}
                         searchable
                       />
                     </div>
                   )}
 
-                  {matchesSearch("preview") && (
+                  {matchesSearch(t("settings.datetime.preview")) && (
                     <div
                       style={{
                         padding: 16,
@@ -851,7 +936,7 @@ export function SettingsModal({
                       }}
                     >
                       <Text size="sm" fw={500} mb={4}>
-                        Preview
+                        {t("settings.datetime.preview")}
                       </Text>
                       <Text size="sm">
                         {useClockFormatStore.getState().formatDate(new Date())}{" "}
