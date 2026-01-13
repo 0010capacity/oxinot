@@ -233,7 +233,7 @@ Fixes #38
 
 ### Changesets Workflow
 
-Changesets are automatically generated when commits are pushed to main.
+Changesets are automatically generated when PRs are merged to main via GitHub Actions.
 
 #### Changeset Rules
 
@@ -252,15 +252,23 @@ No changesets for:
 #### Auto-Changeset Example
 
 ```bash
-git commit -m "feat(editor): add block templates dropdown
+# When PR is merged to main, GitHub Actions automatically:
+# 1. Analyzes commits since last release
+# 2. Detects commit types (feat, fix, perf, improve)
+# 3. Generates single changeset with highest version bump
+# 4. Commits changeset back to main branch
 
-Users can now insert predefined block templates from menu."
+# Example: PR with these commits merged:
+# - feat(editor): add block templates dropdown
+# - fix(editor): handle edge case in template selection
 
-# Git hook automatically:
-# → Detects "feat" type
-# → Creates .changeset/happy-cats-jump.md
-# → Stages the file
-# → Ready to push
+# GitHub Actions creates .changeset/happy-cats-jump.md:
+# ---
+# "oxinot": minor
+# ---
+# 
+# - add block templates dropdown
+# - handle edge case in template selection
 ```
 
 #### Changeset File Format
@@ -302,8 +310,9 @@ Always merge back to main through PR.
 9. CI runs automatically (lint-and-build required by branch protection)
 10. PR auto-merges when CI passes
 11. Issue auto-closes when PR merges
-12. Changeset auto-created on main branch
-13. User runs `npm run release` when ready
+12. GitHub Actions runs auto-changeset workflow
+13. Changeset committed to main branch automatically
+14. User runs `npm run release` when ready
 
 ### Version File Synchronization
 
@@ -317,7 +326,7 @@ Runs automatically with `npm run version`.
 ## Important Notes for AI Agents
 
 - Always use conventional commit format: `type(scope): message`
-- Changesets are automatic via Git hooks
+- Changesets are automatic via GitHub Actions when PR merges to main
 - Issues are optional based on task scope
 - PRs are mandatory, direct commits to main blocked by branch protection
 - Use correct gh CLI syntax: template name not filename
@@ -330,6 +339,7 @@ Runs automatically with `npm run version`.
 - Create PR with: `gh pr create --title "..." --body "..."`
 - Branch protection enforces: PR required, CI must pass, auto-merge enabled
 - Labels are added via --label flag in gh issue create
+- Changesets are committed automatically by GitHub Actions after PR merge
 
 ## Release Process (User Only)
 
