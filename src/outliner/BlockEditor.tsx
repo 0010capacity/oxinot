@@ -32,6 +32,7 @@ export function BlockEditor({
   const isLoading = useBlockStore((state) => state.isLoading);
   const error = useBlockStore((state) => state.error);
   const childrenMap = useBlockStore((state) => state.childrenMap);
+  const currentPageId = useBlockStore((state) => state.currentPageId);
 
   const focusedBlockId = useViewStore((state) => state.focusedBlockId);
 
@@ -47,7 +48,7 @@ export function BlockEditor({
 
   // Auto-create first block if page is empty
   useEffect(() => {
-    if (!isLoading && !error && pageId) {
+    if (!isLoading && !error && pageId && currentPageId === pageId) {
       const rootBlocks = childrenMap["root"] || [];
       const hasBlocks = rootBlocks.length > 0;
 
@@ -57,7 +58,7 @@ export function BlockEditor({
         });
       }
     }
-  }, [isLoading, error, pageId, childrenMap, createBlock]);
+  }, [isLoading, error, pageId, currentPageId, childrenMap, createBlock]);
 
   if (isLoading) {
     return (
