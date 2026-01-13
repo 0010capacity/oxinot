@@ -1,20 +1,20 @@
-import type React from "react";
-import { memo, useCallback, useRef, useEffect, useMemo, useState } from "react";
+import type { KeyBinding } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 import { useMantineColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
+import type React from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Editor, type EditorRef } from "../components/Editor";
 import {
   useBlock,
-  useChildrenIds,
   useBlockStore,
+  useChildrenIds,
   useFocusedBlockId,
 } from "../stores/blockStore";
+import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
-import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
-import { Editor, type EditorRef } from "../components/Editor";
-import type { KeyBinding } from "@codemirror/view";
-import type { EditorView } from "@codemirror/view";
 import "./BlockComponent.css";
 
 interface BlockComponentProps {
@@ -98,7 +98,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         const view = editorRef.current?.getView();
 
         // If already focused and no target position, skip (mouse click already handled)
-        if (view && view.hasFocus && targetCursorPosition === null) {
+        if (view?.hasFocus && targetCursorPosition === null) {
           return;
         }
 
@@ -425,7 +425,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 }
               }
               return true;
-            } else if (cursor === 0) {
+            }
+            
+            if (cursor === 0) {
               // At start of non-empty block - merge with previous
               const prevBlockId = useBlockStore
                 .getState()
@@ -595,6 +597,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           {/* Collapse/Expand Toggle */}
           {hasChildren ? (
             <button
+              type="button"
               className={`collapse-toggle ${block.isCollapsed ? "collapsed" : ""}`}
               onClick={() => toggleCollapse(blockId)}
               aria-label={block.isCollapsed ? "Expand" : "Collapse"}
@@ -606,14 +609,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           )}
 
           {/* Bullet Point - clickable for zoom */}
-          <div
+          <button
+            type="button"
             className="block-bullet-wrapper"
             onClick={handleBulletClick}
-            style={{ cursor: hasChildren ? "pointer" : "default" }}
+            style={{ 
+              cursor: hasChildren ? "pointer" : "default",
+              border: "none",
+              background: "transparent",
+              padding: 0
+            }}
             title={hasChildren ? "Click to zoom into this block" : undefined}
           >
             <div className="block-bullet" />
-          </div>
+          </button>
 
           {/* Content Editor */}
           <div

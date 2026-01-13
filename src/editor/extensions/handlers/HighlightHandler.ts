@@ -8,12 +8,12 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
+import { BaseHandler, type RenderContext } from "./types";
 
 export class HighlightHandler extends BaseHandler {
   constructor() {
@@ -44,6 +44,7 @@ export class HighlightHandler extends BaseHandler {
     const highlightRegex: RegExp = /==([^=]+)==/g;
     let match: RegExpExecArray | null;
 
+    // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
     while ((match = highlightRegex.exec(lineText)) !== null) {
       const start = lineFrom + match.index;
       const end = start + match[0].length;

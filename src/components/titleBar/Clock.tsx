@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { Text, Box, Popover } from "@mantine/core";
+import { Box, Popover, Text } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
+import { useEffect, useState } from "react";
 import { useClockFormatStore } from "../../stores/clockFormatStore";
 import { CalendarDropdown } from "../CalendarDropdown";
 
@@ -11,10 +11,7 @@ export function Clock() {
   const [date, setDate] = useState<string>("");
   const [opened, setOpened] = useState(false);
 
-  // Get the format settings and formatter functions
-  const timeFormat = useClockFormatStore((state) => state.timeFormat);
-  const dateOrder = useClockFormatStore((state) => state.dateOrder);
-  const dateSeparator = useClockFormatStore((state) => state.dateSeparator);
+  // Get the formatter functions
   const formatTime = useClockFormatStore((state) => state.formatTime);
   const formatDate = useClockFormatStore((state) => state.formatDate);
 
@@ -29,7 +26,7 @@ export function Clock() {
     const interval = setInterval(updateClock, 1000);
 
     return () => clearInterval(interval);
-  }, [timeFormat, dateOrder, dateSeparator]);
+  }, [formatTime, formatDate]);
 
   const handleClose = () => {
     setOpened(false);

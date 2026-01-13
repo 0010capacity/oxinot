@@ -1,17 +1,17 @@
-import type React from "react";
-import { useEffect, useState, useRef } from "react";
-import { TextInput, Group, ActionIcon, Text } from "@mantine/core";
+import { ActionIcon, Group, Text, TextInput } from "@mantine/core";
 import {
   IconCheck,
-  IconX,
-  IconFolderPlus,
   IconEdit,
+  IconFolderPlus,
+  IconX,
 } from "@tabler/icons-react";
-import { useViewStore } from "../../stores/viewStore";
-import { usePageStore, type PageData } from "../../stores/pageStore";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import { useBlockStore } from "../../stores/blockStore";
-import { CollapseToggle } from "../common/CollapseToggle";
+import { type PageData, usePageStore } from "../../stores/pageStore";
+import { useViewStore } from "../../stores/viewStore";
 import { BulletPoint } from "../common/BulletPoint";
+import { CollapseToggle } from "../common/CollapseToggle";
 import { IndentGuide } from "../common/IndentGuide";
 
 // Extract basename from path (e.g., "A/B/C" -> "C")

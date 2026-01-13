@@ -1,6 +1,6 @@
-import { createWithEqualityFn } from "zustand/traditional";
-import { persist } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
+import { persist } from "zustand/middleware";
+import { createWithEqualityFn } from "zustand/traditional";
 
 interface GitStatus {
   is_repo: boolean;

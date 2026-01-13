@@ -11,10 +11,10 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import { createHiddenMarker, createWidget } from "../utils/decorationHelpers";
 import { CheckboxWidget } from "../widgets/CheckboxWidget";
+import { BaseHandler, type RenderContext } from "./types";
 
 export class TaskListHandler extends BaseHandler {
   constructor() {

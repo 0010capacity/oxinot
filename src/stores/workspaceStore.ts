@@ -1,6 +1,6 @@
-import { createWithEqualityFn } from "zustand/traditional";
 import { persist } from "zustand/middleware";
-import { tauriAPI, type FileSystemItem } from "../tauri-api";
+import { createWithEqualityFn } from "zustand/traditional";
+import { type FileSystemItem, tauriAPI } from "../tauri-api";
 
 // Throttle lastAccessed updates to 5 minutes
 const LAST_ACCESSED_THROTTLE_MS = 5 * 60 * 1000;

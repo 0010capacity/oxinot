@@ -1,6 +1,6 @@
 import type { KeyBinding } from "@codemirror/view";
-import type { Block, BlockAction } from "./types";
 import { flattenBlocks } from "./blockUtils";
+import type { Block, BlockAction } from "./types";
 
 /**
  * Create keybindings for a specific block in the outliner

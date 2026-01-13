@@ -1,9 +1,9 @@
-import { Modal, TextInput, Stack, Text, Box, Loader } from "@mantine/core";
-import { IconSearch, IconFolder, IconFile } from "@tabler/icons-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { Box, Loader, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
-import { usePageStore, type PageData } from "../stores/pageStore";
+import { IconFile, IconFolder, IconSearch } from "@tabler/icons-react";
+import { invoke } from "@tauri-apps/api/core";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { type PageData, usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 
@@ -181,17 +181,20 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
     }
   };
 
-  const renderSnippet = (snippet: string) => {
+  const renderSnippet = (snippet: string, pageId: string) => {
     // Parse the snippet and highlight the **matched** text
     const parts = snippet.split(/(\*\*.*?\*\*)/g);
+    let partCounter = 0;
     return (
       <span>
-        {parts.map((part, index) => {
+        {parts.map((part) => {
+          if (part.length === 0) return null;
+          partCounter += 1;
           if (part.startsWith("**") && part.endsWith("**")) {
             const text = part.slice(2, -2);
             return (
               <span
-                key={index}
+                key={`${pageId}-highlight-${partCounter}`}
                 style={{
                   backgroundColor: isDark ? "#ffd43b" : "#fff3bf",
                   color: isDark ? "#000" : "#000",
@@ -202,7 +205,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
               </span>
             );
           }
-          return <span key={index}>{part}</span>;
+          return <span key={`${pageId}-snippet-${partCounter}`}>{part}</span>;
         })}
       </span>
     );
@@ -267,7 +270,8 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                   }}
                 >
                   {hasChildren && (
-                    <span
+                    <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleToggleCollapse(page.id);
@@ -280,10 +284,13 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                         userSelect: "none",
                         width: "12px",
                         color: isDark ? "#909296" : "#868e96",
+                        border: "none",
+                        background: "none",
+                        padding: "0",
                       }}
                     >
                       {isCollapsed ? "▸" : "▾"}
-                    </span>
+                    </button>
                   )}
                   {!hasChildren && (
                     <span style={{ width: "12px", display: "inline-block" }} />
@@ -396,7 +403,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                       fontSize: "0.8rem",
                     }}
                   >
-                    {renderSnippet(result.snippet)}
+                    {renderSnippet(result.snippet, result.page_id)}
                   </Text>
                 </div>
               </div>

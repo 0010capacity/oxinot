@@ -1,37 +1,37 @@
-import { useEffect, useState } from "react";
 import {
-  MantineProvider,
   AppShell,
   Container,
-  createTheme,
+  MantineProvider,
   Stack,
   Text,
+  createTheme,
 } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
+import { useEffect, useState } from "react";
 import "@mantine/notifications/styles.css";
 
-import { useWorkspaceStore } from "./stores/workspaceStore";
-import { useViewStore, useViewMode, useBreadcrumb } from "./stores/viewStore";
-import { usePageStore } from "./stores/pageStore";
-import { useOutlinerSettingsStore } from "./stores/outlinerSettingsStore";
-import { MigrationDialog } from "./components/MigrationDialog";
-import { TitleBar } from "./components/TitleBar";
-import { FileTreeIndex } from "./components/FileTreeIndex";
-import { BlockEditor } from "./outliner/BlockEditor";
-import { SearchModal } from "./components/SearchModal";
-import { HelpModal } from "./components/HelpModal";
 import { CommandPalette } from "./components/CommandPalette";
-import { SyncProgress } from "./components/SyncProgress";
-import { BottomLeftControls } from "./components/layout/BottomLeftControls";
-import { SettingsModal } from "./components/SettingsModal";
-import { GitStatusIndicator } from "./components/GitStatusIndicator";
 import { ErrorNotifications } from "./components/ErrorNotifications";
+import { FileTreeIndex } from "./components/FileTreeIndex";
+import { GitStatusIndicator } from "./components/GitStatusIndicator";
+import { HelpModal } from "./components/HelpModal";
+import { MigrationDialog } from "./components/MigrationDialog";
+import { SearchModal } from "./components/SearchModal";
+import { SettingsModal } from "./components/SettingsModal";
+import { SyncProgress } from "./components/SyncProgress";
+import { TitleBar } from "./components/TitleBar";
 import { Updater } from "./components/Updater";
+import { BottomLeftControls } from "./components/layout/BottomLeftControls";
+import { BlockEditor } from "./outliner/BlockEditor";
+import { useOutlinerSettingsStore } from "./stores/outlinerSettingsStore";
+import { usePageStore } from "./stores/pageStore";
+import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
+import { useWorkspaceStore } from "./stores/workspaceStore";
 
-import { ThemeProvider } from "./theme/ThemeProvider";
+import { useHomepage } from "./hooks/useHomepage";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useWorkspaceInitializer } from "./hooks/useWorkspaceInitializer";
-import { useHomepage } from "./hooks/useHomepage";
+import { ThemeProvider } from "./theme/ThemeProvider";
 
 const theme = createTheme({
   fontFamily:

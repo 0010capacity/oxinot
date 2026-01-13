@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
 import { TextInput } from "@mantine/core";
+import { useEffect, useRef, useState } from "react";
 import { BulletPoint } from "../common/BulletPoint";
 
 interface NewPageInputProps {

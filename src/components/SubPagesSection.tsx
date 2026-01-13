@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
-import { usePageStore } from "../stores/pageStore";
-import { useBlockStore } from "../stores/blockStore";
-import { useViewStore } from "../stores/viewStore";
 import { useMantineColorScheme } from "@mantine/core";
+import { useMemo, useState } from "react";
+import { useBlockStore } from "../stores/blockStore";
+import { usePageStore } from "../stores/pageStore";
+import { useViewStore } from "../stores/viewStore";
 import { BulletPoint } from "./common/BulletPoint";
 import { CollapseToggle } from "./common/CollapseToggle";
 
@@ -30,26 +30,25 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   // Build tree structure recursively
-  const buildTree = (parentId: string): PageTreeNode[] => {
-    return pageIds
-      .map((id) => pagesById[id])
-      .filter((page) => page && page.parentId === parentId)
-      .sort((a, b) => {
-        // Sort directories first, then by title
-        if (a.isDirectory !== b.isDirectory) {
-          return a.isDirectory ? -1 : 1;
-        }
-        return a.title.localeCompare(b.title);
-      })
-      .map((page) => ({
-        id: page.id,
-        title: page.title,
-        isDirectory: page.isDirectory,
-        children: buildTree(page.id),
-      }));
-  };
-
   const childPages = useMemo(() => {
+    const buildTree = (parentId: string): PageTreeNode[] => {
+      return pageIds
+        .map((id) => pagesById[id])
+        .filter((page) => page && page.parentId === parentId)
+        .sort((a, b) => {
+          // Sort directories first, then by title
+          if (a.isDirectory !== b.isDirectory) {
+            return a.isDirectory ? -1 : 1;
+          }
+          return a.title.localeCompare(b.title);
+        })
+        .map((page) => ({
+          id: page.id,
+          title: page.title,
+          isDirectory: page.isDirectory,
+          children: buildTree(page.id),
+        }));
+    };
     return buildTree(currentPageId);
   }, [pageIds, pagesById, currentPageId]);
 
@@ -134,7 +133,8 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
             <BulletPoint type="default" />
 
             {/* Title */}
-            <span
+            <button
+              type="button"
               onClick={() => handlePageClick(node.id)}
               style={{
                 fontSize: "15px",
@@ -143,10 +143,14 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
                   : "rgba(0, 0, 0, 0.85)",
                 fontWeight: node.isDirectory ? 500 : 400,
                 userSelect: "none",
+                cursor: "pointer",
+                border: "none",
+                background: "none",
+                padding: "0",
               }}
             >
               {node.title}
-            </span>
+            </button>
           </div>
 
           {/* Render children recursively */}

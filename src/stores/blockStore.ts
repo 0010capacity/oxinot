@@ -1,7 +1,7 @@
-import { createWithEqualityFn as create } from "zustand/traditional";
+import { invoke } from "@tauri-apps/api/core";
 import { immer } from "zustand/middleware/immer";
 import { shallow } from "zustand/shallow";
-import { invoke } from "@tauri-apps/api/core";
+import { createWithEqualityFn as create } from "zustand/traditional";
 import { useWorkspaceStore } from "./workspaceStore";
 
 // ============ Types ============
@@ -519,28 +519,28 @@ export const useBlockStore = create<BlockStore>()(
       }
     },
 
-    moveBlock: async (
-      id: string,
-      newParentId: string | null,
-      afterBlockId: string | null,
-    ) => {
-      try {
+      moveBlock: async (
+        id: string,
+        targetParentId: string | null,
+        afterBlockId: string | null,
+      ) => {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
-          throw new Error("No workspace selected");
+          throw new Error("No workspace path");
         }
 
         await invoke("move_block", {
           workspacePath,
-          request: { id, newParentId, afterBlockId },
+          blockId: id,
+          newParentId: targetParentId,
+          afterBlockId,
         });
 
+        // Reload page to reflect changes
         const pageId = get().currentPageId;
         if (pageId) await get().loadPage(pageId);
-      } catch (error) {
-        throw error;
-      }
-    },
+      },
+
 
     toggleCollapse: async (id: string) => {
       const block = get().blocksById[id];
@@ -600,7 +600,7 @@ export const useBlockStore = create<BlockStore>()(
       return get().childrenMap[key] ?? [];
     },
 
-    getRootBlockIds: () => get().childrenMap["root"] ?? [],
+    getRootBlockIds: () => get().childrenMap.root ?? [],
 
     // ============ Keyboard Navigation ============
 
@@ -633,7 +633,9 @@ export const useBlockStore = create<BlockStore>()(
         }
 
         return lastVisibleId;
-      } else if (block.parentId) {
+      }
+      
+      if (block.parentId) {
         // 첫 번째 형제면 부모로
         return block.parentId;
       }

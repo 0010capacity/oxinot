@@ -1,4 +1,4 @@
-import { Modal, Stack, Text, Box, Button, Group } from "@mantine/core";
+import { Box, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
 import { useState } from "react";
 import { usePageStore } from "../stores/pageStore";

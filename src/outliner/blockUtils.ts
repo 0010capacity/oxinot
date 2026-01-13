@@ -1,14 +1,14 @@
 import { v4 as uuidv4 } from "uuid";
-import type { Block } from "./types";
 import {
-  INDENT_SIZE,
-  MIN_LEVEL,
-  MAX_LEVEL,
-  FENCE_MARKERS,
-  CODE_MARKERS,
   BLOCK_KINDS,
+  CODE_MARKERS,
+  FENCE_MARKERS,
+  INDENT_SIZE,
+  MAX_LEVEL,
+  MIN_LEVEL,
 } from "./constants";
 import { debug } from "./debug";
+import type { Block } from "./types";
 
 /**
  * Generate a unique block ID
@@ -77,12 +77,12 @@ export function buildBlockTree(blocks: Block[]): Block[] {
   if (blocks.length === 0) return [];
 
   // Reset children and parent references to rebuild tree structure
-  blocks.forEach((block) => {
+  for (const block of blocks) {
     if (block) {
       block.children = [];
       block.parent = null;
     }
-  });
+  }
 
   const root: Block[] = [];
   const stack: Block[] = [];

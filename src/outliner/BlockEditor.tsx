@@ -1,14 +1,14 @@
-import { useEffect } from "react";
 import { useMantineColorScheme } from "@mantine/core";
-import { useBlockStore } from "../stores/blockStore";
-import { useViewStore } from "../stores/viewStore";
-import { useThemeStore } from "../stores/themeStore";
-import { BlockComponent } from "./BlockComponent";
-import { PageContainer } from "../components/layout/PageContainer";
-import { ContentWrapper } from "../components/layout/ContentWrapper";
-import { PageHeader } from "../components/layout/PageHeader";
+import { useEffect } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
+import { ContentWrapper } from "../components/layout/ContentWrapper";
+import { PageContainer } from "../components/layout/PageContainer";
+import { PageHeader } from "../components/layout/PageHeader";
+import { useBlockStore } from "../stores/blockStore";
+import { useThemeStore } from "../stores/themeStore";
+import { useViewStore } from "../stores/viewStore";
+import { BlockComponent } from "./BlockComponent";
 import "./BlockEditor.css";
 
 interface BlockEditorProps {
@@ -49,6 +49,7 @@ export function BlockEditor({
   // Auto-create first block if page is empty
   useEffect(() => {
     if (!isLoading && !error && pageId && currentPageId === pageId) {
+      // biome-ignore lint/complexity/useLiteralKeys: "root" is a reserved key name
       const rootBlocks = childrenMap["root"] || [];
       const hasBlocks = rootBlocks.length > 0;
 
@@ -93,7 +94,7 @@ export function BlockEditor({
   // Determine which blocks to show based on zoom level
   const blocksToShow = focusedBlockId
     ? [focusedBlockId]
-    : childrenMap["root"] || [];
+    : childrenMap.root || [];
 
   return (
     <PageContainer className={isDark ? "theme-dark" : "theme-light"}>

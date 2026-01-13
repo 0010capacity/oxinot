@@ -144,19 +144,12 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
             </button>
           )}
 
-          <div
+          <button
+            type="button"
             className={`flex items-start gap-2 py-1 -ml-2 pl-2 rounded-md hover:bg-surface-light dark:hover:bg-white/5 transition-colors pr-2 cursor-pointer ${
               item.is_directory ? "" : ""
             }`}
             onClick={handleToggle}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                handleToggle();
-              }
-            }}
-            role="button"
-            tabIndex={0}
           >
             <div className="relative flex items-center justify-center h-6 w-6 shrink-0 cursor-pointer mt-0.5 group/bullet">
               {item.is_directory ? (
@@ -199,7 +192,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
                 </div>
               </>
             )}
-          </div>
+          </button>
 
           {item.is_directory && isExpanded && children.length > 0 && (
             <div className="pl-6 ml-[11px] border-l border-gray-100 dark:border-white/5 flex flex-col mt-0.5">

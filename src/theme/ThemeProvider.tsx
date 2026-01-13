@@ -1,16 +1,16 @@
-import { createContext, useEffect, type ReactNode } from "react";
 import { useMantineColorScheme } from "@mantine/core";
+import { type ReactNode, createContext, useEffect } from "react";
+import { useThemeStore } from "../stores/themeStore";
 import { createColorPalette } from "./colors";
 import {
-  SPACING,
-  TYPOGRAPHY,
-  RADIUS,
   LAYOUT,
-  TRANSITIONS,
   OPACITY,
+  RADIUS,
+  SPACING,
+  TRANSITIONS,
+  TYPOGRAPHY,
 } from "./tokens";
-import type { Theme, ColorScheme } from "./types";
-import { useThemeStore } from "../stores/themeStore";
+import type { ColorScheme, Theme } from "./types";
 
 export const ThemeContext = createContext<Theme | null>(null);
 
@@ -84,42 +84,42 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     root.style.setProperty("--color-indent-guide", colors.indentGuide);
 
     // Spacing
-    Object.entries(SPACING).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(SPACING)) {
       root.style.setProperty(`--spacing-${key}`, value);
-    });
+    }
 
     // Typography
     root.style.setProperty("--font-family", TYPOGRAPHY.fontFamily);
     root.style.setProperty("--font-family-mono", TYPOGRAPHY.monoFontFamily);
-    Object.entries(TYPOGRAPHY.fontSize).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(TYPOGRAPHY.fontSize)) {
       root.style.setProperty(`--font-size-${key}`, value);
-    });
-    Object.entries(TYPOGRAPHY.lineHeight).forEach(([key, value]) => {
+    }
+    for (const [key, value] of Object.entries(TYPOGRAPHY.lineHeight)) {
       root.style.setProperty(`--line-height-${key}`, value);
-    });
+    }
 
     // Radius
-    Object.entries(RADIUS).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(RADIUS)) {
       root.style.setProperty(`--radius-${key}`, value);
-    });
+    }
 
     // Layout
-    Object.entries(LAYOUT).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(LAYOUT)) {
       root.style.setProperty(
         `--layout-${camelToKebab(key)}`,
         typeof value === "number" ? `${value}px` : value,
       );
-    });
+    }
 
     // Transitions
-    Object.entries(TRANSITIONS).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(TRANSITIONS)) {
       root.style.setProperty(`--transition-${key}`, value);
-    });
+    }
 
     // Opacity
-    Object.entries(OPACITY).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(OPACITY)) {
       root.style.setProperty(`--opacity-${key}`, value);
-    });
+    }
   }, [theme]);
 
   return (

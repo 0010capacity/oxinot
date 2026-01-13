@@ -14,19 +14,19 @@
  * - Differentiates between note name and display text
  */
 
+import { Decoration, type EditorView, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
+import { MantineProvider } from "@mantine/core";
+import React from "react";
+import { type Root, createRoot } from "react-dom/client";
+import { EmbeddedPageCard } from "../../../components/EmbeddedPageCard";
+import { ThemeProvider } from "../../../theme/ThemeProvider";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
-import { Decoration, WidgetType, type EditorView } from "@codemirror/view";
-import React from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { EmbeddedPageCard } from "../../../components/EmbeddedPageCard";
-import { MantineProvider } from "@mantine/core";
-import { ThemeProvider } from "../../../theme/ThemeProvider";
+import { BaseHandler, type RenderContext } from "./types";
 
 function getWikiBasename(path: string): string {
   const trimmed = (path ?? "").trim();
@@ -149,8 +149,10 @@ export class WikiLinkHandler extends BaseHandler {
 
     // First, check for embed pages: ![[page]]
     const embedPageRegex = /!\[\[([^\]|]+)\]\]/g;
+    // biome-ignore lint/suspicious/noImplicitAnyLet: regex exec result
     let embedMatch;
 
+    // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
     while ((embedMatch = embedPageRegex.exec(lineText)) !== null) {
       const fullMatch = embedMatch[0]; // ![[page]]
       const pageName = embedMatch[1]; // page
@@ -180,8 +182,10 @@ export class WikiLinkHandler extends BaseHandler {
 
     // Match wiki links: [[link]] or [[link|alias]] (but not ![[link]])
     const wikiLinkRegex = /(?<!!)(\[\[([^\]|]+)(\|([^\]]+))?\]\])/g;
+    // biome-ignore lint/suspicious/noImplicitAnyLet: regex exec result
     let match;
 
+    // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
     while ((match = wikiLinkRegex.exec(lineText)) !== null) {
       const fullMatch = match[1]; // [[note|alias]]
       const noteName = match[2]; // note (or folder/note)

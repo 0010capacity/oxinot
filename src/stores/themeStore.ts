@@ -1,5 +1,5 @@
-import { createWithEqualityFn } from "zustand/traditional";
 import { persist } from "zustand/middleware";
+import { createWithEqualityFn } from "zustand/traditional";
 import type { ColorVariant } from "../theme/types";
 
 export type FontFamily =

@@ -8,13 +8,13 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
+import { getHeadingStyle } from "../theme/styles";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
   createStyledText,
 } from "../utils/decorationHelpers";
-import { getHeadingStyle } from "../theme/styles";
+import { BaseHandler, type RenderContext } from "./types";
 
 export class HeadingHandler extends BaseHandler {
   constructor() {

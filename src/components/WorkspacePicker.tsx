@@ -1,28 +1,28 @@
 import {
-  Menu,
-  Text,
-  Group,
-  UnstyledButton,
-  Divider,
   ActionIcon,
-  Modal,
   Button,
+  Divider,
+  Group,
+  Menu,
+  Modal,
   Stack,
+  Text,
+  UnstyledButton,
 } from "@mantine/core";
+import { useMantineColorScheme } from "@mantine/core";
 import {
-  IconFolder,
-  IconPlus,
   IconCheck,
   IconChevronDown,
+  IconFolder,
+  IconPlus,
   IconRefresh,
   IconTrash,
 } from "@tabler/icons-react";
-import { useWorkspaceStore } from "../stores/workspaceStore";
-import { useMantineColorScheme } from "@mantine/core";
-import { tauriAPI } from "../tauri-api";
-import { useSyncStore } from "../stores/syncStore";
-import { showToast, showNotification } from "../utils/toast";
 import { useState } from "react";
+import { useSyncStore } from "../stores/syncStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
+import { tauriAPI } from "../tauri-api";
+import { showNotification, showToast } from "../utils/toast";
 
 interface WorkspacePickerProps {
   currentWorkspacePath: string | null;
@@ -186,52 +186,61 @@ export function WorkspacePicker({
                     display: "flex",
                     alignItems: "center",
                     padding: "6px 4px",
-                    cursor: "pointer",
-                    backgroundColor: undefined,
-                    borderRadius: "0px",
-                    marginBottom: "0px",
-                    transition: "background-color 0.15s ease",
                     borderBottom: `1px solid ${isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"}`,
                   }}
-                  onClick={() => openWorkspace(workspace.path)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = isDark
-                      ? "rgba(255, 255, 255, 0.04)"
-                      : "rgba(0, 0, 0, 0.02)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "";
-                  }}
                 >
-                  <div style={{ marginRight: "12px", flexShrink: 0 }}>
-                    {currentWorkspacePath === workspace.path ? (
-                      <IconCheck size={16} />
-                    ) : (
-                      <IconFolder size={16} style={{ opacity: 0.6 }} />
-                    )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <Text size="sm" fw={500}>
-                      {workspace.name}
-                    </Text>
-                    <Group gap={8} mt={2}>
-                      <Text
-                        size="xs"
-                        c="dimmed"
-                        style={{
-                          maxWidth: "200px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {workspace.path}
+                  <button
+                    type="button"
+                    onClick={() => openWorkspace(workspace.path)}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      cursor: "pointer",
+                      backgroundColor: "transparent",
+                      border: "none",
+                      padding: "0",
+                      transition: "background-color 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = isDark
+                        ? "rgba(255, 255, 255, 0.04)"
+                        : "rgba(0, 0, 0, 0.02)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "";
+                    }}
+                  >
+                    <div style={{ marginRight: "12px", flexShrink: 0 }}>
+                      {currentWorkspacePath === workspace.path ? (
+                        <IconCheck size={16} />
+                      ) : (
+                        <IconFolder size={16} style={{ opacity: 0.6 }} />
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                      <Text size="sm" fw={500}>
+                        {workspace.name}
                       </Text>
-                      <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                        • {formatLastAccessed(workspace.lastAccessed)}
-                      </Text>
-                    </Group>
-                  </div>
+                      <Group gap={8} mt={2}>
+                        <Text
+                          size="xs"
+                          c="dimmed"
+                          style={{
+                            maxWidth: "200px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {workspace.path}
+                        </Text>
+                        <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                          • {formatLastAccessed(workspace.lastAccessed)}
+                        </Text>
+                      </Group>
+                    </div>
+                  </button>
                   <ActionIcon
                     size="xs"
                     color="red"

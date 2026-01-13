@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { usePageStore } from "@/stores/pageStore";
 import { useErrorStore } from "@/stores/errorStore";
+import { usePageStore } from "@/stores/pageStore";
+import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useState } from "react";
 
 export interface WorkspaceInitializerState {
   isChecking: boolean;
@@ -92,7 +92,13 @@ export const useWorkspaceInitializer = (
     };
 
     initializeWorkspace();
-  }, [workspacePath]);
+  }, [
+    workspacePath,
+    loadPages,
+    onWorkspaceNameSet,
+    onInitialComplete,
+    addError,
+  ]);
 
   const handleMigrationComplete = async () => {
     setShowMigration(false);

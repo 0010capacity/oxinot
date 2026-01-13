@@ -7,10 +7,10 @@
  * - Comments are not rendered in the final view
  */
 
-import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
-import type { DecorationSpec } from "../utils/decorationHelpers";
 import { Decoration } from "@codemirror/view";
+import type { SyntaxNode } from "@lezer/common";
+import type { DecorationSpec } from "../utils/decorationHelpers";
+import { BaseHandler, type RenderContext } from "./types";
 
 export class CommentHandler extends BaseHandler {
   constructor() {
@@ -39,9 +39,11 @@ export class CommentHandler extends BaseHandler {
 
     // Match comments: %%comment%%
     const commentRegex = /%%([^%]+)%%/g;
-    let match;
+    let match: RegExpExecArray | null = null;
 
-    while ((match = commentRegex.exec(lineText)) !== null) {
+    const execResult = commentRegex.exec(lineText);
+    while (execResult !== null) {
+      match = execResult;
       const start = lineFrom + match.index;
       const end = start + match[0].length;
 

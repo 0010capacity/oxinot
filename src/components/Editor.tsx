@@ -1,19 +1,19 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  forwardRef,
-  useImperativeHandle,
-} from "react";
 import type { EditorView, KeyBinding } from "@codemirror/view";
 import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+} from "react";
+import {
   createEditor,
-  updateEditorContent,
   destroyEditor,
+  updateEditorContent,
 } from "../editor/createEditor";
 import {
-  isFocusedFacet,
   isFocusedCompartment,
+  isFocusedFacet,
 } from "../editor/extensions/hybridRendering";
 import { IME_FLUSH_TIMEOUT_MS } from "../outliner/constants";
 

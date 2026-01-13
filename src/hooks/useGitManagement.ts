@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useErrorStore } from "@/stores/errorStore";
 import { useGitStore } from "@/stores/gitStore";
 import { showToast } from "@/utils/toast";
-import { useErrorStore } from "@/stores/errorStore";
+import { useEffect, useState } from "react";
 
 export interface GitManagementState {
   hasChanges: boolean;

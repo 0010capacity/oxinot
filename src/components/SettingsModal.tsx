@@ -1,54 +1,54 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
-  Modal,
-  Stack,
-  Text,
-  Select,
-  SegmentedControl,
-  Switch,
-  TextInput,
-  NumberInput,
+  Badge,
   Button,
   Group,
-  Tabs,
-  Badge,
+  Modal,
+  NumberInput,
+  SegmentedControl,
+  Select,
   Slider,
+  Stack,
+  Switch,
+  Tabs,
+  Text,
+  TextInput,
   Tooltip,
+  useMantineColorScheme,
 } from "@mantine/core";
 import {
-  IconPalette,
   IconAppWindow,
-  IconClock,
-  IconCalendar,
-  IconHome,
-  IconList,
   IconBrandGit,
-  IconKeyboard,
-  IconSettings,
+  IconCalendar,
+  IconClock,
   IconDownload,
-  IconTrash,
-  IconSearch,
-  IconPlus,
-  IconX,
+  IconHome,
+  IconKeyboard,
   IconLanguage,
+  IconList,
+  IconPalette,
+  IconPlus,
+  IconSearch,
+  IconSettings,
+  IconTrash,
+  IconX,
 } from "@tabler/icons-react";
-import {
-  useThemeStore,
-  type ColorVariant,
-  type FontFamily,
-} from "../stores/themeStore";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useAdvancedSettingsStore } from "../stores/advancedSettingsStore";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
 import {
-  useClockFormatStore,
-  type TimeFormat,
   type DateOrder,
   type DateSeparator,
+  type TimeFormat,
+  useClockFormatStore,
 } from "../stores/clockFormatStore";
-import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import { useGitStore } from "../stores/gitStore";
-import { useAdvancedSettingsStore } from "../stores/advancedSettingsStore";
-import { useColorScheme } from "@mantine/hooks";
+import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
+import {
+  type ColorVariant,
+  type FontFamily,
+  useThemeStore,
+} from "../stores/themeStore";
 
 const FONT_OPTIONS: Array<{ label: string; value: FontFamily }> = [
   { label: "System Default", value: "system" },
@@ -81,30 +81,12 @@ export function SettingsModal({
   pageIds,
 }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
-  const colorScheme = useColorScheme();
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
-
-  // Color mode state (light/dark/auto)
-  const [colorMode, setColorMode] = useState<"light" | "dark" | "auto">(() => {
-    const stored = localStorage.getItem("mantine-color-scheme");
-    return (stored as "light" | "dark" | "auto") || "auto";
-  });
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("appearance");
-
-  // Apply color mode to document
-  useEffect(() => {
-    const html = document.documentElement;
-    if (colorMode === "auto") {
-      html.removeAttribute("data-color-scheme");
-      localStorage.removeItem("mantine-color-scheme");
-    } else {
-      html.setAttribute("data-color-scheme", colorMode);
-      localStorage.setItem("mantine-color-scheme", colorMode);
-    }
-  }, [colorMode]);
 
   // Advanced settings
   const autoUpdate = useAdvancedSettingsStore((state) => state.autoUpdate);
@@ -704,10 +686,16 @@ export function SettingsModal({
                         {t("settings.theme.color_mode")}
                       </Text>
                       <SegmentedControl
-                        value={colorMode}
-                        onChange={(value) =>
-                          setColorMode(value as "light" | "dark" | "auto")
-                        }
+                        value={colorScheme}
+                        onChange={(value) => {
+                          if (
+                            value === "light" ||
+                            value === "dark" ||
+                            value === "auto"
+                          ) {
+                            setColorScheme(value);
+                          }
+                        }}
                         data={[
                           {
                             label: t("settings.theme.modes.light"),
@@ -1157,6 +1145,11 @@ export function SettingsModal({
                             {t("settings.git.why_git")}
                           </Text>
                           <Text size="sm" c="dimmed">
+                            • Track all changes to your notes
+                            <br />• Never lose work - full history available
+                            <br />• Sync across devices with remote repositories
+                            <br />• Collaborate with others using GitHub,
+                            GitLab, etc.
                             {t("settings.git.why_git_desc")}
                           </Text>
                         </div>

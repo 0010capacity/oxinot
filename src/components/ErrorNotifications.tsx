@@ -1,5 +1,5 @@
-import { Alert, CloseButton, Group, Stack } from "@mantine/core";
 import { useErrorStore } from "@/stores/errorStore";
+import { Alert, CloseButton, Group, Stack } from "@mantine/core";
 
 export const ErrorNotifications = () => {
   const errors = useErrorStore((state) => state.errors);
@@ -25,8 +25,20 @@ export const ErrorNotifications = () => {
       {errors.map((error) => (
         <Alert
           key={error.id}
-          title={error.type === "error" ? "Error" : error.type === "warning" ? "Warning" : "Info"}
-          color={error.type === "error" ? "red" : error.type === "warning" ? "yellow" : "blue"}
+          title={
+            error.type === "error"
+              ? "Error"
+              : error.type === "warning"
+                ? "Warning"
+                : "Info"
+          }
+          color={
+            error.type === "error"
+              ? "red"
+              : error.type === "warning"
+                ? "yellow"
+                : "blue"
+          }
           withCloseButton
           icon={null}
           onClose={() => removeError(error.id)}

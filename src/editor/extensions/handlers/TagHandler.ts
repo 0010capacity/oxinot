@@ -12,9 +12,9 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
-import { BaseHandler, type RenderContext } from "./types";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import { createStyledText } from "../utils/decorationHelpers";
+import { BaseHandler, type RenderContext } from "./types";
 
 export class TagHandler extends BaseHandler {
   constructor() {
@@ -45,8 +45,10 @@ export class TagHandler extends BaseHandler {
     // Must start with # followed by alphanumeric, can contain /, -, _
     // Must not be inside a code block or inline code
     const tagRegex = /#([a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*)/g;
+    // biome-ignore lint/suspicious/noImplicitAnyLet: regex exec result
     let match;
 
+    // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
     while ((match = tagRegex.exec(lineText)) !== null) {
       const start = lineFrom + match.index;
       const end = start + match[0].length;

@@ -134,7 +134,10 @@ export function extractWords(
  * @returns Word count
  */
 export function wordCount(str: string): number {
-  return str.trim().split(/\s+/).filter((word) => word.length > 0).length;
+  return str
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0).length;
 }
 
 /**
@@ -166,7 +169,10 @@ export function unescapeHtml(str: string): string {
     "&quot;": '"',
     "&#39;": "'",
   };
-  return str.replace(/&(?:amp|lt|gt|quot|#39);/g, (entity) => htmlUnescapes[entity]);
+  return str.replace(
+    /&(?:amp|lt|gt|quot|#39);/g,
+    (entity) => htmlUnescapes[entity],
+  );
 }
 
 /**
