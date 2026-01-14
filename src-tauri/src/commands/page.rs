@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::models::page::{CreatePageRequest, Page, UpdatePageRequest};
 use crate::services::FileSyncService;
+use crate::utils::page_sync::sync_page_to_markdown;
 
 /// Backlink reference for a page
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,20 +133,44 @@ pub async fn update_page(
     let new_parent_id = request.parent_id.or(page.parent_id.clone());
     let new_file_path = request.file_path.clone().or(page.file_path.clone());
 
-    // If title changed, rename file
+    // If title changed, rename file AND rewrite all wiki-link references that point to this page's old path.
     if let Some(title) = &request.title {
         if title != &page.title {
+            // Capture old wiki target (workspace-relative, without .md)
+            let old_path = page
+                .file_path
+                .clone()
+                .unwrap_or_else(|| format!("{}.md", page.title));
+            let from_target = old_path
+                .strip_suffix(".md")
+                .unwrap_or(old_path.as_str())
+                .to_string();
+
             let file_sync = FileSyncService::new(workspace_path.clone());
             let new_path = file_sync
                 .rename_page_file(&conn, &request.id, title)
                 .map_err(|e| format!("Failed to rename page file: {}", e))?;
 
-            // Update the new_file_path to use the renamed path
+            // Persist the page metadata changes
             conn.execute(
                 "UPDATE pages SET title = ?, file_path = ?, updated_at = ? WHERE id = ?",
                 params![&new_title, &new_path, &now, &request.id],
             )
             .map_err(|e| e.to_string())?;
+
+            // Compute new wiki target (workspace-relative, without .md)
+            let to_target = new_path
+                .strip_suffix(".md")
+                .unwrap_or(new_path.as_str())
+                .to_string();
+
+            // Rewrite referencing blocks in DB and sync affected pages back to markdown files (SoT = files).
+            // Note: This uses the existing targeted rewrite helper defined in this module.
+            rewrite_wiki_links_for_page_path_change(workspace_path.clone(), from_target, to_target)
+                .await?;
+
+            // Ensure the renamed page's file reflects the rename (serializer may rely on the new file_path)
+            sync_page_to_markdown(&conn, &workspace_path, &request.id)?;
 
             return get_page_by_id(&conn, &request.id);
         }
@@ -472,3 +497,201 @@ pub async fn get_page_backlinks(
 
     Ok(backlinks)
 }
+
+/// Rewrite wiki links in blocks that reference a moved/renamed page.
+///
+/// Avoid mojibake by ONLY rewriting the wiki-link target inside `[[...]]` / `![[...]]`
+/// markers, and never re-encoding or otherwise altering unrelated unicode content.
+///
+/// This is a targeted update (no full-workspace scan):
+/// 1) Find blocks that contain `[[from_path]]` / `[[from_path|` / `[[from_path#` / `![[from_path...]]`
+/// 2) Rewrite only those blocks' `content` fields.
+///
+/// NOTE:
+/// - This updates the DB `blocks.content` only. If markdown files are authoritative,
+///   you should additionally sync the affected pages back to disk after this rewrite.
+#[tauri::command]
+pub async fn rewrite_wiki_links_for_page_path_change(
+    workspace_path: String,
+    from_path: String,
+    to_path: String,
+) -> Result<i64, String> {
+    if from_path.trim().is_empty() || to_path.trim().is_empty() {
+        return Err("from_path/to_path must be non-empty".to_string());
+    }
+    if from_path == to_path {
+        return Ok(0);
+    }
+
+    let mut conn = open_workspace_db(&workspace_path)?;
+    let now = Utc::now().to_rfc3339();
+
+    // Find candidate blocks (targeted query).
+    // We look for occurrences that imply the from_path is used as a wiki-link target.
+    let patterns = vec![
+        format!("%[[{}]]%", from_path),
+        format!("%[[{}|%", from_path),
+        format!("%[[{}#%", from_path),
+        format!("%![[{}]]%", from_path),
+        format!("%![[{}|%", from_path),
+        format!("%![[{}#%", from_path),
+    ];
+
+    let mut candidate_ids: Vec<String> = Vec::new();
+
+    for pat in patterns {
+        let mut stmt = conn
+            .prepare("SELECT id FROM blocks WHERE content LIKE ?")
+            .map_err(|e| e.to_string())?;
+
+        let rows = stmt
+            .query_map(params![pat], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+
+        for id in rows {
+            let id = id.map_err(|e| e.to_string())?;
+            if !candidate_ids.iter().any(|x| x == &id) {
+                candidate_ids.push(id);
+            }
+        }
+    }
+
+    if candidate_ids.is_empty() {
+        return Ok(0);
+    }
+
+    // Track which pages were affected so we can sync them back to markdown files.
+    let mut touched_page_ids: Vec<String> = Vec::new();
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    let mut updated_count: i64 = 0;
+
+    for block_id in candidate_ids {
+        let (page_id, content): (String, String) = tx
+            .query_row(
+                "SELECT page_id, content FROM blocks WHERE id = ?",
+                params![&block_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|e| e.to_string())?;
+
+        let updated = rewrite_wiki_link_targets_in_text(&content, &from_path, &to_path);
+        if updated == content {
+            continue;
+        }
+
+        tx.execute(
+            "UPDATE blocks SET content = ?, updated_at = ? WHERE id = ?",
+            params![updated, &now, &block_id],
+        )
+        .map_err(|e| e.to_string())?;
+
+        if !touched_page_ids.iter().any(|x| x == &page_id) {
+            touched_page_ids.push(page_id);
+        }
+
+        updated_count += 1;
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+
+    // SoT is filesystem markdown: persist the DB mutation back to disk immediately.
+    for page_id in touched_page_ids {
+        sync_page_to_markdown(&conn, &workspace_path, &page_id)?;
+    }
+
+    Ok(updated_count)
+}
+
+/// Replace wiki-link targets in a block of markdown text, preserving aliases and anchors.
+///
+/// Rewrites only:
+/// - [[from]]      -> [[to]]
+/// - [[from|...]]  -> [[to|...]]
+/// - [[from#...]]  -> [[to#...]]
+/// - ![[from...]]  -> ![[to...]]
+fn rewrite_wiki_link_targets_in_text(input: &str, from: &str, to: &str) -> String {
+    // Byte-safe copy:
+    // - copy everything outside of wiki link markers verbatim (as bytes)
+    // - within a `[[...]]` or `![[...]]`, rewrite ONLY when the target matches `from`
+    //
+    // This avoids corrupting unrelated unicode content.
+    let mut out: Vec<u8> = Vec::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let from_bytes = from.as_bytes();
+    let to_bytes = to.as_bytes();
+    let mut i: usize = 0;
+
+    while i < bytes.len() {
+        let is_embed =
+            bytes[i] == b'!' && i + 2 < bytes.len() && bytes[i + 1] == b'[' && bytes[i + 2] == b'[';
+        let is_link = bytes[i] == b'[' && i + 1 < bytes.len() && bytes[i + 1] == b'[';
+
+        if !(is_embed || is_link) {
+            out.push(bytes[i]);
+            i += 1;
+            continue;
+        }
+
+        let start = i;
+        let open_len = if is_embed { 3 } else { 2 };
+        let mut j = i + open_len;
+
+        while j + 1 < bytes.len() {
+            if bytes[j] == b']' && bytes[j + 1] == b']' {
+                break;
+            }
+            j += 1;
+        }
+
+        if j + 1 >= bytes.len() {
+            // Unterminated marker; copy remainder as-is.
+            out.extend_from_slice(&bytes[start..]);
+            break;
+        }
+
+        // inner is bytes[(i+open_len)..j]
+        let inner_start = i + open_len;
+        let inner_end = j;
+
+        // Check whether inner starts with from and is followed by `]]` / `|` / `#`.
+        let mut did_replace = false;
+        if inner_end >= inner_start + from_bytes.len()
+            && &bytes[inner_start..(inner_start + from_bytes.len())] == from_bytes
+        {
+            let tail_start = inner_start + from_bytes.len();
+            let tail = &bytes[tail_start..inner_end];
+
+            let should_replace = tail.is_empty() || tail[0] == b'|' || tail[0] == b'#';
+            if should_replace {
+                // Write open marker bytes
+                out.extend_from_slice(&bytes[start..inner_start]);
+                // Write the new target bytes
+                out.extend_from_slice(to_bytes);
+                // Write the tail bytes
+                out.extend_from_slice(tail);
+                // Write closing "]]"
+                out.extend_from_slice(b"]]");
+                i = j + 2;
+                did_replace = true;
+            }
+        }
+
+        if did_replace {
+            continue;
+        }
+
+        // Default: copy through closing brackets unchanged.
+        out.extend_from_slice(&bytes[start..(j + 2)]);
+        i = j + 2;
+    }
+
+    // Input was valid UTF-8; we only copied/replaced byte slices from/to UTF-8 strings.
+    // Converting back to String should be safe.
+    String::from_utf8(out).unwrap_or_else(|_| input.to_string())
+}
+
+// NOTE: We intentionally do not sync pages back to markdown files here.
+// The authoritative source of truth should be clarified (DB vs filesystem) before adding
+// any automatic "DB -> markdown" writes in this command module.

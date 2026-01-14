@@ -1,0 +1,9 @@
+# Regex (Rust/grep ERE) for files that may be ignored by CI.
+# One line, no surrounding slashes.
+#
+# Intended usage:
+# - In workflows, read this file and use it with `grep -E` / `grep -Ev`
+# - If all changed files match this regex, CI can short-circuit successfully.
+#
+# Keep in sync with repository policy for "docs/config-only changes".
+^(docs/|\.github/|\.changeset/|.*\.md$)
