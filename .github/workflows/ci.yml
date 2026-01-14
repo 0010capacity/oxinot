@@ -94,7 +94,10 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
 
-            git checkout -b "$BRANCH_NAME"
+            # Create branch from latest origin/main to avoid out-of-date issues
+            git fetch origin main
+            git checkout -b "$BRANCH_NAME" origin/main
+            git add .changeset
             git commit -m "chore: auto-generate changeset"
             git push origin "$BRANCH_NAME"
 
@@ -104,19 +107,6 @@ jobs:
               --head "$BRANCH_NAME")
 
             PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')
-
-            # Wait for PR to be fully created before updating branch
-            sleep 2
-
-            # Update branch to latest main using REST API
-            curl -X PUT \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/update-branch" \
-              -d '{"expected_head_sha":"'"$(git rev-parse origin/main)"'"}' || true
-
-            # Wait for branch update to complete
-            sleep 2
 
             # Enable auto-merge
             gh pr merge "$PR_NUMBER" --auto --squash
