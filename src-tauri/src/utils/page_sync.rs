@@ -684,11 +684,26 @@ pub fn sync_page_to_markdown_after_block_change(
     page_id: &str,
     changed_block_id: Option<&str>,
 ) -> Result<(), String> {
+    // Resolve file path up-front so we can make patch decisions based on on-disk state.
+    // NOTE: file_path in DB is workspace-relative (P0 requirement)
+    let file_path: Option<String> = conn
+        .query_row(
+            "SELECT file_path FROM pages WHERE id = ?",
+            [page_id],
+            |row| row.get(0),
+        )
+        .ok();
+
+    if file_path.is_none() {
+        return Ok(()); // No file path, skip
+    }
+
+    // NOTE: `full_path` was previously used for insertion-patch heuristics. Insertion patching is
+    // currently disabled, so we don't need a precomputed `full_path` here.
+
     if let Some(block_id) = changed_block_id {
-        // Prefer insertion patch for create-like operations.
-        if try_patch_bullet_block_insertion(conn, workspace_path, page_id, block_id)? {
-            return Ok(());
-        }
+        // Disabled: insertion patching can duplicate blocks/corrupt structure when misapplied.
+        // We'll re-enable only after we can reliably constrain it to create-only flows.
 
         // Deletion patch (may run even if block already removed from DB).
         if try_patch_bullet_block_deletion(conn, workspace_path, page_id, block_id)? {
@@ -711,19 +726,7 @@ pub fn sync_page_to_markdown_after_block_change(
         }
     }
 
-    // Get file path for this page
-    // NOTE: file_path in DB is workspace-relative (P0 requirement)
-    let file_path: Option<String> = conn
-        .query_row(
-            "SELECT file_path FROM pages WHERE id = ?",
-            [page_id],
-            |row| row.get(0),
-        )
-        .ok();
-
-    if file_path.is_none() {
-        return Ok(()); // No file path, skip
-    }
+    // --- Full rewrite fallback (canonical behavior) ---
 
     // Get all blocks for this page
     let mut stmt = conn
@@ -757,12 +760,10 @@ pub fn sync_page_to_markdown_after_block_change(
     let markdown = blocks_to_markdown(&blocks);
 
     // Write to file
-    if let Some(path) = file_path {
-        let full_path = std::path::Path::new(workspace_path).join(&path);
-        std::fs::write(&full_path, markdown).map_err(|e| format!("Failed to write file: {}", e))?;
+    let full_path = std::path::Path::new(workspace_path).join(file_path.unwrap());
+    std::fs::write(&full_path, markdown).map_err(|e| format!("Failed to write file: {}", e))?;
 
-        update_page_file_metadata(conn, &full_path, page_id)?;
-    }
+    update_page_file_metadata(conn, &full_path, page_id)?;
 
     Ok(())
 }
