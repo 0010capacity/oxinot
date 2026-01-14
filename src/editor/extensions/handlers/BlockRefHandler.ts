@@ -60,25 +60,26 @@ function findBlockRefsInLine(lineText: string): BlockRefMatch[] {
   const re = /(!)?\(\(([^)\s]+)\)\)/g;
 
   const out: BlockRefMatch[] = [];
-  let m: RegExpExecArray | null;
+  let m = re.exec(lineText);
 
-  // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
-  while ((m = re.exec(lineText)) !== null) {
+  while (m !== null) {
     const full = m[0];
     const isEmbed = !!m[1];
     const id = (m[2] ?? "").trim();
 
     // Only treat as a real block ref when the id looks "complete enough".
     // This avoids applying hide/styling decorations while the user is still typing.
-    if (!isProbablyUuid(id)) continue;
+    if (isProbablyUuid(id)) {
+      out.push({
+        full,
+        isEmbed,
+        id,
+        start: m.index,
+        end: m.index + full.length,
+      });
+    }
 
-    out.push({
-      full,
-      isEmbed,
-      id,
-      start: m.index,
-      end: m.index + full.length,
-    });
+    m = re.exec(lineText);
   }
 
   return out;
@@ -201,11 +202,10 @@ class BlockRefPreviewWidget extends WidgetType {
 
     void (async () => {
       try {
-        // biome-ignore lint/suspicious/noExplicitAny: Tauri invoke returns dynamic response
-        const res: any = await invoke("get_block", {
+        const res = (await invoke("get_block", {
           workspacePath,
           request: { block_id: this.blockId },
-        });
+        })) as { block?: { content: string }; Block?: { content: string } } | null;
 
         // Debug logging to understand response shape and load failures
         console.debug("[BlockRefPreviewWidget] get_block response", {

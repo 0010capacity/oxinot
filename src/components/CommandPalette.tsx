@@ -243,9 +243,10 @@ export function CommandPalette({
     }
   }, [opened]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: query change should reset index
   useEffect(() => {
-    setSelectedIndex(0);
+    if (query !== undefined) {
+      setSelectedIndex(0);
+    }
   }, [query]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

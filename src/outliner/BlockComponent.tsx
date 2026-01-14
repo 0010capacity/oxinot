@@ -576,6 +576,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       indentBlock,
       outdentBlock,
       setFocusedBlock,
+      commitDraft,
     ]);
 
     if (!block) return null;

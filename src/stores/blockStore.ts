@@ -483,14 +483,15 @@ export const useBlockStore = create<BlockStore>()(
       if (!parent) return;
 
       set((state) => {
-        state.childrenMap[block.parentId!] =
-          state.childrenMap[block.parentId!]?.filter(
+        const parentId = block.parentId as string; // We already checked block.parentId is not null
+        state.childrenMap[parentId] =
+          state.childrenMap[parentId]?.filter(
             (childId) => childId !== id,
           ) ?? [];
 
         const grandparentKey = parent.parentId ?? "root";
         const parentIndex =
-          state.childrenMap[grandparentKey]?.indexOf(block.parentId!) ?? -1;
+          state.childrenMap[grandparentKey]?.indexOf(parentId) ?? -1;
 
         if (!state.childrenMap[grandparentKey]) {
           state.childrenMap[grandparentKey] = [];
