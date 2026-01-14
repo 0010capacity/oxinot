@@ -18,58 +18,17 @@ jobs:
     name: required
     runs-on: ubuntu-latest
     steps:
-      - name: Determine whether CI is required for this change
-        id: classify
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-
-          # For merge_group, we don't have a PR diff available in the same way.
-          # In that case, require CI by default.
-          if [ "${{ github.event_name }}" = "merge_group" ]; then
-            echo "ci_required=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # pull_request_target runs in the context of the base repo and should not check out
-          # untrusted PR code. We only need the changed file list from the PR.
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          OWNER_REPO="${{ github.repository }}"
-
-          FILES="$(gh api "repos/${OWNER_REPO}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename' || true)"
-
-          # If no files found, be conservative and require CI.
-          if [ -z "${FILES}" ]; then
-            echo "ci_required=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Any file outside these paths means CI is required.
-          # Allowed (no CI):
-          # - docs/**
-          # - any *.md (includes README.md)
-          # - .github/**
-          # - .changeset/**
-          NON_ALLOWED="$(printf "%s\n" "${FILES}" | grep -Ev '^(docs/|\.github/|\.changeset/|.*\.md$)' || true)"
-
-          if [ -n "${NON_ALLOWED}" ]; then
-            echo "ci_required=true" >> "$GITHUB_OUTPUT"
-            echo "Non-doc/config/changeset files detected; CI required:"
-            echo "${NON_ALLOWED}"
-          else
-            echo "ci_required=false" >> "$GITHUB_OUTPUT"
-            echo "Docs/config/changeset-only change; CI not required."
-          fi
-
-      - name: Wait for CI workflow run when required
-        if: steps.classify.outputs.ci_required == 'true' && github.event_name == 'pull_request_target'
+      - name: Wait for CI workflow run
+        if: github.event_name == 'pull_request_target'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
+
+          # Read shared ignore regex (kept in sync with CI's short-circuit behavior)
+          IGNORE_REGEX="$(cat .github/ci/ignore-regex.txt)"
+          echo "Loaded ignore regex: ${IGNORE_REGEX}"
 
           # Poll the CI workflow run for this PR head SHA and require it to succeed.
           OWNER_REPO="${{ github.repository }}"
@@ -84,7 +43,7 @@ jobs:
                 --repo "${OWNER_REPO}" \
                 --event pull_request \
                 --json databaseId,headSha,name,status,conclusion,url \
-                --jq ".[] | select(.headSha==\"${SHA}\" and .name==\"CI\") | \"\\(.databaseId)\\t\\(.status)\\t\\(.conclusion)\\t\\(.url)\"" \
+                --jq ".[] | select(.headSha==\"${SHA}\" and .name==\"CI\") | \"\(.databaseId)\t\(.status)\t\(.conclusion)\t\(.url)\"" \
                 | head -n 1
             )"
 
@@ -117,11 +76,11 @@ jobs:
           exit 1
 
       - name: Merge group requires CI (guardrail)
-        if: steps.classify.outputs.ci_required == 'true' && github.event_name == 'merge_group'
+        if: github.event_name == 'merge_group'
         shell: bash
         run: |
           echo "This repository requires CI for merge queue events."
-          echo "If you're using GitHub merge queue, ensure the CI workflow runs on merge_group too."
+          echo "Ensure the CI workflow runs and is required for merge_group too."
           exit 1
 
       - name: Done
