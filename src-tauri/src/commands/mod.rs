@@ -19,19 +19,3 @@ macro_rules! get_db_conn {
             .clone()
     }};
 }
-
-/// Helper function to get DB connection from DbState
-pub fn get_db_connection(
-    db_state: &std::sync::Arc<
-        std::sync::Mutex<Option<std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>>>,
-    >,
-) -> Result<std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, String> {
-    let state = db_state
-        .lock()
-        .map_err(|e| format!("Failed to lock DB state: {}", e))?;
-
-    state
-        .as_ref()
-        .ok_or_else(|| "No workspace loaded. Please select a workspace first.".to_string())
-        .map(|conn| conn.clone())
-}
