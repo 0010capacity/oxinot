@@ -48,11 +48,23 @@ export function BlockEditor({
   // So we reset this guard after a successful load when the page has no root blocks.
   const didAutoCreateInitialBlockForPageRef = useRef<string | null>(null);
 
+  // Make auto-create idempotent while a create request is in-flight for the same page.
+  // Without this, multiple renders can trigger duplicate createBlock(null, "") calls
+  // resulting in multiple empty root blocks being persisted.
+  const isCreatingInitialBlockForPageRef = useRef<string | null>(null);
+
+  // Debug: track prior root set to spot unexpected transitions and duplicate creation
+  const lastRootSignatureRef = useRef<string | null>(null);
+
   // Load page blocks
   useEffect(() => {
     if (pageId) {
-      // Reset guard when navigating to a different page.
+      // Reset guards when navigating to a different page.
       didAutoCreateInitialBlockForPageRef.current = null;
+      isCreatingInitialBlockForPageRef.current = null;
+      lastRootSignatureRef.current = null;
+
+      console.debug("[BlockEditor] navigate/loadPage", { pageId });
       loadPage(pageId);
     }
   }, [pageId, loadPage]);
@@ -63,6 +75,17 @@ export function BlockEditor({
       const rootBlocks = childrenMap.root || [];
       const hasBlocks = rootBlocks.length > 0;
 
+      const signature = rootBlocks.join(",");
+      if (lastRootSignatureRef.current !== signature) {
+        lastRootSignatureRef.current = signature;
+        console.debug("[BlockEditor] root blocks changed", {
+          pageId,
+          currentPageId,
+          rootCount: rootBlocks.length,
+          rootBlocks,
+        });
+      }
+
       // If load completed and the page is still empty, allow a (single) auto-create attempt.
       // This avoids a scenario where the guard is set during a transient render and we never
       // create the initial block, leaving the editor in an "empty-state" UI.
@@ -70,14 +93,37 @@ export function BlockEditor({
         didAutoCreateInitialBlockForPageRef.current = null;
       }
 
+      const alreadyCreatedForThisPage =
+        didAutoCreateInitialBlockForPageRef.current === pageId;
+      const createInFlightForThisPage =
+        isCreatingInitialBlockForPageRef.current === pageId;
+
       if (
         !hasBlocks &&
-        didAutoCreateInitialBlockForPageRef.current !== pageId
+        !alreadyCreatedForThisPage &&
+        !createInFlightForThisPage
       ) {
         didAutoCreateInitialBlockForPageRef.current = pageId;
-        createBlock(null, "").catch((err) => {
-          console.error("Failed to create initial block:", err);
-        });
+        isCreatingInitialBlockForPageRef.current = pageId;
+
+        console.debug("[BlockEditor] auto-create initial block", { pageId });
+        createBlock(null, "")
+          .catch((err) => {
+            // Allow retry on failure
+            didAutoCreateInitialBlockForPageRef.current = null;
+            console.error("Failed to create initial block:", err);
+          })
+          .finally(() => {
+            // Release in-flight lock; if still empty on next render, the guard logic can decide again.
+            if (isCreatingInitialBlockForPageRef.current === pageId) {
+              isCreatingInitialBlockForPageRef.current = null;
+            }
+          });
+      }
+
+      // If blocks exist, clear any in-flight marker for this page so future emptiness can be handled.
+      if (hasBlocks && isCreatingInitialBlockForPageRef.current === pageId) {
+        isCreatingInitialBlockForPageRef.current = null;
       }
     }
   }, [isLoading, error, pageId, currentPageId, childrenMap, createBlock]);
