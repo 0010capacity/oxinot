@@ -10,6 +10,7 @@ use crate::models::block::{
 };
 use crate::utils::fractional_index;
 use crate::utils::page_sync::sync_page_to_markdown;
+use crate::utils::page_sync::sync_page_to_markdown_after_block_update;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockWithPath {
@@ -505,8 +506,13 @@ pub async fn update_block(
 
     let updated_block = get_block_by_id(&conn, &request.id)?;
 
-    // Sync to markdown file
-    sync_page_to_markdown(&conn, &workspace_path, &updated_block.page_id)?;
+    // Sync to markdown file (allow targeted patching for this block update)
+    sync_page_to_markdown_after_block_update(
+        &conn,
+        &workspace_path,
+        &updated_block.page_id,
+        Some(updated_block.id.as_str()),
+    )?;
 
     Ok(updated_block)
 }
