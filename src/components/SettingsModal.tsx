@@ -4,6 +4,7 @@ import {
   Group,
   Modal,
   NumberInput,
+  Progress,
   SegmentedControl,
   Select,
   Slider,
@@ -1515,27 +1516,152 @@ export function SettingsModal({
 
                   <div
                     style={{
-                      padding: 12,
-                      borderRadius: 6,
+                      padding: 16,
+                      borderRadius: 8,
                       backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                      border: `1px solid ${isDark ? "#373A40" : "#E9ECEF"}`,
                     }}
                   >
-                    <Text size="sm" fw={500} mb={8}>
-                      {t("settings.about.updates_title")}
-                    </Text>
-                    <Stack gap="xs">
-                      <Text size="xs" c="dimmed">
-                        {t("settings.about.updates_desc")}
+                    <Group justify="space-between" mb={8} align="flex-start">
+                       <Text size="sm" fw={600}>
+                        {t("settings.about.updates_title")}
                       </Text>
-                      <Button
-                        size="xs"
-                        variant="light"
-                        onClick={() => useUpdaterStore.getState().triggerManualCheck()}
-                        leftSection={<IconDownload size={16} />}
-                      >
-                        {t("settings.about.check_updates_btn")}
-                      </Button>
-                    </Stack>
+                      {useUpdaterStore.getState().status === "checking" && (
+                         <Badge color="blue" variant="light">Checking...</Badge>
+                      )}
+                      {useUpdaterStore.getState().status === "available" && (
+                         <Badge color="green" variant="light">Update Available</Badge>
+                      )}
+                      {useUpdaterStore.getState().status === "uptodate" && (
+                         <Badge color="gray" variant="light">Latest Version</Badge>
+                      )}
+                    </Group>
+
+                    {(() => {
+                        const status = useUpdaterStore((state) => state.status);
+                        const version = useUpdaterStore((state) => state.version);
+                        const body = useUpdaterStore((state) => state.body);
+                        const error = useUpdaterStore((state) => state.error);
+                        const progress = useUpdaterStore((state) => state.progress);
+                        const checkForUpdates = useUpdaterStore((state) => state.checkForUpdates);
+                        const installUpdate = useUpdaterStore((state) => state.installUpdate);
+
+                        if (status === "checking") {
+                            return (
+                                <Text size="sm" c="dimmed">
+                                    Checking for updates...
+                                </Text>
+                            );
+                        }
+
+                        if (status === "uptodate") {
+                            return (
+                                <Stack gap="xs">
+                                    <Text size="sm" c="dimmed">
+                                        Oxinot is up to date.
+                                    </Text>
+                                    <Group>
+                                        <Button 
+                                            size="xs" 
+                                            variant="light" 
+                                            onClick={() => checkForUpdates(false)}
+                                            leftSection={<IconDownload size={16} />}
+                                        >
+                                            Check Again
+                                        </Button>
+                                    </Group>
+                                </Stack>
+                            );
+                        }
+
+                        if (status === "available") {
+                            return (
+                                <Stack gap="md">
+                                    <Text size="sm">
+                                        A new version <Text span fw={700}>{version}</Text> is available.
+                                    </Text>
+                                    {body && (
+                                        <div style={{ 
+                                            maxHeight: 150, 
+                                            overflowY: "auto", 
+                                            padding: 8, 
+                                            backgroundColor: isDark ? "#25262B" : "#fff",
+                                            borderRadius: 4,
+                                            fontSize: 12
+                                        }}>
+                                            <Text size="xs" style={{ whiteSpace: "pre-wrap" }}>{body}</Text>
+                                        </div>
+                                    )}
+                                    <Group>
+                                        <Button 
+                                            size="xs" 
+                                            onClick={installUpdate}
+                                            leftSection={<IconDownload size={16} />}
+                                        >
+                                            Update Now
+                                        </Button>
+                                    </Group>
+                                </Stack>
+                            );
+                        }
+
+                        if (status === "downloading") {
+                             return (
+                                <Stack gap="xs">
+                                    <Group justify="space-between">
+                                        <Text size="sm">Downloading update...</Text>
+                                        <Text size="xs" c="dimmed">{Math.round(progress)}%</Text>
+                                    </Group>
+                                    <Progress value={progress} animated size="sm" />
+                                </Stack>
+                            );
+                        }
+
+                         if (status === "downloaded") {
+                             return (
+                                <Stack gap="xs">
+                                    <Text size="sm" c="green">Update downloaded successfully.</Text>
+                                    <Text size="xs" c="dimmed">The application will restart automatically.</Text>
+                                </Stack>
+                            );
+                        }
+
+                        if (status === "error") {
+                             return (
+                                <Stack gap="xs">
+                                    <Text size="sm" c="red">Error checking for updates:</Text>
+                                    <Text size="xs" c="dimmed">{error}</Text>
+                                    <Button 
+                                        size="xs" 
+                                        variant="light" 
+                                        color="red"
+                                        onClick={() => checkForUpdates(false)}
+                                    >
+                                        Try Again
+                                    </Button>
+                                </Stack>
+                            );
+                        }
+
+                        // Idle state
+                        return (
+                            <Stack gap="xs">
+                                <Text size="sm" c="dimmed">
+                                    {t("settings.about.updates_desc")}
+                                </Text>
+                                <Group>
+                                    <Button
+                                        size="xs"
+                                        variant="light"
+                                        onClick={() => checkForUpdates(false)}
+                                        leftSection={<IconDownload size={16} />}
+                                    >
+                                        {t("settings.about.check_updates_btn")}
+                                    </Button>
+                                </Group>
+                            </Stack>
+                        );
+                    })()}
                   </div>
                 </Stack>
               </div>
