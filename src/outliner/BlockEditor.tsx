@@ -51,8 +51,7 @@ export function BlockEditor({
   // Auto-create first block if page is empty
   useEffect(() => {
     if (!isLoading && !error && pageId && currentPageId === pageId) {
-      // biome-ignore lint/complexity/useLiteralKeys: "root" is a reserved key name
-      const rootBlocks = childrenMap["root"] || [];
+      const rootBlocks = childrenMap.root || [];
       const hasBlocks = rootBlocks.length > 0;
 
       if (!hasBlocks) {

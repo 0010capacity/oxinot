@@ -149,11 +149,9 @@ export class WikiLinkHandler extends BaseHandler {
 
     // First, check for embed pages: ![[page]]
     const embedPageRegex = /!\[\[([^\]|]+)\]\]/g;
-    // biome-ignore lint/suspicious/noImplicitAnyLet: regex exec result
-    let embedMatch;
+    let embedMatch = embedPageRegex.exec(lineText);
 
-    // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
-    while ((embedMatch = embedPageRegex.exec(lineText)) !== null) {
+    while (embedMatch !== null) {
       const fullMatch = embedMatch[0]; // ![[page]]
       const pageName = embedMatch[1]; // page
 
@@ -162,31 +160,28 @@ export class WikiLinkHandler extends BaseHandler {
 
       // In edit mode, show raw markdown for editing
       // Don't hide anything and don't show widgets
-      if (isEditMode) {
-        continue;
+      if (!isEditMode) {
+        // Hide the entire ![[page]] syntax
+        decorations.push(createHiddenMarker(start, end, false));
+
+        // Insert embed widget
+        decorations.push({
+          from: start,
+          to: end,
+          decoration: Decoration.widget({
+            widget: new EmbedPageWidget(pageName),
+            side: 0,
+          }),
+        });
       }
-
-      // Hide the entire ![[page]] syntax
-      decorations.push(createHiddenMarker(start, end, false));
-
-      // Insert embed widget
-      decorations.push({
-        from: start,
-        to: end,
-        decoration: Decoration.widget({
-          widget: new EmbedPageWidget(pageName),
-          side: 0,
-        }),
-      });
+      embedMatch = embedPageRegex.exec(lineText);
     }
 
     // Match wiki links: [[link]] or [[link|alias]] (but not ![[link]])
     const wikiLinkRegex = /(?<!!)(\[\[([^\]|]+)(\|([^\]]+))?\]\])/g;
-    // biome-ignore lint/suspicious/noImplicitAnyLet: regex exec result
-    let match;
+    let match = wikiLinkRegex.exec(lineText);
 
-    // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
-    while ((match = wikiLinkRegex.exec(lineText)) !== null) {
+    while (match !== null) {
       const fullMatch = match[1]; // [[note|alias]]
       const noteName = match[2]; // note (or folder/note)
       const hasAlias = match[3] !== undefined;
@@ -197,84 +192,83 @@ export class WikiLinkHandler extends BaseHandler {
 
       // In edit mode, show raw markdown for editing
       // This allows the user to edit the source code and see autocomplete
-      if (isEditMode) {
-        continue;
-      }
+      if (!isEditMode) {
+        // Opening [[ - always hide (even when cursor is on line)
+        decorations.push(createHiddenMarker(start, start + 2, false));
 
-      // Opening [[ - always hide (even when cursor is on line)
-      decorations.push(createHiddenMarker(start, start + 2, false));
+        if (hasAlias) {
+          // Format: [[note|alias]]
+          // We want to show only the alias, hide the note name and |
 
-      if (hasAlias) {
-        // Format: [[note|alias]]
-        // We want to show only the alias, hide the note name and |
+          const noteStart = start + 2;
+          const noteEnd = noteStart + noteName.length;
+          const pipePos = noteEnd;
+          const aliasStart = pipePos + 1;
+          const aliasEnd = aliasStart + aliasText.length;
 
-        const noteStart = start + 2;
-        const noteEnd = noteStart + noteName.length;
-        const pipePos = noteEnd;
-        const aliasStart = pipePos + 1;
-        const aliasEnd = aliasStart + aliasText.length;
+          // Hide the note name - always hide
+          decorations.push(createHiddenMarker(noteStart, noteEnd, false));
 
-        // Hide the note name - always hide
-        decorations.push(createHiddenMarker(noteStart, noteEnd, false));
+          // Hide the pipe | - always hide
+          decorations.push(createHiddenMarker(pipePos, pipePos + 1, false));
 
-        // Hide the pipe | - always hide
-        decorations.push(createHiddenMarker(pipePos, pipePos + 1, false));
+          // Style the alias text as a wiki link
+          decorations.push(
+            createStyledText(aliasStart, aliasEnd, {
+              className: "cm-wiki-link",
+              style: `
+                color: #8b5cf6;
+                cursor: pointer;
+                font-weight: 500;
+                text-decoration: none !important;
+              `,
+            }),
+          );
+        } else {
+          // Format: [[note]]
+          // Render only the basename by default (e.g., [[A/B/C]] shows "C")
 
-        // Style the alias text as a wiki link
-        decorations.push(
-          createStyledText(aliasStart, aliasEnd, {
-            className: "cm-wiki-link",
-            style: `
-              color: #8b5cf6;
-              cursor: pointer;
-              font-weight: 500;
-              text-decoration: none !important;
-            `,
-          }),
-        );
-      } else {
-        // Format: [[note]]
-        // Render only the basename by default (e.g., [[A/B/C]] shows "C")
+          const noteStart = start + 2;
+          const noteEnd = noteStart + noteName.length;
 
-        const noteStart = start + 2;
-        const noteEnd = noteStart + noteName.length;
+          const basename = getWikiBasename(noteName);
+          const basenameIndex = noteName.lastIndexOf(basename);
 
-        const basename = getWikiBasename(noteName);
-        const basenameIndex = noteName.lastIndexOf(basename);
+          // If we can't reliably locate basename, fall back to full note range.
+          const linkStart =
+            basename && basenameIndex >= 0
+              ? noteStart + basenameIndex
+              : noteStart;
+          const linkEnd =
+            linkStart + (basename ? basename.length : noteName.length);
 
-        // If we can't reliably locate basename, fall back to full note range.
-        const linkStart =
-          basename && basenameIndex >= 0
-            ? noteStart + basenameIndex
-            : noteStart;
-        const linkEnd =
-          linkStart + (basename ? basename.length : noteName.length);
+          // Hide any leading path part (A/B/) - always hide
+          if (linkStart > noteStart) {
+            decorations.push(createHiddenMarker(noteStart, linkStart, false));
+          }
 
-        // Hide any leading path part (A/B/) - always hide
-        if (linkStart > noteStart) {
-          decorations.push(createHiddenMarker(noteStart, linkStart, false));
+          decorations.push(
+            createStyledText(linkStart, linkEnd, {
+              className: "cm-wiki-link",
+              style: `
+                color: #8b5cf6;
+                cursor: pointer;
+                font-weight: 500;
+                text-decoration: none !important;
+              `,
+            }),
+          );
+
+          // Hide any trailing part (unlikely, but keep safe) - always hide
+          if (linkEnd < noteEnd) {
+            decorations.push(createHiddenMarker(linkEnd, noteEnd, false));
+          }
         }
 
-        decorations.push(
-          createStyledText(linkStart, linkEnd, {
-            className: "cm-wiki-link",
-            style: `
-              color: #8b5cf6;
-              cursor: pointer;
-              font-weight: 500;
-              text-decoration: none !important;
-            `,
-          }),
-        );
-
-        // Hide any trailing part (unlikely, but keep safe) - always hide
-        if (linkEnd < noteEnd) {
-          decorations.push(createHiddenMarker(linkEnd, noteEnd, false));
-        }
+        // Closing ]] - always hide (even when cursor is on line)
+        decorations.push(createHiddenMarker(end - 2, end, false));
       }
-
-      // Closing ]] - always hide (even when cursor is on line)
-      decorations.push(createHiddenMarker(end - 2, end, false));
+      match = wikiLinkRegex.exec(lineText);
     }
 
     return decorations;

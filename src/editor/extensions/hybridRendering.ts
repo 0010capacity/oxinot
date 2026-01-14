@@ -361,9 +361,8 @@ function buildDecorations(view: EditorView): DecorationSet {
       const lineText = line.text;
 
       const strikethroughRegex = /~~(.+?)~~/g;
-      let match: RegExpExecArray | null;
-      // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
-      while ((match = strikethroughRegex.exec(lineText)) !== null) {
+      let match: RegExpExecArray | null = strikethroughRegex.exec(lineText);
+      while (match !== null) {
         const start = line.from + match.index;
         const end = start + match[0].length;
 
@@ -407,6 +406,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             }),
           });
         }
+        match = strikethroughRegex.exec(lineText);
       }
     }
   }
@@ -435,9 +435,8 @@ function buildDecorations(view: EditorView): DecorationSet {
       }
 
       const footnoteRefRegex = /\[\^([^\]]+)\]/g;
-      let match: RegExpExecArray | null;
-      // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
-      while ((match = footnoteRefRegex.exec(lineText)) !== null) {
+      let match = footnoteRefRegex.exec(lineText);
+      while (match !== null) {
         const refStart = line.from + match.index;
         const refEnd = refStart + match[0].length;
 
@@ -452,6 +451,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             },
           }),
         });
+        match = footnoteRefRegex.exec(lineText);
       }
     }
   }

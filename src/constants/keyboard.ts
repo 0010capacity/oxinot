@@ -186,8 +186,8 @@ export function matchesShortcut(
     Meta?: boolean;
     shift?: boolean;
     alt?: boolean;
-    // biome-ignore lint/suspicious/noExplicitAny: allow any for dynamic modifier keys
-    [key: string]: any;
+  // allow any for dynamic modifier keys
+  [key: string]: boolean | string | undefined;
   },
 ): boolean {
   const key = event.key.toLowerCase();
@@ -202,13 +202,13 @@ export function matchesShortcut(
   const metaPressed = event.metaKey;
 
   const ctrlRequired =
-    shortcut.Control ||
+    shortcut.Control === true ||
     (shortcut[PRIMARY_MODIFIER] === true &&
       PRIMARY_MODIFIER === MODIFIER_KEYS.CTRL);
-  const altRequired = shortcut.Alt || shortcut.alt;
-  const shiftRequired = shortcut.Shift || shortcut.shift;
+  const altRequired = shortcut.Alt === true || shortcut.alt === true;
+  const shiftRequired = shortcut.Shift === true || shortcut.shift === true;
   const metaRequired =
-    shortcut.Meta ||
+    shortcut.Meta === true ||
     (shortcut[PRIMARY_MODIFIER] === true &&
       PRIMARY_MODIFIER === MODIFIER_KEYS.META);
 
@@ -233,8 +233,8 @@ export function matchesShortcut(
  */
 export function formatShortcut(shortcut: {
   key: string;
-  // biome-ignore lint/suspicious/noExplicitAny: allow any for dynamic modifier keys
-  [key: string]: any;
+  // allow any for dynamic modifier keys
+  [key: string]: boolean | string | undefined;
 }): string {
   const parts: string[] = [];
 

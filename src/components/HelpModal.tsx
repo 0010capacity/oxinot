@@ -240,7 +240,7 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
           }}
         >
           <div
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: markdown content is sanitized and user-controlled
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: The markdown content is static (HELP_CONTENT) and the HTML output is produced by markdown-it with HTML parsing disabled (html: false). This is safe for rendering the help documentation.
             dangerouslySetInnerHTML={{ __html: htmlContent }}
             style={{
               color: isDark ? "#c1c2c5" : "#495057",

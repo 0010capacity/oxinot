@@ -37,13 +37,10 @@ export class CommentHandler extends BaseHandler {
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
-    // Match comments: %%comment%%
     const commentRegex = /%%([^%]+)%%/g;
-    let match: RegExpExecArray | null = null;
+    let match: RegExpExecArray | null = commentRegex.exec(lineText);
 
-    const execResult = commentRegex.exec(lineText);
-    while (execResult !== null) {
-      match = execResult;
+    while (match !== null) {
       const start = lineFrom + match.index;
       const end = start + match[0].length;
 
@@ -74,6 +71,7 @@ export class CommentHandler extends BaseHandler {
           decoration: Decoration.replace({}),
         });
       }
+      match = commentRegex.exec(lineText);
     }
 
     return decorations;

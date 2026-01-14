@@ -211,15 +211,15 @@ export function findAllMatches(
     pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
   );
 
-  let match: RegExpExecArray | null;
-  // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
-  while ((match = globalPattern.exec(text)) !== null) {
+  let match: RegExpExecArray | null = globalPattern.exec(text);
+  while (match !== null) {
     matches.push({
       match,
       from: offset + match.index,
       to: offset + match.index + match[0].length,
       text: match[0],
     });
+    match = globalPattern.exec(text);
   }
 
   return matches;
