@@ -1,5 +1,7 @@
 # Oxinot
 
+> Workflow test note: docs-only change to verify CI is skipped and the Required Checks workflow reports status.
+
 A modern markdown outliner application built with Tauri, React, and TypeScript. This app combines the power of block-based outliner editing (like Logseq) with a unique file tree navigation system.
 
 <!-- Testing auto-changeset PR workflow -->
