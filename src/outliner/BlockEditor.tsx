@@ -1,5 +1,5 @@
 import { useComputedColorScheme } from "@mantine/core";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
@@ -53,18 +53,12 @@ export function BlockEditor({
   // resulting in multiple empty root blocks being persisted.
   const isCreatingInitialBlockForPageRef = useRef<string | null>(null);
 
-  // Debug: track prior root set to spot unexpected transitions and duplicate creation
-  const lastRootSignatureRef = useRef<string | null>(null);
-
   // Load page blocks
   useEffect(() => {
     if (pageId) {
       // Reset guards when navigating to a different page.
       didAutoCreateInitialBlockForPageRef.current = null;
       isCreatingInitialBlockForPageRef.current = null;
-      lastRootSignatureRef.current = null;
-
-      console.debug("[BlockEditor] navigate/loadPage", { pageId });
       loadPage(pageId);
     }
   }, [pageId, loadPage]);
@@ -74,24 +68,6 @@ export function BlockEditor({
     if (!isLoading && !error && pageId && currentPageId === pageId) {
       const rootBlocks = childrenMap.root || [];
       const hasBlocks = rootBlocks.length > 0;
-
-      const signature = rootBlocks.join(",");
-      if (lastRootSignatureRef.current !== signature) {
-        lastRootSignatureRef.current = signature;
-        console.debug("[BlockEditor] root blocks changed", {
-          pageId,
-          currentPageId,
-          rootCount: rootBlocks.length,
-          rootBlocks,
-        });
-      }
-
-      // If load completed and the page is still empty, allow a (single) auto-create attempt.
-      // This avoids a scenario where the guard is set during a transient render and we never
-      // create the initial block, leaving the editor in an "empty-state" UI.
-      if (!hasBlocks) {
-        didAutoCreateInitialBlockForPageRef.current = null;
-      }
 
       const alreadyCreatedForThisPage =
         didAutoCreateInitialBlockForPageRef.current === pageId;
@@ -106,7 +82,6 @@ export function BlockEditor({
         didAutoCreateInitialBlockForPageRef.current = pageId;
         isCreatingInitialBlockForPageRef.current = pageId;
 
-        console.debug("[BlockEditor] auto-create initial block", { pageId });
         createBlock(null, "")
           .catch((err) => {
             // Allow retry on failure
@@ -127,6 +102,21 @@ export function BlockEditor({
       }
     }
   }, [isLoading, error, pageId, currentPageId, childrenMap, createBlock]);
+
+  const rootBlockIds = childrenMap.root || [];
+  const blocksToShow = useMemo(() => {
+    // During initial auto-create, the optimistic temp block may exist only briefly.
+    // Avoid showing empty-state while the create is in-flight for the current page.
+    if (
+      rootBlockIds.length === 0 &&
+      isCreatingInitialBlockForPageRef.current === pageId
+    ) {
+      return ["__creating-initial-block__"];
+    }
+
+    // Determine which blocks to show based on zoom level
+    return focusedBlockId ? [focusedBlockId] : rootBlockIds;
+  }, [focusedBlockId, rootBlockIds, pageId]);
 
   if (isLoading) {
     return (
@@ -158,10 +148,7 @@ export function BlockEditor({
     );
   }
 
-  // Determine which blocks to show based on zoom level
-  const blocksToShow = focusedBlockId
-    ? [focusedBlockId]
-    : childrenMap.root || [];
+  // blocksToShow is computed above (includes in-flight initial create handling)
 
   return (
     <PageContainer className={isDark ? "theme-dark" : "theme-light"}>
@@ -192,9 +179,22 @@ export function BlockEditor({
               </div>
             </div>
           ) : (
-            blocksToShow.map((blockId) => (
-              <BlockComponent key={blockId} blockId={blockId} depth={0} />
-            ))
+            blocksToShow.map((blockId) =>
+              blockId === "__creating-initial-block__" ? (
+                <div key={blockId} className="empty-state">
+                  <div
+                    style={{
+                      opacity: "var(--opacity-dimmed)",
+                      padding: "20px",
+                    }}
+                  >
+                    Creating your first block...
+                  </div>
+                </div>
+              ) : (
+                <BlockComponent key={blockId} blockId={blockId} depth={0} />
+              )
+            )
           )}
         </div>
 
