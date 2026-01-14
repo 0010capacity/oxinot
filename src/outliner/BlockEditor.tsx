@@ -1,7 +1,5 @@
-import {
-  useComputedColorScheme,
-} from "@mantine/core";
-import { useEffect } from "react";
+import { useComputedColorScheme } from "@mantine/core";
+import { useEffect, useRef } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
@@ -41,9 +39,16 @@ export function BlockEditor({
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
 
+  // Prevent initial block auto-creation from running more than once per page load.
+  // This can happen during state transitions (e.g. loadPage sets childrenMap/isLoading in multiple steps),
+  // which may cause duplicate empty root blocks to be persisted.
+  const didAutoCreateInitialBlockForPageRef = useRef<string | null>(null);
+
   // Load page blocks
   useEffect(() => {
     if (pageId) {
+      // Reset guard when navigating to a different page.
+      didAutoCreateInitialBlockForPageRef.current = null;
       loadPage(pageId);
     }
   }, [pageId, loadPage]);
@@ -54,7 +59,11 @@ export function BlockEditor({
       const rootBlocks = childrenMap.root || [];
       const hasBlocks = rootBlocks.length > 0;
 
-      if (!hasBlocks) {
+      if (
+        !hasBlocks &&
+        didAutoCreateInitialBlockForPageRef.current !== pageId
+      ) {
+        didAutoCreateInitialBlockForPageRef.current = pageId;
         createBlock(null, "").catch((err) => {
           console.error("Failed to create initial block:", err);
         });
