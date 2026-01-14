@@ -174,7 +174,7 @@
       "version": "버전 {{version}}",
       "updates_title": "업데이트",
       "updates_desc": "Oxinot은 Tauri Updater를 사용하여 자동으로 최신 상태를 유지합니다.",
-      "check_update_msg": "업데이트 기능은 Tauri Updater 통합과 함께 향후 릴리스에서 활성화될 예정입니다.",
+      "check_update_msg": "지금 업데이트를 확인합니다.",
       "check_updates_btn": "업데이트 확인"
     },
     "language": {
