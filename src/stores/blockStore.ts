@@ -45,7 +45,7 @@ interface BlockActions {
   // 블록 CRUD
   createBlock: (
     afterBlockId: string | null,
-    content?: string,
+    content?: string
   ) => Promise<string>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
@@ -57,7 +57,7 @@ interface BlockActions {
   moveBlock: (
     id: string,
     newParentId: string | null,
-    afterBlockId: string | null,
+    afterBlockId: string | null
   ) => Promise<void>;
   toggleCollapse: (id: string) => Promise<void>;
 
@@ -170,7 +170,11 @@ export const useBlockStore = create<BlockStore>()(
       }
 
       // Optimistic: 임시 ID로 즉시 추가
+      // NOTE: This must happen synchronously before any async work so the editor
+      // can render a root block immediately (avoids "empty-state" flicker/races on
+      // first open of a new, empty page).
       const tempId = `temp-${Date.now()}`;
+      const nowIso = new Date().toISOString();
       const tempBlock: BlockData = {
         id: tempId,
         pageId: currentPageId,
@@ -179,8 +183,8 @@ export const useBlockStore = create<BlockStore>()(
         orderWeight: Date.now(),
         isCollapsed: false,
         blockType: "bullet",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: nowIso,
+        updatedAt: nowIso,
       };
 
       set((state) => {
@@ -199,6 +203,10 @@ export const useBlockStore = create<BlockStore>()(
 
         state.focusedBlockId = tempId;
       });
+
+      // Kick off the backend create after the optimistic state is committed.
+      // Yield one tick to ensure React/Zustand subscribers can render the temp block.
+      await Promise.resolve();
 
       try {
         // 실제 생성
@@ -238,7 +246,7 @@ export const useBlockStore = create<BlockStore>()(
           delete state.blocksById[tempId];
           const parentKey = parentId ?? "root";
           state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-            (id) => id !== tempId,
+            (id) => id !== tempId
           );
         });
         throw error;
@@ -374,7 +382,7 @@ export const useBlockStore = create<BlockStore>()(
           delete state.blocksById[tempId];
           const parentKey = block.parentId ?? "root";
           state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-            (bid) => bid !== tempId,
+            (bid) => bid !== tempId
           );
         });
         throw error;
@@ -419,7 +427,7 @@ export const useBlockStore = create<BlockStore>()(
           state.childrenMap[backup.parentKey].splice(
             backup.index,
             0,
-            backup.block.id,
+            backup.block.id
           );
         });
         throw error;
@@ -444,7 +452,7 @@ export const useBlockStore = create<BlockStore>()(
       // Optimistic
       set((state) => {
         state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-          (childId) => childId !== id,
+          (childId) => childId !== id
         );
 
         if (!state.childrenMap[prevSiblingId]) {
@@ -485,9 +493,8 @@ export const useBlockStore = create<BlockStore>()(
       set((state) => {
         const parentId = block.parentId as string; // We already checked block.parentId is not null
         state.childrenMap[parentId] =
-          state.childrenMap[parentId]?.filter(
-            (childId) => childId !== id,
-          ) ?? [];
+          state.childrenMap[parentId]?.filter((childId) => childId !== id) ??
+          [];
 
         const grandparentKey = parent.parentId ?? "root";
         const parentIndex =
@@ -520,28 +527,27 @@ export const useBlockStore = create<BlockStore>()(
       }
     },
 
-      moveBlock: async (
-        id: string,
-        targetParentId: string | null,
-        afterBlockId: string | null,
-      ) => {
-        const workspacePath = useWorkspaceStore.getState().workspacePath;
-        if (!workspacePath) {
-          throw new Error("No workspace path");
-        }
+    moveBlock: async (
+      id: string,
+      targetParentId: string | null,
+      afterBlockId: string | null
+    ) => {
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        throw new Error("No workspace path");
+      }
 
-        await invoke("move_block", {
-          workspacePath,
-          blockId: id,
-          newParentId: targetParentId,
-          afterBlockId,
-        });
+      await invoke("move_block", {
+        workspacePath,
+        blockId: id,
+        newParentId: targetParentId,
+        afterBlockId,
+      });
 
-        // Reload page to reflect changes
-        const pageId = get().currentPageId;
-        if (pageId) await get().loadPage(pageId);
-      },
-
+      // Reload page to reflect changes
+      const pageId = get().currentPageId;
+      if (pageId) await get().loadPage(pageId);
+    },
 
     toggleCollapse: async (id: string) => {
       const block = get().blocksById[id];
@@ -635,7 +641,7 @@ export const useBlockStore = create<BlockStore>()(
 
         return lastVisibleId;
       }
-      
+
       if (block.parentId) {
         // 첫 번째 형제면 부모로
         return block.parentId;
@@ -678,7 +684,7 @@ export const useBlockStore = create<BlockStore>()(
 
       return null;
     },
-  })),
+  }))
 );
 
 // ============ Selector Hooks ============
@@ -689,7 +695,7 @@ export const useBlock = (id: string) =>
 export const useChildrenIds = (parentId: string | null) =>
   useBlockStore(
     (state) => state.childrenMap[parentId ?? "root"] ?? [],
-    shallow,
+    shallow
   );
 
 export const useFocusedBlockId = () =>

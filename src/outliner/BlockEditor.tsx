@@ -1,5 +1,5 @@
 import { useComputedColorScheme } from "@mantine/core";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
@@ -89,34 +89,19 @@ export function BlockEditor({
             console.error("Failed to create initial block:", err);
           })
           .finally(() => {
-            // Release in-flight lock; if still empty on next render, the guard logic can decide again.
+            // Release in-flight lock
             if (isCreatingInitialBlockForPageRef.current === pageId) {
               isCreatingInitialBlockForPageRef.current = null;
             }
           });
       }
-
-      // If blocks exist, clear any in-flight marker for this page so future emptiness can be handled.
-      if (hasBlocks && isCreatingInitialBlockForPageRef.current === pageId) {
-        isCreatingInitialBlockForPageRef.current = null;
-      }
     }
   }, [isLoading, error, pageId, currentPageId, childrenMap, createBlock]);
 
-  const rootBlockIds = childrenMap.root || [];
-  const blocksToShow = useMemo(() => {
-    // During initial auto-create, the optimistic temp block may exist only briefly.
-    // Avoid showing empty-state while the create is in-flight for the current page.
-    if (
-      rootBlockIds.length === 0 &&
-      isCreatingInitialBlockForPageRef.current === pageId
-    ) {
-      return ["__creating-initial-block__"];
-    }
-
-    // Determine which blocks to show based on zoom level
-    return focusedBlockId ? [focusedBlockId] : rootBlockIds;
-  }, [focusedBlockId, rootBlockIds, pageId]);
+  // Determine which blocks to show based on zoom level
+  const blocksToShow = focusedBlockId
+    ? [focusedBlockId]
+    : childrenMap.root || [];
 
   if (isLoading) {
     return (
@@ -179,22 +164,9 @@ export function BlockEditor({
               </div>
             </div>
           ) : (
-            blocksToShow.map((blockId) =>
-              blockId === "__creating-initial-block__" ? (
-                <div key={blockId} className="empty-state">
-                  <div
-                    style={{
-                      opacity: "var(--opacity-dimmed)",
-                      padding: "20px",
-                    }}
-                  >
-                    Creating your first block...
-                  </div>
-                </div>
-              ) : (
-                <BlockComponent key={blockId} blockId={blockId} depth={0} />
-              )
-            )
+            blocksToShow.map((blockId) => (
+              <BlockComponent key={blockId} blockId={blockId} depth={0} />
+            ))
           )}
         </div>
 
