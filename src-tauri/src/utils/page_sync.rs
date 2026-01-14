@@ -1,16 +1,23 @@
 use rusqlite::{params, Connection};
 
 use crate::models::block::Block;
-use crate::utils::markdown::blocks_to_markdown;
+use crate::utils::markdown::{blocks_to_markdown, sanitize_content_for_markdown};
 
 /// Attempt to update a single bullet block's content in the page markdown file by patching
-/// only the block line immediately preceding its `ID::<uuid>` marker.
+/// the full bullet segment (one or more lines) that appears immediately before its `ID::<uuid>` marker.
+///
+/// Serializer format for Bullet blocks:
+/// - First line: "<indent>- <content_first_line>"
+/// - If content has multiple lines, subsequent lines are serialized as lines at the same indent:
+///     "<indent><content_next_line>"
+/// - Hidden marker line directly after the bullet segment:
+///     "<indent>  ID::<uuid>"
 ///
 /// Safety rules:
 /// - Only applies to Bullet blocks (current canonical markdown format).
 /// - Anchors exclusively on the hidden `ID::<uuid>` marker line.
 /// - Uses line-based manipulation (no byte offsets) to avoid UTF-8 corruption.
-/// - If the file shape is unexpected (missing marker, marker at start, etc.), returns `Ok(false)`
+/// - If the file shape is unexpected (missing marker, missing bullet start, etc.), returns `Ok(false)`
 ///   so the caller can fall back to a full rewrite.
 /// - If the on-disk file appears externally modified (mtime/size differ from DB), returns `Ok(false)`.
 fn try_patch_bullet_block_content(
@@ -74,8 +81,6 @@ fn try_patch_bullet_block_content(
     let mut lines: Vec<String> = file_text.lines().map(|s| s.to_string()).collect();
 
     // Find the ID marker line for this block.
-    // Serializer format: "<indent>- <content>" then "<indent>  ID::<uuid>"
-    // We anchor on the exact marker, and patch the previous line.
     let marker = format!("ID::{}", updated_block_id);
     let mut marker_idx: Option<usize> = None;
 
@@ -95,51 +100,61 @@ fn try_patch_bullet_block_content(
         return Ok(false);
     }
 
-    let block_line_idx = mi - 1;
-    let block_line = &lines[block_line_idx];
+    // Marker line indent determines the bullet's depth.
+    let marker_line = &lines[mi];
+    let indent_len = marker_line.len() - marker_line.trim_start().len();
+    let indent = &marker_line[..indent_len];
 
-    // Extract indent from the existing block line. In canonical format it's 2 spaces per depth.
-    let existing_indent_len = block_line.len() - block_line.trim_start().len();
-    let indent = &block_line[..existing_indent_len];
+    // Walk upward to find the bullet-start line at the same indent.
+    // We stop at the first line with the same indent that begins with "- ".
+    // Content continuation lines for this block are at the same indent but do NOT start with "- ".
+    let mut start_idx: Option<usize> = None;
+    let mut j = mi;
+    while j > 0 {
+        j -= 1;
+        let line = &lines[j];
 
-    // Enforce that this looks like a bullet line at that indent.
-    let trimmed_block_line = block_line.trim_start();
-    if !trimmed_block_line.starts_with("- ") {
-        return Ok(false);
+        let line_indent_len = line.len() - line.trim_start().len();
+        if line_indent_len != indent_len {
+            // Different indent => reached outside this block's segment.
+            // If we haven't found the bullet start yet, the structure is unexpected.
+            if start_idx.is_none() {
+                return Ok(false);
+            }
+            break;
+        }
+
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("- ") {
+            start_idx = Some(j);
+            break;
+        }
     }
 
-    // Sanitize content just like serializer does (prevent raw "ID::" lines in user content).
-    let sanitized_content = {
-        let mut out = String::new();
-        for (i, line) in content.lines().enumerate() {
-            if i > 0 {
-                out.push('\n');
-            }
-            let trimmed = line.trim_start();
-            if trimmed.starts_with("ID::") {
-                out.push('\u{200B}');
-            }
-            out.push_str(line);
-        }
-        out
+    let Some(si) = start_idx else {
+        return Ok(false);
     };
 
-    // We currently only patch single-line bullet content safely.
-    // Multi-line content is represented across multiple lines in the serializer and would
-    // require a wider patch. Fall back to full rewrite for now.
-    if sanitized_content.contains('\n') {
-        return Ok(false);
+    // Replace [si, mi) with the newly serialized bullet content lines.
+    let sanitized = sanitize_content_for_markdown(&content);
+    let content_lines: Vec<&str> = sanitized.lines().collect();
+
+    // Serializer always writes a bullet line. If content is empty, it becomes "- ".
+    let mut replacement: Vec<String> = Vec::new();
+    let first = content_lines.first().copied().unwrap_or("");
+    replacement.push(format!("{}- {}", indent, first));
+    for &line in content_lines.iter().skip(1) {
+        replacement.push(format!("{}{}", indent, line));
     }
 
-    // Patch the bullet line while keeping indent stable.
-    lines[block_line_idx] = format!("{}- {}", indent, sanitized_content);
+    // Splice in replacement. Keep marker line intact.
+    // Old segment is si..mi (mi itself is the marker line).
+    lines.splice(si..mi, replacement);
 
     // Re-join with '\n'. Keep trailing newline behavior stable (serializer uses trailing newline).
     let mut new_text = lines.join("\n");
     if had_trailing_newline {
         new_text.push('\n');
-    } else {
-        // Writing via std::fs::write is fine either way; keeping as-is is safest.
     }
 
     std::fs::write(&full_path, new_text)

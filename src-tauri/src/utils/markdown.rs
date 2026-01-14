@@ -31,7 +31,7 @@ fn parse_id_marker(trimmed: &str) -> Option<String> {
     Some(trimmed[ID_MARKER_PREFIX.len()..].trim().to_string())
 }
 
-fn sanitize_content_for_markdown(content: &str) -> String {
+pub fn sanitize_content_for_markdown(content: &str) -> String {
     // Prevent users from accidentally creating raw ID marker lines that would be treated as metadata
     // during rebuild. We keep content as-is, but if a line begins with "ID::", we prefix it with a
     // zero-width space so it won't match the marker parser.
