@@ -99,8 +99,16 @@ jobs:
 
             # Fetch latest main and rebase to ensure we're up-to-date
             git fetch origin main
-            git reset HEAD .changeset
+
+            # Stash all changes (including package-lock.json modifications)
+            git stash push -u -m "Temporary stash for rebase"
+
+            # Rebase on latest main
             git rebase origin/main
+
+            # Restore only the changeset file
+            git stash pop
+            git reset HEAD .
             git add .changeset
 
             # Check if changeset branch already exists remotely and delete if it does
