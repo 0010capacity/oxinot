@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
-const fs = require("node:fs");
-const path = require("node:path");
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Read package.json to get version
 const packageJsonPath = path.join(__dirname, "package.json");
