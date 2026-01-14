@@ -4,19 +4,9 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - ".github/**"
-      - ".changeset/**"
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - ".github/**"
-      - ".changeset/**"
   merge_group:
 
 env:
@@ -28,40 +18,111 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Determine whether CI should run for this change
+        id: changes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          IGNORE_REGEX="$(cat .github/ci/ignore-regex.txt)"
+
+          SHOULD_RUN=true
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+            OWNER_REPO="${{ github.repository }}"
+
+            FILES="$(
+              gh api --paginate "repos/${OWNER_REPO}/pulls/${PR_NUMBER}/files?per_page=100" \
+                --jq '.[].filename' || true
+            )"
+
+            if [ -z "${FILES}" ]; then
+              # Be conservative: run CI if we can't determine files.
+              SHOULD_RUN=true
+            else
+              NON_IGNORED="$(printf "%s\n" "${FILES}" | grep -Ev "${IGNORE_REGEX}" || true)"
+              if [ -z "${NON_IGNORED}" ]; then
+                SHOULD_RUN=false
+              fi
+            fi
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            # Determine changed files between before/after commits.
+            BEFORE="${{ github.event.before }}"
+            AFTER="${{ github.sha }}"
+
+            # Some pushes (e.g. force push / first commit) may not have a usable BEFORE.
+            if [ -n "${BEFORE}" ] && [ "${BEFORE}" != "0000000000000000000000000000000000000000" ]; then
+              FILES="$(git diff --name-only "${BEFORE}" "${AFTER}" || true)"
+            else
+              FILES="$(git show --name-only --pretty="" "${AFTER}" || true)"
+            fi
+
+            if [ -z "${FILES}" ]; then
+              SHOULD_RUN=true
+            else
+              NON_IGNORED="$(printf "%s\n" "${FILES}" | sed '/^$/d' | grep -Ev "${IGNORE_REGEX}" || true)"
+              if [ -z "${NON_IGNORED}" ]; then
+                SHOULD_RUN=false
+              fi
+            fi
+          fi
+
+          echo "should_run=${SHOULD_RUN}" >> "$GITHUB_OUTPUT"
+          echo "should_run=${SHOULD_RUN}"
+
+      - name: Short-circuit (docs/config-only change)
+        if: steps.changes.outputs.should_run != 'true'
+        shell: bash
+        run: |
+          echo "CI skipped: all changes are docs/config/changeset-only."
+          exit 0
+
       - name: Setup Node
+        if: steps.changes.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: "npm"
 
       - name: Install system dependencies
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
       - name: Install Rust
+        if: steps.changes.outputs.should_run == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Rust cache
+        if: steps.changes.outputs.should_run == 'true'
         uses: swatinem/rust-cache@v2
         with:
           workspaces: ./src-tauri
 
       - name: Install dependencies
+        if: steps.changes.outputs.should_run == 'true'
         run: npm install
 
       - name: Lint
+        if: steps.changes.outputs.should_run == 'true'
         run: npm run lint
 
       - name: Build frontend
+        if: steps.changes.outputs.should_run == 'true'
         run: npm run build
 
       - name: Build Tauri (check only)
+        if: steps.changes.outputs.should_run == 'true'
         run: npm run tauri:build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
