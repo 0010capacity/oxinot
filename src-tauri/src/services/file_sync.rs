@@ -76,7 +76,7 @@ impl FileSyncService {
         &self,
         conn: &Connection,
         page_id: &str,
-        title: &str,
+        _title: &str,
     ) -> Result<String, String> {
         let abs_file_path = self.get_page_file_path(conn, page_id)?;
 
@@ -86,10 +86,17 @@ impl FileSyncService {
                 .map_err(|e| format!("Failed to create parent directory: {}", e))?;
         }
 
-        // Create file with basic header
-        let initial_content = format!("- {}\n", title);
-        fs::write(&abs_file_path, initial_content)
-            .map_err(|e| format!("Failed to create file: {}", e))?;
+        // Create an empty file.
+        //
+        // Rationale:
+        // We previously wrote a "- {title}" bullet as "basic header", but the page title already
+        // lives in the pages table / UI header. Writing an initial bullet causes the parser to
+        // import a root block, and the editor may also create its own initial empty block on first
+        // open, resulting in duplicate/empty root bullets being persisted.
+        //
+        // Keeping the initial file empty prevents phantom empty root bullets from accumulating
+        // across open/close cycles.
+        fs::write(&abs_file_path, "").map_err(|e| format!("Failed to create file: {}", e))?;
 
         // Return relative path
         self.compute_rel_path(&abs_file_path)
@@ -242,7 +249,8 @@ impl FileSyncService {
             let file_name = old_abs_path.file_name().ok_or("Invalid file name")?;
             let new_path = new_parent_dir.join(file_name);
 
-            fs::rename(&old_abs_path, &new_path).map_err(|e| format!("Failed to move file: {}", e))?;
+            fs::rename(&old_abs_path, &new_path)
+                .map_err(|e| format!("Failed to move file: {}", e))?;
 
             self.compute_rel_path(&new_path)
         }
@@ -268,11 +276,14 @@ impl FileSyncService {
         };
 
         // The directory is the parent of the file
-        let dir_path = old_abs_file_path.parent().ok_or("Cannot get directory path")?;
+        let dir_path = old_abs_file_path
+            .parent()
+            .ok_or("Cannot get directory path")?;
 
         // Read content from the file inside directory
         let content = if old_abs_file_path.exists() {
-            fs::read_to_string(&old_abs_file_path).map_err(|e| format!("Failed to read file: {}", e))?
+            fs::read_to_string(&old_abs_file_path)
+                .map_err(|e| format!("Failed to read file: {}", e))?
         } else {
             format!("- {}\n", page.title)
         };
@@ -316,7 +327,8 @@ impl FileSyncService {
 
         // Read existing content if file exists, otherwise use default
         let content = if old_abs_file_path.exists() {
-            fs::read_to_string(&old_abs_file_path).map_err(|e| format!("Failed to read file: {}", e))?
+            fs::read_to_string(&old_abs_file_path)
+                .map_err(|e| format!("Failed to read file: {}", e))?
         } else {
             format!("- {}\n", page.title)
         };
