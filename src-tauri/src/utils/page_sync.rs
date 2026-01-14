@@ -696,10 +696,15 @@ pub fn sync_page_to_markdown_after_block_change(
         }
 
         // Multi-hunk move/reindent patch (best-effort).
-        if try_patch_bullet_subtree_relocation(conn, workspace_path, page_id, block_id)? {
-            return Ok(());
-        }
-
+        //
+        // Disabled for now: The relocation patch can corrupt files in certain real-world edit flows
+        // (e.g. rapid edits that change sibling relationships while the on-disk file is being patched).
+        // Until we can make relocation patching provably correct, fall back to the canonical full rewrite.
+        //
+        // if try_patch_bullet_subtree_relocation(conn, workspace_path, page_id, block_id)? {
+        //     return Ok(());
+        // }
+        //
         // Content update patch (requires block present in DB).
         if try_patch_bullet_block_content(conn, workspace_path, page_id, block_id)? {
             return Ok(());
