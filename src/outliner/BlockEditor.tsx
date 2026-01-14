@@ -42,10 +42,6 @@ export function BlockEditor({
   // Prevent initial block auto-creation from running more than once per page load.
   // This can happen during state transitions (e.g. loadPage sets childrenMap/isLoading in multiple steps),
   // which may cause duplicate empty root blocks to be persisted.
-  //
-  // IMPORTANT:
-  // We must be careful not to "lock out" initial block creation if the page is still empty after load.
-  // So we reset this guard after a successful load when the page has no root blocks.
   const didAutoCreateInitialBlockForPageRef = useRef<string | null>(null);
 
   // Make auto-create idempotent while a create request is in-flight for the same page.
@@ -53,12 +49,18 @@ export function BlockEditor({
   // resulting in multiple empty root blocks being persisted.
   const isCreatingInitialBlockForPageRef = useRef<string | null>(null);
 
+  // If we auto-create an initial block, force a reload once creation completes to ensure
+  // the editor reflects the DB state (some first-open flows can otherwise get stuck
+  // showing empty-state even though the file/DB now contains a block).
+  const needsReloadAfterInitialCreateRef = useRef(false);
+
   // Load page blocks
   useEffect(() => {
     if (pageId) {
       // Reset guards when navigating to a different page.
       didAutoCreateInitialBlockForPageRef.current = null;
       isCreatingInitialBlockForPageRef.current = null;
+      needsReloadAfterInitialCreateRef.current = false;
       loadPage(pageId);
     }
   }, [pageId, loadPage]);
@@ -81,11 +83,21 @@ export function BlockEditor({
       ) {
         didAutoCreateInitialBlockForPageRef.current = pageId;
         isCreatingInitialBlockForPageRef.current = pageId;
+        needsReloadAfterInitialCreateRef.current = true;
 
         createBlock(null, "")
+          .then(() => {
+            // Ensure UI catches up with the actual DB state after creation.
+            // This avoids first-open empty-state cases when the optimistic block
+            // doesn't get reflected in childrenMap for some reason.
+            if (needsReloadAfterInitialCreateRef.current) {
+              loadPage(pageId);
+            }
+          })
           .catch((err) => {
             // Allow retry on failure
             didAutoCreateInitialBlockForPageRef.current = null;
+            needsReloadAfterInitialCreateRef.current = false;
             console.error("Failed to create initial block:", err);
           })
           .finally(() => {
@@ -96,7 +108,15 @@ export function BlockEditor({
           });
       }
     }
-  }, [isLoading, error, pageId, currentPageId, childrenMap, createBlock]);
+  }, [
+    isLoading,
+    error,
+    pageId,
+    currentPageId,
+    childrenMap,
+    createBlock,
+    loadPage,
+  ]);
 
   // Determine which blocks to show based on zoom level
   const blocksToShow = focusedBlockId
