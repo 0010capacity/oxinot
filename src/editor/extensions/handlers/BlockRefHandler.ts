@@ -2,8 +2,8 @@
  * BlockRef handler for Obsidian/Logseq-style block references.
  *
  * Syntax:
- * - ((uuid))        : normal block link (UUID should not be shown)
- * - !((uuid))       : embed block (UUID should not be shown)
+ * - ((uuid))        : normal block link (inline) - UUID should not be shown
+ * - !((uuid))       : embed block (block-level) - UUID should not be shown
  *
  * Rendering rules (live preview):
  * - Hide the raw markup and show widgets ONLY when cursor is NOT on the line.
@@ -12,11 +12,16 @@
  *   - fetches the referenced block content from the backend
  *   - renders a single line of preview text (truncated)
  *   - remains clickable via `createBlockRefClickHandler`
- * - Embed refs !(( )) render an inline, read-only subtree preview widget.
+ *   - can appear inline with other text on the same line
+ * - Embed refs !((uuid)) are BLOCK-LEVEL elements:
+ *   - Must be on their own line (or at the beginning of a line with nothing before)
+ *   - Render as a full-width block preview widget
+ *   - Cannot coexist with other content on the same line
  *
  * Notes:
  * - This handler is regex/line-based (like WikiLinkHandler), not syntax-tree-based.
  * - The preview widgets are read-only by design, but become editable when cursor enters the line.
+ * - Block embeds enforce block-level rendering: if not alone on a line, they're shown as raw syntax.
  */
 
 import { Decoration, type EditorView, WidgetType } from "@codemirror/view";
@@ -85,6 +90,22 @@ function findBlockRefsInLine(lineText: string): BlockRefMatch[] {
   return out;
 }
 
+/**
+ * Check if an embed block is alone on its line (block-level rendering requirement).
+ *
+ * Returns true only if:
+ * - The embed is the only thing on the line, OR
+ * - The line has only whitespace around the embed
+ *
+ * This ensures embed blocks are truly block-level, not inline.
+ */
+function isEmbedBlockAlone(lineText: string, match: BlockRefMatch): boolean {
+  const beforeText = lineText.slice(0, match.start).trim();
+  const afterText = lineText.slice(match.end).trim();
+
+  return beforeText.length === 0 && afterText.length === 0;
+}
+
 class EmbedSubtreeWidget extends WidgetType {
   private readonly blockId: string;
   private root: Root | null = null;
@@ -119,7 +140,7 @@ class EmbedSubtreeWidget extends WidgetType {
                 new CustomEvent("cm-embed-navigate", {
                   bubbles: true,
                   detail: { blockId },
-                }),
+                })
               );
             },
             onEdit: () => {
@@ -132,9 +153,9 @@ class EmbedSubtreeWidget extends WidgetType {
                 });
               }
             },
-          }),
-        ),
-      ),
+          })
+        )
+      )
     );
 
     return container;
@@ -205,7 +226,10 @@ class BlockRefPreviewWidget extends WidgetType {
         const res = (await invoke("get_block", {
           workspacePath,
           request: { block_id: this.blockId },
-        })) as { block?: { content: string }; Block?: { content: string } } | null;
+        })) as {
+          block?: { content: string };
+          Block?: { content: string };
+        } | null;
 
         // Debug logging to understand response shape and load failures
         console.debug("[BlockRefPreviewWidget] get_block response", {
@@ -277,7 +301,7 @@ export class BlockRefHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isEditMode: boolean,
+    isEditMode: boolean
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -293,6 +317,14 @@ export class BlockRefHandler extends BaseHandler {
       }
 
       const hasBang = match.isEmbed;
+
+      // BLOCK-LEVEL RENDERING ENFORCEMENT:
+      // Embed blocks !((uuid)) must be alone on their line.
+      // If there's other content before or after, show raw syntax instead.
+      if (hasBang && !isEmbedBlockAlone(lineText, match)) {
+        // Embed block is not alone: skip rendering widget, show raw syntax
+        continue;
+      }
 
       const bangStart = from;
       const bangEnd = hasBang ? from + 1 : from;
@@ -312,17 +344,19 @@ export class BlockRefHandler extends BaseHandler {
       decorations.push(createHiddenMarker(from, to, false));
 
       if (match.isEmbed) {
-        // Embed: insert an inline widget (read-only subtree preview)
+        // BLOCK-LEVEL EMBED: insert a block-level widget (full-width subtree preview)
+        // Side=0 places widget at the reference start
         decorations.push({
           from,
           to,
           decoration: Decoration.widget({
             widget: new EmbedSubtreeWidget(match.id),
             side: 0,
+            block: true, // Mark as block-level decoration
           }),
         });
       } else {
-        // Normal (()) link: render a one-line inline preview widget (read-only).
+        // INLINE LINK: render a one-line inline preview widget (read-only).
         // Place the widget at the reference start so it remains visible/clickable
         // while the raw markup is hidden.
         decorations.push({
@@ -335,6 +369,13 @@ export class BlockRefHandler extends BaseHandler {
         });
       }
     }
+
+    // Sort decorations to ensure proper ordering when multiple refs on same line
+    decorations.sort((a, b) => {
+      if (a.from !== b.from) return a.from - b.from;
+      // If same position, prefer wider ranges first (ensures proper nesting)
+      return b.to - b.from - (a.to - a.from);
+    });
 
     return decorations;
   }
