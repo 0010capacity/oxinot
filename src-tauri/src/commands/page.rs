@@ -133,20 +133,44 @@ pub async fn update_page(
     let new_parent_id = request.parent_id.or(page.parent_id.clone());
     let new_file_path = request.file_path.clone().or(page.file_path.clone());
 
-    // If title changed, rename file
+    // If title changed, rename file AND rewrite all wiki-link references that point to this page's old path.
     if let Some(title) = &request.title {
         if title != &page.title {
+            // Capture old wiki target (workspace-relative, without .md)
+            let old_path = page
+                .file_path
+                .clone()
+                .unwrap_or_else(|| format!("{}.md", page.title));
+            let from_target = old_path
+                .strip_suffix(".md")
+                .unwrap_or(old_path.as_str())
+                .to_string();
+
             let file_sync = FileSyncService::new(workspace_path.clone());
             let new_path = file_sync
                 .rename_page_file(&conn, &request.id, title)
                 .map_err(|e| format!("Failed to rename page file: {}", e))?;
 
-            // Update the new_file_path to use the renamed path
+            // Persist the page metadata changes
             conn.execute(
                 "UPDATE pages SET title = ?, file_path = ?, updated_at = ? WHERE id = ?",
                 params![&new_title, &new_path, &now, &request.id],
             )
             .map_err(|e| e.to_string())?;
+
+            // Compute new wiki target (workspace-relative, without .md)
+            let to_target = new_path
+                .strip_suffix(".md")
+                .unwrap_or(new_path.as_str())
+                .to_string();
+
+            // Rewrite referencing blocks in DB and sync affected pages back to markdown files (SoT = files).
+            // Note: This uses the existing targeted rewrite helper defined in this module.
+            rewrite_wiki_links_for_page_path_change(workspace_path.clone(), from_target, to_target)
+                .await?;
+
+            // Ensure the renamed page's file reflects the rename (serializer may rely on the new file_path)
+            sync_page_to_markdown(&conn, &workspace_path, &request.id)?;
 
             return get_page_by_id(&conn, &request.id);
         }
