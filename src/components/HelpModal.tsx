@@ -1,6 +1,5 @@
 import { Box, Modal, ScrollArea } from "@mantine/core";
-import {   useComputedColorScheme,
-} from "@mantine/core";
+import { useComputedColorScheme } from "@mantine/core";
 import MarkdownIt from "markdown-it";
 import { useMemo } from "react";
 
@@ -197,7 +196,7 @@ Blocks are stored as nested bullet lists in markdown:
 
 ---
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 
 Thank you for using MD Outliner! Happy note-taking! 📝`;
 
@@ -294,7 +293,9 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
           }
 
           .help-content code {
-            background-color: ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)"};
+            background-color: ${
+              isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)"
+            };
             padding: 2px 6px;
             border-radius: 3px;
             font-family: 'Monaco', 'Menlo', 'Consolas', monospace;

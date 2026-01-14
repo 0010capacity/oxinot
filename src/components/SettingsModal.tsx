@@ -93,12 +93,14 @@ export function SettingsModal({
   const [activeTab, setActiveTab] = useState("appearance");
 
   // Advanced settings
-  const telemetryEnabled = useAdvancedSettingsStore((state) => state.telemetryEnabled);
+  const telemetryEnabled = useAdvancedSettingsStore(
+    (state) => state.telemetryEnabled
+  );
   const setTelemetryEnabled = useAdvancedSettingsStore(
-    (state) => state.setTelemetryEnabled,
+    (state) => state.setTelemetryEnabled
   );
   const resetAllSettings = useAdvancedSettingsStore(
-    (state) => state.resetAllSettings,
+    (state) => state.resetAllSettings
   );
 
   // Theme
@@ -112,10 +114,10 @@ export function SettingsModal({
   const editorFontSize = useThemeStore((state) => state.editorFontSize || 16);
   const setEditorFontSize = useThemeStore((state) => state.setEditorFontSize);
   const editorLineHeight = useThemeStore(
-    (state) => state.editorLineHeight || 1.6,
+    (state) => state.editorLineHeight || 1.6
   );
   const setEditorLineHeight = useThemeStore(
-    (state) => state.setEditorLineHeight,
+    (state) => state.setEditorLineHeight
   );
 
   // Clock Format
@@ -125,7 +127,7 @@ export function SettingsModal({
   const setTimeFormat = useClockFormatStore((state) => state.setTimeFormat);
   const setDateOrder = useClockFormatStore((state) => state.setDateOrder);
   const setDateSeparator = useClockFormatStore(
-    (state) => state.setDateSeparator,
+    (state) => state.setDateSeparator
   );
   const timezone = useClockFormatStore((state) => state.timezone);
   const setTimezone = useClockFormatStore((state) => state.setTimezone);
@@ -133,45 +135,45 @@ export function SettingsModal({
   // App Settings
   const dailyNotesPath = useAppSettingsStore((state) => state.dailyNotesPath);
   const setDailyNotesPath = useAppSettingsStore(
-    (state) => state.setDailyNotesPath,
+    (state) => state.setDailyNotesPath
   );
   const homepageType = useAppSettingsStore((state) => state.homepageType);
   const setHomepageType = useAppSettingsStore((state) => state.setHomepageType);
   const customHomepageId = useAppSettingsStore(
-    (state) => state.customHomepageId,
+    (state) => state.customHomepageId
   );
   const setCustomHomepageId = useAppSettingsStore(
-    (state) => state.setCustomHomepageId,
+    (state) => state.setCustomHomepageId
   );
 
   // Outliner
   const showIndentGuides = useOutlinerSettingsStore(
-    (state) => state.showIndentGuides,
+    (state) => state.showIndentGuides
   );
   const toggleIndentGuides = useOutlinerSettingsStore(
-    (state) => state.toggleIndentGuides,
+    (state) => state.toggleIndentGuides
   );
   const autoExpandBlocks = useOutlinerSettingsStore(
-    (state) => state.autoExpandBlocks ?? true,
+    (state) => state.autoExpandBlocks ?? true
   );
   const setAutoExpandBlocks = useOutlinerSettingsStore(
-    (state) => state.setAutoExpandBlocks,
+    (state) => state.setAutoExpandBlocks
   );
   const showBlockCount = useOutlinerSettingsStore(
-    (state) => state.showBlockCount ?? false,
+    (state) => state.showBlockCount ?? false
   );
   const setShowBlockCount = useOutlinerSettingsStore(
-    (state) => state.setShowBlockCount,
+    (state) => state.setShowBlockCount
   );
   const showCodeBlockLineNumbers = useOutlinerSettingsStore(
-    (state) => state.showCodeBlockLineNumbers ?? true,
+    (state) => state.showCodeBlockLineNumbers ?? true
   );
   const setShowCodeBlockLineNumbers = useOutlinerSettingsStore(
-    (state) => state.setShowCodeBlockLineNumbers,
+    (state) => state.setShowCodeBlockLineNumbers
   );
   const indentSize = useOutlinerSettingsStore((state) => state.indentSize);
   const setIndentSize = useOutlinerSettingsStore(
-    (state) => state.setIndentSize,
+    (state) => state.setIndentSize
   );
 
   // Git
@@ -179,11 +181,11 @@ export function SettingsModal({
   const hasGitChanges = useGitStore((state) => state.hasChanges);
   const autoCommitEnabled = useGitStore((state) => state.autoCommitEnabled);
   const setAutoCommitEnabled = useGitStore(
-    (state) => state.setAutoCommitEnabled,
+    (state) => state.setAutoCommitEnabled
   );
   const autoCommitInterval = useGitStore((state) => state.autoCommitInterval);
   const setAutoCommitInterval = useGitStore(
-    (state) => state.setAutoCommitInterval,
+    (state) => state.setAutoCommitInterval
   );
   const checkGitStatus = useGitStore((state) => state.checkStatus);
   const gitCommit = useGitStore((state) => state.commit);
@@ -221,9 +223,7 @@ export function SettingsModal({
 
   const handleRemoveRemote = async () => {
     if (!workspacePath) return;
-    if (
-      window.confirm(t("settings.git.remove_remote_confirm"))
-    ) {
+    if (window.confirm(t("settings.git.remove_remote_confirm"))) {
       try {
         await removeRemote(workspacePath);
       } catch (error) {
@@ -585,7 +585,7 @@ export function SettingsModal({
                   )}
 
                   {matchesSearch(
-                    t("settings.appearance.editor_line_height"),
+                    t("settings.appearance.editor_line_height")
                   ) && (
                     <div>
                       <Text size="sm" fw={500} mb={8}>
@@ -880,7 +880,7 @@ export function SettingsModal({
                             },
                           ];
                           const systemTzExists = timezones.some(
-                            (tz) => tz.value === systemTz,
+                            (tz) => tz.value === systemTz
                           );
                           return systemTzExists
                             ? timezones
@@ -974,13 +974,22 @@ export function SettingsModal({
                         value={homepageType}
                         onChange={(value) =>
                           setHomepageType(
-                            value as "daily-note" | "index" | "custom-page",
+                            value as "daily-note" | "index" | "custom-page"
                           )
                         }
                         data={[
-                          { label: t("settings.homepage.types.daily_note"), value: "daily-note" },
-                          { label: t("settings.homepage.types.index"), value: "index" },
-                          { label: t("settings.homepage.types.custom_page"), value: "custom-page" },
+                          {
+                            label: t("settings.homepage.types.daily_note"),
+                            value: "daily-note",
+                          },
+                          {
+                            label: t("settings.homepage.types.index"),
+                            value: "index",
+                          },
+                          {
+                            label: t("settings.homepage.types.custom_page"),
+                            value: "custom-page",
+                          },
                         ]}
                         placeholder={t("settings.homepage.type_placeholder")}
                       />
@@ -1002,7 +1011,9 @@ export function SettingsModal({
                           label: pagesById[id]?.title || id,
                           value: id,
                         }))}
-                        placeholder={t("settings.homepage.custom_page_placeholder")}
+                        placeholder={t(
+                          "settings.homepage.custom_page_placeholder"
+                        )}
                         searchable
                       />
                     </div>
@@ -1058,11 +1069,13 @@ export function SettingsModal({
                   {matchesSearch("code block line numbers") && (
                     <Switch
                       label={t("settings.outliner.code_block_line_numbers")}
-                      description={t("settings.outliner.code_block_line_numbers_desc")}
+                      description={t(
+                        "settings.outliner.code_block_line_numbers_desc"
+                      )}
                       checked={showCodeBlockLineNumbers}
                       onChange={(event) =>
                         setShowCodeBlockLineNumbers?.(
-                          event.currentTarget.checked,
+                          event.currentTarget.checked
                         )
                       }
                     />
@@ -1174,7 +1187,9 @@ export function SettingsModal({
                               onClick={handleGitCommit}
                               disabled={!hasGitChanges}
                             >
-                              {hasGitChanges ? t("settings.git.commit_changes") : t("settings.git.no_changes")}
+                              {hasGitChanges
+                                ? t("settings.git.commit_changes")
+                                : t("settings.git.no_changes")}
                             </Button>
                             <Button
                               size="sm"
@@ -1203,7 +1218,9 @@ export function SettingsModal({
                             padding: 16,
                             borderRadius: 6,
                             backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                            borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
+                            borderLeft: `3px solid ${
+                              isDark ? "#4C6EF5" : "#5C7CFA"
+                            }`,
                           }}
                         >
                           <Text size="sm" fw={500} mb={8}>
@@ -1211,7 +1228,9 @@ export function SettingsModal({
                           </Text>
                           <Switch
                             label={t("settings.git.enable_auto_commit")}
-                            description={t("settings.git.enable_auto_commit_desc")}
+                            description={t(
+                              "settings.git.enable_auto_commit_desc"
+                            )}
                             checked={autoCommitEnabled}
                             onChange={(event) =>
                               setAutoCommitEnabled(event.currentTarget.checked)
@@ -1228,7 +1247,7 @@ export function SettingsModal({
                                 value={autoCommitInterval}
                                 onChange={(value) =>
                                   setAutoCommitInterval(
-                                    typeof value === "number" ? value : 5,
+                                    typeof value === "number" ? value : 5
                                   )
                                 }
                                 min={1}
@@ -1237,7 +1256,9 @@ export function SettingsModal({
                                 suffix=" min"
                               />
                               <Text size="xs" c="dimmed" mt={8}>
-                                {t("settings.git.commit_interval_desc", { interval: autoCommitInterval })}
+                                {t("settings.git.commit_interval_desc", {
+                                  interval: autoCommitInterval,
+                                })}
                               </Text>
                             </>
                           )}
@@ -1250,7 +1271,9 @@ export function SettingsModal({
                             padding: 16,
                             borderRadius: 6,
                             backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                            borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
+                            borderLeft: `3px solid ${
+                              isDark ? "#4C6EF5" : "#5C7CFA"
+                            }`,
                           }}
                         >
                           <Text size="sm" fw={500} mb={8}>
@@ -1288,7 +1311,9 @@ export function SettingsModal({
                           ) : isEditingRemote ? (
                             <Stack gap="xs">
                               <TextInput
-                                placeholder={t("settings.git.remote_url_placeholder")}
+                                placeholder={t(
+                                  "settings.git.remote_url_placeholder"
+                                )}
                                 value={remoteUrlInput}
                                 onChange={(e) =>
                                   setRemoteUrlInput(e.currentTarget.value)
@@ -1413,7 +1438,11 @@ export function SettingsModal({
                         size="sm"
                         variant="light"
                         onClick={() => {
-                          if (window.confirm(t("settings.advanced.clear_cache_confirm"))) {
+                          if (
+                            window.confirm(
+                              t("settings.advanced.clear_cache_confirm")
+                            )
+                          ) {
                             clearCache();
                           }
                         }}
@@ -1429,7 +1458,9 @@ export function SettingsModal({
                         padding: 16,
                         borderRadius: 6,
                         backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                        borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
+                        borderLeft: `3px solid ${
+                          isDark ? "#4C6EF5" : "#5C7CFA"
+                        }`,
                       }}
                     >
                       <Text size="sm" fw={500} mb={12}>
@@ -1454,7 +1485,9 @@ export function SettingsModal({
                         padding: 16,
                         borderRadius: 6,
                         backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                        borderLeft: `3px solid ${isDark ? "#FA5252" : "#FF6B6B"}`,
+                        borderLeft: `3px solid ${
+                          isDark ? "#FA5252" : "#FF6B6B"
+                        }`,
                       }}
                     >
                       <Text size="sm" fw={500} mb={12} c="red">
@@ -1510,7 +1543,7 @@ export function SettingsModal({
                       </Text>
                     </Group>
                     <Text size="sm" c="dimmed">
-                      {t("settings.about.version", { version: "0.1.0" })}
+                      {t("settings.about.version", { version: "0.2.0" })}
                     </Text>
                   </div>
 
@@ -1523,144 +1556,177 @@ export function SettingsModal({
                     }}
                   >
                     <Group justify="space-between" mb={8} align="flex-start">
-                       <Text size="sm" fw={600}>
+                      <Text size="sm" fw={600}>
                         {t("settings.about.updates_title")}
                       </Text>
                       {useUpdaterStore.getState().status === "checking" && (
-                         <Badge color="blue" variant="light">Checking...</Badge>
+                        <Badge color="blue" variant="light">
+                          Checking...
+                        </Badge>
                       )}
                       {useUpdaterStore.getState().status === "available" && (
-                         <Badge color="green" variant="light">Update Available</Badge>
+                        <Badge color="green" variant="light">
+                          Update Available
+                        </Badge>
                       )}
                       {useUpdaterStore.getState().status === "uptodate" && (
-                         <Badge color="gray" variant="light">Latest Version</Badge>
+                        <Badge color="gray" variant="light">
+                          Latest Version
+                        </Badge>
                       )}
                     </Group>
 
                     {(() => {
-                        const status = useUpdaterStore((state) => state.status);
-                        const version = useUpdaterStore((state) => state.version);
-                        const body = useUpdaterStore((state) => state.body);
-                        const error = useUpdaterStore((state) => state.error);
-                        const progress = useUpdaterStore((state) => state.progress);
-                        const checkForUpdates = useUpdaterStore((state) => state.checkForUpdates);
-                        const installUpdate = useUpdaterStore((state) => state.installUpdate);
+                      const status = useUpdaterStore((state) => state.status);
+                      const version = useUpdaterStore((state) => state.version);
+                      const body = useUpdaterStore((state) => state.body);
+                      const error = useUpdaterStore((state) => state.error);
+                      const progress = useUpdaterStore(
+                        (state) => state.progress
+                      );
+                      const checkForUpdates = useUpdaterStore(
+                        (state) => state.checkForUpdates
+                      );
+                      const installUpdate = useUpdaterStore(
+                        (state) => state.installUpdate
+                      );
 
-                        if (status === "checking") {
-                            return (
-                                <Text size="sm" c="dimmed">
-                                    Checking for updates...
-                                </Text>
-                            );
-                        }
-
-                        if (status === "uptodate") {
-                            return (
-                                <Stack gap="xs">
-                                    <Text size="sm" c="dimmed">
-                                        Oxinot is up to date.
-                                    </Text>
-                                    <Group>
-                                        <Button 
-                                            size="xs" 
-                                            variant="light" 
-                                            onClick={() => checkForUpdates(false)}
-                                            leftSection={<IconDownload size={16} />}
-                                        >
-                                            Check Again
-                                        </Button>
-                                    </Group>
-                                </Stack>
-                            );
-                        }
-
-                        if (status === "available") {
-                            return (
-                                <Stack gap="md">
-                                    <Text size="sm">
-                                        A new version <Text span fw={700}>{version}</Text> is available.
-                                    </Text>
-                                    {body && (
-                                        <div style={{ 
-                                            maxHeight: 150, 
-                                            overflowY: "auto", 
-                                            padding: 8, 
-                                            backgroundColor: isDark ? "#25262B" : "#fff",
-                                            borderRadius: 4,
-                                            fontSize: 12
-                                        }}>
-                                            <Text size="xs" style={{ whiteSpace: "pre-wrap" }}>{body}</Text>
-                                        </div>
-                                    )}
-                                    <Group>
-                                        <Button 
-                                            size="xs" 
-                                            onClick={installUpdate}
-                                            leftSection={<IconDownload size={16} />}
-                                        >
-                                            Update Now
-                                        </Button>
-                                    </Group>
-                                </Stack>
-                            );
-                        }
-
-                        if (status === "downloading") {
-                             return (
-                                <Stack gap="xs">
-                                    <Group justify="space-between">
-                                        <Text size="sm">Downloading update...</Text>
-                                        <Text size="xs" c="dimmed">{Math.round(progress)}%</Text>
-                                    </Group>
-                                    <Progress value={progress} animated size="sm" />
-                                </Stack>
-                            );
-                        }
-
-                         if (status === "downloaded") {
-                             return (
-                                <Stack gap="xs">
-                                    <Text size="sm" c="green">Update downloaded successfully.</Text>
-                                    <Text size="xs" c="dimmed">The application will restart automatically.</Text>
-                                </Stack>
-                            );
-                        }
-
-                        if (status === "error") {
-                             return (
-                                <Stack gap="xs">
-                                    <Text size="sm" c="red">Error checking for updates:</Text>
-                                    <Text size="xs" c="dimmed">{error}</Text>
-                                    <Button 
-                                        size="xs" 
-                                        variant="light" 
-                                        color="red"
-                                        onClick={() => checkForUpdates(false)}
-                                    >
-                                        Try Again
-                                    </Button>
-                                </Stack>
-                            );
-                        }
-
-                        // Idle state
+                      if (status === "checking") {
                         return (
-                            <Stack gap="xs">
-                                <Text size="sm" c="dimmed">
-                                    {t("settings.about.updates_desc")}
-                                </Text>
-                                <Group>
-                                    <Button
-                                        size="xs"
-                                        variant="light"
-                                        onClick={() => checkForUpdates(false)}
-                                        leftSection={<IconDownload size={16} />}
-                                    >
-                                        {t("settings.about.check_updates_btn")}
-                                    </Button>
-                                </Group>
-                            </Stack>
+                          <Text size="sm" c="dimmed">
+                            Checking for updates...
+                          </Text>
                         );
+                      }
+
+                      if (status === "uptodate") {
+                        return (
+                          <Stack gap="xs">
+                            <Text size="sm" c="dimmed">
+                              Oxinot is up to date.
+                            </Text>
+                            <Group>
+                              <Button
+                                size="xs"
+                                variant="light"
+                                onClick={() => checkForUpdates(false)}
+                                leftSection={<IconDownload size={16} />}
+                              >
+                                Check Again
+                              </Button>
+                            </Group>
+                          </Stack>
+                        );
+                      }
+
+                      if (status === "available") {
+                        return (
+                          <Stack gap="md">
+                            <Text size="sm">
+                              A new version{" "}
+                              <Text span fw={700}>
+                                {version}
+                              </Text>{" "}
+                              is available.
+                            </Text>
+                            {body && (
+                              <div
+                                style={{
+                                  maxHeight: 150,
+                                  overflowY: "auto",
+                                  padding: 8,
+                                  backgroundColor: isDark ? "#25262B" : "#fff",
+                                  borderRadius: 4,
+                                  fontSize: 12,
+                                }}
+                              >
+                                <Text
+                                  size="xs"
+                                  style={{ whiteSpace: "pre-wrap" }}
+                                >
+                                  {body}
+                                </Text>
+                              </div>
+                            )}
+                            <Group>
+                              <Button
+                                size="xs"
+                                onClick={installUpdate}
+                                leftSection={<IconDownload size={16} />}
+                              >
+                                Update Now
+                              </Button>
+                            </Group>
+                          </Stack>
+                        );
+                      }
+
+                      if (status === "downloading") {
+                        return (
+                          <Stack gap="xs">
+                            <Group justify="space-between">
+                              <Text size="sm">Downloading update...</Text>
+                              <Text size="xs" c="dimmed">
+                                {Math.round(progress)}%
+                              </Text>
+                            </Group>
+                            <Progress value={progress} animated size="sm" />
+                          </Stack>
+                        );
+                      }
+
+                      if (status === "downloaded") {
+                        return (
+                          <Stack gap="xs">
+                            <Text size="sm" c="green">
+                              Update downloaded successfully.
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              The application will restart automatically.
+                            </Text>
+                          </Stack>
+                        );
+                      }
+
+                      if (status === "error") {
+                        return (
+                          <Stack gap="xs">
+                            <Text size="sm" c="red">
+                              Error checking for updates:
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {error}
+                            </Text>
+                            <Button
+                              size="xs"
+                              variant="light"
+                              color="red"
+                              onClick={() => checkForUpdates(false)}
+                            >
+                              Try Again
+                            </Button>
+                          </Stack>
+                        );
+                      }
+
+                      // Idle state
+                      return (
+                        <Stack gap="xs">
+                          <Text size="sm" c="dimmed">
+                            {t("settings.about.updates_desc")}
+                          </Text>
+                          <Group>
+                            <Button
+                              size="xs"
+                              variant="light"
+                              onClick={() => checkForUpdates(false)}
+                              leftSection={<IconDownload size={16} />}
+                            >
+                              {t("settings.about.check_updates_btn")}
+                            </Button>
+                          </Group>
+                        </Stack>
+                      );
                     })()}
                   </div>
                 </Stack>
