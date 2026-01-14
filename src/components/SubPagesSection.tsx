@@ -1,4 +1,4 @@
-import { useMantineColorScheme } from "@mantine/core";
+import { useComputedColorScheme } from "@mantine/core";
 import { useMemo, useState } from "react";
 import { useBlockStore } from "../stores/blockStore";
 import { usePageStore } from "../stores/pageStore";
@@ -18,8 +18,8 @@ interface PageTreeNode {
 }
 
 export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
 
   const pagesById = usePageStore((state) => state.pagesById);
   const pageIds = usePageStore((state) => state.pageIds);

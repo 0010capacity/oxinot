@@ -1,5 +1,4 @@
-import { Box, Button, Group, Modal, Stack, Text } from "@mantine/core";
-import { useMantineColorScheme } from "@mantine/core";
+import { Box, Button, Group, Modal, Stack, Text, useComputedColorScheme } from "@mantine/core";
 import { useState } from "react";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
@@ -10,8 +9,8 @@ interface CalendarModalProps {
 }
 
 export function CalendarModal({ opened, onClose }: CalendarModalProps) {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
   const [currentDate, setCurrentDate] = useState(new Date());
   const pagesById = usePageStore((state) => state.pagesById);
   const pageIds = usePageStore((state) => state.pageIds);

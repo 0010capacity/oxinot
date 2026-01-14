@@ -1,4 +1,4 @@
-import { ActionIcon, Group, useMantineColorScheme } from "@mantine/core";
+import { ActionIcon, Group, useComputedColorScheme, useMantineColorScheme } from "@mantine/core";
 import {
   IconCalendar,
   IconCommand,
@@ -30,8 +30,9 @@ export function ActionIcons({
   onCommandPaletteClick,
 }: ActionIconsProps) {
   const { t } = useTranslation();
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const { toggleColorScheme } = useMantineColorScheme();
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
 
   const iconButtonStyles = {
     root: {

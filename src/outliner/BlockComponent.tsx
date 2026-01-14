@@ -1,6 +1,7 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
-import { useMantineColorScheme } from "@mantine/core";
+import {   useComputedColorScheme,
+} from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -23,9 +24,9 @@ interface BlockComponentProps {
 }
 
 export const BlockComponent: React.FC<BlockComponentProps> = memo(
-  function BlockComponent({ blockId, depth }) {
-    const { colorScheme } = useMantineColorScheme();
-    const isDark = colorScheme === "dark";
+  ({ blockId, depth }: BlockComponentProps) => {
+    const computedColorScheme = useComputedColorScheme("light");
+    const isDark = computedColorScheme === "dark";
 
     const block = useBlock(blockId);
     const childIds = useChildrenIds(blockId);

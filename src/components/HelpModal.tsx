@@ -1,5 +1,6 @@
 import { Box, Modal, ScrollArea } from "@mantine/core";
-import { useMantineColorScheme } from "@mantine/core";
+import {   useComputedColorScheme,
+} from "@mantine/core";
 import MarkdownIt from "markdown-it";
 import { useMemo } from "react";
 
@@ -201,8 +202,8 @@ Blocks are stored as nested bullet lists in markdown:
 Thank you for using MD Outliner! Happy note-taking! 📝`;
 
 export function HelpModal({ opened, onClose }: HelpModalProps) {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
 
   const md = useMemo(() => {
     return new MarkdownIt({
