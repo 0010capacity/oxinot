@@ -1,5 +1,15 @@
-import { Box, Modal, ScrollArea } from "@mantine/core";
-import { useComputedColorScheme } from "@mantine/core";
+import {
+  Box,
+  Group,
+  Kbd,
+  Modal,
+  ScrollArea,
+  Table,
+  Tabs,
+  Text,
+  useComputedColorScheme,
+} from "@mantine/core";
+import { IconHelp, IconKeyboard } from "@tabler/icons-react";
 import MarkdownIt from "markdown-it";
 import { useMemo } from "react";
 
@@ -52,7 +62,6 @@ MD Outliner is a block-based markdown editor that combines the power of outlinin
 - **Tab** - Indent block (nest under previous block)
 - **Shift + Tab** - Outdent block (move up one level)
 - **Arrow Up/Down** - Move between blocks
-- **Ctrl/Cmd + Arrow Up/Down** - Move block up/down
 
 ### Organizing Blocks
 
@@ -138,11 +147,7 @@ Blocks are stored as nested bullet lists in markdown:
 
 ### Keyboard Shortcuts
 
-- **Enter** - New block below
-- **Tab** - Indent block
-- **Shift + Tab** - Outdent block
-- **Ctrl/Cmd + Arrow Up/Down** - Move block
-- **Esc** - Deselect block
+See the **Keyboard Shortcuts** tab for a complete list.
 
 ### Best Practices
 
@@ -200,6 +205,12 @@ Blocks are stored as nested bullet lists in markdown:
 
 Thank you for using MD Outliner! Happy note-taking! 📝`;
 
+interface ShortcutItem {
+  context: string;
+  action: string;
+  keys: React.ReactNode;
+}
+
 export function HelpModal({ opened, onClose }: HelpModalProps) {
   const computedColorScheme = useComputedColorScheme("light");
   const isDark = computedColorScheme === "dark";
@@ -215,6 +226,116 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
   const htmlContent = useMemo(() => {
     return md.render(HELP_CONTENT);
   }, [md]);
+
+  const shortcuts: ShortcutItem[] = [
+    {
+      context: "Global",
+      action: "Command Palette",
+      keys: (
+        <Group gap={4}>
+          <Kbd>Ctrl/Cmd</Kbd> + <Kbd>K</Kbd>
+        </Group>
+      ),
+    },
+    {
+      context: "Global",
+      action: "Settings",
+      keys: (
+        <Group gap={4}>
+          <Kbd>Ctrl/Cmd</Kbd> + <Kbd>,</Kbd>
+        </Group>
+      ),
+    },
+    {
+      context: "Global",
+      action: "Help",
+      keys: (
+        <Group gap={4}>
+          <Kbd>Ctrl/Cmd</Kbd> + <Kbd>/</Kbd>
+        </Group>
+      ),
+    },
+    {
+      context: "Editing",
+      action: "New Block / Split Block",
+      keys: <Kbd>Enter</Kbd>,
+    },
+    {
+      context: "Editing",
+      action: "Soft Line Break",
+      keys: (
+        <Group gap={4}>
+          <Kbd>Shift</Kbd> + <Kbd>Enter</Kbd>
+        </Group>
+      ),
+    },
+    {
+      context: "Editing",
+      action: "Indent Block",
+      keys: <Kbd>Tab</Kbd>,
+    },
+    {
+      context: "Editing",
+      action: "Outdent Block",
+      keys: (
+        <Group gap={4}>
+          <Kbd>Shift</Kbd> + <Kbd>Tab</Kbd>
+        </Group>
+      ),
+    },
+    {
+      context: "Editing",
+      action: "Move Focus Up",
+      keys: <Kbd>Arrow Up</Kbd>,
+    },
+    {
+      context: "Editing",
+      action: "Move Focus Down",
+      keys: <Kbd>Arrow Down</Kbd>,
+    },
+    {
+      context: "Editing",
+      action: "Move Block Up",
+      keys: (
+        <Group gap={4}>
+          <Kbd>Ctrl/Cmd</Kbd> + <Kbd>Arrow Up</Kbd>
+        </Group>
+      ),
+    },
+    {
+      context: "Editing",
+      action: "Move Block Down",
+      keys: (
+        <Group gap={4}>
+          <Kbd>Ctrl/Cmd</Kbd> + <Kbd>Arrow Down</Kbd>
+        </Group>
+      ),
+    },
+    {
+      context: "Editing",
+      action: "Delete / Merge Block",
+      keys: <Kbd>Backspace</Kbd>,
+    },
+    {
+      context: "Editing",
+      action: "Deselect Block",
+      keys: <Kbd>Esc</Kbd>,
+    },
+  ];
+
+  const rows = shortcuts.map((shortcut) => (
+    <Table.Tr key={shortcut.action}>
+      <Table.Td>
+        <Text size="sm" fw={500} c="dimmed">
+          {shortcut.context}
+        </Text>
+      </Table.Td>
+      <Table.Td>
+        <Text size="sm">{shortcut.action}</Text>
+      </Table.Td>
+      <Table.Td>{shortcut.keys}</Table.Td>
+    </Table.Tr>
+  ));
 
   return (
     <Modal
@@ -232,24 +353,54 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
         },
       }}
     >
-      <ScrollArea h={600} type="auto">
-        <Box
-          style={{
-            padding: "20px 24px",
-          }}
-        >
-          <div
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: The markdown content is static (HELP_CONTENT) and the HTML output is produced by markdown-it with HTML parsing disabled (html: false). This is safe for rendering the help documentation.
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
-            style={{
-              color: isDark ? "#c1c2c5" : "#495057",
-              lineHeight: 1.6,
-              fontSize: "0.95rem",
-            }}
-            className="help-content"
-          />
-        </Box>
-      </ScrollArea>
+      <Tabs defaultValue="docs">
+        <Tabs.List>
+          <Tabs.Tab value="docs" leftSection={<IconHelp size={16} />}>
+            Documentation
+          </Tabs.Tab>
+          <Tabs.Tab value="shortcuts" leftSection={<IconKeyboard size={16} />}>
+            Keyboard Shortcuts
+          </Tabs.Tab>
+        </Tabs.List>
+
+        <Tabs.Panel value="docs">
+          <ScrollArea h={600} type="auto">
+            <Box
+              style={{
+                padding: "20px 24px",
+              }}
+            >
+              <div
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: The markdown content is static (HELP_CONTENT) and the HTML output is produced by markdown-it with HTML parsing disabled (html: false). This is safe for rendering the help documentation.
+                dangerouslySetInnerHTML={{ __html: htmlContent }}
+                style={{
+                  color: isDark ? "#c1c2c5" : "#495057",
+                  lineHeight: 1.6,
+                  fontSize: "0.95rem",
+                }}
+                className="help-content"
+              />
+            </Box>
+          </ScrollArea>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="shortcuts">
+          <ScrollArea h={600} type="auto">
+            <Box p="md">
+              <Table>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Context</Table.Th>
+                    <Table.Th>Action</Table.Th>
+                    <Table.Th>Shortcut</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>{rows}</Table.Tbody>
+              </Table>
+            </Box>
+          </ScrollArea>
+        </Tabs.Panel>
+      </Tabs>
 
       <style>
         {`
