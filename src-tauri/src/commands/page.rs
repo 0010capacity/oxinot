@@ -472,3 +472,164 @@ pub async fn get_page_backlinks(
 
     Ok(backlinks)
 }
+
+/// Rewrite wiki links in blocks that reference a moved/renamed page.
+///
+/// This is a targeted update (no full-workspace scan):
+/// 1) Find blocks that contain `[[from_path]]` / `[[from_path|` / `[[from_path#` / `![[from_path...]]`
+/// 2) Rewrite only those blocks' `content` fields.
+///
+/// NOTE: This operates on the DB `blocks.content` and assumes the filesystem sync keeps markdown files in sync.
+/// If you later make markdown files authoritative, consider applying the same transform to the file layer too.
+#[tauri::command]
+pub async fn rewrite_wiki_links_for_page_path_change(
+    workspace_path: String,
+    from_path: String,
+    to_path: String,
+) -> Result<i64, String> {
+    if from_path.trim().is_empty() || to_path.trim().is_empty() {
+        return Err("from_path/to_path must be non-empty".to_string());
+    }
+    if from_path == to_path {
+        return Ok(0);
+    }
+
+    let conn = open_workspace_db(&workspace_path)?;
+    let now = Utc::now().to_rfc3339();
+
+    // Find candidate blocks (targeted query).
+    // We look for occurrences that imply the from_path is used as a wiki-link target.
+    let patterns = vec![
+        format!("%[[{}]]%", from_path),
+        format!("%[[{}|%", from_path),
+        format!("%[[{}#%", from_path),
+        format!("%![[{}]]%", from_path),
+        format!("%![[{}|%", from_path),
+        format!("%![[{}#%", from_path),
+    ];
+
+    let mut candidate_ids: Vec<String> = Vec::new();
+
+    for pat in patterns {
+        let mut stmt = conn
+            .prepare("SELECT id FROM blocks WHERE content LIKE ?")
+            .map_err(|e| e.to_string())?;
+
+        let rows = stmt
+            .query_map(params![pat], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+
+        for id in rows {
+            let id = id.map_err(|e| e.to_string())?;
+            if !candidate_ids.iter().any(|x| x == &id) {
+                candidate_ids.push(id);
+            }
+        }
+    }
+
+    if candidate_ids.is_empty() {
+        return Ok(0);
+    }
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    let mut updated_count: i64 = 0;
+
+    for block_id in candidate_ids {
+        let content: String = tx
+            .query_row(
+                "SELECT content FROM blocks WHERE id = ?",
+                params![&block_id],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+
+        let updated = rewrite_wiki_link_targets_in_text(&content, &from_path, &to_path);
+        if updated == content {
+            continue;
+        }
+
+        tx.execute(
+            "UPDATE blocks SET content = ?, updated_at = ? WHERE id = ?",
+            params![updated, &now, &block_id],
+        )
+        .map_err(|e| e.to_string())?;
+
+        updated_count += 1;
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+
+    Ok(updated_count)
+}
+
+/// Replace wiki-link targets in a block of markdown text, preserving aliases and anchors.
+///
+/// Rewrites only:
+/// - [[from]]      -> [[to]]
+/// - [[from|...]]  -> [[to|...]]
+/// - [[from#...]]  -> [[to#...]]
+/// - ![[from...]]  -> ![[to...]]
+fn rewrite_wiki_link_targets_in_text(input: &str, from: &str, to: &str) -> String {
+    // Minimal, safe replacement without regex dependency:
+    // Replace only when `from` is immediately followed by `]]`, `|`, or `#` inside [[...]] / ![[...]].
+    let mut out = String::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let mut i: usize = 0;
+
+    while i < bytes.len() {
+        // Detect start of [[ or ![[.
+        let is_embed =
+            bytes[i] == b'!' && i + 2 < bytes.len() && bytes[i + 1] == b'[' && bytes[i + 2] == b'[';
+        let is_link = bytes[i] == b'[' && i + 1 < bytes.len() && bytes[i + 1] == b'[';
+
+        if !(is_embed || is_link) {
+            out.push(bytes[i] as char);
+            i += 1;
+            continue;
+        }
+
+        let start = i;
+        let open_len = if is_embed { 3 } else { 2 }; // "![[":3, "[[":2
+        let mut j = i + open_len;
+
+        // Find end marker "]]"
+        while j + 1 < bytes.len() {
+            if bytes[j] == b']' && bytes[j + 1] == b']' {
+                break;
+            }
+            j += 1;
+        }
+
+        if j + 1 >= bytes.len() {
+            // No closing, copy rest.
+            out.push_str(&input[start..]);
+            break;
+        }
+
+        // Extract inside of brackets (target + optional decorations).
+        let inner = &input[(i + open_len)..j];
+
+        // We only replace if the inner starts with `from` and is followed by end/alias/anchor.
+        if inner.starts_with(from) {
+            let tail = &inner[from.len()..];
+            let should_replace = tail.is_empty() || tail.starts_with('|') || tail.starts_with('#');
+
+            if should_replace {
+                // Write open marker, replaced target, then the rest.
+                out.push_str(&input[start..(i + open_len)]);
+                out.push_str(to);
+                out.push_str(tail);
+                out.push_str("]]");
+                i = j + 2;
+                continue;
+            }
+        }
+
+        // Default: copy through the closing brackets unchanged.
+        out.push_str(&input[start..(j + 2)]);
+        i = j + 2;
+    }
+
+    out
+}

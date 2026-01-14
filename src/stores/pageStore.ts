@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { immer } from "zustand/middleware/immer";
 import { createWithEqualityFn } from "zustand/traditional";
+import { tauriAPI } from "../tauri-api";
 import { useWorkspaceStore } from "./workspaceStore";
 
 // ============ Types ============
@@ -225,6 +226,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
       if (!page) return;
 
       const previousParentId = page.parentId;
+      const fromPath = page.filePath;
 
       set((state) => {
         if (state.pagesById[id]) {
@@ -239,10 +241,49 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
           throw new Error("No workspace selected");
         }
 
-        await invoke("move_page", {
+        const updatedPage = await invoke<PageData>("move_page", {
           workspacePath,
           request: { id, newParentId },
         });
+
+        // Keep page store in sync with backend-returned filePath/updatedAt
+        set((state) => {
+          const current = state.pagesById[id];
+          if (current) {
+            state.pagesById[id] = {
+              ...current,
+              parentId: updatedPage.parentId,
+              filePath: updatedPage.filePath,
+              updatedAt: updatedPage.updatedAt,
+            };
+          }
+        });
+
+        const toPath = updatedPage.filePath;
+
+        // Targeted rewrite in DB (blocks) using backlink/indexed lookup.
+        // Convert "A/B/C.md" -> "A/B/C" because wikilinks use [[path/to/page]].
+        const fromTarget = fromPath?.toLowerCase().endsWith(".md")
+          ? fromPath.slice(0, -3)
+          : fromPath;
+        const toTarget = toPath?.toLowerCase().endsWith(".md")
+          ? toPath.slice(0, -3)
+          : toPath;
+
+        if (fromTarget && toTarget && fromTarget !== toTarget) {
+          await tauriAPI.rewriteWikiLinksForPagePathChange(
+            workspacePath,
+            fromTarget,
+            toTarget
+          );
+
+          // If current editor buffer has old target, refresh by re-opening current file.
+          // (Keeps UI consistent without scanning the whole workspace.)
+          const ws = useWorkspaceStore.getState();
+          if (ws.currentFile) {
+            await ws.openFile(ws.currentFile);
+          }
+        }
       } catch (error) {
         set((state) => {
           if (state.pagesById[id]) {
@@ -253,39 +294,39 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
       }
     },
 
-      convertToDirectory: async (id: string) => {
-        const workspacePath = useWorkspaceStore.getState().workspacePath;
-        if (!workspacePath) {
-          console.error("No workspace path");
-          return;
+    convertToDirectory: async (id: string) => {
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        console.error("No workspace path");
+        return;
+      }
+
+      await invoke("convert_page_to_directory", {
+        workspacePath,
+        pageId: id,
+      });
+
+      // Reload pages to reflect the change (icon update etc)
+      await get().loadPages();
+
+      // Also update file tree if it's open
+      // We can dispatch a custom event or rely on file system watcher if implemented
+      // For now, let's trigger a refresh via window event that FileTreeView listens to
+      window.dispatchEvent(new CustomEvent("oxinot:file-tree-refresh"));
+
+      // Update the page object in store to reflect is_directory = true
+      set((state) => {
+        const page = state.pagesById[id];
+        if (page) {
+          state.pagesById[id] = { ...page, isDirectory: true };
         }
-
-        await invoke("convert_page_to_directory", {
-          workspacePath,
-          pageId: id,
-        });
-
-        // Reload pages to reflect the change (icon update etc)
-        await get().loadPages();
-
-        // Also update file tree if it's open
-        // We can dispatch a custom event or rely on file system watcher if implemented
-        // For now, let's trigger a refresh via window event that FileTreeView listens to
-        window.dispatchEvent(new CustomEvent("oxinot:file-tree-refresh"));
-
-        // Update the page object in store to reflect is_directory = true
-        set((state) => {
-          const page = state.pagesById[id];
-          if (page) {
-            state.pagesById[id] = { ...page, isDirectory: true };
-          }
-        });
-      },
+      });
+    },
 
     // ============ Selectors ============
 
     getPage: (id: string) => get().pagesById[id],
-  })),
+  }))
 );
 
 // ============ Selector Hooks ============
