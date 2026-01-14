@@ -99,7 +99,9 @@ jobs:
 
             # Fetch latest main and rebase to ensure we're up-to-date
             git fetch origin main
+            git reset HEAD .changeset
             git rebase origin/main
+            git add .changeset
 
             # Check if changeset branch already exists remotely and delete if it does
             if git rev-parse --verify "origin/$BRANCH_NAME" >/dev/null 2>&1; then
