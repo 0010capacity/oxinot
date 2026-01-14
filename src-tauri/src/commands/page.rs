@@ -494,7 +494,7 @@ pub async fn rewrite_wiki_links_for_page_path_change(
         return Ok(0);
     }
 
-    let conn = open_workspace_db(&workspace_path)?;
+    let mut conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
 
     // Find candidate blocks (targeted query).
