@@ -2,25 +2,16 @@ import { persist } from "zustand/middleware";
 import { createWithEqualityFn } from "zustand/traditional";
 
 interface AdvancedSettings {
-  autoUpdate: boolean;
-  checkUpdatesOnStartup: boolean;
-  betaUpdates: boolean;
   telemetryEnabled: boolean;
 }
 
 interface AdvancedSettingsStore extends AdvancedSettings {
-  setAutoUpdate: (value: boolean) => void;
-  setCheckUpdatesOnStartup: (value: boolean) => void;
-  setBetaUpdates: (value: boolean) => void;
   setTelemetryEnabled: (value: boolean) => void;
   resetAllSettings: () => void;
   clearCache: () => void;
 }
 
 const defaultSettings: AdvancedSettings = {
-  autoUpdate: true,
-  checkUpdatesOnStartup: true,
-  betaUpdates: false,
   telemetryEnabled: false,
 };
 
@@ -30,10 +21,6 @@ export const useAdvancedSettingsStore =
       (set) => ({
         ...defaultSettings,
 
-        setAutoUpdate: (value: boolean) => set({ autoUpdate: value }),
-        setCheckUpdatesOnStartup: (value: boolean) =>
-          set({ checkUpdatesOnStartup: value }),
-        setBetaUpdates: (value: boolean) => set({ betaUpdates: value }),
         setTelemetryEnabled: (value: boolean) =>
           set({ telemetryEnabled: value }),
 
