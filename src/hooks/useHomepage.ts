@@ -2,6 +2,7 @@ import { useAppSettingsStore } from "@/stores/appSettingsStore";
 import { useErrorStore } from "@/stores/errorStore";
 import { usePageStore } from "@/stores/pageStore";
 import { useViewStore } from "@/stores/viewStore";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   buildPageBreadcrumb,
   createPageHierarchy,
@@ -17,6 +18,7 @@ export const useHomepage = (): UseHomepageReturn => {
   const { loadPages, createPage, pageIds, pagesById, setCurrentPageId } =
     usePageStore();
   const { showIndex, openNote } = useViewStore();
+  const { loadDirectory, workspacePath } = useWorkspaceStore();
   const homepageType = useAppSettingsStore((state) => state.homepageType);
   const customHomepageId = useAppSettingsStore(
     (state) => state.customHomepageId,
@@ -72,6 +74,11 @@ export const useHomepage = (): UseHomepageReturn => {
             const loadedData = await loadPages();
             freshPageIds = loadedData.pageIds;
             freshPagesById = loadedData.pagesById;
+
+            // Refresh file tree after creating new page hierarchy
+            if (workspacePath) {
+              await loadDirectory(workspacePath);
+            }
 
             pageId = findPageByPath(fullPath, freshPageIds, freshPagesById);
             if (!pageId) {
@@ -136,6 +143,8 @@ export const useHomepage = (): UseHomepageReturn => {
       openNote,
       showIndex,
       addError,
+      workspacePath,
+      loadDirectory,
     ],
   );
 
