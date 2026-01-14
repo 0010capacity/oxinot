@@ -475,12 +475,16 @@ pub async fn get_page_backlinks(
 
 /// Rewrite wiki links in blocks that reference a moved/renamed page.
 ///
+/// Avoid mojibake by ONLY rewriting the wiki-link target inside `[[...]]` / `![[...]]`
+/// markers, and never re-encoding or otherwise altering unrelated unicode content.
+///
 /// This is a targeted update (no full-workspace scan):
 /// 1) Find blocks that contain `[[from_path]]` / `[[from_path|` / `[[from_path#` / `![[from_path...]]`
 /// 2) Rewrite only those blocks' `content` fields.
 ///
-/// NOTE: This operates on the DB `blocks.content` and assumes the filesystem sync keeps markdown files in sync.
-/// If you later make markdown files authoritative, consider applying the same transform to the file layer too.
+/// NOTE:
+/// - This updates the DB `blocks.content` only. If markdown files are authoritative,
+///   you should additionally sync the affected pages back to disk after this rewrite.
 #[tauri::command]
 pub async fn rewrite_wiki_links_for_page_path_change(
     workspace_path: String,
@@ -571,29 +575,32 @@ pub async fn rewrite_wiki_links_for_page_path_change(
 /// - [[from#...]]  -> [[to#...]]
 /// - ![[from...]]  -> ![[to...]]
 fn rewrite_wiki_link_targets_in_text(input: &str, from: &str, to: &str) -> String {
-    // Minimal, safe replacement without regex dependency:
-    // Replace only when `from` is immediately followed by `]]`, `|`, or `#` inside [[...]] / ![[...]].
-    let mut out = String::with_capacity(input.len());
+    // Byte-safe copy:
+    // - copy everything outside of wiki link markers verbatim (as bytes)
+    // - within a `[[...]]` or `![[...]]`, rewrite ONLY when the target matches `from`
+    //
+    // This avoids corrupting unrelated unicode content.
+    let mut out: Vec<u8> = Vec::with_capacity(input.len());
     let bytes = input.as_bytes();
+    let from_bytes = from.as_bytes();
+    let to_bytes = to.as_bytes();
     let mut i: usize = 0;
 
     while i < bytes.len() {
-        // Detect start of [[ or ![[.
         let is_embed =
             bytes[i] == b'!' && i + 2 < bytes.len() && bytes[i + 1] == b'[' && bytes[i + 2] == b'[';
         let is_link = bytes[i] == b'[' && i + 1 < bytes.len() && bytes[i + 1] == b'[';
 
         if !(is_embed || is_link) {
-            out.push(bytes[i] as char);
+            out.push(bytes[i]);
             i += 1;
             continue;
         }
 
         let start = i;
-        let open_len = if is_embed { 3 } else { 2 }; // "![[":3, "[[":2
+        let open_len = if is_embed { 3 } else { 2 };
         let mut j = i + open_len;
 
-        // Find end marker "]]"
         while j + 1 < bytes.len() {
             if bytes[j] == b']' && bytes[j + 1] == b']' {
                 break;
@@ -602,34 +609,52 @@ fn rewrite_wiki_link_targets_in_text(input: &str, from: &str, to: &str) -> Strin
         }
 
         if j + 1 >= bytes.len() {
-            // No closing, copy rest.
-            out.push_str(&input[start..]);
+            // Unterminated marker; copy remainder as-is.
+            out.extend_from_slice(&bytes[start..]);
             break;
         }
 
-        // Extract inside of brackets (target + optional decorations).
-        let inner = &input[(i + open_len)..j];
+        // inner is bytes[(i+open_len)..j]
+        let inner_start = i + open_len;
+        let inner_end = j;
 
-        // We only replace if the inner starts with `from` and is followed by end/alias/anchor.
-        if inner.starts_with(from) {
-            let tail = &inner[from.len()..];
-            let should_replace = tail.is_empty() || tail.starts_with('|') || tail.starts_with('#');
+        // Check whether inner starts with from and is followed by `]]` / `|` / `#`.
+        let mut did_replace = false;
+        if inner_end >= inner_start + from_bytes.len()
+            && &bytes[inner_start..(inner_start + from_bytes.len())] == from_bytes
+        {
+            let tail_start = inner_start + from_bytes.len();
+            let tail = &bytes[tail_start..inner_end];
 
+            let should_replace = tail.is_empty() || tail[0] == b'|' || tail[0] == b'#';
             if should_replace {
-                // Write open marker, replaced target, then the rest.
-                out.push_str(&input[start..(i + open_len)]);
-                out.push_str(to);
-                out.push_str(tail);
-                out.push_str("]]");
+                // Write open marker bytes
+                out.extend_from_slice(&bytes[start..inner_start]);
+                // Write the new target bytes
+                out.extend_from_slice(to_bytes);
+                // Write the tail bytes
+                out.extend_from_slice(tail);
+                // Write closing "]]"
+                out.extend_from_slice(b"]]");
                 i = j + 2;
-                continue;
+                did_replace = true;
             }
         }
 
-        // Default: copy through the closing brackets unchanged.
-        out.push_str(&input[start..(j + 2)]);
+        if did_replace {
+            continue;
+        }
+
+        // Default: copy through closing brackets unchanged.
+        out.extend_from_slice(&bytes[start..(j + 2)]);
         i = j + 2;
     }
 
-    out
+    // Input was valid UTF-8; we only copied/replaced byte slices from/to UTF-8 strings.
+    // Converting back to String should be safe.
+    String::from_utf8(out).unwrap_or_else(|_| input.to_string())
 }
+
+// NOTE: We intentionally do not sync pages back to markdown files here.
+// The authoritative source of truth should be clarified (DB vs filesystem) before adding
+// any automatic "DB -> markdown" writes in this command module.
