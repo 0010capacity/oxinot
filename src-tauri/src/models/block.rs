@@ -29,6 +29,18 @@ impl Default for BlockType {
     }
 }
 
+/// Convert a stored `block_type` string (as persisted in SQLite) to `BlockType`.
+///
+/// The DB stores `block_type` as a string like: `"bullet" | "code" | "fence"`.
+/// Unknown values fall back to `Bullet` for forward-compatibility.
+pub fn string_to_block_type(s: &str) -> BlockType {
+    match s.to_lowercase().as_str() {
+        "code" => BlockType::Code,
+        "fence" => BlockType::Fence,
+        _ => BlockType::Bullet,
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateBlockRequest {

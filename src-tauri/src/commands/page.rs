@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::models::page::{CreatePageRequest, Page, UpdatePageRequest};
 use crate::services::FileSyncService;
+use crate::utils::page_sync::sync_page_to_markdown;
 
 /// Backlink reference for a page
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -535,16 +536,19 @@ pub async fn rewrite_wiki_links_for_page_path_change(
         return Ok(0);
     }
 
+    // Track which pages were affected so we can sync them back to markdown files.
+    let mut touched_page_ids: Vec<String> = Vec::new();
+
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
     let mut updated_count: i64 = 0;
 
     for block_id in candidate_ids {
-        let content: String = tx
+        let (page_id, content): (String, String) = tx
             .query_row(
-                "SELECT content FROM blocks WHERE id = ?",
+                "SELECT page_id, content FROM blocks WHERE id = ?",
                 params![&block_id],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .map_err(|e| e.to_string())?;
 
@@ -559,10 +563,19 @@ pub async fn rewrite_wiki_links_for_page_path_change(
         )
         .map_err(|e| e.to_string())?;
 
+        if !touched_page_ids.iter().any(|x| x == &page_id) {
+            touched_page_ids.push(page_id);
+        }
+
         updated_count += 1;
     }
 
     tx.commit().map_err(|e| e.to_string())?;
+
+    // SoT is filesystem markdown: persist the DB mutation back to disk immediately.
+    for page_id in touched_page_ids {
+        sync_page_to_markdown(&conn, &workspace_path, &page_id)?;
+    }
 
     Ok(updated_count)
 }
