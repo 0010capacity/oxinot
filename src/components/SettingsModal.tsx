@@ -1543,7 +1543,7 @@ export function SettingsModal({
                       </Text>
                     </Group>
                     <Text size="sm" c="dimmed">
-                      {t("settings.about.version", { version: "0.2.0" })}
+                      {t("settings.about.version", { version: "0.2.1" })}
                     </Text>
                   </div>
 

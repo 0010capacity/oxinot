@@ -196,7 +196,7 @@ Blocks are stored as nested bullet lists in markdown:
 
 ---
 
-**Version:** 0.2.0
+**Version:** 0.2.1
 
 Thank you for using MD Outliner! Happy note-taking! 📝`;
 
