@@ -41,7 +41,7 @@ export const tauriAPI = {
 
   createDirectory: async (
     parentPath: string,
-    dirName: string,
+    dirName: string
   ): Promise<string> => {
     return await invoke<string>("create_directory", { parentPath, dirName });
   },
@@ -52,7 +52,7 @@ export const tauriAPI = {
 
   deletePathWithDb: async (
     workspacePath: string,
-    targetPath: string,
+    targetPath: string
   ): Promise<boolean> => {
     return await invoke<boolean>("delete_path_with_db", {
       workspacePath,
@@ -66,7 +66,7 @@ export const tauriAPI = {
 
   movePath: async (
     sourcePath: string,
-    targetParentPath: string,
+    targetParentPath: string
   ): Promise<string> => {
     return await invoke<string>("move_path", { sourcePath, targetParentPath });
   },
@@ -79,22 +79,35 @@ export const tauriAPI = {
     return await invoke<PathInfo>("get_path_info", { targetPath });
   },
 
+  // Links / references
+  rewriteWikiLinksForPagePathChange: async (
+    workspacePath: string,
+    fromPath: string,
+    toPath: string
+  ): Promise<number> => {
+    return await invoke<number>("rewrite_wiki_links_for_page_path_change", {
+      workspacePath,
+      fromPath,
+      toPath,
+    });
+  },
+
   // Workspace sync operations
   syncWorkspaceIncremental: async (
-    workspacePath: string,
+    workspacePath: string
   ): Promise<{ pages: number; blocks: number }> => {
     return await invoke<{ pages: number; blocks: number }>(
       "sync_workspace_incremental",
-      { workspacePath },
+      { workspacePath }
     );
   },
 
   reindexWorkspace: async (
-    workspacePath: string,
+    workspacePath: string
   ): Promise<{ pages: number; blocks: number }> => {
     return await invoke<{ pages: number; blocks: number }>(
       "reindex_workspace",
-      { workspacePath },
+      { workspacePath }
     );
   },
 };

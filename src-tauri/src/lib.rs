@@ -394,6 +394,7 @@ pub fn run() {
             commands::page::convert_page_to_directory,
             commands::page::debug_db_state,
             commands::page::get_page_backlinks,
+            commands::page::rewrite_wiki_links_for_page_path_change,
             // Workspace commands
             commands::workspace::initialize_workspace,
             commands::workspace::sync_workspace,
