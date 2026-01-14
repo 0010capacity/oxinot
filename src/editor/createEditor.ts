@@ -6,7 +6,7 @@ import {
   closeBracketsKeymap,
   closeCompletion,
   startCompletion,
-  acceptCompletion,
+  completionKeymap,
 } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -225,20 +225,6 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
       // - Cmd/Ctrl+Alt+J: force-open completion
       // - Cmd/Ctrl+Alt+H: close completion
       {
-        key: "Enter",
-        run: (view) => {
-          // If autocomplete is active, accept the completion
-          // Otherwise, let the default Enter behavior handle it (insert newline)
-          return acceptCompletion(view);
-        },
-        preventDefault: true,
-      },
-
-      // Debug: allow inspecting the completion tooltip without it auto-closing while you click around.
-      // - Cmd/Ctrl+Alt+K: toggle "pin completion open" mode (stores flag on the DOM for quick access)
-      // - Cmd/Ctrl+Alt+J: force-open completion
-      // - Cmd/Ctrl+Alt+H: close completion
-      {
         key: "Mod-Alt-k",
         run: (view) => {
           const dom = view.dom as HTMLElement & {
@@ -272,6 +258,7 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
       ...historyKeymap,
       ...closeBracketsKeymap,
       ...searchKeymap,
+      ...completionKeymap,
     ])
   );
 
@@ -809,7 +796,7 @@ function createUnifiedLinkAutocomplete(): Extension {
     // Keep exactly one autocompletion extension and combine sources here to avoid:
     // "Config merge conflict for field override"
     override: [wikiSource, blockSource],
-    defaultKeymap: false,
+    defaultKeymap: true,
     activateOnTyping: true,
 
     // Render the tooltip into a fixed-position portal so it can't be clipped by
