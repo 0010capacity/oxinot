@@ -1,0 +1,449 @@
+# oxinot
+
+## 0.2.0
+
+### Minor Changes
+
+- 39239b5: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+- a8e668a: - add automatic changeset generation via Git hooks
+  - convert auto-changeset to CommonJS format
+  - add null safety checks to auto-changeset script
+  - add comprehensive GitHub issue and PR templates
+  - use ubuntu-22.04 for webkit2gtk compatibility
+  - resolve tauri config duplicate key and ci compatibility
+  - relax biome rules and make CI lint non-blocking
+  - remove invalid biome format check command
+  - auto-close PRs when CI fails
+  - remove invalid tauri macOS bundle settings
+  - add timezone, indent size, and cache clear settings
+  - enhance settings modal UI with theme and update options
+  - prevent duplicate timezone in Select component
+- 859af13: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+- 3d316d8: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+  - resolve technical debt by removing biome-ignore (#76)
+  - add Tauri signing environment variables to CI build
+  - add block drag-and-drop reordering (#86)
+  - persist file deletion to database (#89)
+  - refresh file tree after creating daily note hierarchy (#90)
+- 31ffd41: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+- 1c940a9: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+- 491c119: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+  - resolve technical debt by removing biome-ignore (#76)
+  - add Tauri signing environment variables to CI build
+  - add block drag-and-drop reordering (#86)
+  - persist file deletion to database (#89)
+  - refresh file tree after creating daily note hierarchy (#90)
+  - implement working block drag-and-drop and remove hover background
+- 501233b: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+- 6acb574: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+- 8046082: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+- 908e8f4: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+  - resolve technical debt by removing biome-ignore (#76)
+  - add Tauri signing environment variables to CI build
+  - add block drag-and-drop reordering (#86)
+  - persist file deletion to database (#89)
+  - refresh file tree after creating daily note hierarchy (#90)
+- e57ced4: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+- 5dc4e76: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+- 3c73769: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+- 1f440df: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+- a95091e: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+  - resolve technical debt by removing biome-ignore (#76)
+- 2b284e9: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+  - resolve technical debt by removing biome-ignore (#76)
+  - add Tauri signing environment variables to CI build
+  - add block drag-and-drop reordering (#86)
+- 2d46168: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+  - resolve technical debt by removing biome-ignore (#76)
+  - add Tauri signing environment variables to CI build
+- c0894bf: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+- cbcb3a1: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+- 29d3b30: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+  - resolve technical debt by removing biome-ignore (#76)
+  - add Tauri signing environment variables to CI build
+  - add block drag-and-drop reordering (#86)
+- afe4f7b: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+- 6950bb2: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+- de6f2ce: - migrate to GitHub Actions with concurrency control (#29)
+  - create PR for changesets instead of direct push (#31)
+  - replace peter-evans action with gh CLI (#33)
+  - add initial i18n support with English and Korean locales (#38)
+  - fix invalid syntax in auto-changeset workflow (#42)
+  - integrate changeset generation into CI workflow (#44)
+  - skip CI checks for changeset-only PRs
+  - add proper type casting for Tauri invoke responses
+  - create PR for changeset instead of direct push to main
+  - add pull-requests write permission for changeset PR creation
+  - skip entire lint-and-build job for changeset-only PRs
+  - Complete i18n support for Settings and UI tooltips (#48)
+  - prevent race condition causing duplicate empty blocks (#49)
+  - add custom context menu with rename and delete actions (#51)
+  - reset to picker when deleting active workspace (#52)
+  - prevent infinite loop in workspace initialization
+  - fix workspace delete dialog z-index and auto theme behavior
+  - complete auto-update functionality and move check to info tab (#64)
+  - update updater status messages (#68)
+  - inline updater UI in Settings modal (#71)
+  - resolve technical debt by removing biome-ignore (#76)
+  - add Tauri signing environment variables to CI build
+  - add block drag-and-drop reordering (#86)
+  - persist file deletion to database (#89)
+  - refresh file tree after creating daily note hierarchy (#90)
