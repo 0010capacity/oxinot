@@ -1,7 +1,5 @@
-import {
-  useComputedColorScheme,
-} from "@mantine/core";
-import { useEffect } from "react";
+import { useComputedColorScheme } from "@mantine/core";
+import { useEffect, useRef } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
@@ -41,9 +39,28 @@ export function BlockEditor({
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
 
+  // Prevent initial block auto-creation from running more than once per page load.
+  // This can happen during state transitions (e.g. loadPage sets childrenMap/isLoading in multiple steps),
+  // which may cause duplicate empty root blocks to be persisted.
+  const didAutoCreateInitialBlockForPageRef = useRef<string | null>(null);
+
+  // Make auto-create idempotent while a create request is in-flight for the same page.
+  // Without this, multiple renders can trigger duplicate createBlock(null, "") calls
+  // resulting in multiple empty root blocks being persisted.
+  const isCreatingInitialBlockForPageRef = useRef<string | null>(null);
+
+  // If we auto-create an initial block, force a reload once creation completes to ensure
+  // the editor reflects the DB state (some first-open flows can otherwise get stuck
+  // showing empty-state even though the file/DB now contains a block).
+  const needsReloadAfterInitialCreateRef = useRef(false);
+
   // Load page blocks
   useEffect(() => {
     if (pageId) {
+      // Reset guards when navigating to a different page.
+      didAutoCreateInitialBlockForPageRef.current = null;
+      isCreatingInitialBlockForPageRef.current = null;
+      needsReloadAfterInitialCreateRef.current = false;
       loadPage(pageId);
     }
   }, [pageId, loadPage]);
@@ -54,13 +71,57 @@ export function BlockEditor({
       const rootBlocks = childrenMap.root || [];
       const hasBlocks = rootBlocks.length > 0;
 
-      if (!hasBlocks) {
-        createBlock(null, "").catch((err) => {
-          console.error("Failed to create initial block:", err);
-        });
+      const alreadyCreatedForThisPage =
+        didAutoCreateInitialBlockForPageRef.current === pageId;
+      const createInFlightForThisPage =
+        isCreatingInitialBlockForPageRef.current === pageId;
+
+      if (
+        !hasBlocks &&
+        !alreadyCreatedForThisPage &&
+        !createInFlightForThisPage
+      ) {
+        didAutoCreateInitialBlockForPageRef.current = pageId;
+        isCreatingInitialBlockForPageRef.current = pageId;
+        needsReloadAfterInitialCreateRef.current = true;
+
+        createBlock(null, "")
+          .then(() => {
+            // Ensure UI catches up with the actual DB state after creation.
+            // This avoids first-open empty-state cases when the optimistic block
+            // doesn't get reflected in childrenMap for some reason.
+            if (needsReloadAfterInitialCreateRef.current) {
+              loadPage(pageId);
+            }
+          })
+          .catch((err) => {
+            // Allow retry on failure
+            didAutoCreateInitialBlockForPageRef.current = null;
+            needsReloadAfterInitialCreateRef.current = false;
+            console.error("Failed to create initial block:", err);
+          })
+          .finally(() => {
+            // Release in-flight lock
+            if (isCreatingInitialBlockForPageRef.current === pageId) {
+              isCreatingInitialBlockForPageRef.current = null;
+            }
+          });
       }
     }
-  }, [isLoading, error, pageId, currentPageId, childrenMap, createBlock]);
+  }, [
+    isLoading,
+    error,
+    pageId,
+    currentPageId,
+    childrenMap,
+    createBlock,
+    loadPage,
+  ]);
+
+  // Determine which blocks to show based on zoom level
+  const blocksToShow = focusedBlockId
+    ? [focusedBlockId]
+    : childrenMap.root || [];
 
   if (isLoading) {
     return (
@@ -92,10 +153,7 @@ export function BlockEditor({
     );
   }
 
-  // Determine which blocks to show based on zoom level
-  const blocksToShow = focusedBlockId
-    ? [focusedBlockId]
-    : childrenMap.root || [];
+  // blocksToShow is computed above (includes in-flight initial create handling)
 
   return (
     <PageContainer className={isDark ? "theme-dark" : "theme-light"}>
