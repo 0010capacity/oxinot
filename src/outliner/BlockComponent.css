@@ -1,197 +1,248 @@
 .block-component {
-  display: flex;
-  flex-direction: column;
-  font-family: var(--font-family);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-normal);
-  position: relative;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+    position: relative;
 
-  /* Allow floating UI (e.g., CodeMirror autocomplete tooltips) to escape the block row. */
-  overflow: visible;
+    /* Allow floating UI (e.g., CodeMirror autocomplete tooltips) to escape the block row. */
+    overflow: visible;
 }
 
 /* Indent guides */
 .indent-guide {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background-color: var(--color-indent-guide);
-  pointer-events: none;
-  z-index: 0;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: var(--color-indent-guide);
+    pointer-events: none;
+    z-index: 0;
 }
 
 .block-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-sm);
-  padding: 2px 0;
-  position: relative;
-  border-radius: var(--radius-sm);
-  transition: background-color var(--transition-normal);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    padding: 2px 0;
+    position: relative;
+    border-radius: var(--radius-sm);
+    transition: background-color var(--transition-normal);
 
-  /* Prevent suggestion popovers from being clipped by this row container. */
-  overflow: visible;
+    /* Prevent suggestion popovers from being clipped by this row container. */
+    overflow: visible;
 }
 
 /* Collapse/Expand Toggle - show only on hover */
 .collapse-toggle {
-  flex-shrink: 0;
-  width: var(--layout-collapse-toggle-size);
-  height: var(--layout-collapse-toggle-size);
-  padding: 0;
-  margin: 2px 0 0 var(--spacing-sm);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: currentColor;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity var(--transition-normal), background-color
-    var(--transition-normal);
-  border-radius: var(--radius-sm);
-  position: relative;
-  z-index: 1;
+    flex-shrink: 0;
+    width: var(--layout-collapse-toggle-size);
+    height: var(--layout-collapse-toggle-size);
+    padding: 0;
+    margin: 2px 0 0 var(--spacing-sm);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: currentColor;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition:
+        opacity var(--transition-normal),
+        background-color var(--transition-normal);
+    border-radius: var(--radius-sm);
+    position: relative;
+    z-index: 1;
 }
 
 .block-row:hover .collapse-toggle {
-  opacity: var(--opacity-dimmed);
+    opacity: var(--opacity-dimmed);
 }
 
 .collapse-toggle:hover {
-  opacity: 1 !important;
-  background-color: var(--color-interactive-hover);
+    opacity: 1 !important;
+    background-color: var(--color-interactive-hover);
 }
 
 .collapse-toggle.collapsed {
-  opacity: var(--opacity-disabled);
+    opacity: var(--opacity-disabled);
 }
 
 .block-row:hover .collapse-toggle.collapsed {
-  opacity: var(--opacity-dimmed);
+    opacity: var(--opacity-dimmed);
 }
 
 /* Placeholder for alignment when no toggle */
 .collapse-toggle-placeholder {
-  flex-shrink: 0;
-  width: var(--layout-collapse-toggle-size);
-  height: var(--layout-collapse-toggle-size);
-  margin: 2px 0 0 var(--spacing-sm);
+    flex-shrink: 0;
+    width: var(--layout-collapse-toggle-size);
+    height: var(--layout-collapse-toggle-size);
+    margin: 2px 0 0 var(--spacing-sm);
 }
 
 /* Bullet Point Wrapper */
 .block-bullet-wrapper {
-  flex-shrink: 0;
-  width: var(--layout-bullet-container-size);
-  height: var(--layout-bullet-container-size);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  position: relative;
+    flex-shrink: 0;
+    width: var(--layout-bullet-container-size);
+    height: var(--layout-bullet-container-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    position: relative;
 }
 
 /* Clean bullet point */
 .block-bullet {
-  width: var(--layout-bullet-size);
-  height: var(--layout-bullet-size);
-  border-radius: 50%;
-  background-color: var(--color-bullet-default);
-  transition: all var(--transition-slow);
-  display: block;
+    width: var(--layout-bullet-size);
+    height: var(--layout-bullet-size);
+    border-radius: 50%;
+    background-color: var(--color-bullet-default);
+    transition: all var(--transition-slow);
+    display: block;
 }
 
 .block-bullet-wrapper:hover .block-bullet {
-  background-color: var(--color-bullet-hover);
+    background-color: var(--color-bullet-hover);
 }
 
 /* Focused block bullet highlight - more prominent */
 .block-row:has(.block-editor .cm-focused) .block-bullet {
-  background-color: var(--color-bullet-active);
+    background-color: var(--color-bullet-active);
 }
 
 /* Content Wrapper */
 .block-content-wrapper {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: flex-start;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
 
-  /* Let CodeMirror tooltips render outside the wrapper bounds. */
-  overflow: visible;
+    /* Let CodeMirror tooltips render outside the wrapper bounds. */
+    overflow: visible;
 }
 
 .block-editor {
-  width: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  resize: none;
-  padding: 0;
-  margin: 0;
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    resize: none;
+    padding: 0;
+    margin: 0;
 }
 
 .block-editor:focus {
-  outline: none;
+    outline: none;
 }
 
 /* Override CodeMirror default styles */
 .block-editor .cm-editor {
-  padding: 0 !important;
-  background: transparent !important;
-  outline: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+    outline: none !important;
 }
 
 .block-editor .cm-editor.cm-focused {
-  background: transparent !important;
-  outline: none !important;
+    background: transparent !important;
+    outline: none !important;
 }
 
 .block-editor .cm-scroller {
-  padding: 0 !important;
-  background: transparent !important;
+    padding: 0 !important;
+    background: transparent !important;
 }
 
 .block-editor .cm-content {
-  padding: 2px var(--spacing-xs) !important;
-  background: transparent !important;
+    padding: 2px var(--spacing-xs) !important;
+    background: transparent !important;
 }
 
 .block-editor .cm-line {
-  padding: 0 !important;
-  line-height: var(--layout-bullet-container-size) !important;
+    padding: 0 !important;
+    line-height: var(--layout-bullet-container-size) !important;
 }
 
 /* Ensure active line background is transparent */
 .block-editor .cm-activeLine {
-  background: transparent !important;
+    background: transparent !important;
 }
 
 /* Remove any gutter backgrounds */
 .block-editor .cm-gutters {
-  background: transparent !important;
-  border: none !important;
+    background: transparent !important;
+    border: none !important;
 }
 
 /* Block children container */
 .block-children {
-  position: relative;
-  margin-left: 0;
+    position: relative;
+    margin-left: 0;
 }
 
 /* Block copy ID toolbar - show on hover */
 .block-row:hover .block-copy-id-toolbar {
-  opacity: 1 !important;
+    opacity: 1 !important;
 }
 
 /* Hide block copy toolbar when block contains embed widgets */
 .block-content-wrapper:has(.cm-block-embed-subtree) .block-copy-id-toolbar,
 .block-content-wrapper:has(.cm-page-embed) .block-copy-id-toolbar {
-  display: none !important;
+    display: none !important;
+}
+
+/* Drag and Drop Styles */
+.block-component[draggable="true"] {
+    cursor: move;
+    user-select: none;
+}
+
+.block-component[draggable="true"]:hover {
+    background-color: var(--color-interactive-hover);
+    opacity: 0.9;
+}
+
+.block-component.dragging {
+    opacity: 0.5;
+    background-color: var(--color-text-tertiary);
+}
+
+.block-component.drag-over-above::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--color-interactive-active);
+    border-radius: 1px;
+    z-index: 10;
+}
+
+.block-component.drag-over-below::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--color-interactive-active);
+    border-radius: 1px;
+    z-index: 10;
+}
+
+.block-component.drag-over-inside {
+    border-left: 2px solid var(--color-interactive-active);
+    padding-left: calc(var(--spacing-sm) - 2px);
+}
+
+.block-row.dragging-source {
+    opacity: 0.6;
+    background-color: var(--color-text-tertiary);
 }

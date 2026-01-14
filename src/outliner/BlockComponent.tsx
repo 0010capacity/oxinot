@@ -1,7 +1,6 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
-import {   useComputedColorScheme,
-} from "@mantine/core";
+import { useComputedColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -16,6 +15,7 @@ import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
+import { useDragDropBlock } from "./dragDrop/useDragDropBlock";
 import "./BlockComponent.css";
 
 interface BlockComponentProps {
@@ -48,6 +48,17 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const clearTargetCursorPosition = useBlockStore(
       (state) => state.clearTargetCursorPosition,
     );
+
+    const {
+      handleDragStart,
+      handleDragOver,
+      handleDrop,
+      handleDragEnd,
+      getDragOverClass,
+      isDragging,
+    } = useDragDropBlock();
+
+    const blockComponentRef = useRef<HTMLDivElement>(null);
 
     const editorRef = useRef<EditorRef>(null);
     const appliedPositionRef = useRef<number | null>(null);
@@ -427,7 +438,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               }
               return true;
             }
-            
+
             if (cursor === 0) {
               // At start of non-empty block - merge with previous
               const prevBlockId = useBlockStore
@@ -593,7 +604,26 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       ) : null;
 
     return (
-      <div className="block-component">
+      <div
+        ref={blockComponentRef}
+        className={`block-component ${getDragOverClass(blockId)} ${isDragging && blockId === useBlockStore.getState().blocksById[blockId]?.id ? "dragging-source" : ""}`}
+        draggable
+        onDragStart={() => handleDragStart(blockId)}
+        onDragOver={(e) => {
+          const rect = blockComponentRef.current?.getBoundingClientRect();
+          if (!rect) return;
+          const midpoint = rect.top + rect.height / 2;
+          const position: "above" | "below" | "inside" =
+            e.clientY < midpoint - 10
+              ? "above"
+              : e.clientY > midpoint + 10
+                ? "below"
+                : "inside";
+          handleDragOver(e, blockId, position);
+        }}
+        onDrop={(e) => handleDrop(e, blockId)}
+        onDragEnd={handleDragEnd}
+      >
         {indentGuide}
         <div className="block-row" style={{ paddingLeft: `${depth * 24}px` }}>
           {/* Collapse/Expand Toggle */}
@@ -615,11 +645,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             type="button"
             className="block-bullet-wrapper"
             onClick={handleBulletClick}
-            style={{ 
+            style={{
               cursor: hasChildren ? "pointer" : "default",
               border: "none",
               background: "transparent",
-              padding: 0
+              padding: 0,
             }}
             title={hasChildren ? "Click to zoom into this block" : undefined}
           >

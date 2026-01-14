@@ -1,6 +1,6 @@
 use chrono::Utc;
-use rusqlite::{params, Connection};
 use rusqlite::OptionalExtension;
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,8 +8,8 @@ use crate::commands::workspace::open_workspace_db;
 use crate::models::block::{
     Block, BlockType, CreateBlockRequest, MoveBlockRequest, UpdateBlockRequest,
 };
-use crate::services::markdown_mirror::blocks_to_markdown;
 use crate::utils::fractional_index;
+use crate::utils::markdown::blocks_to_markdown;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockWithPath {
@@ -62,7 +62,10 @@ fn get_block_by_id_opt(conn: &Connection, id: &str) -> Result<Option<Block>, Str
 
 /// Helper: return ancestor chain (root -> ... -> self) for a given block_id.
 /// Also returns the block itself, if found.
-fn get_block_with_ancestors(conn: &Connection, block_id: &str) -> Result<Option<BlockWithPath>, String> {
+fn get_block_with_ancestors(
+    conn: &Connection,
+    block_id: &str,
+) -> Result<Option<BlockWithPath>, String> {
     let sql = r#"
 WITH RECURSIVE
 anc(id, page_id, parent_id, content, order_weight, is_collapsed, block_type, language, created_at, updated_at, depth) AS (
@@ -110,7 +113,10 @@ ORDER BY depth DESC
     let ancestor_ids = rows.iter().map(|(b, _)| b.id.clone()).collect::<Vec<_>>();
     let block = rows.last().unwrap().0.clone();
 
-    Ok(Some(BlockWithPath { block, ancestor_ids }))
+    Ok(Some(BlockWithPath {
+        block,
+        ancestor_ids,
+    }))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -422,10 +428,6 @@ pub async fn resolve_block_path(
 
     Ok(current_parent)
 }
-
-
-
-
 
 /// Create a new block
 #[tauri::command]
