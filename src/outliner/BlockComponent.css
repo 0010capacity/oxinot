@@ -204,8 +204,7 @@
 }
 
 .block-component[draggable="true"]:hover {
-    background-color: var(--color-interactive-hover);
-    opacity: 0.9;
+    /* No background color on hover - keeps UI clean */
 }
 
 .block-component.dragging {

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useBlockStore } from "../../stores/blockStore";
 
 interface DragDropContext {
@@ -7,19 +7,29 @@ interface DragDropContext {
   dragPosition: "above" | "below" | "inside" | null;
 }
 
-const dragContextRef = { current: null as DragDropContext | null };
-
 export function useDragDropBlock() {
   const moveBlock = useBlockStore((state) => state.moveBlock);
   const blocksById = useBlockStore((state) => state.blocksById);
   const childrenMap = useBlockStore((state) => state.childrenMap);
 
+  // Use state instead of ref to trigger re-renders
+  const [dragContext, setDragContext] = useState<DragDropContext>({
+    draggedBlockId: null,
+    dragOverBlockId: null,
+    dragPosition: null,
+  });
+
+  const dragContextRef = useRef<DragDropContext>(dragContext);
+
+  // Keep ref in sync with state
+  dragContextRef.current = dragContext;
+
   const handleDragStart = useCallback((blockId: string) => {
-    dragContextRef.current = {
+    setDragContext({
       draggedBlockId: blockId,
       dragOverBlockId: null,
       dragPosition: null,
-    };
+    });
   }, []);
 
   const handleDragOver = useCallback(
@@ -31,16 +41,11 @@ export function useDragDropBlock() {
       event.preventDefault();
       event.stopPropagation();
 
-      if (!dragContextRef.current) {
-        dragContextRef.current = {
-          draggedBlockId: null,
-          dragOverBlockId: targetBlockId,
-          dragPosition: position,
-        };
-      } else {
-        dragContextRef.current.dragOverBlockId = targetBlockId;
-        dragContextRef.current.dragPosition = position;
-      }
+      setDragContext((prev) => ({
+        ...prev,
+        dragOverBlockId: targetBlockId,
+        dragPosition: position,
+      }));
 
       event.dataTransfer.dropEffect = "move";
     },
@@ -54,14 +59,22 @@ export function useDragDropBlock() {
 
       const context = dragContextRef.current;
       if (!context || !context.draggedBlockId) {
-        dragContextRef.current = null;
+        setDragContext({
+          draggedBlockId: null,
+          dragOverBlockId: null,
+          dragPosition: null,
+        });
         return;
       }
 
       const draggedId = context.draggedBlockId;
 
       if (draggedId === targetBlockId) {
-        dragContextRef.current = null;
+        setDragContext({
+          draggedBlockId: null,
+          dragOverBlockId: null,
+          dragPosition: null,
+        });
         return;
       }
 
@@ -69,7 +82,11 @@ export function useDragDropBlock() {
       const targetBlock = blocksById[targetBlockId];
 
       if (!draggedBlock || !targetBlock) {
-        dragContextRef.current = null;
+        setDragContext({
+          draggedBlockId: null,
+          dragOverBlockId: null,
+          dragPosition: null,
+        });
         return;
       }
 
@@ -96,30 +113,38 @@ export function useDragDropBlock() {
       } catch (error) {
         console.error("Failed to move block:", error);
       } finally {
-        dragContextRef.current = null;
+        setDragContext({
+          draggedBlockId: null,
+          dragOverBlockId: null,
+          dragPosition: null,
+        });
       }
     },
     [blocksById, childrenMap, moveBlock],
   );
 
   const handleDragEnd = useCallback(() => {
-    dragContextRef.current = null;
+    setDragContext({
+      draggedBlockId: null,
+      dragOverBlockId: null,
+      dragPosition: null,
+    });
   }, []);
 
-  const getDragOverClass = useCallback((blockId: string): string => {
-    if (
-      !dragContextRef.current ||
-      dragContextRef.current.dragOverBlockId !== blockId
-    ) {
+  const getDragOverClass = useCallback(
+    (blockId: string): string => {
+      if (dragContext.dragOverBlockId !== blockId) {
+        return "";
+      }
+
+      const position = dragContext.dragPosition;
+      if (position === "above") return "drag-over-above";
+      if (position === "below") return "drag-over-below";
+      if (position === "inside") return "drag-over-inside";
       return "";
-    }
-
-    const position = dragContextRef.current.dragPosition;
-    if (position === "above") return "drag-over-above";
-    if (position === "below") return "drag-over-below";
-    if (position === "inside") return "drag-over-inside";
-    return "";
-  }, []);
+    },
+    [dragContext],
+  );
 
   return {
     handleDragStart,
@@ -127,6 +152,6 @@ export function useDragDropBlock() {
     handleDrop,
     handleDragEnd,
     getDragOverClass,
-    isDragging: dragContextRef.current?.draggedBlockId !== null,
+    isDragging: dragContext.draggedBlockId !== null,
   };
 }
