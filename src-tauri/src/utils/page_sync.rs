@@ -201,17 +201,34 @@ pub fn sync_page_to_markdown(
     sync_page_to_markdown_after_block_update(conn, workspace_path, page_id, None)
 }
 
-/// Sync a page after a specific block update, allowing a targeted on-disk patch when safe.
+/// Backward-compatible alias for existing callers.
 ///
-/// - If `updated_block_id` is `Some`, we attempt a safe incremental patch for Bullet content edits.
-/// - If patching is not possible or unsafe, we fall back to a full rewrite (current behavior).
+/// Prefer `sync_page_to_markdown_after_block_change` for new call sites (create/update/delete/move/etc).
 pub fn sync_page_to_markdown_after_block_update(
     conn: &Connection,
     workspace_path: &str,
     page_id: &str,
     updated_block_id: Option<&str>,
 ) -> Result<(), String> {
-    if let Some(block_id) = updated_block_id {
+    sync_page_to_markdown_after_block_change(conn, workspace_path, page_id, updated_block_id)
+}
+
+/// Sync a page after a specific block change, allowing a targeted on-disk patch when safe.
+///
+/// - If `changed_block_id` is `Some`, we attempt a safe incremental patch for Bullet content edits.
+/// - If patching is not possible or unsafe, we fall back to a full rewrite (current behavior).
+///
+/// Note:
+/// This helper is intended to be called by commands that mutate blocks (create/update/delete/move/etc)
+/// so they can pass the specific block id they touched. For now, only Bullet content edits are patched;
+/// other operations fall back to full rewrite.
+pub fn sync_page_to_markdown_after_block_change(
+    conn: &Connection,
+    workspace_path: &str,
+    page_id: &str,
+    changed_block_id: Option<&str>,
+) -> Result<(), String> {
+    if let Some(block_id) = changed_block_id {
         if try_patch_bullet_block_content(conn, workspace_path, page_id, block_id)? {
             return Ok(());
         }

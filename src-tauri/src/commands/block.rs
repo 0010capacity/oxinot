@@ -10,7 +10,7 @@ use crate::models::block::{
 };
 use crate::utils::fractional_index;
 use crate::utils::page_sync::sync_page_to_markdown;
-use crate::utils::page_sync::sync_page_to_markdown_after_block_update;
+use crate::utils::page_sync::sync_page_to_markdown_after_block_change;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockWithPath {
@@ -469,8 +469,13 @@ pub async fn create_block(
 
     let created_block = get_block_by_id(&conn, &id)?;
 
-    // Sync to markdown file
-    sync_page_to_markdown(&conn, &workspace_path, &created_block.page_id)?;
+    // Sync to markdown file (allow targeted patching for this create)
+    sync_page_to_markdown_after_block_change(
+        &conn,
+        &workspace_path,
+        &created_block.page_id,
+        Some(created_block.id.as_str()),
+    )?;
 
     Ok(created_block)
 }
@@ -506,8 +511,8 @@ pub async fn update_block(
 
     let updated_block = get_block_by_id(&conn, &request.id)?;
 
-    // Sync to markdown file (allow targeted patching for this block update)
-    sync_page_to_markdown_after_block_update(
+    // Sync to markdown file (allow targeted patching for this update)
+    sync_page_to_markdown_after_block_change(
         &conn,
         &workspace_path,
         &updated_block.page_id,
@@ -538,8 +543,13 @@ pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Ve
     conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
         .map_err(|e| e.to_string())?;
 
-    // Sync to markdown file
-    sync_page_to_markdown(&conn, &workspace_path, &page_id)?;
+    // Sync to markdown file (allow targeted patching for this delete; may fall back to full rewrite)
+    sync_page_to_markdown_after_block_change(
+        &conn,
+        &workspace_path,
+        &page_id,
+        Some(block_id.as_str()),
+    )?;
 
     Ok(deleted_ids)
 }
