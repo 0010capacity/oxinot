@@ -1,7 +1,7 @@
 name: Required Checks
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
   merge_group:
@@ -18,14 +18,11 @@ jobs:
     name: required
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Determine whether CI is required for this change
         id: classify
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
@@ -36,10 +33,12 @@ jobs:
             exit 0
           fi
 
-          # PR case: diff base...head.
-          git fetch origin "${{ github.base_ref }}" --depth=1
+          # pull_request_target runs in the context of the base repo and should not check out
+          # untrusted PR code. We only need the changed file list from the PR.
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          OWNER_REPO="${{ github.repository }}"
 
-          FILES="$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" || true)"
+          FILES="$(gh api "repos/${OWNER_REPO}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename' || true)"
 
           # If no files found, be conservative and require CI.
           if [ -z "${FILES}" ]; then
@@ -65,28 +64,21 @@ jobs:
           fi
 
       - name: Wait for CI workflow run when required
-        if: steps.classify.outputs.ci_required == 'true' && github.event_name == 'pull_request'
+        if: steps.classify.outputs.ci_required == 'true' && github.event_name == 'pull_request_target'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
 
-          # `gh pr checks --required` can fail when the repository ruleset required-check list
-          # does not include any checks yet (or when the checks have not been reported).
-          #
-          # Instead, poll the CI workflow run for this PR head SHA and require it to succeed.
+          # Poll the CI workflow run for this PR head SHA and require it to succeed.
           OWNER_REPO="${{ github.repository }}"
-          OWNER="${OWNER_REPO%%/*}"
-          REPO="${OWNER_REPO#*/}"
           SHA="${{ github.event.pull_request.head.sha }}"
 
           echo "Waiting for CI workflow run (name: CI) on SHA: ${SHA}"
 
           # Poll for up to 30 minutes (180 * 10s).
           for i in $(seq 1 180); do
-            # Use gh's JSON output (no jq dependency).
-            # Find the latest run for this head SHA where the workflow name is "CI".
             RUN_LINE="$(
               gh run list \
                 --repo "${OWNER_REPO}" \
@@ -102,7 +94,6 @@ jobs:
               continue
             fi
 
-            RUN_ID="$(printf "%s" "${RUN_LINE}" | cut -f1)"
             RUN_STATUS="$(printf "%s" "${RUN_LINE}" | cut -f2)"
             RUN_CONCLUSION="$(printf "%s" "${RUN_LINE}" | cut -f3)"
             RUN_URL="$(printf "%s" "${RUN_LINE}" | cut -f4)"
@@ -119,7 +110,6 @@ jobs:
               exit 1
             fi
 
-            # Not completed yet; wait.
             sleep 10
           done
 
