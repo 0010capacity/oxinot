@@ -5,9 +5,32 @@
  * inline within the CodeMirror editor. It uses a plugin architecture where each
  * markdown element type is handled by a dedicated handler.
  *
+ * Rendering Rules:
+ * ================
+ *
+ * BLOCK-LEVEL ELEMENTS (must be alone on their line):
+ * - Headings (#, ##, ###, etc.)
+ * - Code Blocks (``` ... ```)
+ * - Quotes (> ...)
+ * - Callouts (> [!NOTE] ...)
+ * - Embed Pages (![[page]])
+ * - Embed Blocks (!((block_id)))
+ * - Images (![alt](url))
+ * - Tables (| ... | ... |)
+ *
+ * INLINE ELEMENTS (can appear with other text on the same line):
+ * - Wiki Links ([[page]])
+ * - Block Links (((block_id)))
+ * - Emphasis (*text*, _text_)
+ * - Strong (**text**, __text__)
+ * - Inline Code (`code`)
+ * - Tags (#tag, @mention)
+ * - Highlights (==text==)
+ *
  * Improvements in this version:
  * - IME safety: avoid aggressive decoration rebuilds during composition (e.g., Korean)
  * - Better performance: compute decorations only for merged visible ranges
+ * - Proper block/inline separation: embed elements render only when alone on line
  * - Line-by-line features (wiki links/tags/highlights/comments/callouts/tables/strike/footnotes)
  *   are processed only for visible lines (plus a small buffer).
  */
@@ -120,7 +143,7 @@ function clamp(n: number, min: number, max: number): number {
 function getVisibleLineRanges(
   view: EditorView,
   mergedVisibleRanges: VisibleRange[],
-  bufferLines: number,
+  bufferLines: number
 ): Array<{ fromLine: number; toLine: number }> {
   const { doc } = view.state;
   const out: Array<{ fromLine: number; toLine: number }> = [];
@@ -210,37 +233,49 @@ function buildDecorations(view: EditorView): DecorationSet {
   const visibleLineRanges = getVisibleLineRanges(
     view,
     mergedVisibleRanges,
-    VISIBLE_LINE_BUFFER,
+    VISIBLE_LINE_BUFFER
   );
 
-  // Obsidian-esque inline patterns (not represented in syntax tree)
+  // Process line-by-line patterns (not represented in syntax tree)
+  // These include both BLOCK-LEVEL and INLINE patterns:
+  // - Block-level: embed pages (![[...]]), embed blocks (!((...))), callouts
+  // - Inline: wiki links ([[...]]), block links (((...)))
+  // Block-level elements are only rendered when alone on their line.
   for (const lr of visibleLineRanges) {
     for (let lineNum = lr.fromLine; lineNum <= lr.toLine; lineNum++) {
       const line = state.doc.line(lineNum);
       const lineText = line.text;
 
+      // Block-level and inline wiki links (embed pages are block-level)
       decorations.push(
-        ...WikiLinkHandler.processLine(lineText, line.from, isEditMode),
+        ...WikiLinkHandler.processLine(lineText, line.from, isEditMode)
+      );
+
+      // Block-level and inline block references (embed blocks are block-level)
+      decorations.push(
+        ...BlockRefHandler.processLine(lineText, line.from, isEditMode)
+      );
+
+      // Inline patterns
+      decorations.push(
+        ...TagHandler.processLine(lineText, line.from, isEditMode)
       );
       decorations.push(
-        ...BlockRefHandler.processLine(lineText, line.from, isEditMode),
+        ...HighlightHandler.processLine(lineText, line.from, isEditMode)
       );
       decorations.push(
-        ...TagHandler.processLine(lineText, line.from, isEditMode),
+        ...CommentHandler.processLine(lineText, line.from, isEditMode)
       );
+
+      // Block-level callouts (but enforced in CalloutHandler)
       decorations.push(
-        ...HighlightHandler.processLine(lineText, line.from, isEditMode),
-      );
-      decorations.push(
-        ...CommentHandler.processLine(lineText, line.from, isEditMode),
-      );
-      decorations.push(
-        ...CalloutHandler.processLine(lineText, line.from, isEditMode),
+        ...CalloutHandler.processLine(lineText, line.from, isEditMode)
       );
     }
   }
 
-  // Tables (complex logic; keep as is but limited to visible lines)
+  // BLOCK-LEVEL: Tables (complex logic; keep as is but limited to visible lines)
+  // Tables are block-level elements represented as multiple lines
   for (const lr of visibleLineRanges) {
     for (let lineNum = lr.fromLine; lineNum <= lr.toLine; lineNum++) {
       const line = state.doc.line(lineNum);
@@ -317,7 +352,11 @@ function buildDecorations(view: EditorView): DecorationSet {
           decoration: Decoration.mark({
             class: "cm-table-cell",
             attributes: {
-              style: `padding: 0 1em; ${idx < cells.length - 1 ? "border-right: 1px solid rgba(128, 128, 128, 0.2);" : ""}`,
+              style: `padding: 0 1em; ${
+                idx < cells.length - 1
+                  ? "border-right: 1px solid rgba(128, 128, 128, 0.2);"
+                  : ""
+              }`,
             },
           }),
         });
@@ -545,11 +584,11 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
       try {
         this.view.dom.removeEventListener(
           "compositionstart",
-          this.onCompositionStart,
+          this.onCompositionStart
         );
         this.view.dom.removeEventListener(
           "compositionend",
-          this.onCompositionEnd,
+          this.onCompositionEnd
         );
       } catch {
         // no-op
@@ -558,7 +597,7 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
   },
   {
     decorations: (v) => v.decorations,
-  },
+  }
 );
 
 /**
