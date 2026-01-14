@@ -42,10 +42,9 @@ export class HighlightHandler extends BaseHandler {
 
     // Match highlights: ==text==
     const highlightRegex: RegExp = /==([^=]+)==/g;
-    let match: RegExpExecArray | null;
+    let match: RegExpExecArray | null = highlightRegex.exec(lineText);
 
-    // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
-    while ((match = highlightRegex.exec(lineText)) !== null) {
+    while (match !== null) {
       const start = lineFrom + match.index;
       const end = start + match[0].length;
       const contentStart = start + 2;
@@ -69,6 +68,7 @@ export class HighlightHandler extends BaseHandler {
 
       // Hide closing ==
       decorations.push(createHiddenMarker(contentEnd, end, isEditMode));
+      match = highlightRegex.exec(lineText);
     }
 
     return decorations;

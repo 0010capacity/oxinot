@@ -253,7 +253,9 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
             set({ currentFile: null, fileContent: "" });
           }
 
-          await get().loadDirectory(currentPath || workspacePath!);
+          if (currentPath || workspacePath) {
+            await get().loadDirectory(currentPath || (workspacePath as string));
+          }
         } catch (err) {
           const errorMessage =
             err instanceof Error ? err.message : "Failed to delete item";
@@ -275,7 +277,9 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
             set({ currentFile: newPath });
           }
 
-          await get().loadDirectory(currentPath || workspacePath!);
+          if (currentPath || workspacePath) {
+            await get().loadDirectory(currentPath || (workspacePath as string));
+          }
         } catch (err) {
           const errorMessage =
             err instanceof Error ? err.message : "Failed to rename item";

@@ -45,11 +45,9 @@ export class TagHandler extends BaseHandler {
     // Must start with # followed by alphanumeric, can contain /, -, _
     // Must not be inside a code block or inline code
     const tagRegex = /#([a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*)/g;
-    // biome-ignore lint/suspicious/noImplicitAnyLet: regex exec result
-    let match;
+    let match = tagRegex.exec(lineText);
 
-    // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
-    while ((match = tagRegex.exec(lineText)) !== null) {
+    while (match !== null) {
       const start = lineFrom + match.index;
       const end = start + match[0].length;
 
@@ -57,25 +55,25 @@ export class TagHandler extends BaseHandler {
       const charBefore = match.index > 0 ? lineText[match.index - 1] : " ";
       const isValidTag = /[\s({\[,.]/.test(charBefore);
 
-      if (!isValidTag) {
-        continue; // Skip if not a valid tag position (e.g., inside a word)
+      if (isValidTag) {
+        // Style the entire tag including the #
+        decorations.push(
+          createStyledText(start, end, {
+            className: "cm-tag",
+            style: `
+              color: #10b981;
+              background: rgba(16, 185, 129, 0.1);
+              padding: 0.1em 0.3em;
+              border-radius: 3px;
+              cursor: pointer;
+              font-weight: 500;
+              font-size: 0.95em;
+            `,
+          }),
+        );
       }
 
-      // Style the entire tag including the #
-      decorations.push(
-        createStyledText(start, end, {
-          className: "cm-tag",
-          style: `
-            color: #10b981;
-            background: rgba(16, 185, 129, 0.1);
-            padding: 0.1em 0.3em;
-            border-radius: 3px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 0.95em;
-          `,
-        }),
-      );
+      match = tagRegex.exec(lineText);
     }
 
     return decorations;

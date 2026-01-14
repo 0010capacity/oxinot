@@ -42,8 +42,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
       <Menu.Dropdown>
         {sections.map((section, sectionIndex) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: Section order is stable
-          <div key={sectionIndex}>
+          <div key={section.items[0]?.label || sectionIndex}>
             {section.items.map((item) => (
               <Menu.Item
                 key={item.label}
