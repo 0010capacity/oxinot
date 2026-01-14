@@ -1,7 +1,7 @@
 import { useErrorStore } from "@/stores/errorStore";
 import { usePageStore } from "@/stores/pageStore";
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface WorkspaceInitializerState {
   isChecking: boolean;
@@ -25,6 +25,15 @@ export const useWorkspaceInitializer = (
 
   const { loadPages } = usePageStore();
   const addError = useErrorStore((state) => state.addError);
+
+  // Use refs to keep track of the latest callbacks without triggering re-effects
+  const onInitialCompleteRef = useRef(onInitialComplete);
+  const onWorkspaceNameSetRef = useRef(onWorkspaceNameSet);
+
+  useEffect(() => {
+    onInitialCompleteRef.current = onInitialComplete;
+    onWorkspaceNameSetRef.current = onWorkspaceNameSet;
+  }, [onInitialComplete, onWorkspaceNameSet]);
 
   useEffect(() => {
     if (!workspacePath) {
@@ -53,9 +62,9 @@ export const useWorkspaceInitializer = (
         setShowMigration(false);
 
         const workspaceName = workspacePath.split("/").pop() || "Workspace";
-        onWorkspaceNameSet(workspaceName);
+        onWorkspaceNameSetRef.current(workspaceName);
 
-        onInitialComplete();
+        onInitialCompleteRef.current();
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error occurred";
@@ -92,13 +101,7 @@ export const useWorkspaceInitializer = (
     };
 
     initializeWorkspace();
-  }, [
-    workspacePath,
-    loadPages,
-    onWorkspaceNameSet,
-    onInitialComplete,
-    addError,
-  ]);
+  }, [workspacePath, loadPages, addError]);
 
   const handleMigrationComplete = async () => {
     setShowMigration(false);
@@ -108,9 +111,9 @@ export const useWorkspaceInitializer = (
       await loadPages();
 
       const workspaceName = workspacePath.split("/").pop() || "Workspace";
-      onWorkspaceNameSet(workspaceName);
+      onWorkspaceNameSetRef.current(workspaceName);
 
-      onInitialComplete();
+      onInitialCompleteRef.current();
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";

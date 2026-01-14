@@ -1,4 +1,4 @@
-import { ActionIcon, Tooltip, useMantineColorScheme } from "@mantine/core";
+import { ActionIcon, Tooltip, useComputedColorScheme, useMantineColorScheme } from "@mantine/core";
 import {
   IconCommand,
   IconHelp,
@@ -30,8 +30,9 @@ export function BottomLeftControls({
   onCommandPaletteClick,
 }: BottomLeftControlsProps) {
   const { t } = useTranslation();
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const { toggleColorScheme } = useMantineColorScheme();
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
 
   const iconButtonStyles = {
     root: {

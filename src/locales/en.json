@@ -31,7 +31,6 @@
     "title": "Settings",
     "search_placeholder": "Search settings...",
     "search_active": "Search is active. If you don't see any matching sections, try a different keyword.",
-    "beta": "Beta",
     "tabs": {
       "appearance": "Appearance",
       "theme": "Theme",
@@ -159,8 +158,6 @@
       "auto_updates_desc": "Automatically download and install updates (coming soon)",
       "check_startup": "Check for updates on startup",
       "check_startup_desc": "Check for new versions when the app starts (coming soon)",
-      "beta_updates": "Beta updates",
-      "beta_updates_desc": "Receive beta versions with experimental features (coming soon)",
       "check_updates_btn": "Check for Updates",
       "current_version": "Current version: {{version}}",
       "developer_options": "Developer Options",

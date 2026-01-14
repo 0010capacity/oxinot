@@ -1,12 +1,11 @@
-import { Box, Popover, Text } from "@mantine/core";
-import { useMantineColorScheme } from "@mantine/core";
+import { Box, Popover, Text, useComputedColorScheme } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useClockFormatStore } from "../../stores/clockFormatStore";
 import { CalendarDropdown } from "../CalendarDropdown";
 
 export function Clock() {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
   const [time, setTime] = useState<string>("");
   const [date, setDate] = useState<string>("");
   const [opened, setOpened] = useState(false);

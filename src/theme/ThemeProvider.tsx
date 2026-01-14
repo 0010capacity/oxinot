@@ -1,5 +1,5 @@
-import { useMantineColorScheme } from "@mantine/core";
-import { type ReactNode, createContext, useEffect } from "react";
+import { useComputedColorScheme } from "@mantine/core";
+import { type ReactNode, createContext, useEffect, useMemo } from "react";
 import { useThemeStore } from "../stores/themeStore";
 import { createColorPalette } from "./colors";
 import {
@@ -19,17 +19,17 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const { colorScheme } = useMantineColorScheme();
+  const computedColorScheme = useComputedColorScheme("light");
   const colorVariant = useThemeStore((state) => state.colorVariant);
 
-  const theme: Theme = {
-    scheme: colorScheme as ColorScheme,
+  const theme: Theme = useMemo(() => ({
+    scheme: computedColorScheme as ColorScheme,
     variant: colorVariant,
-    colors: createColorPalette(colorScheme as ColorScheme, colorVariant),
+    colors: createColorPalette(computedColorScheme as ColorScheme, colorVariant),
     spacing: SPACING,
     typography: TYPOGRAPHY,
     radius: RADIUS,
-  };
+  }), [computedColorScheme, colorVariant]);
 
   // Apply CSS variables to root
   useEffect(() => {
