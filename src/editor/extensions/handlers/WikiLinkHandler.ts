@@ -207,7 +207,6 @@ export class WikiLinkHandler extends BaseHandler {
           decoration: Decoration.widget({
             widget: new EmbedPageWidget(pageName),
             side: 0,
-            block: true, // Mark as block-level decoration
           }),
         });
       }

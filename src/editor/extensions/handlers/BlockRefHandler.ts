@@ -352,7 +352,6 @@ export class BlockRefHandler extends BaseHandler {
           decoration: Decoration.widget({
             widget: new EmbedSubtreeWidget(match.id),
             side: 0,
-            block: true, // Mark as block-level decoration
           }),
         });
       } else {
