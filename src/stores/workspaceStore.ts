@@ -9,6 +9,64 @@ function shouldUpdateLastAccessed(lastAccessed: number): boolean {
   return Date.now() - lastAccessed > LAST_ACCESSED_THROTTLE_MS;
 }
 
+function normalizeSeparatorsToSlashes(input: string): string {
+  return (input ?? "").replace(/\\/g, "/");
+}
+
+/**
+ * Convert an absolute workspace file path to a wiki-link target path.
+ * Example:
+ *   workspace: /Users/me/Vault
+ *   file:      /Users/me/Vault/A/B/C.md
+ *   =>         A/B/C
+ */
+function toWikiTargetFromAbsPath(
+  workspacePath: string,
+  absPath: string
+): string | null {
+  const ws = normalizeSeparatorsToSlashes(workspacePath).replace(/\/+$/, "");
+  const p = normalizeSeparatorsToSlashes(absPath);
+
+  if (!p.startsWith(ws)) return null;
+
+  let rel = p.slice(ws.length);
+  if (rel.startsWith("/")) rel = rel.slice(1);
+
+  // Only support note files. Strip trailing .md if present.
+  if (rel.toLowerCase().endsWith(".md")) {
+    rel = rel.slice(0, -3);
+  }
+
+  return rel.trim().length > 0 ? rel : null;
+}
+
+function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function replaceWikiLinksInMarkdown(
+  markdown: string,
+  fromTarget: string,
+  toTarget: string
+): { updated: string; changed: boolean } {
+  if (!markdown) return { updated: markdown, changed: false };
+
+  // Replace only the link target portion inside [[...]] or ![[...]]:
+  // - [[fromTarget]]
+  // - [[fromTarget|alias]]
+  // - [[fromTarget#heading]]
+  // - ![[fromTarget]]
+  //
+  // We intentionally DO NOT attempt to parse nested constructs; keep it simple and safe.
+  const re = new RegExp(
+    `(!?\\[\\[)${escapeRegExp(fromTarget)}(?=(\\||#|\\]\\]))`,
+    "g"
+  );
+
+  const updated = markdown.replace(re, `$1${toTarget}`);
+  return { updated, changed: updated !== markdown };
+}
+
 export interface WorkspaceInfo {
   name: string;
   path: string;
@@ -133,7 +191,7 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
           if (shouldUpdateLastAccessed(exists.lastAccessed)) {
             set({
               workspaces: workspaces.map((w) =>
-                w.path === path ? { ...w, lastAccessed: Date.now() } : w,
+                w.path === path ? { ...w, lastAccessed: Date.now() } : w
               ),
             });
           }
@@ -277,15 +335,103 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
       renameItem: async (oldPath: string, newName: string) => {
         try {
           set({ isLoading: true, error: null });
-          const newPath = await tauriAPI.renamePath(oldPath, newName);
 
-          const { currentFile, currentPath, workspacePath } = get();
-          if (currentFile === oldPath) {
-            set({ currentFile: newPath });
+          const { workspacePath } = get();
+          if (!workspacePath) throw new Error("No workspace selected");
+
+          const fromTarget = toWikiTargetFromAbsPath(workspacePath, oldPath);
+          const newPath = await tauriAPI.renamePath(oldPath, newName);
+          const toTarget = toWikiTargetFromAbsPath(workspacePath, newPath);
+
+          const { currentFile, currentPath } = get();
+          const isRenamingCurrentFile = currentFile === oldPath;
+
+          // 1) Update all wiki links in the workspace referencing the renamed page.
+          //
+          // NOTE: We implement a conservative, filesystem-driven walk:
+          // - Only `.md` files
+          // - Replace only `[[from]]` target portion (supports alias/# anchors)
+          //
+          // This is intentionally done in the frontend store until we add a backend command
+          // to handle it more efficiently and transactionally.
+          if (fromTarget && toTarget && fromTarget !== toTarget) {
+            const stack: string[] = [workspacePath];
+
+            while (stack.length > 0) {
+              const dir = stack.pop();
+              if (!dir) break;
+
+              let children: FileSystemItem[] = [];
+              try {
+                children = await tauriAPI.readDirectory(dir);
+              } catch (e) {
+                console.warn("[renameItem] Failed to read directory:", dir, e);
+                continue;
+              }
+
+              for (const item of children) {
+                if (item.is_directory) {
+                  stack.push(item.path);
+                  continue;
+                }
+
+                if (!item.is_file) continue;
+                if (!item.name.toLowerCase().endsWith(".md")) continue;
+
+                // Skip rewriting the file being renamed because its path just changed.
+                if (item.path === oldPath || item.path === newPath) continue;
+
+                let content = "";
+                try {
+                  content = await tauriAPI.readFile(item.path);
+                } catch (e) {
+                  console.warn(
+                    "[renameItem] Failed to read file:",
+                    item.path,
+                    e
+                  );
+                  continue;
+                }
+
+                const { updated, changed } = replaceWikiLinksInMarkdown(
+                  content,
+                  fromTarget,
+                  toTarget
+                );
+
+                if (!changed) continue;
+
+                try {
+                  await tauriAPI.writeFile(item.path, updated);
+                } catch (e) {
+                  console.warn(
+                    "[renameItem] Failed to write updated links:",
+                    item.path,
+                    e
+                  );
+                }
+              }
+            }
           }
 
-          if (currentPath || workspacePath) {
-            await get().loadDirectory(currentPath || (workspacePath as string));
+          // 2) Keep app state in sync with the renamed file path/content.
+          if (isRenamingCurrentFile) {
+            const content = await tauriAPI.readFile(newPath);
+            set({ currentFile: newPath, fileContent: content });
+          } else if (currentFile) {
+            // If the currently open file contains a reference, update the editor buffer too.
+            const { updated, changed } = replaceWikiLinksInMarkdown(
+              get().fileContent,
+              fromTarget ?? "",
+              toTarget ?? ""
+            );
+            if (changed) {
+              set({ fileContent: updated });
+            }
+          }
+
+          if (currentPath) {
+            await get().loadDirectory(currentPath);
           }
         } catch (err) {
           const errorMessage =
@@ -316,6 +462,6 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
         workspaces: state.workspaces,
         workspacePath: state.workspacePath,
       }),
-    },
-  ),
+    }
+  )
 );
