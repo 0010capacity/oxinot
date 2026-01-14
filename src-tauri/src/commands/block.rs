@@ -9,7 +9,7 @@ use crate::models::block::{
     Block, BlockType, CreateBlockRequest, MoveBlockRequest, UpdateBlockRequest,
 };
 use crate::utils::fractional_index;
-use crate::utils::markdown::blocks_to_markdown;
+use crate::utils::page_sync::sync_page_to_markdown;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockWithPath {
@@ -469,7 +469,6 @@ pub async fn create_block(
     let created_block = get_block_by_id(&conn, &id)?;
 
     // Sync to markdown file
-    // (File serializer will later be updated to hide ID markers while keeping stable UUIDs.)
     sync_page_to_markdown(&conn, &workspace_path, &created_block.page_id)?;
 
     Ok(created_block)
@@ -539,89 +538,10 @@ pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Ve
     Ok(deleted_ids)
 }
 
-/// Helper function to sync a page's blocks to its markdown file
-fn sync_page_to_markdown(
-    conn: &rusqlite::Connection,
-    workspace_path: &str,
-    page_id: &str,
-) -> Result<(), String> {
-    // Get file path for this page
-    // NOTE: file_path in DB is workspace-relative (P0 requirement)
-    let file_path: Option<String> = conn
-        .query_row(
-            "SELECT file_path FROM pages WHERE id = ?",
-            [page_id],
-            |row| row.get(0),
-        )
-        .ok();
+// NOTE: Page-to-markdown sync is implemented in `utils/page_sync.rs` as a shared helper.
+// Block commands should call `sync_page_to_markdown` from that module.
 
-    if file_path.is_none() {
-        return Ok(()); // No file path, skip
-    }
-
-    // Get all blocks for this page
-    let mut stmt = conn
-        .prepare(
-            "SELECT id, page_id, parent_id, content, order_weight,
-                is_collapsed, block_type, language, created_at, updated_at
-         FROM blocks WHERE page_id = ? ORDER BY order_weight",
-        )
-        .map_err(|e| e.to_string())?;
-
-    let blocks: Vec<Block> = stmt
-        .query_map([page_id], |row| {
-            Ok(Block {
-                id: row.get(0)?,
-                page_id: row.get(1)?,
-                parent_id: row.get(2)?,
-                content: row.get(3)?,
-                order_weight: row.get(4)?,
-                is_collapsed: row.get::<_, i32>(5)? != 0,
-                block_type: string_to_block_type(&row.get::<_, String>(6)?),
-                language: row.get(7)?,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
-            })
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
-
-    // Convert blocks to markdown
-    let markdown = blocks_to_markdown(&blocks);
-
-    // Write to file
-    if let Some(path) = file_path {
-        let full_path = std::path::Path::new(workspace_path).join(&path);
-        std::fs::write(&full_path, markdown).map_err(|e| format!("Failed to write file: {}", e))?;
-
-        // Update page's mtime and size in DB to reflect the file change
-        if let Ok(metadata) = std::fs::metadata(&full_path) {
-            if let Ok(mtime) = metadata.modified() {
-                if let Ok(duration) = mtime.duration_since(std::time::UNIX_EPOCH) {
-                    let mtime_secs = duration.as_secs() as i64;
-                    let size = metadata.len() as i64;
-
-                    conn.execute(
-                        "UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?",
-                        rusqlite::params![mtime_secs, size, page_id],
-                    )
-                    .map_err(|e| format!("Failed to update page metadata: {}", e))?;
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn string_to_block_type(s: &str) -> BlockType {
-    match s.to_lowercase().as_str() {
-        "code" => BlockType::Code,
-        "fence" => BlockType::Fence,
-        _ => BlockType::Bullet,
-    }
-}
+// NOTE: `string_to_block_type` is now defined in `models/block.rs` so it can be reused by shared sync helpers.
 
 /// Move a block (change parent and/or position)
 #[tauri::command]
