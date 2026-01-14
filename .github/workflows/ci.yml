@@ -97,9 +97,17 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
 
-            # Create branch from latest origin/main to avoid out-of-date issues
+            # Fetch latest main and rebase to ensure we're up-to-date
             git fetch origin main
-            git checkout -b "$BRANCH_NAME" origin/main
+            git rebase origin/main
+
+            # Check if changeset branch already exists remotely and delete if it does
+            if git rev-parse --verify "origin/$BRANCH_NAME" >/dev/null 2>&1; then
+              echo "ℹ️ Changeset branch $BRANCH_NAME already exists, skipping..."
+              exit 0
+            fi
+
+            git checkout -b "$BRANCH_NAME"
             git add .changeset
             git commit -m "chore: auto-generate changeset"
             git push origin "$BRANCH_NAME"
