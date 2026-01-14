@@ -2,16 +2,27 @@
  * WikiLink handler for Obsidian-style internal links
  *
  * Handles wiki-style internal links:
- * - [[note name]] - basic link
- * - [[note name|display text]] - link with alias
- * - [[note#heading]] - link to heading
- * - [[note#^block-id]] - link to block
- * - [[folder/note]] - folder-style path (render shows only the basename by default)
- * - ![[note name]] - embed page
+ * - [[note name]] - basic link (inline)
+ * - [[note name|display text]] - link with alias (inline)
+ * - [[note#heading]] - link to heading (inline)
+ * - [[note#^block-id]] - link to block (inline)
+ * - [[folder/note]] - folder-style path (inline, shows only the basename)
+ * - ![[note name]] - embed page (block-level) - must be alone on its line
  *
- * - Styles the link text as clickable
- * - Hides or dims the [[ ]] markers based on cursor position
- * - Differentiates between note name and display text
+ * Rendering rules (live preview):
+ * - Hide the [[ ]] markers when cursor is NOT on the line
+ * - Show dimmed markers when editing
+ * - Normal wiki links [[...]] are INLINE elements:
+ *   - can appear inline with other text on the same line
+ *   - render as clickable link text
+ * - Embed pages ![[...]] are BLOCK-LEVEL elements:
+ *   - Must be on their own line (or at the beginning of a line with nothing before)
+ *   - Render as a full-width page preview widget
+ *   - Cannot coexist with other content on the same line
+ *
+ * Notes:
+ * - This handler is regex/line-based, not syntax-tree-based.
+ * - Embed pages enforce block-level rendering: if not alone on a line, they're shown as raw syntax.
  */
 
 import { Decoration, type EditorView, WidgetType } from "@codemirror/view";
@@ -36,6 +47,26 @@ function getWikiBasename(path: string): string {
     .map((p) => p.trim())
     .filter(Boolean);
   return parts.length > 0 ? parts[parts.length - 1] : trimmed;
+}
+
+/**
+ * Check if an embed page is alone on its line (block-level rendering requirement).
+ *
+ * Returns true only if:
+ * - The embed is the only thing on the line, OR
+ * - The line has only whitespace around the embed
+ *
+ * This ensures embed pages are truly block-level, not inline.
+ */
+function isEmbedPageAlone(
+  lineText: string,
+  startIndex: number,
+  endIndex: number
+): boolean {
+  const beforeText = lineText.slice(0, startIndex).trim();
+  const afterText = lineText.slice(endIndex).trim();
+
+  return beforeText.length === 0 && afterText.length === 0;
 }
 
 class EmbedPageWidget extends WidgetType {
@@ -72,7 +103,7 @@ class EmbedPageWidget extends WidgetType {
                 new CustomEvent("cm-embed-navigate", {
                   bubbles: true,
                   detail: { blockId },
-                }),
+                })
               );
             },
             onEdit: () => {
@@ -85,9 +116,9 @@ class EmbedPageWidget extends WidgetType {
                 });
               }
             },
-          }),
-        ),
-      ),
+          })
+        )
+      )
     );
 
     return container;
@@ -143,11 +174,12 @@ export class WikiLinkHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isEditMode: boolean,
+    isEditMode: boolean
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
     // First, check for embed pages: ![[page]]
+    // BLOCK-LEVEL rendering enforced
     const embedPageRegex = /!\[\[([^\]|]+)\]\]/g;
     let embedMatch = embedPageRegex.exec(lineText);
 
@@ -155,29 +187,36 @@ export class WikiLinkHandler extends BaseHandler {
       const fullMatch = embedMatch[0]; // ![[page]]
       const pageName = embedMatch[1]; // page
 
-      const start = lineFrom + embedMatch.index;
+      const start = embedMatch.index;
       const end = start + fullMatch.length;
 
-      // In edit mode, show raw markdown for editing
-      // Don't hide anything and don't show widgets
-      if (!isEditMode) {
-        // Hide the entire ![[page]] syntax
-        decorations.push(createHiddenMarker(start, end, false));
+      // BLOCK-LEVEL RENDERING ENFORCEMENT:
+      // Embed pages ![[page]] must be alone on their line.
+      // If there's other content before or after, show raw syntax instead.
+      if (!isEditMode && isEmbedPageAlone(lineText, start, end)) {
+        const absoluteStart = lineFrom + start;
+        const absoluteEnd = lineFrom + end;
 
-        // Insert embed widget
+        // Hide the entire ![[page]] syntax
+        decorations.push(createHiddenMarker(absoluteStart, absoluteEnd, false));
+
+        // Insert embed widget (block-level)
         decorations.push({
-          from: start,
-          to: end,
+          from: absoluteStart,
+          to: absoluteEnd,
           decoration: Decoration.widget({
             widget: new EmbedPageWidget(pageName),
             side: 0,
           }),
         });
       }
+      // If not alone or in edit mode, don't render widget - show raw syntax
+
       embedMatch = embedPageRegex.exec(lineText);
     }
 
     // Match wiki links: [[link]] or [[link|alias]] (but not ![[link]])
+    // INLINE rendering only
     const wikiLinkRegex = /(?<!!)(\[\[([^\]|]+)(\|([^\]]+))?\]\])/g;
     let match = wikiLinkRegex.exec(lineText);
 
@@ -222,7 +261,7 @@ export class WikiLinkHandler extends BaseHandler {
                 font-weight: 500;
                 text-decoration: none !important;
               `,
-            }),
+            })
           );
         } else {
           // Format: [[note]]
@@ -256,7 +295,7 @@ export class WikiLinkHandler extends BaseHandler {
                 font-weight: 500;
                 text-decoration: none !important;
               `,
-            }),
+            })
           );
 
           // Hide any trailing part (unlikely, but keep safe) - always hide
@@ -270,6 +309,13 @@ export class WikiLinkHandler extends BaseHandler {
       }
       match = wikiLinkRegex.exec(lineText);
     }
+
+    // Sort decorations to ensure proper ordering when multiple items on same line
+    decorations.sort((a, b) => {
+      if (a.from !== b.from) return a.from - b.from;
+      // If same position, prefer wider ranges first (ensures proper nesting)
+      return b.to - b.from - (a.to - a.from);
+    });
 
     return decorations;
   }
