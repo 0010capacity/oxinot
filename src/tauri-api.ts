@@ -50,6 +50,16 @@ export const tauriAPI = {
     return await invoke<boolean>("delete_path", { targetPath });
   },
 
+  deletePathWithDb: async (
+    workspacePath: string,
+    targetPath: string,
+  ): Promise<boolean> => {
+    return await invoke<boolean>("delete_path_with_db", {
+      workspacePath,
+      targetPath,
+    });
+  },
+
   renamePath: async (oldPath: string, newName: string): Promise<string> => {
     return await invoke<string>("rename_path", { oldPath, newName });
   },

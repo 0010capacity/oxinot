@@ -203,6 +203,52 @@ async fn delete_path(target_path: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
+async fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bool, String> {
+    // Delete from database first
+    let conn = commands::workspace::open_workspace_db(&workspace_path)
+        .map_err(|e| format!("Failed to open workspace database: {}", e))?;
+
+    // Find and delete pages with matching file path
+    // We need to handle both absolute and relative paths
+    let target_path_normalized = target_path.replace('\\', "/");
+
+    // Get all pages and find those matching this path
+    let mut stmt = conn
+        .prepare("SELECT id FROM pages WHERE file_path = ? OR file_path LIKE ?")
+        .map_err(|e| e.to_string())?;
+
+    let page_ids: Vec<String> = stmt
+        .query_map(
+            [
+                &target_path_normalized,
+                &format!("{}/%", target_path_normalized),
+            ],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    // Delete each page (this will cascade delete blocks and references)
+    for page_id in page_ids {
+        conn.execute("DELETE FROM pages WHERE id = ?", [&page_id])
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Now delete from filesystem
+    let path = Path::new(&target_path);
+    let metadata = fs::metadata(path).map_err(|e| format!("Error getting path info: {}", e))?;
+
+    if metadata.is_dir() {
+        fs::remove_dir_all(path).map_err(|e| format!("Error deleting directory: {}", e))?;
+    } else {
+        fs::remove_file(path).map_err(|e| format!("Error deleting file: {}", e))?;
+    }
+
+    Ok(true)
+}
+
+#[tauri::command]
 async fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
     let old = Path::new(&old_path);
     let parent = old
@@ -319,6 +365,7 @@ pub fn run() {
             create_file,
             create_directory,
             delete_path,
+            delete_path_with_db,
             rename_path,
             move_path,
             convert_file_to_directory,

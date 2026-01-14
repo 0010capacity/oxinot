@@ -143,11 +143,11 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
       removeWorkspace: (path: string) => {
         const { workspacePath } = get();
         const isActiveWorkspace = workspacePath === path;
-        
+
         set({
           workspaces: get().workspaces.filter((w) => w.path !== path),
           // Reset workspace path if removing the active workspace
-          ...(isActiveWorkspace && { 
+          ...(isActiveWorkspace && {
             workspacePath: null,
             currentPath: null,
             currentFile: null,
@@ -246,9 +246,16 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
       deleteItem: async (path: string) => {
         try {
           set({ isLoading: true, error: null });
-          await tauriAPI.deletePath(path);
+          const { workspacePath } = get();
 
-          const { currentFile, currentPath, workspacePath } = get();
+          // Use deletePathWithDb if we have workspace context to ensure database is cleaned up
+          if (workspacePath) {
+            await tauriAPI.deletePathWithDb(workspacePath, path);
+          } else {
+            await tauriAPI.deletePath(path);
+          }
+
+          const { currentFile, currentPath } = get();
           if (currentFile === path) {
             set({ currentFile: null, fileContent: "" });
           }
