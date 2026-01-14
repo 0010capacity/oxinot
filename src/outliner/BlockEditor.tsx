@@ -42,6 +42,10 @@ export function BlockEditor({
   // Prevent initial block auto-creation from running more than once per page load.
   // This can happen during state transitions (e.g. loadPage sets childrenMap/isLoading in multiple steps),
   // which may cause duplicate empty root blocks to be persisted.
+  //
+  // IMPORTANT:
+  // We must be careful not to "lock out" initial block creation if the page is still empty after load.
+  // So we reset this guard after a successful load when the page has no root blocks.
   const didAutoCreateInitialBlockForPageRef = useRef<string | null>(null);
 
   // Load page blocks
@@ -58,6 +62,13 @@ export function BlockEditor({
     if (!isLoading && !error && pageId && currentPageId === pageId) {
       const rootBlocks = childrenMap.root || [];
       const hasBlocks = rootBlocks.length > 0;
+
+      // If load completed and the page is still empty, allow a (single) auto-create attempt.
+      // This avoids a scenario where the guard is set during a transient render and we never
+      // create the initial block, leaving the editor in an "empty-state" UI.
+      if (!hasBlocks) {
+        didAutoCreateInitialBlockForPageRef.current = null;
+      }
 
       if (
         !hasBlocks &&
