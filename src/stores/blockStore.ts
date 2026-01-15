@@ -587,7 +587,6 @@ export const useBlockStore = create<BlockStore>()(
       // Prevent deleting the last block of a page to ensure the editor always has a place to type.
       const totalBlocks = Object.keys(blocksById).length;
       if (totalBlocks <= 1) {
-        console.warn("[Store] Prevented deletion of the last block on the page.");
         return;
       }
 
