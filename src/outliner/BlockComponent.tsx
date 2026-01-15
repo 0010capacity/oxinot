@@ -383,20 +383,17 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               return true;
             }
 
-            (async () => {
-              await commitDraft();
-
+            // Start async operations but return true immediately to prevent default behavior
+            commitDraft().then(() => {
               // Determine whether to split block or create new sibling based on cursor position
               if (cursor === contentLength) {
                 // Cursor at end: create new sibling block
-                await createBlock(blockId);
+                createBlock(blockId);
               } else {
                 // Cursor in middle: split current block
-                await useBlockStore
-                  .getState()
-                  .splitBlockAtOffset(blockId, cursor);
+                useBlockStore.getState().splitBlockAtOffset(blockId, cursor);
               }
-            })();
+            });
 
             return true; // Prevent default CodeMirror behavior
           },
@@ -440,11 +437,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 .getState()
                 .getPreviousBlock(blockId);
               if (prevBlockId) {
-                (async () => {
-                  await commitDraft();
+                // Start async operations but return true immediately to prevent default behavior
+                commitDraft().then(() => {
                   // Pass current editor content to ensure draft is merged
-                  await mergeBlock(blockId, content);
-                })();
+                  mergeBlock(blockId, content);
+                });
                 return true;
               }
             }
@@ -540,13 +537,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const view = editorRef.current?.getView();
             const cursorPos = view?.state.selection.main.head ?? null;
 
-            (async () => {
-              await commitDraft();
-              await indentBlock(blockId);
-              if (cursorPos !== null) {
-                setFocusedBlock(blockId, cursorPos);
-              }
-            })();
+            // Start async operations but return true immediately to prevent default behavior
+            commitDraft().then(() => {
+              indentBlock(blockId).then(() => {
+                if (cursorPos !== null) {
+                  setFocusedBlock(blockId, cursorPos);
+                }
+              });
+            });
             return true;
           },
         },
@@ -558,13 +556,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const view = editorRef.current?.getView();
             const cursorPos = view?.state.selection.main.head ?? null;
 
-            (async () => {
-              await commitDraft();
-              await outdentBlock(blockId);
-              if (cursorPos !== null) {
-                setFocusedBlock(blockId, cursorPos);
-              }
-            })();
+            // Start async operations but return true immediately to prevent default behavior
+            commitDraft().then(() => {
+              outdentBlock(blockId).then(() => {
+                if (cursorPos !== null) {
+                  setFocusedBlock(blockId, cursorPos);
+                }
+              });
+            });
             return true;
           },
         },
