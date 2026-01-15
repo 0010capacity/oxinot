@@ -14,3 +14,17 @@ pub struct WikiLink {
     pub block_ref: Option<String>,
     pub is_embed: bool,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BacklinkBlock {
+    pub block_id: String,
+    pub content: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BacklinkGroup {
+    pub page_id: String,
+    pub page_title: String,
+    pub blocks: Vec<BacklinkBlock>,
+}

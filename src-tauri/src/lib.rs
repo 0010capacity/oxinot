@@ -415,6 +415,11 @@ pub fn run() {
             commands::git::git_get_remote_url,
             commands::git::git_set_remote_url,
             commands::git::git_remove_remote,
+            commands::workspace::close_workspace,
+            commands::workspace::reveal_in_finder,
+            commands::wiki_link::get_page_backlinks,
+            commands::wiki_link::get_broken_links,
+            commands::wiki_link::reindex_wiki_links,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
