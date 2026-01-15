@@ -1,5 +1,13 @@
 # oxinot
 
+## 0.4.0
+
+### Minor Changes
+
+- ef7a699: - run CI for changeset PRs but skip lint and build
+  - enable devtools feature flag for release builds (#144)
+  - remove syntax error in release.yml
+
 ## 0.3.1
 
 ### Patch Changes
