@@ -55,12 +55,14 @@ jobs:
             git config user.email "github-actions[bot]@users.noreply.github.com"
 
             git add .changeset
-            git commit -m "chore: auto-generate changeset [skip ci]"
+            git commit -m "chore: auto-generate changeset"
 
-            # Push directly to main. This will trigger the Release workflow (release.yml)
-            # because release.yml listens to push on main, and we are pushing a file
-            # that is ignored by CI but NOT ignored by the release workflow (hopefully).
-            # Note: release.yml usually runs on push to main.
+            # Push directly to main. This will trigger the Release workflow (release.yml).
+            # We removed [skip ci] so the push triggers workflows, but ci.yml will
+            # short-circuit because .changeset/ files are in the ignore list.
+
+            # Pull with rebase to avoid conflicts if main moved forward
+            git pull --rebase origin main
             git push origin main
 
             echo "Successfully pushed changeset to main."
