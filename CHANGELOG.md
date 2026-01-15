@@ -1,5 +1,11 @@
 # oxinot
 
+## 0.4.1
+
+### Patch Changes
+
+- d0027e3: Force release to fix CI workflow
+
 ## 0.4.0
 
 ### Minor Changes
