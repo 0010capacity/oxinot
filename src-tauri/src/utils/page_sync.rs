@@ -323,8 +323,9 @@ fn try_patch_bullet_subtree_relocation(
             let Some(pmi) = find_marker_idx(&lines, pid) else {
                 return Ok(false);
             };
-            let parent_indent = indent_len(&lines[pmi]);
-            dest_root_indent_opt = Some(parent_indent + 2);
+            let parent_marker_indent = indent_len(&lines[pmi]);
+            // Child bullet indent should match parent marker indent (parent bullet indent + 2)
+            dest_root_indent_opt = Some(parent_marker_indent);
         } else {
             dest_root_indent_opt = Some(0);
         }
@@ -337,7 +338,8 @@ fn try_patch_bullet_subtree_relocation(
     reindent_subtree_lines(&mut subtree_lines, indent_delta)?;
 
     // ---- Compute insertion point in updated document lines ----
-    // Insert before next sibling segment start, else after prev sibling marker, else end of file.
+    // Insert before next sibling segment start, else after prev sibling subtree end,
+    // else after parent marker (if first child), else end of file.
     let insert_at: usize = if let Some(ns) = next_sibling_id.as_deref() {
         let Some(ns_marker_idx) = find_marker_idx(&lines, ns) else {
             return Ok(false);
@@ -350,7 +352,18 @@ fn try_patch_bullet_subtree_relocation(
         let Some(ps_marker_idx) = find_marker_idx(&lines, ps) else {
             return Ok(false);
         };
-        ps_marker_idx + 1
+        let Some(ps_start_idx) = find_bullet_segment_start(&lines, ps_marker_idx) else {
+            return Ok(false);
+        };
+        let Some(ps_end_idx) = find_bullet_subtree_end(&lines, ps_start_idx, ps_marker_idx) else {
+            return Ok(false);
+        };
+        ps_end_idx + 1
+    } else if let Some(pid) = parent_id.as_deref() {
+        let Some(p_marker_idx) = find_marker_idx(&lines, pid) else {
+            return Ok(false);
+        };
+        p_marker_idx + 1
     } else {
         lines.len()
     };
@@ -584,6 +597,11 @@ fn try_patch_bullet_block_insertion(
 
     let (mut lines, had_trailing_newline) = read_page_lines(&full_path)?;
 
+    // Safety check: ensure the block ID is not already in the file (prevent duplication)
+    if find_marker_idx(&lines, created_block_id).is_some() {
+        return Ok(false);
+    }
+
     // Infer indent from siblings; default to root indent.
     let mut indent_len_opt: Option<usize> = None;
     if let Some(ns) = next_sibling_id.as_deref() {
@@ -630,6 +648,58 @@ fn try_patch_bullet_block_insertion(
     update_page_file_metadata(conn, &full_path, page_id)?;
 
     Ok(true)
+}
+
+/// Sync a page after a block creation, attempting safe incremental insertion.
+pub fn sync_page_to_markdown_after_create(
+    conn: &Connection,
+    workspace_path: &str,
+    page_id: &str,
+    created_block_id: &str,
+) -> Result<(), String> {
+    if try_patch_bullet_block_insertion(conn, workspace_path, page_id, created_block_id)? {
+        return Ok(());
+    }
+    sync_page_to_markdown(conn, workspace_path, page_id)
+}
+
+/// Sync a page after a block update, attempting safe incremental content patch.
+pub fn sync_page_to_markdown_after_update(
+    conn: &Connection,
+    workspace_path: &str,
+    page_id: &str,
+    updated_block_id: &str,
+) -> Result<(), String> {
+    if try_patch_bullet_block_content(conn, workspace_path, page_id, updated_block_id)? {
+        return Ok(());
+    }
+    sync_page_to_markdown(conn, workspace_path, page_id)
+}
+
+/// Sync a page after a block deletion, attempting safe incremental deletion.
+pub fn sync_page_to_markdown_after_delete(
+    conn: &Connection,
+    workspace_path: &str,
+    page_id: &str,
+    deleted_block_id: &str,
+) -> Result<(), String> {
+    if try_patch_bullet_block_deletion(conn, workspace_path, page_id, deleted_block_id)? {
+        return Ok(());
+    }
+    sync_page_to_markdown(conn, workspace_path, page_id)
+}
+
+/// Sync a page after a block move/indent/outdent, attempting safe incremental relocation.
+pub fn sync_page_to_markdown_after_move(
+    conn: &Connection,
+    workspace_path: &str,
+    page_id: &str,
+    moved_block_id: &str,
+) -> Result<(), String> {
+    if try_patch_bullet_subtree_relocation(conn, workspace_path, page_id, moved_block_id)? {
+        return Ok(());
+    }
+    sync_page_to_markdown(conn, workspace_path, page_id)
 }
 
 /// Sync a page's blocks from DB to its markdown file on disk.
@@ -702,24 +772,11 @@ pub fn sync_page_to_markdown_after_block_change(
     // currently disabled, so we don't need a precomputed `full_path` here.
 
     if let Some(block_id) = changed_block_id {
-        // Disabled: insertion patching can duplicate blocks/corrupt structure when misapplied.
-        // We'll re-enable only after we can reliably constrain it to create-only flows.
-
         // Deletion patch (may run even if block already removed from DB).
         if try_patch_bullet_block_deletion(conn, workspace_path, page_id, block_id)? {
             return Ok(());
         }
 
-        // Multi-hunk move/reindent patch (best-effort).
-        //
-        // Disabled for now: The relocation patch can corrupt files in certain real-world edit flows
-        // (e.g. rapid edits that change sibling relationships while the on-disk file is being patched).
-        // Until we can make relocation patching provably correct, fall back to the canonical full rewrite.
-        //
-        // if try_patch_bullet_subtree_relocation(conn, workspace_path, page_id, block_id)? {
-        //     return Ok(());
-        // }
-        //
         // Content update patch (requires block present in DB).
         if try_patch_bullet_block_content(conn, workspace_path, page_id, block_id)? {
             return Ok(());

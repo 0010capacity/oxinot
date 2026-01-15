@@ -33,6 +33,10 @@ interface BlockState {
   focusedBlockId: string | null;
   selectedBlockIds: string[];
 
+  // 작업 상태
+  mergingBlockId: string | null;
+  mergingTargetBlockId: string | null;
+
   // 커서 위치 추적 (블록 간 이동 시)
   targetCursorPosition: number | null;
 }
@@ -41,6 +45,10 @@ interface BlockActions {
   // 페이지 로드
   loadPage: (pageId: string) => Promise<void>;
   clearPage: () => void;
+  updatePartialBlocks: (
+    blocks: BlockData[],
+    deletedBlockIds?: string[]
+  ) => void;
 
   // 블록 CRUD
   createBlock: (
@@ -49,7 +57,11 @@ interface BlockActions {
   ) => Promise<string>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
-  splitBlockAtOffset: (id: string, offset: number) => Promise<void>;
+  splitBlockAtCursor: (
+    id: string,
+    offset: number,
+    draftContent?: string
+  ) => Promise<void>;
 
   // 블록 조작
   indentBlock: (id: string) => Promise<void>;
@@ -59,6 +71,7 @@ interface BlockActions {
     newParentId: string | null,
     afterBlockId: string | null
   ) => Promise<void>;
+  mergeWithPrevious: (id: string, draftContent?: string) => Promise<void>;
   toggleCollapse: (id: string) => Promise<void>;
 
   // 선택/포커스
@@ -67,16 +80,52 @@ interface BlockActions {
   clearTargetCursorPosition: () => void;
 
   // 키보드 네비게이션
-  getPreviousBlock: (id: string) => string | null;
-  getNextBlock: (id: string) => string | null;
-
-  // 셀렉터
   getBlock: (id: string) => BlockData | undefined;
   getChildren: (parentId: string | null) => string[];
   getRootBlockIds: () => string[];
+  getPreviousVisibleBlock: (id: string) => string | null;
+  /**
+   * Alias for getPreviousVisibleBlock (deprecated)
+   */
+  getPreviousBlock: (id: string) => string | null;
+  getNextBlock: (id: string) => string | null;
+
+  // Page Lifecycle
+  openPage: (pageId: string) => Promise<void>;
 }
 
 type BlockStore = BlockState & BlockActions;
+
+// ============ Helper Functions ============
+
+/**
+ * Determines where to insert a new block relative to a current block.
+ * Rule:
+ * 1. If current block has children: insert as FIRST CHILD.
+ * 2. Else: insert as NEXT SIBLING.
+ */
+function getInsertBelowTarget(
+  currentId: string,
+  blocksById: Record<string, BlockData>,
+  childrenMap: Record<string, string[]>
+): { parentId: string | null; afterBlockId: string | null } {
+  const currentBlock = blocksById[currentId];
+  const hasChildren = (childrenMap[currentId] ?? []).length > 0;
+
+  if (hasChildren) {
+    // Rule: First child
+    return {
+      parentId: currentId,
+      afterBlockId: null, // null means "at start" (first child)
+    };
+  }
+
+  // Rule: Next sibling
+  return {
+    parentId: currentBlock?.parentId ?? null,
+    afterBlockId: currentId,
+  };
+}
 
 // ============ Store Implementation ============
 
@@ -90,11 +139,16 @@ export const useBlockStore = create<BlockStore>()(
     error: null,
     focusedBlockId: null,
     selectedBlockIds: [],
+    mergingBlockId: null,
+    mergingTargetBlockId: null,
     targetCursorPosition: null,
 
     // ============ Page Operations ============
 
-    loadPage: async (pageId: string) => {
+    openPage: async (pageId: string) => {
+      // Prevent duplicate loads
+      if (get().currentPageId === pageId && get().isLoading) return;
+
       set((state) => {
         state.isLoading = true;
         state.error = null;
@@ -111,7 +165,7 @@ export const useBlockStore = create<BlockStore>()(
           pageId,
         });
 
-        // 정규화
+        // Normalize
         const blocksById: Record<string, BlockData> = {};
         const childrenMap: Record<string, string[]> = { root: [] };
 
@@ -125,19 +179,35 @@ export const useBlockStore = create<BlockStore>()(
           childrenMap[parentKey].push(block.id);
         }
 
-        // orderWeight로 정렬
+        // orderWeight sort
         for (const key of Object.keys(childrenMap)) {
           childrenMap[key].sort((a, b) => {
             return blocksById[a].orderWeight - blocksById[b].orderWeight;
           });
         }
 
+        // Check for empty page and handle initial block
+        const isRootEmpty = (childrenMap.root ?? []).length === 0;
+
         set((state) => {
           state.blocksById = blocksById;
           state.childrenMap = childrenMap;
           state.currentPageId = pageId;
-          state.isLoading = false;
+          // Keep isLoading = true if we are about to create an initial block
+          if (!isRootEmpty) {
+            state.isLoading = false;
+          }
         });
+
+        if (isRootEmpty) {
+          // Create initial block optimistically
+          await get().createBlock(null, "");
+          
+          set((state) => {
+             state.isLoading = false;
+          });
+        }
+
       } catch (error) {
         set((state) => {
           state.error =
@@ -147,125 +217,219 @@ export const useBlockStore = create<BlockStore>()(
       }
     },
 
+    loadPage: async (pageId: string) => {
+       // Legacy wrapper: use openPage
+       return get().openPage(pageId);
+    },
+
     clearPage: () => {
       set((state) => {
         state.blocksById = {};
-        state.childrenMap = {};
+        state.childrenMap = { root: [] };
         state.currentPageId = null;
         state.focusedBlockId = null;
         state.selectedBlockIds = [];
       });
     },
 
+    updatePartialBlocks: (blocks: BlockData[], deletedBlockIds?: string[]) => {
+      set((state) => {
+        // Collect affected parent IDs before any modifications
+        const affectedParentIds = new Set<string>();
+
+        // Add parents of updated/added blocks (including previous parent for moves)
+        for (const block of blocks) {
+          const existing = state.blocksById[block.id];
+          if (existing && existing.parentId !== block.parentId) {
+            affectedParentIds.add(existing.parentId ?? "root");
+          }
+          affectedParentIds.add(block.parentId ?? "root");
+        }
+
+        // Add parents of deleted blocks (BEFORE deleting them!)
+        if (deletedBlockIds) {
+          for (const id of deletedBlockIds) {
+            const block = state.blocksById[id];
+            if (block) {
+              affectedParentIds.add(block.parentId ?? "root");
+            }
+          }
+        }
+
+        // Update or add blocks
+        for (const block of blocks) {
+          state.blocksById[block.id] = block;
+        }
+
+        // Delete blocks
+        if (deletedBlockIds) {
+          for (const id of deletedBlockIds) {
+            delete state.blocksById[id];
+          }
+        }
+
+        // Rebuild childrenMap for affected parents
+        for (const parentId of affectedParentIds) {
+          const parentKey = parentId === "root" ? "root" : parentId;
+          state.childrenMap[parentKey] = Object.values(state.blocksById)
+            .filter((b) => (b.parentId ?? "root") === parentKey)
+            .sort((a, b) => a.orderWeight - b.orderWeight)
+            .map((b) => b.id);
+        }
+
+        // Clean up childrenMap for deleted blocks
+        if (deletedBlockIds) {
+          for (const id of deletedBlockIds) {
+            delete state.childrenMap[id];
+          }
+        }
+      });
+    },
+
     // ============ Block CRUD ============
 
     createBlock: async (afterBlockId: string | null, content?: string) => {
-      const { currentPageId, blocksById } = get();
+      const { currentPageId, blocksById, childrenMap } = get();
       if (!currentPageId) throw new Error("No page loaded");
 
-      // 부모 결정
+      // Determine where to place the new block:
       let parentId: string | null = null;
+      let afterBlockIdForBackend: string | null = null;
+
       if (afterBlockId) {
-        parentId = blocksById[afterBlockId]?.parentId ?? null;
+        // Use canonical rule for "insert below"
+        const target = getInsertBelowTarget(afterBlockId, blocksById, childrenMap);
+        parentId = target.parentId;
+        afterBlockIdForBackend = target.afterBlockId;
       }
 
-      // Optimistic: 임시 ID로 즉시 추가
-      // NOTE: This must happen synchronously before any async work so the editor
-      // can render a root block immediately (avoids "empty-state" flicker/races on
-      // first open of a new, empty page).
-      const tempId = `temp-${Date.now()}`;
-      const nowIso = new Date().toISOString();
-      const tempBlock: BlockData = {
-        id: tempId,
-        pageId: currentPageId,
-        parentId,
-        content: content ?? "",
-        orderWeight: Date.now(),
-        isCollapsed: false,
-        blockType: "bullet",
-        createdAt: nowIso,
-        updatedAt: nowIso,
-      };
+      // Use optimistic update only for root block creation (initial empty page)
+      // to avoid flicker. For user-initiated creates, reload for accuracy.
+      const isRootBlockCreation = afterBlockId === null && content === "";
 
-      set((state) => {
-        state.blocksById[tempId] = tempBlock;
-        const parentKey = parentId ?? "root";
-        if (!state.childrenMap[parentKey]) {
-          state.childrenMap[parentKey] = [];
-        }
+      if (isRootBlockCreation) {
+        // Optimistic: 임시 ID로 즉시 추가
+        // NOTE: This must happen synchronously before any async work so the editor
+        // can render a root block immediately (avoids "empty-state" flicker/races on
+        // first open of a new, empty page).
+        const tempId = `temp-${Date.now()}`;
+        const nowIso = new Date().toISOString();
+        const tempBlock: BlockData = {
+          id: tempId,
+          pageId: currentPageId,
+          parentId,
+          content: content ?? "",
+          orderWeight: Date.now(),
+          isCollapsed: false,
+          blockType: "bullet",
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        };
 
-        if (afterBlockId) {
-          const afterIndex = state.childrenMap[parentKey].indexOf(afterBlockId);
-          state.childrenMap[parentKey].splice(afterIndex + 1, 0, tempId);
-        } else {
+        set((state) => {
+          state.blocksById[tempId] = tempBlock;
+          const parentKey = parentId ?? "root";
+          if (!state.childrenMap[parentKey]) {
+            state.childrenMap[parentKey] = [];
+          }
           state.childrenMap[parentKey].push(tempId);
-        }
-
-        state.focusedBlockId = tempId;
-      });
-
-      // Kick off the backend create after the optimistic state is committed.
-      // Yield one tick to ensure React/Zustand subscribers can render the temp block.
-      await Promise.resolve();
-
-      try {
-        // 실제 생성
-        const workspacePath = useWorkspaceStore.getState().workspacePath;
-        if (!workspacePath) {
-          throw new Error("No workspace selected");
-        }
-
-        const newBlock: BlockData = await invoke("create_block", {
-          workspacePath,
-          request: {
-            pageId: currentPageId,
-            parentId,
-            afterBlockId,
-            content,
-          },
+          state.focusedBlockId = tempId;
         });
 
-        // 임시 블록을 실제 블록으로 교체
-        set((state) => {
-          delete state.blocksById[tempId];
-          state.blocksById[newBlock.id] = newBlock;
+        // Kick off the backend create after the optimistic state is committed.
+        // Yield one tick to ensure React/Zustand subscribers can render the temp block.
+        await Promise.resolve();
 
-          const parentKey = parentId ?? "root";
-          const tempIndex = state.childrenMap[parentKey].indexOf(tempId);
-          if (tempIndex !== -1) {
-            state.childrenMap[parentKey][tempIndex] = newBlock.id;
+        try {
+          const workspacePath = useWorkspaceStore.getState().workspacePath;
+          if (!workspacePath) {
+            throw new Error("No workspace selected");
           }
 
-          state.focusedBlockId = newBlock.id;
-        });
+          const newBlock: BlockData = await invoke("create_block", {
+            workspacePath,
+            request: {
+              pageId: currentPageId,
+              parentId,
+              afterBlockId: afterBlockIdForBackend,
+              content,
+            },
+          });
 
-        return newBlock.id;
-      } catch (error) {
-        // 롤백
-        set((state) => {
-          delete state.blocksById[tempId];
-          const parentKey = parentId ?? "root";
-          state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-            (id) => id !== tempId
-          );
-        });
-        throw error;
+          // 임시 블록을 실제 블록으로 교체
+          set((state) => {
+            delete state.blocksById[tempId];
+            state.blocksById[newBlock.id] = newBlock;
+
+            const parentKey = parentId ?? "root";
+            const tempIndex = state.childrenMap[parentKey].indexOf(tempId);
+            if (tempIndex !== -1) {
+              state.childrenMap[parentKey][tempIndex] = newBlock.id;
+            }
+
+            state.focusedBlockId = newBlock.id;
+          });
+
+          return newBlock.id;
+        } catch (error) {
+          // 롤백
+          set((state) => {
+            delete state.blocksById[tempId];
+            const parentKey = parentId ?? "root";
+            state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
+              (id) => id !== tempId
+            );
+          });
+          throw error;
+        }
+      } else {
+        // User-initiated block creation: no optimistic update, reload for accuracy
+        try {
+          const workspacePath = useWorkspaceStore.getState().workspacePath;
+          if (!workspacePath) {
+            throw new Error("No workspace selected");
+          }
+
+          const newBlock: BlockData = await invoke("create_block", {
+            workspacePath,
+            request: {
+              pageId: currentPageId,
+              parentId,
+              afterBlockId: afterBlockIdForBackend,
+              content,
+            },
+          });
+
+          // Update only the new block
+          get().updatePartialBlocks([newBlock]);
+
+          // Set focus
+          set((state) => {
+            state.focusedBlockId = newBlock.id;
+            state.targetCursorPosition = 0;
+          });
+
+          return newBlock.id;
+        } catch (error) {
+          console.error("Failed to create block:", error);
+          // Reload to restore correct state
+          const pageId = get().currentPageId;
+          if (pageId) await get().loadPage(pageId);
+          throw error;
+        }
       }
     },
 
     updateBlockContent: async (id: string, content: string) => {
-      const block = get().blocksById[id];
+      const { mergingBlockId, mergingTargetBlockId, blocksById } = get();
+      
+      // Prevent UI from overwriting blocks involved in an active merge operation.
+      if (id === mergingBlockId || id === mergingTargetBlockId) {
+         return;
+      }
+
+      const block = blocksById[id];
       if (!block) return;
-
-      const previousContent = block.content;
-
-      // Optimistic Update
-      set((state) => {
-        if (state.blocksById[id]) {
-          state.blocksById[id].content = content;
-          state.blocksById[id].updatedAt = new Date().toISOString();
-        }
-      });
 
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
@@ -277,138 +441,89 @@ export const useBlockStore = create<BlockStore>()(
           workspacePath,
           request: { id, content },
         });
-      } catch (error) {
-        // 롤백
+        
+        // Update state with backend result
         set((state) => {
           if (state.blocksById[id]) {
-            state.blocksById[id].content = previousContent;
+            state.blocksById[id].content = content;
+            state.blocksById[id].updatedAt = new Date().toISOString();
           }
         });
+      } catch (error) {
+        console.error("Failed to update block content:", error);
+        // Reload to restore correct state
+        const pageId = get().currentPageId;
+        if (pageId) await get().loadPage(pageId);
         throw error;
       }
     },
 
-    splitBlockAtOffset: async (id: string, offset: number) => {
-      const { currentPageId, blocksById } = get();
+    splitBlockAtCursor: async (
+      id: string,
+      offset: number,
+      draftContent?: string
+    ) => {
+      const { currentPageId, blocksById, childrenMap } = get();
       if (!currentPageId) throw new Error("No page loaded");
 
       const block = blocksById[id];
       if (!block) throw new Error("Block not found");
 
-      const beforeContent = block.content.slice(0, offset);
-      const afterContent = block.content.slice(offset);
+      const contentToSplit = draftContent ?? block.content;
+      const beforeContent = contentToSplit.slice(0, offset);
+      const afterContent = contentToSplit.slice(offset);
 
-      // Create new block with after content
-      const tempId = `temp-${Date.now()}`;
-      const tempBlock: BlockData = {
-        id: tempId,
-        pageId: currentPageId,
-        parentId: block.parentId,
-        content: afterContent,
-        orderWeight: Date.now(),
-        isCollapsed: false,
-        blockType: "bullet",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      // Determine where to place the new block using canonical rule
+      const { parentId: newParentId, afterBlockId: afterBlockIdForBackend } =
+        getInsertBelowTarget(id, blocksById, childrenMap);
 
-      // Optimistic update
-      set((state) => {
-        // Update current block content
-        if (state.blocksById[id]) {
-          state.blocksById[id].content = beforeContent;
-          state.blocksById[id].updatedAt = new Date().toISOString();
-        }
-
-        // Add new block
-        state.blocksById[tempId] = tempBlock;
-        const parentKey = block.parentId ?? "root";
-        if (!state.childrenMap[parentKey]) {
-          state.childrenMap[parentKey] = [];
-        }
-
-        const blockIndex = state.childrenMap[parentKey].indexOf(id);
-        if (blockIndex !== -1) {
-          state.childrenMap[parentKey].splice(blockIndex + 1, 0, tempId);
-        }
-
-        // Focus new block at start
-        state.focusedBlockId = tempId;
-        state.targetCursorPosition = 0;
-      });
-
+      // Update current block content first (this also updates state)
       try {
+        await get().updateBlockContent(id, beforeContent);
+
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
           throw new Error("No workspace selected");
         }
 
-        // Update current block
-        await invoke("update_block", {
-          workspacePath,
-          request: { id, content: beforeContent },
-        });
-
-        // Create new block
+        // Create new block at appropriate position
         const newBlock: BlockData = await invoke("create_block", {
           workspacePath,
           request: {
             pageId: currentPageId,
-            parentId: block.parentId,
-            afterBlockId: id,
+            parentId: newParentId,
+            afterBlockId: afterBlockIdForBackend,
             content: afterContent,
           },
         });
 
-        // Replace temp block with real block
+        // Update only the new block (current block already updated by updateBlockContent)
+        get().updatePartialBlocks([newBlock]);
+
+        // Set focus
         set((state) => {
-          delete state.blocksById[tempId];
-          state.blocksById[newBlock.id] = newBlock;
-
-          const parentKey = block.parentId ?? "root";
-          const tempIndex = state.childrenMap[parentKey].indexOf(tempId);
-          if (tempIndex !== -1) {
-            state.childrenMap[parentKey][tempIndex] = newBlock.id;
-          }
-
           state.focusedBlockId = newBlock.id;
+          state.targetCursorPosition = 0;
         });
       } catch (error) {
-        // Rollback
-        set((state) => {
-          if (state.blocksById[id]) {
-            state.blocksById[id].content = block.content;
-          }
-          delete state.blocksById[tempId];
-          const parentKey = block.parentId ?? "root";
-          state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-            (bid) => bid !== tempId
-          );
-        });
+        console.error("Failed to split block:", error);
+        // Reload to restore correct state
+        const pageId = get().currentPageId;
+        if (pageId) await get().loadPage(pageId);
         throw error;
       }
     },
 
     deleteBlock: async (id: string) => {
-      const { blocksById, childrenMap } = get();
+      const { blocksById } = get();
       const block = blocksById[id];
       if (!block) return;
 
-      // 백업 (롤백용)
-      const backup = {
-        block: { ...block },
-        parentKey: block.parentId ?? "root",
-        index: childrenMap[block.parentId ?? "root"]?.indexOf(id) ?? -1,
-      };
-
-      // Optimistic Delete
-      set((state) => {
-        delete state.blocksById[id];
-        const parentKey = block.parentId ?? "root";
-        state.childrenMap[parentKey] =
-          state.childrenMap[parentKey]?.filter((childId) => childId !== id) ??
-          [];
-      });
+      // Prevent deleting the last block of a page to ensure the editor always has a place to type.
+      const totalBlocks = Object.keys(blocksById).length;
+      if (totalBlocks <= 1) {
+        return;
+      }
 
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
@@ -416,20 +531,19 @@ export const useBlockStore = create<BlockStore>()(
           throw new Error("No workspace selected");
         }
 
-        await invoke("delete_block", { workspacePath, blockId: id });
-      } catch (error) {
-        // 롤백
-        set((state) => {
-          state.blocksById[backup.block.id] = backup.block;
-          if (!state.childrenMap[backup.parentKey]) {
-            state.childrenMap[backup.parentKey] = [];
-          }
-          state.childrenMap[backup.parentKey].splice(
-            backup.index,
-            0,
-            backup.block.id
-          );
+        // Backend returns all deleted IDs (block + descendants)
+        const deletedIds: string[] = await invoke("delete_block", {
+          workspacePath,
+          blockId: id,
         });
+
+        // Update only the affected blocks (remove deleted ones)
+        get().updatePartialBlocks([], deletedIds);
+      } catch (error) {
+        console.error("Failed to delete block:", error);
+        // Reload to restore correct state
+        const pageId = get().currentPageId;
+        if (pageId) await get().loadPage(pageId);
         throw error;
       }
     },
@@ -441,26 +555,15 @@ export const useBlockStore = create<BlockStore>()(
       const block = blocksById[id];
       if (!block) return;
 
-      const parentKey = block.parentId ?? "root";
-      const siblings = childrenMap[parentKey] ?? [];
+      // Check if we can indent (must have a previous sibling)
+      const parentId = block.parentId ?? "root";
+      const siblings = childrenMap[parentId] ?? [];
       const index = siblings.indexOf(id);
-
-      if (index <= 0) return;
-
-      const prevSiblingId = siblings[index - 1];
-
-      // Optimistic
-      set((state) => {
-        state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-          (childId) => childId !== id
-        );
-
-        if (!state.childrenMap[prevSiblingId]) {
-          state.childrenMap[prevSiblingId] = [];
-        }
-        state.childrenMap[prevSiblingId].push(id);
-        state.blocksById[id].parentId = prevSiblingId;
-      });
+      
+      if (index <= 0) {
+          // No previous sibling, cannot indent. Fail silently.
+          return;
+      }
 
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
@@ -468,14 +571,16 @@ export const useBlockStore = create<BlockStore>()(
           throw new Error("No workspace selected");
         }
 
+        // Backend returns the updated block
         const updatedBlock: BlockData = await invoke("indent_block", {
           workspacePath,
           blockId: id,
         });
-        set((state) => {
-          state.blocksById[id] = updatedBlock;
-        });
+
+        // Update only the changed block
+        get().updatePartialBlocks([updatedBlock]);
       } catch (error) {
+        console.error("Failed to indent block:", error);
         const pageId = get().currentPageId;
         if (pageId) await get().loadPage(pageId);
         throw error;
@@ -487,40 +592,22 @@ export const useBlockStore = create<BlockStore>()(
       const block = blocksById[id];
       if (!block || !block.parentId) return;
 
-      const parent = blocksById[block.parentId];
-      if (!parent) return;
-
-      set((state) => {
-        const parentId = block.parentId as string; // We already checked block.parentId is not null
-        state.childrenMap[parentId] =
-          state.childrenMap[parentId]?.filter((childId) => childId !== id) ??
-          [];
-
-        const grandparentKey = parent.parentId ?? "root";
-        const parentIndex =
-          state.childrenMap[grandparentKey]?.indexOf(parentId) ?? -1;
-
-        if (!state.childrenMap[grandparentKey]) {
-          state.childrenMap[grandparentKey] = [];
-        }
-        state.childrenMap[grandparentKey].splice(parentIndex + 1, 0, id);
-        state.blocksById[id].parentId = parent.parentId;
-      });
-
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
           throw new Error("No workspace selected");
         }
 
+        // Backend returns the updated block
         const updatedBlock: BlockData = await invoke("outdent_block", {
           workspacePath,
           blockId: id,
         });
-        set((state) => {
-          state.blocksById[id] = updatedBlock;
-        });
+
+        // Update only the changed block
+        get().updatePartialBlocks([updatedBlock]);
       } catch (error) {
+        console.error("Failed to outdent block:", error);
         const pageId = get().currentPageId;
         if (pageId) await get().loadPage(pageId);
         throw error;
@@ -537,27 +624,153 @@ export const useBlockStore = create<BlockStore>()(
         throw new Error("No workspace path");
       }
 
-      await invoke("move_block", {
+      // Backend returns the updated block
+      const updatedBlock: BlockData = await invoke("move_block", {
         workspacePath,
         blockId: id,
         newParentId: targetParentId,
         afterBlockId,
       });
 
-      // Reload page to reflect changes
-      const pageId = get().currentPageId;
-      if (pageId) await get().loadPage(pageId);
+      // Update only the changed block
+      get().updatePartialBlocks([updatedBlock]);
+    },
+
+    mergeWithPrevious: async (id: string, draftContent?: string) => {
+      const { blocksById, getPreviousVisibleBlock, deleteBlock, mergingBlockId } =
+        get();
+
+      // Prevent concurrent merges on the same block
+      if (mergingBlockId === id) {
+          return;
+      }
+
+      set((state) => {
+        state.mergingBlockId = id;
+      });
+
+      try {
+        const currentBlock = blocksById[id];
+        if (!currentBlock) return;
+
+        const contentToMerge = draftContent ?? currentBlock.content;
+
+        // Case 1: If current block is empty, delete it and move focus to previous
+        if (contentToMerge === "") {
+          const prevBlockId = getPreviousVisibleBlock(id);
+          await deleteBlock(id);
+
+          if (prevBlockId) {
+            const prevBlock = get().blocksById[prevBlockId];
+            if (prevBlock) {
+              set((state) => {
+                state.focusedBlockId = prevBlockId;
+                state.targetCursorPosition = prevBlock.content.length;
+              });
+            } else {
+              set((state) => {
+                state.focusedBlockId = prevBlockId;
+              });
+            }
+          }
+          return;
+        }
+
+        // Case 2: Non-empty block, merge into previous
+        const prevBlockId = getPreviousVisibleBlock(id);
+        if (!prevBlockId) {
+            return;
+        }
+        
+        // Lock the target block to prevent stale UI updates from overwriting the merge result
+        set((state) => {
+           state.mergingTargetBlockId = prevBlockId;
+        });
+
+        const prevBlock = blocksById[prevBlockId];
+        if (!prevBlock) return;
+        
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) throw new Error("No workspace selected");
+
+        // Paranoid sync: Ensure target block content in DB matches Store before merge
+        if (prevBlock) {
+             await invoke("update_block", {
+                workspacePath,
+                request: { id: prevBlockId, content: prevBlock.content },
+             });
+        }
+
+        // Calculate cursor position for focus after merge
+        const cursorPosition = prevBlock.content.length;
+
+        // If draftContent is provided, update the block content first
+        if (
+          draftContent !== undefined &&
+          draftContent !== currentBlock.content
+        ) {
+          await invoke("update_block", {
+             workspacePath,
+             request: { id, content: draftContent },
+          });
+          
+          set((state) => {
+            if (state.blocksById[id]) {
+                state.blocksById[id].content = draftContent;
+                state.blocksById[id].updatedAt = new Date().toISOString();
+            }
+          });
+        }
+
+        // Backend handles the merge atomically and returns changed blocks
+        const changedBlocks: BlockData[] = await invoke("merge_blocks", {
+          workspacePath,
+          blockId: id,
+          targetId: prevBlockId,
+        });
+
+        // Update only the changed blocks (merged block + moved children)
+        get().updatePartialBlocks(changedBlocks, [id]);
+
+        // Set focus and cursor position
+        set((state) => {
+          state.focusedBlockId = prevBlockId;
+          state.targetCursorPosition = cursorPosition;
+        });
+      } catch (error) {
+        console.error("Failed to merge blocks:", error);
+
+        // Error recovery: Clear focus to ensure Editor components re-initialize with fresh data on reload
+        set((state) => {
+          state.focusedBlockId = null;
+        });
+
+        const pageId = get().currentPageId;
+        if (pageId) await get().loadPage(pageId);
+
+        // Restore focus
+        set((state) => {
+          // If the block still exists (merge failed), focus it so user can retry or see state
+          if (state.blocksById[id]) {
+            state.focusedBlockId = id;
+          } else {
+            // Block is gone (maybe deleted by race?), focus previous or root
+            const prev =
+              getPreviousVisibleBlock(id) ?? state.childrenMap.root?.[0];
+            state.focusedBlockId = prev ?? null;
+          }
+        });
+      } finally {
+        set((state) => {
+          state.mergingBlockId = null;
+          state.mergingTargetBlockId = null;
+        });
+      }
     },
 
     toggleCollapse: async (id: string) => {
       const block = get().blocksById[id];
       if (!block) return;
-
-      set((state) => {
-        if (state.blocksById[id]) {
-          state.blocksById[id].isCollapsed = !state.blocksById[id].isCollapsed;
-        }
-      });
 
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
@@ -565,14 +778,18 @@ export const useBlockStore = create<BlockStore>()(
           throw new Error("No workspace selected");
         }
 
-        await invoke("toggle_collapse", { workspacePath, blockId: id });
-      } catch (error) {
-        set((state) => {
-          if (state.blocksById[id]) {
-            state.blocksById[id].isCollapsed =
-              !state.blocksById[id].isCollapsed;
-          }
+        // Backend returns the updated block
+        const updatedBlock: BlockData = await invoke("toggle_collapse", {
+          workspacePath,
+          blockId: id,
         });
+
+        // Update only the changed block
+        get().updatePartialBlocks([updatedBlock]);
+      } catch (error) {
+        console.error("Failed to toggle collapse:", error);
+        const pageId = get().currentPageId;
+        if (pageId) await get().loadPage(pageId);
         throw error;
       }
     },
@@ -611,7 +828,7 @@ export const useBlockStore = create<BlockStore>()(
 
     // ============ Keyboard Navigation ============
 
-    getPreviousBlock: (id: string) => {
+    getPreviousVisibleBlock: (id: string) => {
       const { blocksById, childrenMap } = get();
       const block = blocksById[id];
       if (!block) return null;
@@ -621,34 +838,41 @@ export const useBlockStore = create<BlockStore>()(
       const index = siblings.indexOf(id);
 
       if (index > 0) {
-        // 이전 형제가 있으면, 그 형제의 마지막 보이는 자손으로 이동
-        const prevSibling = siblings[index - 1];
-        const prevBlock = blocksById[prevSibling];
+        // Previous sibling exists
+        const prevSiblingId = siblings[index - 1];
+        const prevSibling = blocksById[prevSiblingId];
+        if (!prevSibling) return null;
 
-        if (!prevBlock) return null;
-
-        // 접혀있지 않고 자식이 있으면 마지막 자식의 마지막 자손으로
-        let lastVisibleId = prevSibling;
-        let currentChildren = childrenMap[lastVisibleId] ?? [];
-
-        while (
-          currentChildren.length > 0 &&
-          !blocksById[lastVisibleId]?.isCollapsed
-        ) {
-          lastVisibleId = currentChildren[currentChildren.length - 1];
-          currentChildren = childrenMap[lastVisibleId] ?? [];
+        // If expanded and has children, find the last visible descendant
+        let currentId = prevSiblingId;
+        while (true) {
+          const currentBlock = blocksById[currentId];
+          const children = childrenMap[currentId];
+          
+          if (
+            currentBlock &&
+            !currentBlock.isCollapsed &&
+            children &&
+            children.length > 0
+          ) {
+            // Go to last child
+            currentId = children[children.length - 1];
+          } else {
+            // No more visible children
+            return currentId;
+          }
         }
-
-        return lastVisibleId;
       }
 
       if (block.parentId) {
-        // 첫 번째 형제면 부모로
+        // First sibling -> go to parent
         return block.parentId;
       }
 
       return null;
     },
+
+    getPreviousBlock: (id: string) => get().getPreviousVisibleBlock(id),
 
     getNextBlock: (id: string) => {
       const { blocksById, childrenMap } = get();

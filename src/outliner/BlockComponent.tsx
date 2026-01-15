@@ -32,20 +32,21 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const hasChildren = childIds.length > 0;
     const focusedBlockId = useFocusedBlockId();
     const showIndentGuides = useOutlinerSettingsStore(
-      (state) => state.showIndentGuides,
+      (state) => state.showIndentGuides
     );
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
     const createBlock = useBlockStore((state) => state.createBlock);
-    const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const indentBlock = useBlockStore((state) => state.indentBlock);
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
+    const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
+    const splitBlockAtCursor = useBlockStore((state) => state.splitBlockAtCursor);
     const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
     const targetCursorPosition = useBlockStore(
-      (state) => state.targetCursorPosition,
+      (state) => state.targetCursorPosition
     );
     const clearTargetCursorPosition = useBlockStore(
-      (state) => state.clearTargetCursorPosition,
+      (state) => state.clearTargetCursorPosition
     );
 
     const blockComponentRef = useRef<HTMLDivElement>(null);
@@ -75,22 +76,29 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const draftRef = useRef<string>(block.content);
 
     // Keep draft in sync when the underlying block changes (e.g., page load, external update)
-    // but do not overwrite while this block is focused (editing session owns the draft).
+    // but do not overwrite while this block is focused (editing session owns the draft),
+    // UNLESS we are navigating to this block programmatically (targetCursorPosition is set),
+    // which implies a structural change (merge/split/move) where store is authoritative.
     useEffect(() => {
-      if (focusedBlockId !== blockId) {
-        setDraft(block.content);
-        draftRef.current = block.content;
+      const isProgrammaticNav = targetCursorPosition !== null;
+      
+      if (focusedBlockId !== blockId || isProgrammaticNav) {
+        // Only update if content is actually different to prevent unnecessary renders
+        if (block.content !== draftRef.current) {
+           setDraft(block.content);
+           draftRef.current = block.content;
+        }
       }
-    }, [block.content, focusedBlockId, blockId]);
+    }, [block.content, focusedBlockId, blockId, targetCursorPosition]);
 
     // Commit helper: stable callback reading from refs (doesn't change every keystroke).
-    const commitDraft = useCallback(() => {
+    const commitDraft = useCallback(async () => {
       const latestDraft = draftRef.current;
       const latestBlock = useBlockStore.getState().blocksById[blockId];
 
       // Avoid unnecessary writes; also tolerate missing block during transitions.
       if (latestBlock && latestDraft !== latestBlock.content) {
-        useBlockStore.getState().updateBlockContent(blockId, latestDraft);
+        await useBlockStore.getState().updateBlockContent(blockId, latestDraft);
       }
     }, [blockId]);
 
@@ -210,12 +218,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           imeStateRef.current.lastInputWasComposition = false;
 
           // Execute block operation immediately since composition is already done
-          commitDraft();
-
+          // For split, we pass the content directly to the store action to ensure atomic update
+          // For create (at end), we trigger save but can proceed with creation independently
+          
           if (cursor === contentLength) {
-            createBlock(blockId);
+             commitDraft();
+             createBlock(blockId);
           } else {
-            useBlockStore.getState().splitBlockAtOffset(blockId, cursor);
+             // Pass current content to ensure split happens on the correct text
+             splitBlockAtCursor(blockId, cursor, content);
           }
 
           // Reset state
@@ -239,7 +250,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         dom.removeEventListener("beforeinput", handleBeforeInput);
         dom.removeEventListener("keydown", handleKeyDown, { capture: true });
       };
-    }, [blockId, createBlock, commitDraft]);
+    }, [blockId, createBlock, commitDraft, splitBlockAtCursor]);
 
     const handleFocus = useCallback(() => {
       // Reset IME state when focusing a different block
@@ -286,7 +297,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }
         }
       },
-      [blockId],
+      [blockId]
     );
 
     const handleBulletClick = useCallback(
@@ -319,7 +330,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           editorRef.current?.focus();
         }
       },
-      [blockId, hasChildren, setFocusedBlock],
+      [blockId, hasChildren, setFocusedBlock]
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
@@ -382,15 +393,17 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               return true;
             }
 
-            commitDraft();
-
+            // Start async operations but return true immediately to prevent default behavior
             // Determine whether to split block or create new sibling based on cursor position
             if (cursor === contentLength) {
               // Cursor at end: create new sibling block
+              // Commit current block changes first
+              commitDraft();
               createBlock(blockId);
             } else {
               // Cursor in middle: split current block
-              useBlockStore.getState().splitBlockAtOffset(blockId, cursor);
+              // Pass content explicitly to avoid race conditions with store state
+              splitBlockAtCursor(blockId, cursor, content);
             }
 
             return true; // Prevent default CodeMirror behavior
@@ -409,49 +422,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const content = view.state.doc.toString();
             const cursor = view.state.selection.main.head;
 
-            if (content === "") {
-              // Empty block - delete and move to previous
-              const prevBlockId = useBlockStore
-                .getState()
-                .getPreviousBlock(blockId);
-              deleteBlock(blockId);
-              if (prevBlockId) {
-                const prevBlock = useBlockStore
-                  .getState()
-                  .getBlock(prevBlockId);
-                if (prevBlock) {
-                  // Move to end of previous block
-                  setFocusedBlock(prevBlockId, prevBlock.content.length);
-                } else {
-                  setFocusedBlock(prevBlockId);
-                }
-              }
-              return true;
-            }
-
             if (cursor === 0) {
-              // At start of non-empty block - merge with previous
-              const prevBlockId = useBlockStore
-                .getState()
-                .getPreviousBlock(blockId);
-              if (prevBlockId) {
-                const prevBlock = useBlockStore
-                  .getState()
-                  .getBlock(prevBlockId);
-                if (prevBlock) {
-                  // Merge current content into previous block
-                  const prevLength = prevBlock.content.length;
-                  const newContent = prevBlock.content + content;
-                  commitDraft();
-                  useBlockStore
-                    .getState()
-                    .updateBlockContent(prevBlockId, newContent);
-                  deleteBlock(blockId);
-                  // Set cursor at the merge point
-                  setFocusedBlock(prevBlockId, prevLength);
-                  return true;
-                }
-              }
+              // At start of block (empty or not)
+              // Delegate to store action which handles:
+              // 1. If empty -> delete and move to previous
+              // 2. If content -> merge with previous
+              // 3. If no previous -> no-op
+              mergeWithPrevious(blockId, content);
+              return true;
             }
             return false; // Allow default backspace behavior
           },
@@ -545,11 +523,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const view = editorRef.current?.getView();
             const cursorPos = view?.state.selection.main.head ?? null;
 
-            commitDraft();
-            if (cursorPos !== null) {
-              setFocusedBlock(blockId, cursorPos);
-            }
-            indentBlock(blockId);
+            // Start async operations but return true immediately to prevent default behavior
+            commitDraft().then(() => {
+              indentBlock(blockId).then(() => {
+                if (cursorPos !== null) {
+                  setFocusedBlock(blockId, cursorPos);
+                }
+              });
+            });
             return true;
           },
         },
@@ -561,11 +542,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const view = editorRef.current?.getView();
             const cursorPos = view?.state.selection.main.head ?? null;
 
-            commitDraft();
-            if (cursorPos !== null) {
-              setFocusedBlock(blockId, cursorPos);
-            }
-            outdentBlock(blockId);
+            // Start async operations but return true immediately to prevent default behavior
+            commitDraft().then(() => {
+              outdentBlock(blockId).then(() => {
+                if (cursorPos !== null) {
+                  setFocusedBlock(blockId, cursorPos);
+                }
+              });
+            });
             return true;
           },
         },
@@ -573,11 +557,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     }, [
       blockId,
       createBlock,
-      deleteBlock,
+      setFocusedBlock,
       indentBlock,
       outdentBlock,
-      setFocusedBlock,
       commitDraft,
+      mergeWithPrevious,
+      splitBlockAtCursor,
     ]);
 
     if (!block) return null;
@@ -601,7 +586,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           {hasChildren ? (
             <button
               type="button"
-              className={`collapse-toggle ${block.isCollapsed ? "collapsed" : ""}`}
+              className={`collapse-toggle ${
+                block.isCollapsed ? "collapsed" : ""
+              }`}
               onClick={() => toggleCollapse(blockId)}
               aria-label={block.isCollapsed ? "Expand" : "Collapse"}
             >
@@ -725,5 +712,5 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         </style>
       </div>
     );
-  },
+  }
 );
