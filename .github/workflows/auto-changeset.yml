@@ -48,8 +48,8 @@ jobs:
           # Generate changeset file based on commit messages
           npm run changeset:auto
 
-          # Check if any changeset file was created
-          if git diff --name-only | grep -q ".changeset/"; then
+          # Check if any changeset file was created (including untracked files)
+          if git status --porcelain | grep -q ".changeset/"; then
             echo "changeset_generated=true" >> "$GITHUB_ENV"
           else
             echo "changeset_generated=false" >> "$GITHUB_ENV"
