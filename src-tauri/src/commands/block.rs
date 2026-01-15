@@ -9,8 +9,10 @@ use crate::models::block::{
     Block, BlockType, CreateBlockRequest, MoveBlockRequest, UpdateBlockRequest,
 };
 use crate::utils::fractional_index;
-use crate::utils::page_sync::sync_page_to_markdown;
-use crate::utils::page_sync::sync_page_to_markdown_after_block_change;
+use crate::utils::page_sync::{
+    sync_page_to_markdown, sync_page_to_markdown_after_create, sync_page_to_markdown_after_delete,
+    sync_page_to_markdown_after_update,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockWithPath {
@@ -470,11 +472,11 @@ pub async fn create_block(
     let created_block = get_block_by_id(&conn, &id)?;
 
     // Sync to markdown file (allow targeted patching for this create)
-    sync_page_to_markdown_after_block_change(
+    sync_page_to_markdown_after_create(
         &conn,
         &workspace_path,
         &created_block.page_id,
-        Some(created_block.id.as_str()),
+        created_block.id.as_str(),
     )?;
 
     Ok(created_block)
@@ -512,11 +514,11 @@ pub async fn update_block(
     let updated_block = get_block_by_id(&conn, &request.id)?;
 
     // Sync to markdown file (allow targeted patching for this update)
-    sync_page_to_markdown_after_block_change(
+    sync_page_to_markdown_after_update(
         &conn,
         &workspace_path,
         &updated_block.page_id,
-        Some(updated_block.id.as_str()),
+        updated_block.id.as_str(),
     )?;
 
     Ok(updated_block)
@@ -544,11 +546,11 @@ pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Ve
         .map_err(|e| e.to_string())?;
 
     // Sync to markdown file (allow targeted patching for this delete; may fall back to full rewrite)
-    sync_page_to_markdown_after_block_change(
+    sync_page_to_markdown_after_delete(
         &conn,
         &workspace_path,
         &page_id,
-        Some(block_id.as_str()),
+        block_id.as_str(),
     )?;
 
     Ok(deleted_ids)
@@ -822,5 +824,85 @@ pub fn block_type_to_string(bt: &BlockType) -> String {
         BlockType::Bullet => "bullet".to_string(),
         BlockType::Code => "code".to_string(),
         BlockType::Fence => "fence".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::workspace;
+    use std::fs;
+    use crate::models::block::CreateBlockRequest;
+
+    #[test]
+    fn test_incremental_insertion() {
+        tauri::async_runtime::block_on(async {
+            // Setup temp workspace
+            let temp_dir = std::env::temp_dir().join(format!("oxinot_test_{}", Uuid::new_v4()));
+            fs::create_dir_all(&temp_dir).unwrap();
+            let path_str = temp_dir.to_string_lossy().to_string();
+
+            // Init workspace (creates .oxinot/db.sqlite)
+            workspace::initialize_workspace(path_str.clone()).await.unwrap();
+
+            // Manually insert a page into DB and create file
+            let conn = open_workspace_db(&path_str).unwrap();
+            let page_id = Uuid::new_v4().to_string();
+            let page_file = "TestPage.md";
+            
+            conn.execute(
+                "INSERT INTO pages (id, title, file_path, is_directory, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)",
+                params![page_id, "TestPage", page_file, Utc::now().to_rfc3339(), Utc::now().to_rfc3339()]
+            ).unwrap();
+
+            fs::write(temp_dir.join(page_file), "").unwrap();
+
+            // Sync metadata so mtime/size match (important for safe patching!)
+            let metadata = fs::metadata(temp_dir.join(page_file)).unwrap();
+            let mtime = metadata.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+            let size = metadata.len() as i64;
+            conn.execute("UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?", params![mtime, size, page_id]).unwrap();
+
+            // 1. Create first block
+            let req1 = CreateBlockRequest {
+                page_id: page_id.clone(),
+                parent_id: None,
+                content: Some("Block 1".to_string()),
+                block_type: None,
+                after_block_id: None,
+            };
+            let b1 = create_block(path_str.clone(), req1).await.unwrap();
+
+            // Verify content
+            let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
+            assert!(content.contains("- Block 1"));
+            assert!(content.contains(&format!("ID::{}", b1.id)));
+
+            // 2. Create second block (sibling)
+            let req2 = CreateBlockRequest {
+                page_id: page_id.clone(),
+                parent_id: None,
+                content: Some("Block 2".to_string()),
+                block_type: None,
+                after_block_id: Some(b1.id.clone()),
+            };
+            let b2 = create_block(path_str.clone(), req2).await.unwrap();
+
+            // Verify content
+            let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
+            assert!(content.contains("- Block 1"));
+            assert!(content.contains("- Block 2"));
+            // Check order
+            let lines: Vec<&str> = content.lines().collect();
+            let b1_idx = lines.iter().position(|l| l.contains("Block 1")).unwrap();
+            let b2_idx = lines.iter().position(|l| l.contains("Block 2")).unwrap();
+            assert!(b1_idx < b2_idx);
+            
+            // Check no duplication
+            assert_eq!(content.matches(&format!("ID::{}", b2.id)).count(), 1);
+
+            // Teardown
+            fs::remove_dir_all(&temp_dir).unwrap();
+        });
     }
 }
