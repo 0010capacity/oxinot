@@ -379,6 +379,7 @@ pub fn run() {
             commands::block::indent_block,
             commands::block::outdent_block,
             commands::block::toggle_collapse,
+            commands::block::merge_blocks,
             // Block search/navigation commands
             commands::block::search_blocks,
             commands::block::resolve_block_path,
