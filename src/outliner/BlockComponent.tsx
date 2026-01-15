@@ -1,11 +1,8 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import {
-  Badge,
   Box,
   Popover,
-  Table,
-  Tooltip,
   useComputedColorScheme,
 } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
