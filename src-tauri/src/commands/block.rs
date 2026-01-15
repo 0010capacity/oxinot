@@ -11,7 +11,7 @@ use crate::models::block::{
 use crate::utils::fractional_index;
 use crate::utils::page_sync::{
     sync_page_to_markdown, sync_page_to_markdown_after_create, sync_page_to_markdown_after_delete,
-    sync_page_to_markdown_after_update,
+    sync_page_to_markdown_after_move, sync_page_to_markdown_after_update,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -590,7 +590,7 @@ pub async fn move_block(
     let moved_block = get_block_by_id(&conn, &request.id)?;
 
     // Sync to markdown file
-    sync_page_to_markdown(&conn, &workspace_path, &moved_block.page_id)?;
+    sync_page_to_markdown_after_move(&conn, &workspace_path, &moved_block.page_id, &moved_block.id)?;
 
     Ok(moved_block)
 }
@@ -624,7 +624,7 @@ pub async fn indent_block(workspace_path: String, block_id: String) -> Result<Bl
     let updated_block = get_block_by_id(&conn, &block_id)?;
 
     // Sync to markdown file
-    sync_page_to_markdown(&conn, &workspace_path, &updated_block.page_id)?;
+    sync_page_to_markdown_after_move(&conn, &workspace_path, &updated_block.page_id, &updated_block.id)?;
 
     Ok(updated_block)
 }
@@ -661,7 +661,7 @@ pub async fn outdent_block(workspace_path: String, block_id: String) -> Result<B
     let updated_block = get_block_by_id(&conn, &block_id)?;
 
     // Sync to markdown file
-    sync_page_to_markdown(&conn, &workspace_path, &updated_block.page_id)?;
+    sync_page_to_markdown_after_move(&conn, &workspace_path, &updated_block.page_id, &updated_block.id)?;
 
     Ok(updated_block)
 }
@@ -900,6 +900,180 @@ mod tests {
             
             // Check no duplication
             assert_eq!(content.matches(&format!("ID::{}", b2.id)).count(), 1);
+
+            // Teardown
+            fs::remove_dir_all(&temp_dir).unwrap();
+        });
+    }
+
+    #[test]
+    fn test_incremental_relocation() {
+        tauri::async_runtime::block_on(async {
+            // Setup temp workspace
+            let temp_dir = std::env::temp_dir().join(format!("oxinot_test_move_{}", Uuid::new_v4()));
+            fs::create_dir_all(&temp_dir).unwrap();
+            let path_str = temp_dir.to_string_lossy().to_string();
+
+            workspace::initialize_workspace(path_str.clone()).await.unwrap();
+
+            let conn = open_workspace_db(&path_str).unwrap();
+            let page_id = Uuid::new_v4().to_string();
+            let page_file = "MovePage.md";
+            
+            conn.execute(
+                "INSERT INTO pages (id, title, file_path, is_directory, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)",
+                params![page_id, "MovePage", page_file, Utc::now().to_rfc3339(), Utc::now().to_rfc3339()]
+            ).unwrap();
+
+            fs::write(temp_dir.join(page_file), "").unwrap();
+            let update_meta = || {
+                let metadata = fs::metadata(temp_dir.join(page_file)).unwrap();
+                let mtime = metadata.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+                let size = metadata.len() as i64;
+                let conn = open_workspace_db(&path_str).unwrap();
+                conn.execute("UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?", params![mtime, size, page_id]).unwrap();
+            };
+            update_meta();
+
+            // Setup:
+            // - B1
+            // - B2
+            let b1 = create_block(path_str.clone(), CreateBlockRequest {
+                page_id: page_id.clone(),
+                parent_id: None,
+                content: Some("B1".to_string()),
+                block_type: None,
+                after_block_id: None,
+            }).await.unwrap();
+            update_meta();
+            let b2 = create_block(path_str.clone(), CreateBlockRequest {
+                page_id: page_id.clone(),
+                parent_id: None,
+                content: Some("B2".to_string()),
+                block_type: None,
+                after_block_id: Some(b1.id.clone()),
+            }).await.unwrap();
+            update_meta();
+
+            // 1. Indent B2 under B1
+            indent_block(path_str.clone(), b2.id.clone()).await.unwrap();
+            update_meta();
+
+            let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
+            assert!(content.contains("- B1"));
+            assert!(content.contains("  - B2"));
+            // Check that B2 marker is more indented
+            let lines: Vec<&str> = content.lines().collect();
+            let _b1_m_idx = lines.iter().position(|l| l.contains(&format!("ID::{}", b1.id))).unwrap();
+            let b2_m_idx = lines.iter().position(|l| l.contains(&format!("ID::{}", b2.id))).unwrap();
+            assert!(lines[b2_m_idx].starts_with("    ID::")); // 4 spaces
+
+            // 2. Outdent B2
+            outdent_block(path_str.clone(), b2.id.clone()).await.unwrap();
+            update_meta();
+
+            let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
+            assert!(content.contains("- B1"));
+            assert!(content.contains("- B2"));
+            assert!(!content.contains("  - B2"));
+
+            // 3. Move B1 after B2
+            move_block(path_str.clone(), MoveBlockRequest {
+                id: b1.id.clone(),
+                new_parent_id: None,
+                after_block_id: Some(b2.id.clone()),
+            }).await.unwrap();
+            update_meta();
+
+            let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
+            let lines: Vec<&str> = content.lines().collect();
+            let b1_idx = lines.iter().position(|l| l.contains("B1")).unwrap();
+            let b2_idx = lines.iter().position(|l| l.contains("B2")).unwrap();
+            assert!(b2_idx < b1_idx);
+
+            // Teardown
+            fs::remove_dir_all(&temp_dir).unwrap();
+        });
+    }
+
+    #[test]
+    fn test_complex_subtree_relocation() {
+        tauri::async_runtime::block_on(async {
+            // Setup
+            let temp_dir = std::env::temp_dir().join(format!("oxinot_test_subtree_{}", Uuid::new_v4()));
+            fs::create_dir_all(&temp_dir).unwrap();
+            let path_str = temp_dir.to_string_lossy().to_string();
+            workspace::initialize_workspace(path_str.clone()).await.unwrap();
+
+            let conn = open_workspace_db(&path_str).unwrap();
+            let page_id = Uuid::new_v4().to_string();
+            let page_file = "SubtreePage.md";
+            conn.execute(
+                "INSERT INTO pages (id, title, file_path, is_directory, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)",
+                params![page_id, "SubtreePage", page_file, Utc::now().to_rfc3339(), Utc::now().to_rfc3339()]
+            ).unwrap();
+            fs::write(temp_dir.join(page_file), "").unwrap();
+            let update_meta = || {
+                let metadata = fs::metadata(temp_dir.join(page_file)).unwrap();
+                let mtime = metadata.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+                let size = metadata.len() as i64;
+                let conn = open_workspace_db(&path_str).unwrap();
+                conn.execute("UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?", params![mtime, size, page_id]).unwrap();
+            };
+            update_meta();
+
+            // Structure:
+            // - Parent1
+            //   - Child1
+            // - Parent2
+            let p1 = create_block(path_str.clone(), CreateBlockRequest {
+                page_id: page_id.clone(),
+                parent_id: None,
+                content: Some("Parent1".to_string()),
+                block_type: None,
+                after_block_id: None,
+            }).await.unwrap();
+            update_meta();
+            let _c1 = create_block(path_str.clone(), CreateBlockRequest {
+                page_id: page_id.clone(),
+                parent_id: Some(p1.id.clone()),
+                content: Some("Child1".to_string()),
+                block_type: None,
+                after_block_id: None,
+            }).await.unwrap();
+            update_meta();
+            let p2 = create_block(path_str.clone(), CreateBlockRequest {
+                page_id: page_id.clone(),
+                parent_id: None,
+                content: Some("Parent2".to_string()),
+                block_type: None,
+                after_block_id: Some(p1.id.clone()),
+            }).await.unwrap();
+            update_meta();
+
+            // Move Parent1 (and Child1) under Parent2
+            move_block(path_str.clone(), MoveBlockRequest {
+                id: p1.id.clone(),
+                new_parent_id: Some(p2.id.clone()),
+                after_block_id: None,
+            }).await.unwrap();
+            update_meta();
+
+            let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
+            assert!(content.contains("- Parent2"));
+            assert!(content.contains("  - Parent1"));
+            assert!(content.contains("    - Child1"));
+
+            // Verify indent levels
+            let lines: Vec<&str> = content.lines().collect();
+            let p2_idx = lines.iter().position(|l| l.contains("Parent2")).unwrap();
+            let p1_idx = lines.iter().position(|l| l.contains("Parent1")).unwrap();
+            let c1_idx = lines.iter().position(|l| l.contains("Child1")).unwrap();
+            
+            assert!(p2_idx < p1_idx);
+            assert!(p1_idx < c1_idx);
+            assert!(lines[p1_idx].starts_with("  - Parent1"));
+            assert!(lines[c1_idx].starts_with("    - Child1"));
 
             // Teardown
             fs::remove_dir_all(&temp_dir).unwrap();
