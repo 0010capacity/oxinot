@@ -71,11 +71,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       typeof setTimeout
     > | null>(null);
 
-    // Log isMetadataOpen changes
-    useEffect(() => {
-      console.log("isMetadataOpen changed:", isMetadataOpen, { blockId });
-    }, [isMetadataOpen, blockId]);
-
     // Cleanup timeout on unmount
     useEffect(() => {
       return () => {
@@ -97,7 +92,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           blockComponentRef.current &&
           !blockComponentRef.current.contains(target)
         ) {
-          console.log("Outside click detected, closing metadata");
           setIsMetadataOpen(false);
         }
       };
@@ -323,7 +317,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       // If metadata editor is open, don't close it or commit
       // The metadata editor will handle its own lifecycle via onClose
       if (isMetadataOpen) {
-        console.log("handleBlur: metadata editor is open, ignoring blur");
         return;
       }
 
@@ -401,11 +394,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       (value: string) => {
         // Trigger for metadata modal: "::"
         if (value.endsWith("::")) {
-          console.log("Metadata trigger detected:", { value, blockId });
           const newValue = value.slice(0, -2);
           draftRef.current = newValue;
           setDraft(newValue);
-          console.log("Setting isMetadataOpen to true");
           setIsMetadataOpen(true);
           return;
         }
@@ -670,7 +661,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         ref={blockComponentRef}
         className="block-component"
         onClick={(e) => {
-          console.log("blockComponent clicked");
           e.stopPropagation();
         }}
       >
@@ -751,7 +741,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             <Popover
               opened={isMetadataOpen}
               onClose={() => {
-                console.log("Popover onClose called");
                 setIsMetadataOpen(false);
               }}
               position="bottom"
@@ -801,18 +790,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 ref={popoverDropdownRef}
                 style={{ minWidth: "300px" }}
                 onClick={(e) => {
-                  console.log("Popover.Dropdown clicked, stopping propagation");
                   e.stopPropagation();
                 }}
               >
                 <MetadataEditor
                   blockId={blockId}
                   onClose={() => {
-                    console.log("MetadataEditor onClose called");
                     setIsMetadataOpen(false);
                     // Return focus to editor after metadata is saved
                     setTimeout(() => {
-                      console.log("Returning focus to editor");
                       editorRef.current?.focus();
                     }, 0);
                   }}

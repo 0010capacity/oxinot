@@ -83,7 +83,6 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
 
         // Focus first item
         setTimeout(() => {
-          console.log("MetadataEditor: focusing first input");
           keyRefs.current[0]?.focus({ preventScroll: true });
         }, 0);
       }
@@ -228,9 +227,6 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
               value={item.key}
               onChange={(e) => updateItem(index, "key", e.target.value)}
               onKeyDown={(e) => handleInputKeyDown(e, index, "key")}
-              onFocus={() => {
-                console.log("MetadataEditor input focused, index:", index);
-              }}
               ref={(el) => {
                 keyRefs.current[index] = el;
               }}
