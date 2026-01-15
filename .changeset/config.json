@@ -3,7 +3,7 @@
   "access": "restricted",
   "baseBranch": "main",
   "changelog": "@changesets/cli/changelog",
-  "commit": true,
+  "commit": false,
   "commitMessage": "chore: version packages",
   "fixed": [],
   "ignore": [],
