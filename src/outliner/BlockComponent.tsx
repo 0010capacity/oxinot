@@ -85,6 +85,29 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       };
     }, []);
 
+    // Handle outside clicks to close metadata editor
+    useEffect(() => {
+      if (!isMetadataOpen) return;
+
+      const handleDocumentClick = (event: MouseEvent) => {
+        const target = event.target as Node;
+
+        // Check if click is outside the block component
+        if (
+          blockComponentRef.current &&
+          !blockComponentRef.current.contains(target)
+        ) {
+          console.log("Outside click detected, closing metadata");
+          setIsMetadataOpen(false);
+        }
+      };
+
+      document.addEventListener("click", handleDocumentClick);
+      return () => {
+        document.removeEventListener("click", handleDocumentClick);
+      };
+    }, [isMetadataOpen]);
+
     // Consolidated IME state
     const imeStateRef = useRef({
       isComposing: false,
@@ -643,7 +666,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       ) : null;
 
     return (
-      <div ref={blockComponentRef} className="block-component">
+      <div
+        ref={blockComponentRef}
+        className="block-component"
+        onClick={(e) => {
+          console.log("blockComponent clicked");
+          e.stopPropagation();
+        }}
+      >
         {indentGuide}
         <div className="block-row" style={{ paddingLeft: `${depth * 24}px` }}>
           {/* Collapse/Expand Toggle */}
@@ -730,6 +760,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               trapFocus={false}
               closeOnEscape
               closeOnClickOutside
+              withinPortal={true}
               transitionProps={{ duration: 0 }}
             >
               <Popover.Target>
@@ -769,6 +800,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 p={0}
                 ref={popoverDropdownRef}
                 style={{ minWidth: "300px" }}
+                onClick={(e) => {
+                  console.log("Popover.Dropdown clicked, stopping propagation");
+                  e.stopPropagation();
+                }}
               >
                 <MetadataEditor
                   blockId={blockId}
