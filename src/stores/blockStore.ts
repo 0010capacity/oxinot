@@ -17,6 +17,7 @@ export interface BlockData {
   language?: string;
   createdAt: string;
   updatedAt: string;
+  metadata?: Record<string, string>;
 }
 
 interface BlockState {
@@ -202,12 +203,11 @@ export const useBlockStore = create<BlockStore>()(
         if (isRootEmpty) {
           // Create initial block optimistically
           await get().createBlock(null, "");
-          
+
           set((state) => {
-             state.isLoading = false;
+            state.isLoading = false;
           });
         }
-
       } catch (error) {
         set((state) => {
           state.error =
@@ -218,8 +218,8 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     loadPage: async (pageId: string) => {
-       // Legacy wrapper: use openPage
-       return get().openPage(pageId);
+      // Legacy wrapper: use openPage
+      return get().openPage(pageId);
     },
 
     clearPage: () => {
@@ -298,7 +298,11 @@ export const useBlockStore = create<BlockStore>()(
 
       if (afterBlockId) {
         // Use canonical rule for "insert below"
-        const target = getInsertBelowTarget(afterBlockId, blocksById, childrenMap);
+        const target = getInsertBelowTarget(
+          afterBlockId,
+          blocksById,
+          childrenMap
+        );
         parentId = target.parentId;
         afterBlockIdForBackend = target.afterBlockId;
       }
@@ -422,10 +426,10 @@ export const useBlockStore = create<BlockStore>()(
 
     updateBlockContent: async (id: string, content: string) => {
       const { mergingBlockId, mergingTargetBlockId, blocksById } = get();
-      
+
       // Prevent UI from overwriting blocks involved in an active merge operation.
       if (id === mergingBlockId || id === mergingTargetBlockId) {
-         return;
+        return;
       }
 
       const block = blocksById[id];
@@ -441,7 +445,7 @@ export const useBlockStore = create<BlockStore>()(
           workspacePath,
           request: { id, content },
         });
-        
+
         // Update state with backend result
         set((state) => {
           if (state.blocksById[id]) {
@@ -559,10 +563,10 @@ export const useBlockStore = create<BlockStore>()(
       const parentId = block.parentId ?? "root";
       const siblings = childrenMap[parentId] ?? [];
       const index = siblings.indexOf(id);
-      
+
       if (index <= 0) {
-          // No previous sibling, cannot indent. Fail silently.
-          return;
+        // No previous sibling, cannot indent. Fail silently.
+        return;
       }
 
       try {
@@ -637,12 +641,16 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     mergeWithPrevious: async (id: string, draftContent?: string) => {
-      const { blocksById, getPreviousVisibleBlock, deleteBlock, mergingBlockId } =
-        get();
+      const {
+        blocksById,
+        getPreviousVisibleBlock,
+        deleteBlock,
+        mergingBlockId,
+      } = get();
 
       // Prevent concurrent merges on the same block
       if (mergingBlockId === id) {
-          return;
+        return;
       }
 
       set((state) => {
@@ -679,26 +687,26 @@ export const useBlockStore = create<BlockStore>()(
         // Case 2: Non-empty block, merge into previous
         const prevBlockId = getPreviousVisibleBlock(id);
         if (!prevBlockId) {
-            return;
+          return;
         }
-        
+
         // Lock the target block to prevent stale UI updates from overwriting the merge result
         set((state) => {
-           state.mergingTargetBlockId = prevBlockId;
+          state.mergingTargetBlockId = prevBlockId;
         });
 
         const prevBlock = blocksById[prevBlockId];
         if (!prevBlock) return;
-        
+
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) throw new Error("No workspace selected");
 
         // Paranoid sync: Ensure target block content in DB matches Store before merge
         if (prevBlock) {
-             await invoke("update_block", {
-                workspacePath,
-                request: { id: prevBlockId, content: prevBlock.content },
-             });
+          await invoke("update_block", {
+            workspacePath,
+            request: { id: prevBlockId, content: prevBlock.content },
+          });
         }
 
         // Calculate cursor position for focus after merge
@@ -710,14 +718,14 @@ export const useBlockStore = create<BlockStore>()(
           draftContent !== currentBlock.content
         ) {
           await invoke("update_block", {
-             workspacePath,
-             request: { id, content: draftContent },
+            workspacePath,
+            request: { id, content: draftContent },
           });
-          
+
           set((state) => {
             if (state.blocksById[id]) {
-                state.blocksById[id].content = draftContent;
-                state.blocksById[id].updatedAt = new Date().toISOString();
+              state.blocksById[id].content = draftContent;
+              state.blocksById[id].updatedAt = new Date().toISOString();
             }
           });
         }
@@ -848,7 +856,7 @@ export const useBlockStore = create<BlockStore>()(
         while (true) {
           const currentBlock = blocksById[currentId];
           const children = childrenMap[currentId];
-          
+
           if (
             currentBlock &&
             !currentBlock.isCollapsed &&

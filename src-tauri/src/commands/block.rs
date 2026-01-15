@@ -2,6 +2,7 @@ use chrono::Utc;
 use rusqlite::OptionalExtension;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::commands::workspace::open_workspace_db;
@@ -39,28 +40,38 @@ pub struct GetBlockAncestorsRequest {
 
 /// Helper: load a single block from DB, or return None.
 fn get_block_by_id_opt(conn: &Connection, id: &str) -> Result<Option<Block>, String> {
-    conn.query_row(
-        "SELECT id, page_id, parent_id, content, order_weight,
+    let block_opt = conn
+        .query_row(
+            "SELECT id, page_id, parent_id, content, order_weight,
                 is_collapsed, block_type, language, created_at, updated_at
          FROM blocks WHERE id = ?",
-        [id],
-        |row| {
-            Ok(Block {
-                id: row.get(0)?,
-                page_id: row.get(1)?,
-                parent_id: row.get(2)?,
-                content: row.get(3)?,
-                order_weight: row.get(4)?,
-                is_collapsed: row.get::<_, i32>(5)? != 0,
-                block_type: parse_block_type(row.get::<_, String>(6)?),
-                language: row.get(7)?,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
-            })
-        },
-    )
-    .optional()
-    .map_err(|e| e.to_string())
+            [id],
+            |row| {
+                Ok(Block {
+                    id: row.get(0)?,
+                    page_id: row.get(1)?,
+                    parent_id: row.get(2)?,
+                    content: row.get(3)?,
+                    order_weight: row.get(4)?,
+                    is_collapsed: row.get::<_, i32>(5)? != 0,
+                    block_type: parse_block_type(row.get::<_, String>(6)?),
+                    language: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                    metadata: HashMap::new(),
+                })
+            },
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    // Load metadata if block exists
+    if let Some(mut block) = block_opt {
+        block.metadata = load_block_metadata(conn, &block.id)?;
+        Ok(Some(block))
+    } else {
+        Ok(None)
+    }
 }
 
 /// Helper: return ancestor chain (root -> ... -> self) for a given block_id.
@@ -100,6 +111,7 @@ ORDER BY depth DESC
                     language: row.get(7)?,
                     created_at: row.get(8)?,
                     updated_at: row.get(9)?,
+                    metadata: HashMap::new(),
                 },
                 row.get::<_, i64>(10)?,
             ))
@@ -114,7 +126,10 @@ ORDER BY depth DESC
 
     // rows are ordered root..self; last is the requested block
     let ancestor_ids = rows.iter().map(|(b, _)| b.id.clone()).collect::<Vec<_>>();
-    let block = rows.last().unwrap().0.clone();
+    let mut block = rows.last().unwrap().0.clone();
+
+    // Load metadata for the block
+    block.metadata = load_block_metadata(conn, &block.id)?;
 
     Ok(Some(BlockWithPath {
         block,
@@ -213,7 +228,7 @@ FROM descendants
 "#;
 
     let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
-    let blocks = stmt
+    let mut blocks = stmt
         .query_map(params![root.id, max_depth], |row| {
             Ok(Block {
                 id: row.get(0)?,
@@ -226,11 +241,17 @@ FROM descendants
                 language: row.get(7)?,
                 created_at: row.get(8)?,
                 updated_at: row.get(9)?,
+                metadata: HashMap::new(),
             })
         })
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
+
+    // Load metadata for all blocks
+    for block in &mut blocks {
+        block.metadata = load_block_metadata(&conn, &block.id)?;
+    }
 
     Ok(blocks)
 }
@@ -253,7 +274,7 @@ pub async fn get_page_blocks(
         )
         .map_err(|e| e.to_string())?;
 
-    let blocks = stmt
+    let mut blocks = stmt
         .query_map([&page_id], |row| {
             Ok(Block {
                 id: row.get(0)?,
@@ -266,11 +287,17 @@ pub async fn get_page_blocks(
                 language: row.get(7)?,
                 created_at: row.get(8)?,
                 updated_at: row.get(9)?,
+                metadata: HashMap::new(),
             })
         })
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
+
+    // Load metadata for all blocks
+    for block in &mut blocks {
+        block.metadata = load_block_metadata(&conn, &block.id)?;
+    }
 
     Ok(blocks)
 }
@@ -510,6 +537,11 @@ pub async fn update_block(
         ],
     )
     .map_err(|e| e.to_string())?;
+
+    // Update metadata if provided
+    if let Some(metadata) = &request.metadata {
+        save_block_metadata(&conn, &request.id, metadata)?;
+    }
 
     let updated_block = get_block_by_id(&conn, &request.id)?;
 
@@ -857,28 +889,78 @@ fn calculate_new_order_weight(
     }
 }
 
+/// Load metadata for a block from the database
+fn load_block_metadata(
+    conn: &Connection,
+    block_id: &str,
+) -> Result<HashMap<String, String>, String> {
+    let mut stmt = conn
+        .prepare("SELECT key, value FROM block_metadata WHERE block_id = ? ORDER BY key")
+        .map_err(|e| e.to_string())?;
+
+    let metadata = stmt
+        .query_map([block_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<HashMap<_, _>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(metadata)
+}
+
+/// Save metadata for a block to the database
+fn save_block_metadata(
+    conn: &Connection,
+    block_id: &str,
+    metadata: &HashMap<String, String>,
+) -> Result<(), String> {
+    // Delete existing metadata for this block
+    conn.execute("DELETE FROM block_metadata WHERE block_id = ?", [block_id])
+        .map_err(|e| e.to_string())?;
+
+    // Insert new metadata
+    for (key, value) in metadata {
+        let metadata_id = Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO block_metadata (id, block_id, key, value) VALUES (?, ?, ?, ?)",
+            params![&metadata_id, block_id, key, value],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 fn get_block_by_id(conn: &Connection, id: &str) -> Result<Block, String> {
-    conn.query_row(
-        "SELECT id, page_id, parent_id, content, order_weight,
+    let mut block = conn
+        .query_row(
+            "SELECT id, page_id, parent_id, content, order_weight,
                 is_collapsed, block_type, language, created_at, updated_at
          FROM blocks WHERE id = ?",
-        [id],
-        |row| {
-            Ok(Block {
-                id: row.get(0)?,
-                page_id: row.get(1)?,
-                parent_id: row.get(2)?,
-                content: row.get(3)?,
-                order_weight: row.get(4)?,
-                is_collapsed: row.get::<_, i32>(5)? != 0,
-                block_type: parse_block_type(row.get::<_, String>(6)?),
-                language: row.get(7)?,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
-            })
-        },
-    )
-    .map_err(|e| format!("Block not found: {}", e))
+            [id],
+            |row| {
+                Ok(Block {
+                    id: row.get(0)?,
+                    page_id: row.get(1)?,
+                    parent_id: row.get(2)?,
+                    content: row.get(3)?,
+                    order_weight: row.get(4)?,
+                    is_collapsed: row.get::<_, i32>(5)? != 0,
+                    block_type: parse_block_type(row.get::<_, String>(6)?),
+                    language: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                    metadata: HashMap::new(),
+                })
+            },
+        )
+        .map_err(|e| format!("Block not found: {}", e))?;
+
+    // Load metadata
+    block.metadata = load_block_metadata(conn, &block.id)?;
+
+    Ok(block)
 }
 
 fn collect_descendant_ids(conn: &Connection, block_id: &str) -> Result<Vec<String>, String> {
@@ -930,6 +1012,7 @@ fn find_previous_sibling(conn: &Connection, block: &Block) -> Result<Block, Stri
                 language: row.get(7)?,
                 created_at: row.get(8)?,
                 updated_at: row.get(9)?,
+                metadata: HashMap::new(),
             })
         },
     )
@@ -1387,7 +1470,9 @@ mod tests {
             // - Block1 content: "AB"
             // - Block1 children: Child2_1, Child2_2
             // - Block2 deleted
-            merge_blocks(path_str.clone(), b2.id.clone(), None).await.unwrap();
+            merge_blocks(path_str.clone(), b2.id.clone(), None)
+                .await
+                .unwrap();
             update_meta();
 
             let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
@@ -1411,6 +1496,7 @@ mod tests {
                         language: r.get(7)?,
                         created_at: r.get(8)?,
                         updated_at: r.get(9)?,
+                        metadata: HashMap::new(),
                     })
                 })
                 .unwrap();
