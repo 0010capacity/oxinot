@@ -688,6 +688,91 @@ pub async fn toggle_collapse(workspace_path: String, block_id: String) -> Result
     Ok(updated_block)
 }
 
+/// Merge a block into its previous sibling (move children, append content, delete block).
+/// This is an atomic operation to prevent data loss.
+#[tauri::command]
+pub async fn merge_blocks(workspace_path: String, block_id: String) -> Result<Block, String> {
+    let mut conn = open_workspace_db(&workspace_path)?;
+
+    // 1. Get current block
+    let block = get_block_by_id(&conn, &block_id)?;
+
+    // 2. Find previous sibling
+    let prev_sibling = find_previous_sibling(&conn, &block)
+        .map_err(|_| "Cannot merge: no previous sibling".to_string())?;
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    // 3. Move all children of current block to previous sibling
+    // They should be appended to the end of previous sibling's children
+    {
+        // Get existing children of previous sibling to find last order_weight
+        let last_child_weight: Option<f64> = tx
+            .query_row(
+                "SELECT MAX(order_weight) FROM blocks WHERE parent_id = ?",
+                params![&prev_sibling.id],
+                |row| row.get(0),
+            )
+            .ok()
+            .flatten();
+
+        // Get children of current block
+        let mut children_stmt = tx
+            .prepare("SELECT id, order_weight FROM blocks WHERE parent_id = ? ORDER BY order_weight")
+            .map_err(|e| e.to_string())?;
+
+        let children_rows = children_stmt
+            .query_map([&block_id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+
+        let now = Utc::now().to_rfc3339();
+
+        // Reparent each child
+        let mut last_weight = last_child_weight;
+        for (child_id, _) in children_rows {
+            // Calculate new weight (append to end)
+            let new_weight = fractional_index::calculate_middle(last_weight, None);
+            last_weight = Some(new_weight);
+
+            tx.execute(
+                "UPDATE blocks SET parent_id = ?, order_weight = ?, updated_at = ? WHERE id = ?",
+                params![&prev_sibling.id, new_weight, &now, &child_id],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    // 4. Update previous sibling content (append current block content)
+    let new_content = format!("{}{}", prev_sibling.content, block.content);
+    let now = Utc::now().to_rfc3339();
+
+    tx.execute(
+        "UPDATE blocks SET content = ?, updated_at = ? WHERE id = ?",
+        params![&new_content, &now, &prev_sibling.id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // 5. Delete current block (it is now empty and childless)
+    tx.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
+        .map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
+
+    // 6. Sync to markdown (Full rewrite to be safe for complex structural changes)
+    // Re-open connection or use a new one because transaction consumes it?
+    // Actually rusqlite transaction commit consumes the transaction but leaves connection usable if we didn't consume it.
+    // But here `tx` borrows `conn` mutably. After commit, we can use `conn`.
+    sync_page_to_markdown(&conn, &workspace_path, &block.page_id)?;
+
+    // Return the updated previous block
+    let updated_prev = get_block_by_id(&conn, &prev_sibling.id)?;
+    Ok(updated_prev)
+}
+
 // ============ Helper Functions ============
 
 fn calculate_new_order_weight(
@@ -1074,6 +1159,105 @@ mod tests {
             assert!(p1_idx < c1_idx);
             assert!(lines[p1_idx].starts_with("  - Parent1"));
             assert!(lines[c1_idx].starts_with("    - Child1"));
+
+            // Teardown
+            fs::remove_dir_all(&temp_dir).unwrap();
+        });
+    }
+
+    #[test]
+    fn test_merge_blocks() {
+        tauri::async_runtime::block_on(async {
+            // Setup
+            let temp_dir = std::env::temp_dir().join(format!("oxinot_test_merge_{}", Uuid::new_v4()));
+            fs::create_dir_all(&temp_dir).unwrap();
+            let path_str = temp_dir.to_string_lossy().to_string();
+            workspace::initialize_workspace(path_str.clone()).await.unwrap();
+
+            let conn = open_workspace_db(&path_str).unwrap();
+            let page_id = Uuid::new_v4().to_string();
+            let page_file = "MergePage.md";
+            conn.execute(
+                "INSERT INTO pages (id, title, file_path, is_directory, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)",
+                params![page_id, "MergePage", page_file, Utc::now().to_rfc3339(), Utc::now().to_rfc3339()]
+            ).unwrap();
+            fs::write(temp_dir.join(page_file), "").unwrap();
+            let update_meta = || {
+                let metadata = fs::metadata(temp_dir.join(page_file)).unwrap();
+                let mtime = metadata.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+                let size = metadata.len() as i64;
+                let conn = open_workspace_db(&path_str).unwrap();
+                conn.execute("UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?", params![mtime, size, page_id]).unwrap();
+            };
+            update_meta();
+
+            // Structure:
+            // - Block1 (content: "A")
+            // - Block2 (content: "B")
+            //   - Child2_1
+            //   - Child2_2
+            let b1 = create_block(path_str.clone(), CreateBlockRequest {
+                page_id: page_id.clone(),
+                parent_id: None,
+                content: Some("A".to_string()),
+                block_type: None,
+                after_block_id: None,
+            }).await.unwrap();
+            update_meta();
+
+            let b2 = create_block(path_str.clone(), CreateBlockRequest {
+                page_id: page_id.clone(),
+                parent_id: None,
+                content: Some("B".to_string()),
+                block_type: None,
+                after_block_id: Some(b1.id.clone()),
+            }).await.unwrap();
+            update_meta();
+
+            let c1 = create_block(path_str.clone(), CreateBlockRequest {
+                page_id: page_id.clone(),
+                parent_id: Some(b2.id.clone()),
+                content: Some("C1".to_string()),
+                block_type: None,
+                after_block_id: None,
+            }).await.unwrap();
+            update_meta();
+
+            let _c2 = create_block(path_str.clone(), CreateBlockRequest {
+                page_id: page_id.clone(),
+                parent_id: Some(b2.id.clone()),
+                content: Some("C2".to_string()),
+                block_type: None,
+                after_block_id: Some(c1.id.clone()),
+            }).await.unwrap();
+            update_meta();
+
+            // Merge Block2 into Block1
+            // Expected:
+            // - Block1 content: "AB"
+            // - Block1 children: Child2_1, Child2_2
+            // - Block2 deleted
+            merge_blocks(path_str.clone(), b2.id.clone()).await.unwrap();
+            update_meta();
+
+            let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
+            assert!(content.contains("- AB"));
+            assert!(!content.contains("- B")); // Original B gone (merged)
+            assert!(content.contains("  - C1")); // Indented under AB
+            assert!(content.contains("  - C2"));
+
+            // Verify DB state
+            let conn = open_workspace_db(&path_str).unwrap();
+            let b1_new: Block = conn.query_row("SELECT * FROM blocks WHERE id = ?", [&b1.id], |r| Ok(Block {
+                id: r.get(0)?, page_id: r.get(1)?, parent_id: r.get(2)?, content: r.get(3)?, order_weight: r.get(4)?,
+                is_collapsed: r.get::<_, i32>(5)? != 0, block_type: parse_block_type(r.get::<_, String>(6)?),
+                language: r.get(7)?, created_at: r.get(8)?, updated_at: r.get(9)?,
+            })).unwrap();
+            
+            assert_eq!(b1_new.content, "AB");
+
+            let children_count: i64 = conn.query_row("SELECT COUNT(*) FROM blocks WHERE parent_id = ?", [&b1.id], |r| r.get(0)).unwrap();
+            assert_eq!(children_count, 2);
 
             // Teardown
             fs::remove_dir_all(&temp_dir).unwrap();

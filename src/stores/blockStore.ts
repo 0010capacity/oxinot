@@ -578,11 +578,7 @@ export const useBlockStore = create<BlockStore>()(
         }
 
         // Reparent children to previous block
-        // Find the last child of previous block to append after
         const prevChildren = state.childrenMap[prevBlockId] ?? [];
-        // Determine insertion logic: usually appended to the end of prevBlock's children
-        // But strictly speaking, they should come *after* existing children of prevBlock.
-
         if (!state.childrenMap[prevBlockId]) {
           state.childrenMap[prevBlockId] = [];
         }
@@ -612,48 +608,11 @@ export const useBlockStore = create<BlockStore>()(
       });
 
       try {
-        // 2. Execute Backend Commands
-        // Order is critical:
-        // A. Move children (so they aren't deleted by cascade)
-        // B. Update content
-        // C. Delete block
-
-        // A. Move children
-        // We need to move them one by one.
-        // To maintain order, we append them to the end of prevBlock's children.
-        // We need to know the ID of the last child of prevBlock to use as `afterBlockId`.
-        let lastChildId: string | null = null;
-        
-        // Fetch fresh state from DB or trust local? 
-        // We can trust `prevBlock`'s current children list from before the optimistic update.
-        // But `childrenMap` in `get()` is stale now because we just updated it optimistically.
-        // Actually, inside `set` we modified the draft, but `get()` returns current state? 
-        // No, `set` updates the store. 
-        // We should have captured the necessary info BEFORE the `set`.
-        
-        // However, simplistic `move_block` logic:
-        // If we move to `parent_id = prevBlockId` and `after_block_id = null`, it appends to the end?
-        // Let's check `calculate_new_order_weight` in rust.
-        // `None` -> `SELECT MAX(order_weight) ...` -> Correct, adds to end.
-        
-        for (const childId of childrenToMove) {
-            await invoke("move_block", {
-                workspacePath,
-                blockId: childId,
-                newParentId: prevBlockId,
-                afterBlockId: null // Appends to end, which preserves relative order if we do it in sequence
-            });
-        }
-
-        // B. Update content
-        await invoke("update_block", {
+        // Single atomic backend command
+        await invoke("merge_blocks", {
             workspacePath,
-            request: { id: prevBlockId, content: newContent },
+            blockId: id,
         });
-
-        // C. Delete block
-        await invoke("delete_block", { workspacePath, blockId: id });
-
       } catch (error) {
         console.error("Failed to merge blocks:", error);
         // Force reload to restore correct state
