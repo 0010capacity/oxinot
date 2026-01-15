@@ -252,17 +252,23 @@ export const useBlockStore = create<BlockStore>()(
         
         console.log("[Debug] Page info:", currentPage);
 
-        if (currentPage && currentPage.file_path) {
-          // file_path is relative to workspace root
-          const filePath = `${workspacePath}/${currentPage.file_path}`;
-          try {
-              const fileContent: string = await invoke("read_file", { filePath });
-              console.log("3. File (Markdown):", `\n${fileContent}`);
-          } catch (e) {
-              console.error(`[Debug] Failed to read file at ${filePath}:`, e);
+        if (currentPage) {
+          // Handle both camelCase (if generated) and snake_case (raw DB)
+          const relativePath = currentPage.filePath || currentPage.file_path;
+          
+          if (relativePath) {
+              const filePath = `${workspacePath}/${relativePath}`;
+              try {
+                  const fileContent: string = await invoke("read_file", { filePath });
+                  console.log("3. File (Markdown):", `\n${fileContent}`);
+              } catch (e) {
+                  console.error(`[Debug] Failed to read file at ${filePath}:`, e);
+              }
+          } else {
+              console.log("3. File: (No file path found in page object)");
           }
         } else {
-          console.log("3. File: (Not found or no file_path)");
+          console.log("3. File: (Page not found in get_pages)");
         }
 
         console.groupEnd();
@@ -743,6 +749,16 @@ export const useBlockStore = create<BlockStore>()(
 
         const prevBlock = blocksById[prevBlockId];
         if (!prevBlock) return;
+        
+        // Paranoid sync: Ensure target block content in DB matches Store before merge
+        // This handles cases where previous block has pending edits that haven't hit DB yet
+        if (prevBlock) {
+             console.log(`[Store] Syncing target block ${prevBlockId} before merge`);
+             await invoke("update_block", {
+                workspacePath,
+                request: { id: prevBlockId, content: prevBlock.content },
+             });
+        }
 
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) throw new Error("No workspace selected");
