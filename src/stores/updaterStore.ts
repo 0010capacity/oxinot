@@ -67,7 +67,8 @@ export const useUpdaterStore = create<UpdaterStore>((set, get) => ({
       if (!silent) {
         set({
           status: "error",
-          error: err instanceof Error ? err.message : "Failed to check for updates",
+          error:
+            err instanceof Error ? err.message : "Failed to check for updates",
         });
       } else {
         set({ status: "idle" });
@@ -85,16 +86,23 @@ export const useUpdaterStore = create<UpdaterStore>((set, get) => ({
       let contentLength = 0;
       let downloaded = 0;
 
+      console.log("Starting update download and installation...");
+      console.log("Update version:", updateObj.version);
+      console.log("Current version:", updateObj.currentVersion);
+
       await updateObj.downloadAndInstall((event) => {
         switch (event.event) {
           case "Started":
             contentLength = event.data.contentLength || 0;
             console.log(`Started downloading ${contentLength} bytes`);
+            set({ progress: 0 });
             break;
           case "Progress":
             downloaded += event.data.chunkLength;
             if (contentLength > 0) {
-              set({ progress: (downloaded / contentLength) * 100 });
+              const progressPercent = (downloaded / contentLength) * 100;
+              console.log(`Download progress: ${progressPercent.toFixed(1)}%`);
+              set({ progress: progressPercent });
             }
             break;
           case "Finished":
@@ -108,9 +116,11 @@ export const useUpdaterStore = create<UpdaterStore>((set, get) => ({
       await relaunch();
     } catch (err) {
       console.error("Failed to install update:", err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error("Error details:", errorMessage);
       set({
         status: "error",
-        error: "Failed to install update. Please try again.",
+        error: `Failed to install update: ${errorMessage}`,
         progress: 0,
       });
     }
@@ -125,10 +135,10 @@ export const useUpdaterStore = create<UpdaterStore>((set, get) => ({
   },
 
   setUpdateAvailable: (available) => {
-     if (available) {
-         // This is a helper if we ever need to manually trigger this state, 
-         // though checkForUpdates is preferred.
-         // Keeping it for potential external triggers.
-     }
-  }
+    if (available) {
+      // This is a helper if we ever need to manually trigger this state,
+      // though checkForUpdates is preferred.
+      // Keeping it for potential external triggers.
+    }
+  },
 }));

@@ -55,6 +55,8 @@
     ],
     "security": {
       "csp": null
-    }
+    },
+    "withGlobalTauri": false,
+    "enableDevtools": true
   }
 }
