@@ -1,12 +1,18 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
-import { useComputedColorScheme } from "@mantine/core";
+import {
+  Badge,
+  Box,
+  Popover,
+  Table,
+  Tooltip,
+  useComputedColorScheme,
+} from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Editor, type EditorRef } from "../components/Editor";
-import { MetadataBadges } from "../components/MetadataBadge";
-import { parseBlockMetadata } from "../utils/metadata";
+import { MetadataEditor } from "../components/MetadataEditor";
 import {
   useBlock,
   useBlockStore,
@@ -14,7 +20,6 @@ import {
   useFocusedBlockId,
 } from "../stores/blockStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
-import { useWorkspaceStore } from "../stores/workspaceStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
@@ -58,6 +63,27 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const editorRef = useRef<EditorRef>(null);
     const appliedPositionRef = useRef<number | null>(null);
+    const popoverDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Local metadata editing state
+    const [isMetadataOpen, setIsMetadataOpen] = useState(false);
+    const metadataCloseTimeoutRef = useRef<ReturnType<
+      typeof setTimeout
+    > | null>(null);
+
+    // Log isMetadataOpen changes
+    useEffect(() => {
+      console.log("isMetadataOpen changed:", isMetadataOpen, { blockId });
+    }, [isMetadataOpen, blockId]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+      return () => {
+        if (metadataCloseTimeoutRef.current) {
+          clearTimeout(metadataCloseTimeoutRef.current);
+        }
+      };
+    }, []);
 
     // Consolidated IME state
     const imeStateRef = useRef({
@@ -271,53 +297,19 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     }, []);
 
     const handleBlur = useCallback(async () => {
-      const currentContent = draftRef.current;
-
-      // Parse metadata from content
-      const { metadata, cleanContent } = parseBlockMetadata(currentContent);
-
-      // Check if metadata was found
-      const hasMetadata = Object.keys(metadata).length > 0;
-
-      if (hasMetadata) {
-        // Update content to remove metadata lines
-        draftRef.current = cleanContent;
-        setDraft(cleanContent);
-
-        // Update block with clean content and metadata
-        const workspacePath = useWorkspaceStore.getState().workspacePath;
-        if (workspacePath) {
-          try {
-            const { invoke } = await import("@tauri-apps/api/core");
-            await invoke("update_block", {
-              workspacePath,
-              request: {
-                id: blockId,
-                content: cleanContent,
-                metadata,
-              },
-            });
-
-            // Update local state
-            useBlockStore.setState((state) => {
-              if (state.blocksById[blockId]) {
-                state.blocksById[blockId].content = cleanContent;
-                state.blocksById[blockId].metadata = metadata;
-                state.blocksById[blockId].updatedAt = new Date().toISOString();
-              }
-            });
-          } catch (error) {
-            console.error("Failed to update block with metadata:", error);
-          }
-        }
-      } else {
-        // No metadata found, just commit the draft normally
-        await commitDraft();
+      // If metadata editor is open, don't close it or commit
+      // The metadata editor will handle its own lifecycle via onClose
+      if (isMetadataOpen) {
+        console.log("handleBlur: metadata editor is open, ignoring blur");
+        return;
       }
+
+      // Normal blur handling (metadata editor is not open)
+      await commitDraft();
 
       // Clear IME state on blur
       imeStateRef.current.lastInputWasComposition = false;
-    }, [commitDraft, blockId]);
+    }, [commitDraft, isMetadataOpen]);
 
     const handleCopyBlockId = useCallback(
       async (e: React.MouseEvent) => {
@@ -382,8 +374,32 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
+    const handleContentChangeWithTrigger = useCallback(
+      (value: string) => {
+        // Trigger for metadata modal: "::"
+        if (value.endsWith("::")) {
+          console.log("Metadata trigger detected:", { value, blockId });
+          const newValue = value.slice(0, -2);
+          draftRef.current = newValue;
+          setDraft(newValue);
+          console.log("Setting isMetadataOpen to true");
+          setIsMetadataOpen(true);
+          return;
+        }
+        handleContentChange(value);
+      },
+      [handleContentChange]
+    );
+
     const keybindings: KeyBinding[] = useMemo(() => {
       return [
+        {
+          key: "Mod-Shift-m",
+          run: () => {
+            setIsMetadataOpen(true);
+            return true;
+          },
+        },
         {
           key: "Enter",
           run: (view: EditorView) => {
@@ -702,48 +718,132 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               </button>
             </div>
 
-            <Editor
-              ref={editorRef}
-              value={draft}
-              onChange={handleContentChange}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              lineNumbers={false}
-              lineWrapping={true}
-              theme={isDark ? "dark" : "light"}
-              keybindings={keybindings}
-              // FOCUS STATE PROP:
-              // -----------------
-              // This determines whether markdown markers are visible or hidden
-              // focusedBlockId comes from useViewStore and is set when user clicks/focuses a block
-              //
-              // When true (block has focus):
-              //   → shouldShowMarkers = true (via shouldShowMarkersForLine in hybridRendering.ts)
-              //   → Markers are visible → Shows raw markdown (e.g., [[link]], # heading)
-              //
-              // When false (block unfocused):
-              //   → shouldShowMarkers = false
-              //   → Markers are hidden → Renders formatted content (e.g., link, styled heading)
-              isFocused={focusedBlockId === blockId}
-              className="block-editor"
-              style={{
-                minHeight: "24px",
-                fontSize: "14px",
+            <Popover
+              opened={isMetadataOpen}
+              onClose={() => {
+                console.log("Popover onClose called");
+                setIsMetadataOpen(false);
               }}
-            />
-
-            {/* Metadata Badges - shown when block is not focused */}
-            {block.metadata &&
-              Object.keys(block.metadata).length > 0 &&
-              focusedBlockId !== blockId && (
-                <MetadataBadges
-                  metadata={block.metadata}
-                  onBadgeClick={() => {
-                    // Click badge to focus block and enable editing
-                    setFocusedBlock(blockId, 0);
+              position="bottom"
+              withArrow
+              shadow="md"
+              trapFocus={false}
+              closeOnEscape={false}
+              closeOnClickOutside={false}
+              transitionProps={{ duration: 0 }}
+            >
+              <Popover.Target>
+                <Box style={{ width: "100%" }}>
+                  <Editor
+                    ref={editorRef}
+                    value={draft}
+                    onChange={handleContentChangeWithTrigger}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                    lineNumbers={false}
+                    lineWrapping={true}
+                    theme={isDark ? "dark" : "light"}
+                    keybindings={keybindings}
+                    // FOCUS STATE PROP:
+                    // -----------------
+                    // This determines whether markdown markers are visible or hidden
+                    // focusedBlockId comes from useViewStore and is set when user clicks/focuses a block
+                    //
+                    // When true (block has focus):
+                    //   → shouldShowMarkers = true (via shouldShowMarkersForLine in hybridRendering.ts)
+                    //   → Markers are visible → Shows raw markdown (e.g., [[link]], # heading)
+                    //
+                    // When false (block unfocused):
+                    //   → shouldShowMarkers = false
+                    //   → Markers are hidden → Renders formatted content (e.g., link, styled heading)
+                    isFocused={focusedBlockId === blockId}
+                    className="block-editor"
+                    style={{
+                      minHeight: "24px",
+                      fontSize: "14px",
+                    }}
+                  />
+                </Box>
+              </Popover.Target>
+              <Popover.Dropdown
+                p={0}
+                ref={popoverDropdownRef}
+                style={{ minWidth: "300px" }}
+              >
+                <MetadataEditor
+                  blockId={blockId}
+                  onClose={() => {
+                    console.log("MetadataEditor onClose called");
+                    setIsMetadataOpen(false);
+                    // Return focus to editor after metadata is saved
+                    setTimeout(() => {
+                      console.log("Returning focus to editor");
+                      editorRef.current?.focus();
+                    }, 0);
                   }}
                 />
-              )}
+              </Popover.Dropdown>
+            </Popover>
+
+            {/* Metadata Badge - small indicator with tooltip */}
+            {block.metadata && Object.keys(block.metadata).length > 0 && (
+              <Box mt={2}>
+                <Tooltip
+                  label={
+                    <Table
+                      verticalSpacing={2}
+                      horizontalSpacing="xs"
+                      style={{ fontSize: "12px", color: "inherit" }}
+                    >
+                      <Table.Tbody>
+                        {Object.entries(block.metadata).map(([k, v]) => (
+                          <Table.Tr key={k}>
+                            <Table.Td
+                              style={{
+                                fontWeight: 600,
+                                paddingRight: 8,
+                                opacity: 0.7,
+                                borderBottom: "none",
+                              }}
+                            >
+                              {k}:
+                            </Table.Td>
+                            <Table.Td style={{ borderBottom: "none" }}>
+                              {v}
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  }
+                  position="bottom-start"
+                  openDelay={300}
+                  color={isDark ? "dark" : "gray"}
+                  withArrow
+                >
+                  <Badge
+                    size="xs"
+                    variant="dot"
+                    color="gray"
+                    style={{
+                      cursor: "pointer",
+                      textTransform: "none",
+                      paddingLeft: 0,
+                      background: "transparent",
+                      border: "none",
+                      fontWeight: 400,
+                      opacity: 0.6,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMetadataOpen(true);
+                    }}
+                  >
+                    {Object.keys(block.metadata).length} properties
+                  </Badge>
+                </Tooltip>
+              </Box>
+            )}
           </div>
         </div>
 
