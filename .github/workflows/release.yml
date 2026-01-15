@@ -52,7 +52,6 @@ jobs:
           version: npm run version
           publish: echo "Changesets processed"
           title: "chore: Version Packages"
-          commit: "chore: version packages"
           createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
