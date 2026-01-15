@@ -841,17 +841,18 @@ fn calculate_new_order_weight(
             ))
         }
         None => {
-            // Add at the end
-            let last_order: Option<f64> = conn
+            // If no after_block_id is provided, we insert at the BEGINNING of the siblings list.
+            // This supports the outliner rule: "Enter at end of parent -> insert as first child".
+            let first_order: Option<f64> = conn
                 .query_row(
-                    "SELECT MAX(order_weight) FROM blocks WHERE page_id = ? AND parent_id IS ?",
+                    "SELECT MIN(order_weight) FROM blocks WHERE page_id = ? AND parent_id IS ?",
                     params![page_id, parent_id],
                     |row| row.get(0),
                 )
                 .ok()
                 .flatten();
 
-            Ok(fractional_index::calculate_middle(last_order, None))
+            Ok(fractional_index::calculate_middle(None, first_order))
         }
     }
 }
