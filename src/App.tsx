@@ -21,6 +21,7 @@ import { SettingsModal } from "./components/SettingsModal";
 import { SyncProgress } from "./components/SyncProgress";
 import { TitleBar } from "./components/TitleBar";
 import { Updater } from "./components/Updater";
+import { SnowEffect } from "./components/SnowEffect";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 import { BlockEditor } from "./outliner/BlockEditor";
 import { useOutlinerSettingsStore } from "./stores/outlinerSettingsStore";
@@ -233,6 +234,7 @@ function AppContent({ workspacePath }: AppContentProps) {
 
       <Notifications />
       <ErrorNotifications />
+      <SnowEffect />
     </>
   );
 }
