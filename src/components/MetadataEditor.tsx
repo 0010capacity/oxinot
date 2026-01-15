@@ -1,7 +1,6 @@
 import {
   ActionIcon,
   Box,
-  Button,
   Group,
   Menu,
   Stack,
@@ -15,6 +14,7 @@ import {
   IconTextCaption,
   IconToggleLeft,
   IconTrash,
+  IconX,
 } from "@tabler/icons-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
@@ -31,13 +31,39 @@ interface MetadataItem {
 const guessType = (value: string): MetadataType => {
   const trimmed = value.trim();
   if (trimmed === "true" || trimmed === "false") return "boolean";
-  if (!isNaN(Number(trimmed)) && trimmed !== "") return "number";
+  if (!Number.isNaN(Number(trimmed)) && trimmed !== "") return "number";
   if (
     (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
     (trimmed.startsWith("[") && trimmed.endsWith("]"))
   )
     return "json";
   return "text";
+};
+
+const getTypeLabel = (type: MetadataType): string => {
+  switch (type) {
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "json":
+      return "json";
+    default:
+      return "text";
+  }
+};
+
+const getTypeIcon = (type: MetadataType) => {
+  switch (type) {
+    case "number":
+      return <IconHash size={14} />;
+    case "boolean":
+      return <IconToggleLeft size={14} />;
+    case "json":
+      return <IconBraces size={14} />;
+    default:
+      return <IconTextCaption size={14} />;
+  }
 };
 
 interface MetadataEditorProps {
@@ -61,7 +87,6 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   // Refs for managing focus
   const keyRefs = useRef<(HTMLInputElement | null)[]>([]);
   const valueRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (blockId) {
@@ -89,38 +114,37 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
     }
   }, [blockId, getBlock]);
 
-  const handleSave = () => {
+  const handleSaveAndClose = () => {
     if (!blockId) return;
 
     const newMetadata: Record<string, string> = {};
-    items.forEach((item) => {
+    for (const item of items) {
       if (item.key.trim()) {
         newMetadata[item.key.trim()] = item.value;
       }
-    });
+    }
 
     updateBlock(blockId, { metadata: newMetadata });
     onClose();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Save on Mod+Enter
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      handleSave();
-      return;
-    }
-    // Cancel on Escape
+    // Escape closes the editor and saves
     if (e.key === "Escape") {
       e.preventDefault();
-      onClose();
+      handleSaveAndClose();
+      return;
+    }
+    // Cmd+Enter saves and closes
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSaveAndClose();
       return;
     }
   };
 
   const addItem = () => {
     setItems([...items, { key: "", value: "", type: "text" }]);
-    // Focus the new key input after render
     setTimeout(() => {
       keyRefs.current[items.length]?.focus({ preventScroll: true });
     }, 0);
@@ -133,7 +157,6 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
       newItems.push({ key: "", value: "", type: "text" });
     }
     setItems(newItems);
-    // Focus previous item or first item
     setTimeout(() => {
       const targetIndex = Math.max(0, index - 1);
       keyRefs.current[targetIndex]?.focus({ preventScroll: true });
@@ -146,11 +169,9 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
     value: string
   ) => {
     const newItems = [...items];
-    // If updating value, try to auto-guess type if it's currently text or auto-detected
     let type = newItems[index].type;
+
     if (field === "value") {
-      // Simple heuristic: if user changes value, re-evaluate type unless they manually set it?
-      // For now, let's keep it simple: just update type if it matches a strong pattern
       const guessed = guessType(value);
       if (guessed !== "text" && type === "text") {
         type = guessed;
@@ -169,10 +190,8 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
     if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
       e.preventDefault();
       if (field === "key") {
-        // Move to value
         valueRefs.current[index]?.focus();
       } else {
-        // Move to next line or create new
         if (index === items.length - 1) {
           addItem();
         } else {
@@ -184,19 +203,16 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
       field === "key" &&
       items[index].key === ""
     ) {
-      // Delete empty row
       e.preventDefault();
       if (items.length > 1) {
         removeItem(index);
       }
     } else if (e.key === "ArrowUp") {
-      // Navigate up
       if (index > 0) {
         e.preventDefault();
         (field === "key" ? keyRefs : valueRefs).current[index - 1]?.focus();
       }
     } else if (e.key === "ArrowDown") {
-      // Navigate down
       if (index < items.length - 1) {
         e.preventDefault();
         (field === "key" ? keyRefs : valueRefs).current[index + 1]?.focus();
@@ -204,167 +220,194 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
     }
   };
 
-  const getTypeIcon = (type: MetadataType) => {
-    switch (type) {
-      case "number":
-        return <IconHash size={14} />;
-      case "boolean":
-        return <IconToggleLeft size={14} />;
-      case "json":
-        return <IconBraces size={14} />;
-      default:
-        return <IconTextCaption size={14} />;
-    }
-  };
-
   return (
-    <Box p="sm" onKeyDown={handleKeyDown} ref={containerRef}>
-      <Stack gap="sm">
-        {items.map((item, index) => (
-          <Group key={index} align="flex-start" gap="md">
-            <TextInput
-              placeholder="Property"
-              value={item.key}
-              onChange={(e) => updateItem(index, "key", e.target.value)}
-              onKeyDown={(e) => handleInputKeyDown(e, index, "key")}
-              ref={(el) => {
-                keyRefs.current[index] = el;
-              }}
-              style={{ flex: 1 }}
-              variant="unstyled"
-              data-autofocus={index === 0 && item.key === ""}
-              styles={{
-                input: {
-                  borderBottom: `1px solid ${
-                    isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"
-                  }`,
-                  borderRadius: 0,
-                  paddingLeft: 0,
-                  fontWeight: 500,
-                  fontSize: "14px",
-                },
-              }}
-            />
-
-            <TextInput
-              placeholder="Value"
-              value={item.value}
-              onChange={(e) => updateItem(index, "value", e.target.value)}
-              onKeyDown={(e) => handleInputKeyDown(e, index, "value")}
-              ref={(el) => {
-                valueRefs.current[index] = el;
-              }}
-              style={{ flex: 2 }}
-              variant="unstyled"
-              styles={{
-                input: {
-                  borderBottom: `1px solid ${
-                    isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"
-                  }`,
-                  borderRadius: 0,
-                  paddingLeft: 0,
-                  fontSize: "14px",
-                },
-              }}
-              error={
-                item.type === "number" &&
-                item.value &&
-                isNaN(Number(item.value))
-                  ? true
-                  : item.type === "json" && item.value
-                  ? (() => {
-                      try {
-                        JSON.parse(item.value);
-                        return false;
-                      } catch {
-                        return true;
-                      }
-                    })()
-                  : false
-              }
-              rightSectionWidth={60}
-              rightSection={
-                <Menu position="bottom-end" withinPortal>
-                  <Menu.Target>
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      size="sm"
-                      tabIndex={-1}
-                      title={`Type: ${item.type}`}
-                    >
-                      {getTypeIcon(item.type)}
-                    </ActionIcon>
-                  </Menu.Target>
-                  <Menu.Dropdown>
-                    <Menu.Label>Data Type</Menu.Label>
-                    <Menu.Item
-                      leftSection={<IconTextCaption size={14} />}
-                      onClick={() => updateItem(index, "type", "text")}
-                    >
-                      Text
-                    </Menu.Item>
-                    <Menu.Item
-                      leftSection={<IconHash size={14} />}
-                      onClick={() => updateItem(index, "type", "number")}
-                    >
-                      Number
-                    </Menu.Item>
-                    <Menu.Item
-                      leftSection={<IconToggleLeft size={14} />}
-                      onClick={() => updateItem(index, "type", "boolean")}
-                    >
-                      Boolean
-                    </Menu.Item>
-                    <Menu.Item
-                      leftSection={<IconBraces size={14} />}
-                      onClick={() => updateItem(index, "type", "json")}
-                    >
-                      JSON
-                    </Menu.Item>
-                  </Menu.Dropdown>
-                </Menu>
-              }
-            />
-
-            <ActionIcon
-              color="red"
-              variant="transparent"
-              onClick={() => removeItem(index)}
-              tabIndex={-1}
-              style={{ opacity: 0.5 }}
-            >
-              <IconTrash size={16} />
-            </ActionIcon>
-          </Group>
-        ))}
-
-        <Button
-          variant="subtle"
-          color="gray"
-          leftSection={<IconPlus size={16} />}
-          onClick={addItem}
-          size="sm"
-          styles={{ root: { justifyContent: "flex-start", paddingLeft: 8 } }}
-        >
-          Add Property
-        </Button>
-
-        <Group justify="flex-end" mt="xs">
-          <Box
-            style={{
-              fontSize: "11px",
-              opacity: 0.4,
-              fontFamily: "monospace",
-              display: "flex",
-              gap: "16px",
-            }}
-          >
-            <span>↵ next</span>
-            <span>⌘↵ save</span>
-            <span>esc cancel</span>
+    <Box onKeyDown={handleKeyDown} style={{ minWidth: "450px" }}>
+      <Stack gap={0}>
+        {/* Header */}
+        <Group justify="space-between" p="sm" pb={8}>
+          <Box style={{ fontSize: "12px", fontWeight: 600, opacity: 0.6 }}>
+            METADATA
           </Box>
+          <ActionIcon
+            variant="subtle"
+            size="xs"
+            onClick={handleSaveAndClose}
+            title="Close"
+          >
+            <IconX size={16} />
+          </ActionIcon>
         </Group>
+
+        {/* Divider */}
+        <Box
+          style={{
+            height: "1px",
+            background: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+            margin: "0 8px 8px",
+          }}
+        />
+
+        {/* Items */}
+        <Stack gap="xs" px="sm">
+          {items.map((item, index) => (
+            <Group key={index} align="center" gap={8} wrap="nowrap">
+              {/* Property Name */}
+              <TextInput
+                placeholder="key"
+                value={item.key}
+                onChange={(e) => updateItem(index, "key", e.target.value)}
+                onKeyDown={(e) => handleInputKeyDown(e, index, "key")}
+                ref={(el) => {
+                  keyRefs.current[index] = el;
+                }}
+                style={{ flex: 0.6, minWidth: 0 }}
+                variant="unstyled"
+                styles={{
+                  input: {
+                    fontSize: "13px",
+                    padding: "4px 6px",
+                    border: `1px solid ${
+                      isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"
+                    }`,
+                    borderRadius: "4px",
+                    background: isDark
+                      ? "rgba(255,255,255,0.03)"
+                      : "rgba(0,0,0,0.02)",
+                  },
+                }}
+              />
+
+              {/* Type Badge */}
+              <Menu position="bottom-end" withinPortal>
+                <Menu.Target>
+                  <ActionIcon
+                    variant="light"
+                    size="sm"
+                    tabIndex={-1}
+                    title={`Type: ${getTypeLabel(item.type)}`}
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      minWidth: "50px",
+                      height: "28px",
+                    }}
+                  >
+                    <Group gap={4} wrap="nowrap">
+                      {getTypeIcon(item.type)}
+                      <span>{getTypeLabel(item.type)}</span>
+                    </Group>
+                  </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item
+                    leftSection={<IconTextCaption size={14} />}
+                    onClick={() => updateItem(index, "type", "text")}
+                  >
+                    Text
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconHash size={14} />}
+                    onClick={() => updateItem(index, "type", "number")}
+                  >
+                    Number
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconToggleLeft size={14} />}
+                    onClick={() => updateItem(index, "type", "boolean")}
+                  >
+                    Boolean
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconBraces size={14} />}
+                    onClick={() => updateItem(index, "type", "json")}
+                  >
+                    JSON
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+
+              {/* Value */}
+              <TextInput
+                placeholder="value"
+                value={item.value}
+                onChange={(e) => updateItem(index, "value", e.target.value)}
+                onKeyDown={(e) => handleInputKeyDown(e, index, "value")}
+                ref={(el) => {
+                  valueRefs.current[index] = el;
+                }}
+                style={{ flex: 1, minWidth: 0 }}
+                variant="unstyled"
+                styles={{
+                  input: {
+                    fontSize: "13px",
+                    padding: "4px 6px",
+                    border: `1px solid ${
+                      isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"
+                    }`,
+                    borderRadius: "4px",
+                    background: isDark
+                      ? "rgba(255,255,255,0.03)"
+                      : "rgba(0,0,0,0.02)",
+                  },
+                }}
+                error={
+                  item.type === "number" &&
+                  item.value &&
+                  Number.isNaN(Number(item.value))
+                    ? true
+                    : item.type === "json" && item.value
+                    ? (() => {
+                        try {
+                          JSON.parse(item.value);
+                          return false;
+                        } catch {
+                          return true;
+                        }
+                      })()
+                    : false
+                }
+              />
+
+              {/* Delete Button */}
+              <ActionIcon
+                color="red"
+                variant="subtle"
+                size="sm"
+                onClick={() => removeItem(index)}
+                tabIndex={-1}
+              >
+                <IconTrash size={14} />
+              </ActionIcon>
+            </Group>
+          ))}
+        </Stack>
+
+        {/* Add Property Button */}
+        <Group px="sm" pt={8}>
+          <ActionIcon
+            variant="subtle"
+            size="sm"
+            onClick={addItem}
+            title="Add property"
+          >
+            <IconPlus size={14} />
+          </ActionIcon>
+          <span style={{ fontSize: "12px", opacity: 0.5 }}>add property</span>
+        </Group>
+
+        {/* Footer Help Text */}
+        <Box
+          px="sm"
+          pt={8}
+          pb="sm"
+          style={{
+            fontSize: "11px",
+            opacity: 0.4,
+            fontFamily: "monospace",
+          }}
+        >
+          ↵ next • ⌘↵ save • esc close
+        </Box>
       </Stack>
     </Box>
   );
