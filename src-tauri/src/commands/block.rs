@@ -701,27 +701,40 @@ pub async fn toggle_collapse(workspace_path: String, block_id: String) -> Result
 /// Merge a block into its previous sibling (move children, append content, delete block).
 /// This is an atomic operation to prevent data loss.
 #[tauri::command]
-pub async fn merge_blocks(workspace_path: String, block_id: String) -> Result<Vec<Block>, String> {
+pub async fn merge_blocks(
+    workspace_path: String,
+    block_id: String,
+    target_id: Option<String>,
+) -> Result<Vec<Block>, String> {
     let mut conn = open_workspace_db(&workspace_path)?;
 
     // 1. Get current block
     let block = get_block_by_id(&conn, &block_id)?;
 
-    // 2. Find previous sibling
-    let prev_sibling = find_previous_sibling(&conn, &block)
-        .map_err(|_| "Cannot merge: no previous sibling".to_string())?;
+    // 2. Find target block (previous sibling or specified target)
+    let target_block = match target_id {
+        Some(tid) => {
+            let target = get_block_by_id(&conn, &tid)?;
+            if target.page_id != block.page_id {
+                return Err("Cannot merge blocks from different pages".to_string());
+            }
+            target
+        }
+        None => find_previous_sibling(&conn, &block)
+            .map_err(|_| "Cannot merge: no previous sibling".to_string())?,
+    };
 
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
-    // 3. Move all children of current block to previous sibling
-    // They should be appended to the end of previous sibling's children
+    // 3. Move all children of current block to target block
+    // They should be appended to the end of target block's children
     let mut moved_child_ids = Vec::new();
     {
-        // Get existing children of previous sibling to find last order_weight
+        // Get existing children of target block to find last order_weight
         let last_child_weight: Option<f64> = tx
             .query_row(
                 "SELECT MAX(order_weight) FROM blocks WHERE parent_id = ?",
-                params![&prev_sibling.id],
+                params![&target_block.id],
                 |row| row.get(0),
             )
             .ok()
@@ -753,7 +766,7 @@ pub async fn merge_blocks(workspace_path: String, block_id: String) -> Result<Ve
 
             tx.execute(
                 "UPDATE blocks SET parent_id = ?, order_weight = ?, updated_at = ? WHERE id = ?",
-                params![&prev_sibling.id, new_weight, &now, &child_id],
+                params![&target_block.id, new_weight, &now, &child_id],
             )
             .map_err(|e| e.to_string())?;
 
@@ -761,13 +774,13 @@ pub async fn merge_blocks(workspace_path: String, block_id: String) -> Result<Ve
         }
     }
 
-    // 4. Update previous sibling content (append current block content)
-    let new_content = format!("{}{}", prev_sibling.content, block.content);
+    // 4. Update target block content (append current block content)
+    let new_content = format!("{}{}", target_block.content, block.content);
     let now = Utc::now().to_rfc3339();
 
     tx.execute(
         "UPDATE blocks SET content = ?, updated_at = ? WHERE id = ?",
-        params![&new_content, &now, &prev_sibling.id],
+        params![&new_content, &now, &target_block.id],
     )
     .map_err(|e| e.to_string())?;
 
@@ -786,9 +799,9 @@ pub async fn merge_blocks(workspace_path: String, block_id: String) -> Result<Ve
     // Return all changed blocks (merged block + moved children)
     let mut changed_blocks = Vec::new();
 
-    // Updated previous block (merged)
-    let updated_prev = get_block_by_id(&conn, &prev_sibling.id)?;
-    changed_blocks.push(updated_prev);
+    // Updated target block (merged)
+    let updated_target = get_block_by_id(&conn, &target_block.id)?;
+    changed_blocks.push(updated_target);
 
     // Moved children
     for child_id in moved_child_ids {
@@ -1373,7 +1386,7 @@ mod tests {
             // - Block1 content: "AB"
             // - Block1 children: Child2_1, Child2_2
             // - Block2 deleted
-            merge_blocks(path_str.clone(), b2.id.clone()).await.unwrap();
+            merge_blocks(path_str.clone(), b2.id.clone(), None).await.unwrap();
             update_meta();
 
             let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();

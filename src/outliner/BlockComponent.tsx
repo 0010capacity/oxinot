@@ -40,7 +40,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const indentBlock = useBlockStore((state) => state.indentBlock);
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
-    const mergeBlock = useBlockStore((state) => state.mergeBlock);
+    const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
+    const splitBlockAtCursor = useBlockStore((state) => state.splitBlockAtCursor);
     const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
     const targetCursorPosition = useBlockStore(
       (state) => state.targetCursorPosition
@@ -211,12 +212,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           imeStateRef.current.lastInputWasComposition = false;
 
           // Execute block operation immediately since composition is already done
-          commitDraft();
-
+          // For split, we pass the content directly to the store action to ensure atomic update
+          // For create (at end), we trigger save but can proceed with creation independently
+          
           if (cursor === contentLength) {
-            createBlock(blockId);
+             commitDraft();
+             createBlock(blockId);
           } else {
-            useBlockStore.getState().splitBlockAtOffset(blockId, cursor);
+             // Pass current content to ensure split happens on the correct text
+             splitBlockAtCursor(blockId, cursor, content);
           }
 
           // Reset state
@@ -240,7 +244,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         dom.removeEventListener("beforeinput", handleBeforeInput);
         dom.removeEventListener("keydown", handleKeyDown, { capture: true });
       };
-    }, [blockId, createBlock, commitDraft]);
+    }, [blockId, createBlock, commitDraft, splitBlockAtCursor]);
 
     const handleFocus = useCallback(() => {
       // Reset IME state when focusing a different block
@@ -384,16 +388,17 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             }
 
             // Start async operations but return true immediately to prevent default behavior
-            commitDraft().then(() => {
-              // Determine whether to split block or create new sibling based on cursor position
-              if (cursor === contentLength) {
-                // Cursor at end: create new sibling block
-                createBlock(blockId);
-              } else {
-                // Cursor in middle: split current block
-                useBlockStore.getState().splitBlockAtOffset(blockId, cursor);
-              }
-            });
+            // Determine whether to split block or create new sibling based on cursor position
+            if (cursor === contentLength) {
+              // Cursor at end: create new sibling block
+              // Commit current block changes first
+              commitDraft();
+              createBlock(blockId);
+            } else {
+              // Cursor in middle: split current block
+              // Pass content explicitly to avoid race conditions with store state
+              splitBlockAtCursor(blockId, cursor, content);
+            }
 
             return true; // Prevent default CodeMirror behavior
           },
@@ -411,39 +416,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const content = view.state.doc.toString();
             const cursor = view.state.selection.main.head;
 
-            if (content === "") {
-              // Empty block - delete and move to previous
-              const prevBlockId = useBlockStore
-                .getState()
-                .getPreviousBlock(blockId);
-              deleteBlock(blockId);
-              if (prevBlockId) {
-                const prevBlock = useBlockStore
-                  .getState()
-                  .getBlock(prevBlockId);
-                if (prevBlock) {
-                  // Move to end of previous block
-                  setFocusedBlock(prevBlockId, prevBlock.content.length);
-                } else {
-                  setFocusedBlock(prevBlockId);
-                }
-              }
-              return true;
-            }
-
             if (cursor === 0) {
-              // At start of non-empty block - merge with previous
-              const prevBlockId = useBlockStore
-                .getState()
-                .getPreviousBlock(blockId);
-              if (prevBlockId) {
-                // Start async operations but return true immediately to prevent default behavior
-                commitDraft().then(() => {
-                  // Pass current editor content to ensure draft is merged
-                  mergeBlock(blockId, content);
-                });
-                return true;
-              }
+              // At start of block (empty or not)
+              // Delegate to store action which handles:
+              // 1. If empty -> delete and move to previous
+              // 2. If content -> merge with previous
+              // 3. If no previous -> no-op
+              mergeWithPrevious(blockId, content);
+              return true;
             }
             return false; // Allow default backspace behavior
           },
@@ -571,12 +551,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     }, [
       blockId,
       createBlock,
-      deleteBlock,
       setFocusedBlock,
       indentBlock,
       outdentBlock,
       commitDraft,
-      mergeBlock,
+      mergeWithPrevious,
+      splitBlockAtCursor,
     ]);
 
     if (!block) return null;

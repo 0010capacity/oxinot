@@ -53,7 +53,11 @@ interface BlockActions {
   ) => Promise<string>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
-  splitBlockAtOffset: (id: string, offset: number) => Promise<void>;
+  splitBlockAtCursor: (
+    id: string,
+    offset: number,
+    draftContent?: string
+  ) => Promise<void>;
 
   // 블록 조작
   indentBlock: (id: string) => Promise<void>;
@@ -63,7 +67,7 @@ interface BlockActions {
     newParentId: string | null,
     afterBlockId: string | null
   ) => Promise<void>;
-  mergeBlock: (id: string, currentContent?: string) => Promise<void>;
+  mergeWithPrevious: (id: string, draftContent?: string) => Promise<void>;
   toggleCollapse: (id: string) => Promise<void>;
 
   // 선택/포커스
@@ -72,16 +76,46 @@ interface BlockActions {
   clearTargetCursorPosition: () => void;
 
   // 키보드 네비게이션
-  getPreviousBlock: (id: string) => string | null;
-  getNextBlock: (id: string) => string | null;
-
-  // 셀렉터
   getBlock: (id: string) => BlockData | undefined;
   getChildren: (parentId: string | null) => string[];
   getRootBlockIds: () => string[];
+
+  // Page Lifecycle
+  openPage: (pageId: string) => Promise<void>;
 }
 
 type BlockStore = BlockState & BlockActions;
+
+// ============ Helper Functions ============
+
+/**
+ * Determines where to insert a new block relative to a current block.
+ * Rule:
+ * 1. If current block has children: insert as FIRST CHILD.
+ * 2. Else: insert as NEXT SIBLING.
+ */
+function getInsertBelowTarget(
+  currentId: string,
+  blocksById: Record<string, BlockData>,
+  childrenMap: Record<string, string[]>
+): { parentId: string | null; afterBlockId: string | null } {
+  const currentBlock = blocksById[currentId];
+  const hasChildren = (childrenMap[currentId] ?? []).length > 0;
+
+  if (hasChildren) {
+    // Rule: First child
+    return {
+      parentId: currentId,
+      afterBlockId: null, // null means "at start" (first child)
+    };
+  }
+
+  // Rule: Next sibling
+  return {
+    parentId: currentBlock?.parentId ?? null,
+    afterBlockId: currentId,
+  };
+}
 
 // ============ Store Implementation ============
 
@@ -99,10 +133,15 @@ export const useBlockStore = create<BlockStore>()(
 
     // ============ Page Operations ============
 
-    loadPage: async (pageId: string) => {
+    openPage: async (pageId: string) => {
+      // Prevent duplicate loads
+      if (get().currentPageId === pageId && get().isLoading) return;
+
       set((state) => {
         state.isLoading = true;
         state.error = null;
+        // Don't clear page data yet to avoid flash if switching?
+        // Actually we should probably clear or just let the new data replace it.
       });
 
       try {
@@ -116,7 +155,7 @@ export const useBlockStore = create<BlockStore>()(
           pageId,
         });
 
-        // 정규화
+        // Normalize
         const blocksById: Record<string, BlockData> = {};
         const childrenMap: Record<string, string[]> = { root: [] };
 
@@ -130,19 +169,36 @@ export const useBlockStore = create<BlockStore>()(
           childrenMap[parentKey].push(block.id);
         }
 
-        // orderWeight로 정렬
+        // orderWeight sort
         for (const key of Object.keys(childrenMap)) {
           childrenMap[key].sort((a, b) => {
             return blocksById[a].orderWeight - blocksById[b].orderWeight;
           });
         }
 
+        // Check for empty page and handle initial block
+        const isRootEmpty = (childrenMap.root ?? []).length === 0;
+
         set((state) => {
           state.blocksById = blocksById;
           state.childrenMap = childrenMap;
           state.currentPageId = pageId;
-          state.isLoading = false;
+          // Keep isLoading = true if we are about to create an initial block
+          if (!isRootEmpty) {
+            state.isLoading = false;
+          }
         });
+
+        if (isRootEmpty) {
+          // Create initial block optimistically
+          // createBlock will update state with temp block
+          await get().createBlock(null, "");
+          
+          set((state) => {
+             state.isLoading = false;
+          });
+        }
+
       } catch (error) {
         set((state) => {
           state.error =
@@ -150,6 +206,11 @@ export const useBlockStore = create<BlockStore>()(
           state.isLoading = false;
         });
       }
+    },
+
+    loadPage: async (pageId: string) => {
+       // Legacy wrapper: use openPage
+       return get().openPage(pageId);
     },
 
     clearPage: () => {
@@ -223,24 +284,14 @@ export const useBlockStore = create<BlockStore>()(
       if (!currentPageId) throw new Error("No page loaded");
 
       // Determine where to place the new block:
-      // If afterBlock has children, new block becomes first child
-      // Otherwise, new block becomes next sibling
       let parentId: string | null = null;
       let afterBlockIdForBackend: string | null = null;
 
       if (afterBlockId) {
-        const afterBlock = blocksById[afterBlockId];
-        const hasChildren = (childrenMap[afterBlockId] ?? []).length > 0;
-
-        if (hasChildren) {
-          // Create as first child of afterBlock
-          parentId = afterBlockId;
-          afterBlockIdForBackend = null; // null means first child
-        } else {
-          // Create as next sibling of afterBlock
-          parentId = afterBlock?.parentId ?? null;
-          afterBlockIdForBackend = afterBlockId;
-        }
+        // Use canonical rule for "insert below"
+        const target = getInsertBelowTarget(afterBlockId, blocksById, childrenMap);
+        parentId = target.parentId;
+        afterBlockIdForBackend = target.afterBlockId;
       }
 
       // Use optimistic update only for root block creation (initial empty page)
@@ -391,22 +442,24 @@ export const useBlockStore = create<BlockStore>()(
       }
     },
 
-    splitBlockAtOffset: async (id: string, offset: number) => {
+    splitBlockAtCursor: async (
+      id: string,
+      offset: number,
+      draftContent?: string
+    ) => {
       const { currentPageId, blocksById, childrenMap } = get();
       if (!currentPageId) throw new Error("No page loaded");
 
       const block = blocksById[id];
       if (!block) throw new Error("Block not found");
 
-      const beforeContent = block.content.slice(0, offset);
-      const afterContent = block.content.slice(offset);
+      const contentToSplit = draftContent ?? block.content;
+      const beforeContent = contentToSplit.slice(0, offset);
+      const afterContent = contentToSplit.slice(offset);
 
-      // Determine where to place the new block:
-      // If current block has children, new block becomes first child
-      // Otherwise, new block becomes next sibling
-      const hasChildren = (childrenMap[id] ?? []).length > 0;
-      const newParentId = hasChildren ? id : block.parentId;
-      const afterBlockIdForBackend = hasChildren ? null : id;
+      // Determine where to place the new block using canonical rule
+      const { parentId: newParentId, afterBlockId: afterBlockIdForBackend } =
+        getInsertBelowTarget(id, blocksById, childrenMap);
 
       // Update current block content first (this also updates state)
       try {
@@ -551,12 +604,36 @@ export const useBlockStore = create<BlockStore>()(
       get().updatePartialBlocks([updatedBlock]);
     },
 
-    mergeBlock: async (id: string, currentContent?: string) => {
-      const { blocksById, getPreviousBlock } = get();
+    mergeWithPrevious: async (id: string, draftContent?: string) => {
+      const { blocksById, getPreviousVisibleBlock, deleteBlock } = get();
       const currentBlock = blocksById[id];
       if (!currentBlock) return;
 
-      const prevBlockId = getPreviousBlock(id);
+      const contentToMerge = draftContent ?? currentBlock.content;
+
+      // Case 1: If current block is empty, delete it and move focus to previous
+      if (contentToMerge === "") {
+        const prevBlockId = getPreviousVisibleBlock(id);
+        await deleteBlock(id);
+        
+        if (prevBlockId) {
+          const prevBlock = get().blocksById[prevBlockId];
+          if (prevBlock) {
+             set((state) => {
+                state.focusedBlockId = prevBlockId;
+                state.targetCursorPosition = prevBlock.content.length;
+             });
+          } else {
+             set((state) => {
+                state.focusedBlockId = prevBlockId;
+             });
+          }
+        }
+        return;
+      }
+
+      // Case 2: Non-empty block, merge into previous
+      const prevBlockId = getPreviousVisibleBlock(id);
       if (!prevBlockId) return;
 
       const prevBlock = blocksById[prevBlockId];
@@ -569,19 +646,19 @@ export const useBlockStore = create<BlockStore>()(
       const cursorPosition = prevBlock.content.length;
 
       try {
-        // If currentContent is provided (draft), update the block content first
-        // This ensures the backend merge operation works with the latest content
+        // If draftContent is provided, update the block content first
         if (
-          currentContent !== undefined &&
-          currentContent !== currentBlock.content
+          draftContent !== undefined &&
+          draftContent !== currentBlock.content
         ) {
-          await get().updateBlockContent(id, currentContent);
+          await get().updateBlockContent(id, draftContent);
         }
 
         // Backend handles the merge atomically and returns changed blocks
         const changedBlocks: BlockData[] = await invoke("merge_blocks", {
           workspacePath,
           blockId: id,
+          targetId: prevBlockId,
         });
 
         // Update only the changed blocks (merged block + moved children)
@@ -660,7 +737,7 @@ export const useBlockStore = create<BlockStore>()(
 
     // ============ Keyboard Navigation ============
 
-    getPreviousBlock: (id: string) => {
+    getPreviousVisibleBlock: (id: string) => {
       const { blocksById, childrenMap } = get();
       const block = blocksById[id];
       if (!block) return null;
@@ -670,34 +747,41 @@ export const useBlockStore = create<BlockStore>()(
       const index = siblings.indexOf(id);
 
       if (index > 0) {
-        // 이전 형제가 있으면, 그 형제의 마지막 보이는 자손으로 이동
-        const prevSibling = siblings[index - 1];
-        const prevBlock = blocksById[prevSibling];
+        // Previous sibling exists
+        const prevSiblingId = siblings[index - 1];
+        const prevSibling = blocksById[prevSiblingId];
+        if (!prevSibling) return null;
 
-        if (!prevBlock) return null;
-
-        // 접혀있지 않고 자식이 있으면 마지막 자식의 마지막 자손으로
-        let lastVisibleId = prevSibling;
-        let currentChildren = childrenMap[lastVisibleId] ?? [];
-
-        while (
-          currentChildren.length > 0 &&
-          !blocksById[lastVisibleId]?.isCollapsed
-        ) {
-          lastVisibleId = currentChildren[currentChildren.length - 1];
-          currentChildren = childrenMap[lastVisibleId] ?? [];
+        // If expanded and has children, find the last visible descendant
+        let currentId = prevSiblingId;
+        while (true) {
+          const currentBlock = blocksById[currentId];
+          const children = childrenMap[currentId];
+          
+          if (
+            currentBlock &&
+            !currentBlock.isCollapsed &&
+            children &&
+            children.length > 0
+          ) {
+            // Go to last child
+            currentId = children[children.length - 1];
+          } else {
+            // No more visible children
+            return currentId;
+          }
         }
-
-        return lastVisibleId;
       }
 
       if (block.parentId) {
-        // 첫 번째 형제면 부모로
+        // First sibling -> go to parent
         return block.parentId;
       }
 
       return null;
     },
+
+    getPreviousBlock: (id: string) => get().getPreviousVisibleBlock(id),
 
     getNextBlock: (id: string) => {
       const { blocksById, childrenMap } = get();
