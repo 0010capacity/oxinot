@@ -406,7 +406,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
             fontFamily: "monospace",
           }}
         >
-          ↵ next • ⌘↵ save • esc close
+          ↵ next • esc close
         </Box>
       </Stack>
     </Box>
