@@ -77,13 +77,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const draftRef = useRef<string>(block.content);
 
     // Keep draft in sync when the underlying block changes (e.g., page load, external update)
-    // but do not overwrite while this block is focused (editing session owns the draft).
+    // but do not overwrite while this block is focused (editing session owns the draft),
+    // UNLESS we are navigating to this block programmatically (targetCursorPosition is set),
+    // which implies a structural change (merge/split/move) where store is authoritative.
     useEffect(() => {
-      if (focusedBlockId !== blockId) {
-        setDraft(block.content);
-        draftRef.current = block.content;
+      const isProgrammaticNav = targetCursorPosition !== null;
+      
+      if (focusedBlockId !== blockId || isProgrammaticNav) {
+        // Only update if content is actually different to prevent unnecessary renders
+        if (block.content !== draftRef.current) {
+           setDraft(block.content);
+           draftRef.current = block.content;
+        }
       }
-    }, [block.content, focusedBlockId, blockId]);
+    }, [block.content, focusedBlockId, blockId, targetCursorPosition]);
 
     // Commit helper: stable callback reading from refs (doesn't change every keystroke).
     const commitDraft = useCallback(async () => {
