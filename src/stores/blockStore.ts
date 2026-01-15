@@ -164,6 +164,24 @@ export const useBlockStore = create<BlockStore>()(
 
     updatePartialBlocks: (blocks: BlockData[], deletedBlockIds?: string[]) => {
       set((state) => {
+        // Collect affected parent IDs before any modifications
+        const affectedParentIds = new Set<string>();
+
+        // Add parents of updated/added blocks
+        for (const block of blocks) {
+          affectedParentIds.add(block.parentId ?? "root");
+        }
+
+        // Add parents of deleted blocks (BEFORE deleting them!)
+        if (deletedBlockIds) {
+          for (const id of deletedBlockIds) {
+            const block = state.blocksById[id];
+            if (block) {
+              affectedParentIds.add(block.parentId ?? "root");
+            }
+          }
+        }
+
         // Update or add blocks
         for (const block of blocks) {
           state.blocksById[block.id] = block;
@@ -173,20 +191,6 @@ export const useBlockStore = create<BlockStore>()(
         if (deletedBlockIds) {
           for (const id of deletedBlockIds) {
             delete state.blocksById[id];
-          }
-        }
-
-        // Rebuild childrenMap for affected blocks
-        const affectedParentIds = new Set<string>();
-        for (const block of blocks) {
-          affectedParentIds.add(block.parentId ?? "root");
-        }
-        if (deletedBlockIds) {
-          for (const id of deletedBlockIds) {
-            const block = state.blocksById[id];
-            if (block) {
-              affectedParentIds.add(block.parentId ?? "root");
-            }
           }
         }
 
