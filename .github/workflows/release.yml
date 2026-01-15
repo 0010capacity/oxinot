@@ -119,6 +119,3 @@ jobs:
           releaseBody: "See the assets to download this version and check the release notes."
           releaseDraft: false
           prerelease: false
-```
-
-이제 auto-changeset workflow도 개선하겠습니다:
