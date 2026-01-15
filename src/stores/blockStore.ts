@@ -551,7 +551,7 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     mergeBlock: async (id: string, currentContent?: string) => {
-      const { blocksById, childrenMap, getPreviousBlock } = get();
+      const { blocksById, getPreviousBlock } = get();
       const currentBlock = blocksById[id];
       if (!currentBlock) return;
 
@@ -564,57 +564,35 @@ export const useBlockStore = create<BlockStore>()(
       const workspacePath = useWorkspaceStore.getState().workspacePath;
       if (!workspacePath) throw new Error("No workspace selected");
 
-      // 1. Calculate new state
-      // Use provided currentContent (draft) if available, otherwise use stored content
-      const contentToMerge = currentContent ?? currentBlock.content;
-      const newContent = prevBlock.content + contentToMerge;
+      // Calculate cursor position for focus after merge
       const cursorPosition = prevBlock.content.length;
-      const childrenToMove = childrenMap[id] ?? [];
-
-      // Optimistic update
-      set((state) => {
-        // Update previous block content
-        if (state.blocksById[prevBlockId]) {
-          state.blocksById[prevBlockId].content = newContent;
-          state.blocksById[prevBlockId].updatedAt = new Date().toISOString();
-        }
-
-        // Reparent children to previous block
-        if (!state.childrenMap[prevBlockId]) {
-          state.childrenMap[prevBlockId] = [];
-        }
-
-        // Add children to prevBlock
-        state.childrenMap[prevBlockId].push(...childrenToMove);
-
-        // Update parentId for children
-        for (const childId of childrenToMove) {
-          if (state.blocksById[childId]) {
-            state.blocksById[childId].parentId = prevBlockId;
-          }
-        }
-
-        // Delete current block
-        delete state.blocksById[id];
-        const parentKey = currentBlock.parentId ?? "root";
-        state.childrenMap[parentKey] =
-          state.childrenMap[parentKey]?.filter((childId) => childId !== id) ??
-          [];
-
-        // Remove empty children entry for deleted block
-        delete state.childrenMap[id];
-
-        // Update focus
-        state.focusedBlockId = prevBlockId;
-        state.targetCursorPosition = cursorPosition;
-      });
 
       try {
-        // Single atomic backend command
+        // If currentContent is provided (draft), update the block content first
+        // This ensures the backend merge operation works with the latest content
+        if (
+          currentContent !== undefined &&
+          currentContent !== currentBlock.content
+        ) {
+          await get().updateBlockContent(id, currentContent);
+        }
+
+        // Backend handles the merge atomically
         await invoke("merge_blocks", {
           workspacePath,
           blockId: id,
         });
+
+        // Reload page to get accurate merged state from backend
+        const pageId = get().currentPageId;
+        if (pageId) {
+          await get().loadPage(pageId);
+          // Set focus and cursor position after reload completes
+          set((state) => {
+            state.focusedBlockId = prevBlockId;
+            state.targetCursorPosition = cursorPosition;
+          });
+        }
       } catch (error) {
         console.error("Failed to merge blocks:", error);
         // Force reload to restore correct state
