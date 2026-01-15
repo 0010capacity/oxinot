@@ -5,6 +5,8 @@ import { IconCopy } from "@tabler/icons-react";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Editor, type EditorRef } from "../components/Editor";
+import { MetadataBadges } from "../components/MetadataBadge";
+import { parseBlockMetadata } from "../utils/metadata";
 import {
   useBlock,
   useBlockStore,
@@ -12,6 +14,7 @@ import {
   useFocusedBlockId,
 } from "../stores/blockStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
@@ -40,7 +43,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const indentBlock = useBlockStore((state) => state.indentBlock);
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
-    const splitBlockAtCursor = useBlockStore((state) => state.splitBlockAtCursor);
+    const splitBlockAtCursor = useBlockStore(
+      (state) => state.splitBlockAtCursor
+    );
     const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
     const targetCursorPosition = useBlockStore(
       (state) => state.targetCursorPosition
@@ -81,12 +86,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // which implies a structural change (merge/split/move) where store is authoritative.
     useEffect(() => {
       const isProgrammaticNav = targetCursorPosition !== null;
-      
+
       if (focusedBlockId !== blockId || isProgrammaticNav) {
         // Only update if content is actually different to prevent unnecessary renders
         if (block.content !== draftRef.current) {
-           setDraft(block.content);
-           draftRef.current = block.content;
+          setDraft(block.content);
+          draftRef.current = block.content;
         }
       }
     }, [block.content, focusedBlockId, blockId, targetCursorPosition]);
@@ -220,13 +225,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           // Execute block operation immediately since composition is already done
           // For split, we pass the content directly to the store action to ensure atomic update
           // For create (at end), we trigger save but can proceed with creation independently
-          
+
           if (cursor === contentLength) {
-             commitDraft();
-             createBlock(blockId);
+            commitDraft();
+            createBlock(blockId);
           } else {
-             // Pass current content to ensure split happens on the correct text
-             splitBlockAtCursor(blockId, cursor, content);
+            // Pass current content to ensure split happens on the correct text
+            splitBlockAtCursor(blockId, cursor, content);
           }
 
           // Reset state
@@ -265,11 +270,54 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       setDraft(content);
     }, []);
 
-    const handleBlur = useCallback(() => {
-      commitDraft();
+    const handleBlur = useCallback(async () => {
+      const currentContent = draftRef.current;
+
+      // Parse metadata from content
+      const { metadata, cleanContent } = parseBlockMetadata(currentContent);
+
+      // Check if metadata was found
+      const hasMetadata = Object.keys(metadata).length > 0;
+
+      if (hasMetadata) {
+        // Update content to remove metadata lines
+        draftRef.current = cleanContent;
+        setDraft(cleanContent);
+
+        // Update block with clean content and metadata
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (workspacePath) {
+          try {
+            const { invoke } = await import("@tauri-apps/api/core");
+            await invoke("update_block", {
+              workspacePath,
+              request: {
+                id: blockId,
+                content: cleanContent,
+                metadata,
+              },
+            });
+
+            // Update local state
+            useBlockStore.setState((state) => {
+              if (state.blocksById[blockId]) {
+                state.blocksById[blockId].content = cleanContent;
+                state.blocksById[blockId].metadata = metadata;
+                state.blocksById[blockId].updatedAt = new Date().toISOString();
+              }
+            });
+          } catch (error) {
+            console.error("Failed to update block with metadata:", error);
+          }
+        }
+      } else {
+        // No metadata found, just commit the draft normally
+        await commitDraft();
+      }
+
       // Clear IME state on blur
       imeStateRef.current.lastInputWasComposition = false;
-    }, [commitDraft]);
+    }, [commitDraft, blockId]);
 
     const handleCopyBlockId = useCallback(
       async (e: React.MouseEvent) => {
@@ -683,6 +731,19 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 fontSize: "14px",
               }}
             />
+
+            {/* Metadata Badges - shown when block is not focused */}
+            {block.metadata &&
+              Object.keys(block.metadata).length > 0 &&
+              focusedBlockId !== blockId && (
+                <MetadataBadges
+                  metadata={block.metadata}
+                  onBadgeClick={() => {
+                    // Click badge to focus block and enable editing
+                    setFocusedBlock(blockId, 0);
+                  }}
+                />
+              )}
           </div>
         </div>
 
