@@ -613,3 +613,44 @@ pub async fn reindex_workspace(workspace_path: String) -> Result<MigrationResult
 
     Ok(result)
 }
+
+#[tauri::command]
+pub async fn close_workspace() -> Result<(), String> {
+    // Current implementation doesn't need to do anything server-side
+    // The frontend just clears the state
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn reveal_in_finder(path: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open finder: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg("/select,")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open explorer: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Try xdg-open (might open parent dir instead of selecting file)
+        // Better: dbus-send or specific file manager commands if needed
+        let parent = std::path::Path::new(&path).parent().unwrap_or(std::path::Path::new("/"));
+        std::process::Command::new("xdg-open")
+            .arg(parent)
+            .spawn()
+            .map_err(|e| format!("Failed to open file manager: {}", e))?;
+    }
+
+    Ok(())
+}
