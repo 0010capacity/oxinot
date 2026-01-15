@@ -1,4 +1,5 @@
 use rusqlite::{params, Connection};
+use std::collections::HashMap;
 
 use crate::models::block::Block;
 use crate::utils::markdown::{blocks_to_markdown, sanitize_content_for_markdown};
@@ -794,7 +795,7 @@ pub fn sync_page_to_markdown_after_block_change(
         )
         .map_err(|e| e.to_string())?;
 
-    let blocks: Vec<Block> = stmt
+    let mut blocks: Vec<Block> = stmt
         .query_map([page_id], |row| {
             Ok(Block {
                 id: row.get(0)?,
@@ -807,13 +808,20 @@ pub fn sync_page_to_markdown_after_block_change(
                 language: row.get(7)?,
                 created_at: row.get(8)?,
                 updated_at: row.get(9)?,
+                metadata: HashMap::new(),
             })
         })
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // Convert blocks to markdown
+    // Load metadata for all blocks
+    for block in &mut blocks {
+        let metadata = load_block_metadata_for_sync(conn, &block.id)?;
+        block.metadata = metadata;
+    }
+
+    // Convert blocks to markdown (now includes metadata)
     let markdown = blocks_to_markdown(&blocks);
 
     // Write to file
@@ -823,4 +831,24 @@ pub fn sync_page_to_markdown_after_block_change(
     update_page_file_metadata(conn, &full_path, page_id)?;
 
     Ok(())
+}
+
+/// Load metadata for a block (helper for page_sync)
+fn load_block_metadata_for_sync(
+    conn: &Connection,
+    block_id: &str,
+) -> Result<HashMap<String, String>, String> {
+    let mut stmt = conn
+        .prepare("SELECT key, value FROM block_metadata WHERE block_id = ? ORDER BY key")
+        .map_err(|e| e.to_string())?;
+
+    let metadata = stmt
+        .query_map([block_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<HashMap<_, _>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(metadata)
 }
