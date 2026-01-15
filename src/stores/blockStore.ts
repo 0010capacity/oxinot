@@ -610,9 +610,19 @@ export const useBlockStore = create<BlockStore>()(
     // ============ Block Manipulation ============
 
     indentBlock: async (id: string) => {
-      const { blocksById } = get();
+      const { blocksById, childrenMap } = get();
       const block = blocksById[id];
       if (!block) return;
+
+      // Check if we can indent (must have a previous sibling)
+      const parentId = block.parentId ?? "root";
+      const siblings = childrenMap[parentId] ?? [];
+      const index = siblings.indexOf(id);
+      
+      if (index <= 0) {
+          // No previous sibling, cannot indent. Fail silently.
+          return;
+      }
 
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
