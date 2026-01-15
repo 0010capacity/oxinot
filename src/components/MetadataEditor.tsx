@@ -24,6 +24,7 @@ import { useBlockStore } from "../stores/blockStore";
 type MetadataType = "text" | "number" | "boolean" | "json";
 
 interface MetadataItem {
+  id: string;
   key: string;
   value: string;
   type: MetadataType;
@@ -100,7 +101,8 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
 
         const loadedItems: MetadataItem[] = Object.entries(block.metadata || {})
           .filter(([key]) => key !== "ID") // Filter out internal ID
-          .map(([key, value]) => ({
+          .map(([key, value], index) => ({
+            id: `${blockId}-${index}`,
             key,
             value: String(value),
             type: guessType(String(value)),
@@ -108,7 +110,12 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
 
         // Always start with at least one empty row if empty
         if (loadedItems.length === 0) {
-          loadedItems.push({ key: "", value: "", type: "text" });
+          loadedItems.push({
+            id: `${blockId}-0`,
+            key: "",
+            value: "",
+            type: "text",
+          });
         }
         setItems(loadedItems);
 
@@ -150,7 +157,8 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   };
 
   const addItem = () => {
-    setItems([...items, { key: "", value: "", type: "text" }]);
+    const newId = `${blockUuid}-${items.length}`;
+    setItems([...items, { id: newId, key: "", value: "", type: "text" }]);
     setTimeout(() => {
       keyRefs.current[items.length]?.focus({ preventScroll: true });
     }, 0);
@@ -160,7 +168,12 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
     const newItems = [...items];
     newItems.splice(index, 1);
     if (newItems.length === 0) {
-      newItems.push({ key: "", value: "", type: "text" });
+      newItems.push({
+        id: `${blockUuid}-0`,
+        key: "",
+        value: "",
+        type: "text",
+      });
     }
     setItems(newItems);
     setTimeout(() => {
@@ -282,12 +295,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
         {/* Items */}
         <Stack gap="xs" px="sm">
           {items.map((item, index) => (
-            <Group
-              key={`${blockUuid}-${item.key}-${index}`}
-              align="center"
-              gap={8}
-              wrap="nowrap"
-            >
+            <Group key={item.id} align="center" gap={8} wrap="nowrap">
               {/* Property Name */}
               <TextInput
                 placeholder="key"
