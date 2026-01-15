@@ -88,7 +88,7 @@ jobs:
             git checkout -b changeset-auto
             git add .changeset
             git commit -m "chore: auto-generate changeset"
-            git push origin changeset-auto
+            git push origin changeset-auto --force
 
             gh pr create \
               --title "chore: auto-generate changeset" \
