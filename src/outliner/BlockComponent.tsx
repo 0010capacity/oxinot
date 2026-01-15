@@ -32,7 +32,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const hasChildren = childIds.length > 0;
     const focusedBlockId = useFocusedBlockId();
     const showIndentGuides = useOutlinerSettingsStore(
-      (state) => state.showIndentGuides,
+      (state) => state.showIndentGuides
     );
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
@@ -43,10 +43,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const mergeBlock = useBlockStore((state) => state.mergeBlock);
     const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
     const targetCursorPosition = useBlockStore(
-      (state) => state.targetCursorPosition,
+      (state) => state.targetCursorPosition
     );
     const clearTargetCursorPosition = useBlockStore(
-      (state) => state.clearTargetCursorPosition,
+      (state) => state.clearTargetCursorPosition
     );
 
     const blockComponentRef = useRef<HTMLDivElement>(null);
@@ -287,7 +287,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }
         }
       },
-      [blockId],
+      [blockId]
     );
 
     const handleBulletClick = useCallback(
@@ -320,7 +320,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           editorRef.current?.focus();
         }
       },
-      [blockId, hasChildren, setFocusedBlock],
+      [blockId, hasChildren, setFocusedBlock]
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
@@ -436,9 +436,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 .getState()
                 .getPreviousBlock(blockId);
               if (prevBlockId) {
-                  commitDraft();
-                  mergeBlock(blockId);
-                  return true;
+                commitDraft();
+                // Pass current editor content to ensure draft is merged
+                mergeBlock(blockId, content);
+                return true;
               }
             }
             return false; // Allow default backspace behavior
@@ -562,10 +563,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       blockId,
       createBlock,
       deleteBlock,
+      setFocusedBlock,
       indentBlock,
       outdentBlock,
-      setFocusedBlock,
       commitDraft,
+      mergeBlock,
     ]);
 
     if (!block) return null;
@@ -589,7 +591,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           {hasChildren ? (
             <button
               type="button"
-              className={`collapse-toggle ${block.isCollapsed ? "collapsed" : ""}`}
+              className={`collapse-toggle ${
+                block.isCollapsed ? "collapsed" : ""
+              }`}
               onClick={() => toggleCollapse(blockId)}
               aria-label={block.isCollapsed ? "Expand" : "Collapse"}
             >
@@ -713,5 +717,5 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         </style>
       </div>
     );
-  },
+  }
 );

@@ -59,7 +59,7 @@ interface BlockActions {
     newParentId: string | null,
     afterBlockId: string | null
   ) => Promise<void>;
-  mergeBlock: (id: string) => Promise<void>;
+  mergeBlock: (id: string, currentContent?: string) => Promise<void>;
   toggleCollapse: (id: string) => Promise<void>;
 
   // 선택/포커스
@@ -550,7 +550,7 @@ export const useBlockStore = create<BlockStore>()(
       if (pageId) await get().loadPage(pageId);
     },
 
-    mergeBlock: async (id: string) => {
+    mergeBlock: async (id: string, currentContent?: string) => {
       const { blocksById, childrenMap, getPreviousBlock } = get();
       const currentBlock = blocksById[id];
       if (!currentBlock) return;
@@ -565,7 +565,9 @@ export const useBlockStore = create<BlockStore>()(
       if (!workspacePath) throw new Error("No workspace selected");
 
       // 1. Calculate new state
-      const newContent = prevBlock.content + currentBlock.content;
+      // Use provided currentContent (draft) if available, otherwise use stored content
+      const contentToMerge = currentContent ?? currentBlock.content;
+      const newContent = prevBlock.content + contentToMerge;
       const cursorPosition = prevBlock.content.length;
       const childrenToMove = childrenMap[id] ?? [];
 
@@ -578,27 +580,27 @@ export const useBlockStore = create<BlockStore>()(
         }
 
         // Reparent children to previous block
-        const prevChildren = state.childrenMap[prevBlockId] ?? [];
         if (!state.childrenMap[prevBlockId]) {
           state.childrenMap[prevBlockId] = [];
         }
 
         // Add children to prevBlock
         state.childrenMap[prevBlockId].push(...childrenToMove);
-        
+
         // Update parentId for children
-        childrenToMove.forEach(childId => {
+        for (const childId of childrenToMove) {
           if (state.blocksById[childId]) {
             state.blocksById[childId].parentId = prevBlockId;
           }
-        });
+        }
 
         // Delete current block
         delete state.blocksById[id];
         const parentKey = currentBlock.parentId ?? "root";
         state.childrenMap[parentKey] =
-          state.childrenMap[parentKey]?.filter((childId) => childId !== id) ?? [];
-        
+          state.childrenMap[parentKey]?.filter((childId) => childId !== id) ??
+          [];
+
         // Remove empty children entry for deleted block
         delete state.childrenMap[id];
 
@@ -610,8 +612,8 @@ export const useBlockStore = create<BlockStore>()(
       try {
         // Single atomic backend command
         await invoke("merge_blocks", {
-            workspacePath,
-            blockId: id,
+          workspacePath,
+          blockId: id,
         });
       } catch (error) {
         console.error("Failed to merge blocks:", error);
