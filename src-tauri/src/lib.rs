@@ -2,11 +2,11 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-mod commands;
-mod db;
-mod models;
-mod services;
-mod utils;
+pub mod commands;
+pub mod db;
+pub mod models;
+pub mod services;
+pub mod utils;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileSystemItem {
