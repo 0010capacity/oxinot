@@ -86,9 +86,6 @@ interface BlockActions {
 
   // Page Lifecycle
   openPage: (pageId: string) => Promise<void>;
-
-  // Debug
-  debugDumpState: () => Promise<void>;
 }
 
 type BlockStore = BlockState & BlockActions;
@@ -149,8 +146,6 @@ export const useBlockStore = create<BlockStore>()(
       set((state) => {
         state.isLoading = true;
         state.error = null;
-        // Don't clear page data yet to avoid flash if switching?
-        // Actually we should probably clear or just let the new data replace it.
       });
 
       try {
@@ -200,7 +195,6 @@ export const useBlockStore = create<BlockStore>()(
 
         if (isRootEmpty) {
           // Create initial block optimistically
-          // createBlock will update state with temp block
           await get().createBlock(null, "");
           
           set((state) => {
@@ -214,66 +208,6 @@ export const useBlockStore = create<BlockStore>()(
             error instanceof Error ? error.message : "Failed to load page";
           state.isLoading = false;
         });
-      }
-    },
-
-    debugDumpState: async () => {
-      const { currentPageId, blocksById } = get();
-      if (!currentPageId) {
-        console.warn("[Debug] No page loaded");
-        return;
-      }
-
-      const workspacePath = useWorkspaceStore.getState().workspacePath;
-      if (!workspacePath) return;
-
-      try {
-        console.group(`[Debug State] Page: ${currentPageId}`);
-
-        // 1. Frontend Store State
-        console.log("1. Frontend (Store):", {
-            blocks: JSON.parse(JSON.stringify(blocksById)),
-            children: JSON.parse(JSON.stringify(get().childrenMap))
-        });
-
-        // 2. DB State
-        const dbBlocks: BlockData[] = await invoke("get_page_blocks", {
-          workspacePath,
-          pageId: currentPageId,
-        });
-        const dbBlocksById: Record<string, BlockData> = {};
-        for (const b of dbBlocks) dbBlocksById[b.id] = b;
-        console.log("2. Backend (DB):", dbBlocksById);
-
-        // 3. File State
-        // Need to find file path first
-        const pages: any[] = await invoke("get_pages", { workspacePath });
-        const currentPage = pages.find((p) => p.id === currentPageId);
-        
-        console.log("[Debug] Page info:", currentPage);
-
-        if (currentPage) {
-          // Handle both camelCase (if generated) and snake_case (raw DB)
-          const relativePath = currentPage.filePath || currentPage.file_path;
-          
-          if (relativePath) {
-              const filePath = `${workspacePath}/${relativePath}`;
-              try {
-                  const fileContent: string = await invoke("read_file", { filePath });
-                  console.log("3. File (Markdown):", `\n${fileContent}`);
-              } catch (e) {
-                  console.error(`[Debug] Failed to read file at ${filePath}:`, e);
-              }
-          } else {
-              console.log("3. File: (No file path found in page object)");
-          }
-        } else {
-          console.log("3. File: (Page not found in get_pages)");
-        }
-
-        console.groupEnd();
-      } catch (error) {
-        console.error("[Debug] Failed to dump state:", error);
       }
     },
 
@@ -483,11 +417,8 @@ export const useBlockStore = create<BlockStore>()(
     updateBlockContent: async (id: string, content: string) => {
       const { mergingBlockId, mergingTargetBlockId, blocksById } = get();
       
-      // console.log(`[Store] updateBlockContent request: ${id} content="${content.slice(0, 20)}..."`);
-
       // Prevent UI from overwriting blocks involved in an active merge operation.
       if (id === mergingBlockId || id === mergingTargetBlockId) {
-         console.warn(`[Store] Blocked stale update for merging block ${id} (merging=${mergingBlockId}, target=${mergingTargetBlockId})`);
          return;
       }
 
@@ -505,8 +436,6 @@ export const useBlockStore = create<BlockStore>()(
           request: { id, content },
         });
         
-        // console.log(`[Store] updateBlockContent success: ${id}`);
-
         // Update state with backend result
         set((state) => {
           if (state.blocksById[id]) {
@@ -704,12 +633,9 @@ export const useBlockStore = create<BlockStore>()(
     mergeWithPrevious: async (id: string, draftContent?: string) => {
       const { blocksById, getPreviousVisibleBlock, deleteBlock, mergingBlockId } =
         get();
-      
-      console.log(`[Store] mergeWithPrevious called for ${id}`);
 
       // Prevent concurrent merges on the same block
       if (mergingBlockId === id) {
-          console.warn(`[Store] Concurrent merge blocked for ${id}`);
           return;
       }
 
@@ -725,7 +651,6 @@ export const useBlockStore = create<BlockStore>()(
 
         // Case 1: If current block is empty, delete it and move focus to previous
         if (contentToMerge === "") {
-          console.log(`[Store] Merging empty block ${id} -> delete`);
           const prevBlockId = getPreviousVisibleBlock(id);
           await deleteBlock(id);
 
@@ -748,16 +673,9 @@ export const useBlockStore = create<BlockStore>()(
         // Case 2: Non-empty block, merge into previous
         const prevBlockId = getPreviousVisibleBlock(id);
         if (!prevBlockId) {
-            console.log(`[Store] No previous block for ${id}, aborting merge`);
             return;
         }
         
-        console.log(`[Store] Merging ${id} into ${prevBlockId}`);
-        
-        // Log children state before merge
-        const sourceChildren = get().childrenMap[id] ?? [];
-        console.log(`[Store] Source block ${id} has children in Store: ${JSON.stringify(sourceChildren)}`);
-
         // Lock the target block to prevent stale UI updates from overwriting the merge result
         set((state) => {
            state.mergingTargetBlockId = prevBlockId;
@@ -770,9 +688,7 @@ export const useBlockStore = create<BlockStore>()(
         if (!workspacePath) throw new Error("No workspace selected");
 
         // Paranoid sync: Ensure target block content in DB matches Store before merge
-        // This handles cases where previous block has pending edits that haven't hit DB yet
         if (prevBlock) {
-             console.log(`[Store] Syncing target block ${prevBlockId} before merge`);
              await invoke("update_block", {
                 workspacePath,
                 request: { id: prevBlockId, content: prevBlock.content },
@@ -783,13 +699,10 @@ export const useBlockStore = create<BlockStore>()(
         const cursorPosition = prevBlock.content.length;
 
         // If draftContent is provided, update the block content first
-        // NOTE: We directly invoke backend/state update here to bypass the 
-        // 'mergingBlockId' guard in updateBlockContent.
         if (
           draftContent !== undefined &&
           draftContent !== currentBlock.content
         ) {
-          console.log(`[Store] Syncing draft content for ${id} before merge`);
           await invoke("update_block", {
              workspacePath,
              request: { id, content: draftContent },
@@ -804,13 +717,11 @@ export const useBlockStore = create<BlockStore>()(
         }
 
         // Backend handles the merge atomically and returns changed blocks
-        console.log(`[Store] Invoking backend merge_blocks...`);
         const changedBlocks: BlockData[] = await invoke("merge_blocks", {
           workspacePath,
           blockId: id,
           targetId: prevBlockId,
         });
-        console.log(`[Store] Backend merge success. Changed blocks: ${changedBlocks.length} IDs: ${changedBlocks.map(b => b.id).join(", ")}`);
 
         // Update only the changed blocks (merged block + moved children)
         get().updatePartialBlocks(changedBlocks, [id]);
@@ -820,9 +731,6 @@ export const useBlockStore = create<BlockStore>()(
           state.focusedBlockId = prevBlockId;
           state.targetCursorPosition = cursorPosition;
         });
-
-        // Verify state consistency after merge
-        setTimeout(() => get().debugDumpState(), 100);
       } catch (error) {
         console.error("Failed to merge blocks:", error);
 
@@ -846,8 +754,6 @@ export const useBlockStore = create<BlockStore>()(
             state.focusedBlockId = prev ?? null;
           }
         });
-
-        setTimeout(() => get().debugDumpState(), 100);
       } finally {
         set((state) => {
           state.mergingBlockId = null;
