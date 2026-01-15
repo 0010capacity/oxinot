@@ -136,3 +136,88 @@ fn normalize_target_path(raw: &str) -> String {
     
     path.to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_simple_link() {
+        let content = "Check out [[Page One]] here.";
+        let links = parse_wiki_links(content);
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].target_path, "Page One");
+        assert_eq!(links[0].link_type, "page_link");
+        assert_eq!(links[0].alias, None);
+    }
+
+    #[test]
+    fn test_parse_alias() {
+        let content = "Go to [[Page One|First Page]].";
+        let links = parse_wiki_links(content);
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].target_path, "Page One");
+        assert_eq!(links[0].alias, Some("First Page".to_string()));
+    }
+
+    #[test]
+    fn test_parse_heading() {
+        let content = "See [[Page One#Section 1]].";
+        let links = parse_wiki_links(content);
+        assert_eq!(links[0].target_path, "Page One");
+        assert_eq!(links[0].heading, Some("Section 1".to_string()));
+        assert_eq!(links[0].link_type, "page_link");
+    }
+
+    #[test]
+    fn test_parse_block_ref() {
+        let content = "Reference: [[Page One#^block-123]].";
+        let links = parse_wiki_links(content);
+        assert_eq!(links[0].target_path, "Page One");
+        assert_eq!(links[0].block_ref, Some("block-123".to_string()));
+        assert_eq!(links[0].link_type, "block_link");
+    }
+
+    #[test]
+    fn test_parse_embed() {
+        let content = "Embed: ![[Image.png]]";
+        let links = parse_wiki_links(content);
+        assert_eq!(links[0].target_path, "Image.png");
+        assert_eq!(links[0].is_embed, true);
+        assert_eq!(links[0].link_type, "embed_page");
+    }
+
+    #[test]
+    fn test_normalization() {
+        let content = "Link: [[Folder\\File.md]]";
+        let links = parse_wiki_links(content);
+        assert_eq!(links[0].target_path, "Folder/File"); // .md stripped, \ -> /
+    }
+
+    #[test]
+    fn test_ignore_code_blocks() {
+        let content = "
+        Here is a link: [[Valid Link]]
+        ```rust
+        // This is not a link: [[Ignored Link]]
+        fn main() {}
+        ```
+        And another: [[Valid Link 2]]
+        `inline code [[Ignored Inline]]`
+        ";
+        let links = parse_wiki_links(content);
+        assert_eq!(links.len(), 2);
+        assert_eq!(links[0].target_path, "Valid Link");
+        assert_eq!(links[1].target_path, "Valid Link 2");
+    }
+
+    #[test]
+    fn test_multiple_links() {
+        let content = "[[Link A]] and [[Link B|Alias]]";
+        let links = parse_wiki_links(content);
+        assert_eq!(links.len(), 2);
+        assert_eq!(links[0].target_path, "Link A");
+        assert_eq!(links[1].target_path, "Link B");
+        assert_eq!(links[1].alias, Some("Alias".to_string()));
+    }
+}
