@@ -546,12 +546,7 @@ pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Ve
         .map_err(|e| e.to_string())?;
 
     // Sync to markdown file (allow targeted patching for this delete; may fall back to full rewrite)
-    sync_page_to_markdown_after_delete(
-        &conn,
-        &workspace_path,
-        &page_id,
-        block_id.as_str(),
-    )?;
+    sync_page_to_markdown_after_delete(&conn, &workspace_path, &page_id, block_id.as_str())?;
 
     Ok(deleted_ids)
 }
@@ -590,7 +585,12 @@ pub async fn move_block(
     let moved_block = get_block_by_id(&conn, &request.id)?;
 
     // Sync to markdown file
-    sync_page_to_markdown_after_move(&conn, &workspace_path, &moved_block.page_id, &moved_block.id)?;
+    sync_page_to_markdown_after_move(
+        &conn,
+        &workspace_path,
+        &moved_block.page_id,
+        &moved_block.id,
+    )?;
 
     Ok(moved_block)
 }
@@ -624,7 +624,12 @@ pub async fn indent_block(workspace_path: String, block_id: String) -> Result<Bl
     let updated_block = get_block_by_id(&conn, &block_id)?;
 
     // Sync to markdown file
-    sync_page_to_markdown_after_move(&conn, &workspace_path, &updated_block.page_id, &updated_block.id)?;
+    sync_page_to_markdown_after_move(
+        &conn,
+        &workspace_path,
+        &updated_block.page_id,
+        &updated_block.id,
+    )?;
 
     Ok(updated_block)
 }
@@ -661,7 +666,12 @@ pub async fn outdent_block(workspace_path: String, block_id: String) -> Result<B
     let updated_block = get_block_by_id(&conn, &block_id)?;
 
     // Sync to markdown file
-    sync_page_to_markdown_after_move(&conn, &workspace_path, &updated_block.page_id, &updated_block.id)?;
+    sync_page_to_markdown_after_move(
+        &conn,
+        &workspace_path,
+        &updated_block.page_id,
+        &updated_block.id,
+    )?;
 
     Ok(updated_block)
 }
@@ -686,6 +696,120 @@ pub async fn toggle_collapse(workspace_path: String, block_id: String) -> Result
     sync_page_to_markdown(&conn, &workspace_path, &updated_block.page_id)?;
 
     Ok(updated_block)
+}
+
+/// Merge a block into its previous sibling (move children, append content, delete block).
+/// This is an atomic operation to prevent data loss.
+#[tauri::command]
+pub async fn merge_blocks(
+    workspace_path: String,
+    block_id: String,
+    target_id: Option<String>,
+) -> Result<Vec<Block>, String> {
+    let mut conn = open_workspace_db(&workspace_path)?;
+
+    // 1. Get current block
+    let block = get_block_by_id(&conn, &block_id)?;
+
+    // 2. Find target block (previous sibling or specified target)
+    let target_block = match target_id {
+        Some(tid) => {
+            let target = get_block_by_id(&conn, &tid)?;
+            if target.page_id != block.page_id {
+                return Err("Cannot merge blocks from different pages".to_string());
+            }
+            target
+        }
+        None => find_previous_sibling(&conn, &block)
+            .map_err(|_| "Cannot merge: no previous sibling".to_string())?,
+    };
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    // 3. Move all children of current block to target block
+    // They should be appended to the end of target block's children
+    let mut moved_child_ids = Vec::new();
+    {
+        // Get existing children of target block to find last order_weight
+        let last_child_weight: Option<f64> = tx
+            .query_row(
+                "SELECT MAX(order_weight) FROM blocks WHERE parent_id = ?",
+                params![&target_block.id],
+                |row| row.get(0),
+            )
+            .ok()
+            .flatten();
+
+        // Get children of current block
+        let mut children_stmt = tx
+            .prepare(
+                "SELECT id, order_weight FROM blocks WHERE parent_id = ? ORDER BY order_weight",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let children_rows = children_stmt
+            .query_map([&block_id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+
+        let now = Utc::now().to_rfc3339();
+
+        // Reparent each child
+        let mut last_weight = last_child_weight;
+        for (child_id, _) in children_rows {
+            // Calculate new weight (append to end)
+            let new_weight = fractional_index::calculate_middle(last_weight, None);
+            last_weight = Some(new_weight);
+
+            tx.execute(
+                "UPDATE blocks SET parent_id = ?, order_weight = ?, updated_at = ? WHERE id = ?",
+                params![&target_block.id, new_weight, &now, &child_id],
+            )
+            .map_err(|e| e.to_string())?;
+
+            moved_child_ids.push(child_id);
+        }
+    }
+
+    // 4. Update target block content (append current block content)
+    let new_content = format!("{}{}", target_block.content, block.content);
+    let now = Utc::now().to_rfc3339();
+
+    tx.execute(
+        "UPDATE blocks SET content = ?, updated_at = ? WHERE id = ?",
+        params![&new_content, &now, &target_block.id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // 5. Delete current block (it is now empty and childless)
+    tx.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
+        .map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
+
+    // 6. Sync to markdown (Full rewrite to be safe for complex structural changes)
+    // Re-open connection or use a new one because transaction consumes it?
+    // Actually rusqlite transaction commit consumes the transaction but leaves connection usable if we didn't consume it.
+    // But here `tx` borrows `conn` mutably. After commit, we can use `conn`.
+    sync_page_to_markdown(&conn, &workspace_path, &block.page_id)?;
+
+    // Return all changed blocks (merged block + moved children)
+    let mut changed_blocks = Vec::new();
+
+    // Updated target block (merged)
+    let updated_target = get_block_by_id(&conn, &target_block.id)?;
+    changed_blocks.push(updated_target);
+
+    // Moved children
+    for child_id in moved_child_ids {
+        let child = get_block_by_id(&conn, &child_id)?;
+        changed_blocks.push(child);
+    }
+
+    Ok(changed_blocks)
 }
 
 // ============ Helper Functions ============
@@ -717,17 +841,18 @@ fn calculate_new_order_weight(
             ))
         }
         None => {
-            // Add at the end
-            let last_order: Option<f64> = conn
+            // If no after_block_id is provided, we insert at the BEGINNING of the siblings list.
+            // This supports the outliner rule: "Enter at end of parent -> insert as first child".
+            let first_order: Option<f64> = conn
                 .query_row(
-                    "SELECT MAX(order_weight) FROM blocks WHERE page_id = ? AND parent_id IS ?",
+                    "SELECT MIN(order_weight) FROM blocks WHERE page_id = ? AND parent_id IS ?",
                     params![page_id, parent_id],
                     |row| row.get(0),
                 )
                 .ok()
                 .flatten();
 
-            Ok(fractional_index::calculate_middle(last_order, None))
+            Ok(fractional_index::calculate_middle(None, first_order))
         }
     }
 }
@@ -831,8 +956,8 @@ pub fn block_type_to_string(bt: &BlockType) -> String {
 mod tests {
     use super::*;
     use crate::commands::workspace;
-    use std::fs;
     use crate::models::block::CreateBlockRequest;
+    use std::fs;
 
     #[test]
     fn test_incremental_insertion() {
@@ -843,13 +968,15 @@ mod tests {
             let path_str = temp_dir.to_string_lossy().to_string();
 
             // Init workspace (creates .oxinot/db.sqlite)
-            workspace::initialize_workspace(path_str.clone()).await.unwrap();
+            workspace::initialize_workspace(path_str.clone())
+                .await
+                .unwrap();
 
             // Manually insert a page into DB and create file
             let conn = open_workspace_db(&path_str).unwrap();
             let page_id = Uuid::new_v4().to_string();
             let page_file = "TestPage.md";
-            
+
             conn.execute(
                 "INSERT INTO pages (id, title, file_path, is_directory, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)",
                 params![page_id, "TestPage", page_file, Utc::now().to_rfc3339(), Utc::now().to_rfc3339()]
@@ -859,9 +986,18 @@ mod tests {
 
             // Sync metadata so mtime/size match (important for safe patching!)
             let metadata = fs::metadata(temp_dir.join(page_file)).unwrap();
-            let mtime = metadata.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+            let mtime = metadata
+                .modified()
+                .unwrap()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as i64;
             let size = metadata.len() as i64;
-            conn.execute("UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?", params![mtime, size, page_id]).unwrap();
+            conn.execute(
+                "UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?",
+                params![mtime, size, page_id],
+            )
+            .unwrap();
 
             // 1. Create first block
             let req1 = CreateBlockRequest {
@@ -897,7 +1033,7 @@ mod tests {
             let b1_idx = lines.iter().position(|l| l.contains("Block 1")).unwrap();
             let b2_idx = lines.iter().position(|l| l.contains("Block 2")).unwrap();
             assert!(b1_idx < b2_idx);
-            
+
             // Check no duplication
             assert_eq!(content.matches(&format!("ID::{}", b2.id)).count(), 1);
 
@@ -910,16 +1046,19 @@ mod tests {
     fn test_incremental_relocation() {
         tauri::async_runtime::block_on(async {
             // Setup temp workspace
-            let temp_dir = std::env::temp_dir().join(format!("oxinot_test_move_{}", Uuid::new_v4()));
+            let temp_dir =
+                std::env::temp_dir().join(format!("oxinot_test_move_{}", Uuid::new_v4()));
             fs::create_dir_all(&temp_dir).unwrap();
             let path_str = temp_dir.to_string_lossy().to_string();
 
-            workspace::initialize_workspace(path_str.clone()).await.unwrap();
+            workspace::initialize_workspace(path_str.clone())
+                .await
+                .unwrap();
 
             let conn = open_workspace_db(&path_str).unwrap();
             let page_id = Uuid::new_v4().to_string();
             let page_file = "MovePage.md";
-            
+
             conn.execute(
                 "INSERT INTO pages (id, title, file_path, is_directory, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)",
                 params![page_id, "MovePage", page_file, Utc::now().to_rfc3339(), Utc::now().to_rfc3339()]
@@ -928,31 +1067,50 @@ mod tests {
             fs::write(temp_dir.join(page_file), "").unwrap();
             let update_meta = || {
                 let metadata = fs::metadata(temp_dir.join(page_file)).unwrap();
-                let mtime = metadata.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+                let mtime = metadata
+                    .modified()
+                    .unwrap()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64;
                 let size = metadata.len() as i64;
                 let conn = open_workspace_db(&path_str).unwrap();
-                conn.execute("UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?", params![mtime, size, page_id]).unwrap();
+                conn.execute(
+                    "UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?",
+                    params![mtime, size, page_id],
+                )
+                .unwrap();
             };
             update_meta();
 
             // Setup:
             // - B1
             // - B2
-            let b1 = create_block(path_str.clone(), CreateBlockRequest {
-                page_id: page_id.clone(),
-                parent_id: None,
-                content: Some("B1".to_string()),
-                block_type: None,
-                after_block_id: None,
-            }).await.unwrap();
+            let b1 = create_block(
+                path_str.clone(),
+                CreateBlockRequest {
+                    page_id: page_id.clone(),
+                    parent_id: None,
+                    content: Some("B1".to_string()),
+                    block_type: None,
+                    after_block_id: None,
+                },
+            )
+            .await
+            .unwrap();
             update_meta();
-            let b2 = create_block(path_str.clone(), CreateBlockRequest {
-                page_id: page_id.clone(),
-                parent_id: None,
-                content: Some("B2".to_string()),
-                block_type: None,
-                after_block_id: Some(b1.id.clone()),
-            }).await.unwrap();
+            let b2 = create_block(
+                path_str.clone(),
+                CreateBlockRequest {
+                    page_id: page_id.clone(),
+                    parent_id: None,
+                    content: Some("B2".to_string()),
+                    block_type: None,
+                    after_block_id: Some(b1.id.clone()),
+                },
+            )
+            .await
+            .unwrap();
             update_meta();
 
             // 1. Indent B2 under B1
@@ -964,12 +1122,20 @@ mod tests {
             assert!(content.contains("  - B2"));
             // Check that B2 marker is more indented
             let lines: Vec<&str> = content.lines().collect();
-            let _b1_m_idx = lines.iter().position(|l| l.contains(&format!("ID::{}", b1.id))).unwrap();
-            let b2_m_idx = lines.iter().position(|l| l.contains(&format!("ID::{}", b2.id))).unwrap();
+            let _b1_m_idx = lines
+                .iter()
+                .position(|l| l.contains(&format!("ID::{}", b1.id)))
+                .unwrap();
+            let b2_m_idx = lines
+                .iter()
+                .position(|l| l.contains(&format!("ID::{}", b2.id)))
+                .unwrap();
             assert!(lines[b2_m_idx].starts_with("    ID::")); // 4 spaces
 
             // 2. Outdent B2
-            outdent_block(path_str.clone(), b2.id.clone()).await.unwrap();
+            outdent_block(path_str.clone(), b2.id.clone())
+                .await
+                .unwrap();
             update_meta();
 
             let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
@@ -978,11 +1144,16 @@ mod tests {
             assert!(!content.contains("  - B2"));
 
             // 3. Move B1 after B2
-            move_block(path_str.clone(), MoveBlockRequest {
-                id: b1.id.clone(),
-                new_parent_id: None,
-                after_block_id: Some(b2.id.clone()),
-            }).await.unwrap();
+            move_block(
+                path_str.clone(),
+                MoveBlockRequest {
+                    id: b1.id.clone(),
+                    new_parent_id: None,
+                    after_block_id: Some(b2.id.clone()),
+                },
+            )
+            .await
+            .unwrap();
             update_meta();
 
             let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
@@ -1000,10 +1171,13 @@ mod tests {
     fn test_complex_subtree_relocation() {
         tauri::async_runtime::block_on(async {
             // Setup
-            let temp_dir = std::env::temp_dir().join(format!("oxinot_test_subtree_{}", Uuid::new_v4()));
+            let temp_dir =
+                std::env::temp_dir().join(format!("oxinot_test_subtree_{}", Uuid::new_v4()));
             fs::create_dir_all(&temp_dir).unwrap();
             let path_str = temp_dir.to_string_lossy().to_string();
-            workspace::initialize_workspace(path_str.clone()).await.unwrap();
+            workspace::initialize_workspace(path_str.clone())
+                .await
+                .unwrap();
 
             let conn = open_workspace_db(&path_str).unwrap();
             let page_id = Uuid::new_v4().to_string();
@@ -1015,10 +1189,19 @@ mod tests {
             fs::write(temp_dir.join(page_file), "").unwrap();
             let update_meta = || {
                 let metadata = fs::metadata(temp_dir.join(page_file)).unwrap();
-                let mtime = metadata.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+                let mtime = metadata
+                    .modified()
+                    .unwrap()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64;
                 let size = metadata.len() as i64;
                 let conn = open_workspace_db(&path_str).unwrap();
-                conn.execute("UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?", params![mtime, size, page_id]).unwrap();
+                conn.execute(
+                    "UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?",
+                    params![mtime, size, page_id],
+                )
+                .unwrap();
             };
             update_meta();
 
@@ -1026,37 +1209,57 @@ mod tests {
             // - Parent1
             //   - Child1
             // - Parent2
-            let p1 = create_block(path_str.clone(), CreateBlockRequest {
-                page_id: page_id.clone(),
-                parent_id: None,
-                content: Some("Parent1".to_string()),
-                block_type: None,
-                after_block_id: None,
-            }).await.unwrap();
+            let p1 = create_block(
+                path_str.clone(),
+                CreateBlockRequest {
+                    page_id: page_id.clone(),
+                    parent_id: None,
+                    content: Some("Parent1".to_string()),
+                    block_type: None,
+                    after_block_id: None,
+                },
+            )
+            .await
+            .unwrap();
             update_meta();
-            let _c1 = create_block(path_str.clone(), CreateBlockRequest {
-                page_id: page_id.clone(),
-                parent_id: Some(p1.id.clone()),
-                content: Some("Child1".to_string()),
-                block_type: None,
-                after_block_id: None,
-            }).await.unwrap();
+            let _c1 = create_block(
+                path_str.clone(),
+                CreateBlockRequest {
+                    page_id: page_id.clone(),
+                    parent_id: Some(p1.id.clone()),
+                    content: Some("Child1".to_string()),
+                    block_type: None,
+                    after_block_id: None,
+                },
+            )
+            .await
+            .unwrap();
             update_meta();
-            let p2 = create_block(path_str.clone(), CreateBlockRequest {
-                page_id: page_id.clone(),
-                parent_id: None,
-                content: Some("Parent2".to_string()),
-                block_type: None,
-                after_block_id: Some(p1.id.clone()),
-            }).await.unwrap();
+            let p2 = create_block(
+                path_str.clone(),
+                CreateBlockRequest {
+                    page_id: page_id.clone(),
+                    parent_id: None,
+                    content: Some("Parent2".to_string()),
+                    block_type: None,
+                    after_block_id: Some(p1.id.clone()),
+                },
+            )
+            .await
+            .unwrap();
             update_meta();
 
             // Move Parent1 (and Child1) under Parent2
-            move_block(path_str.clone(), MoveBlockRequest {
-                id: p1.id.clone(),
-                new_parent_id: Some(p2.id.clone()),
-                after_block_id: None,
-            }).await.unwrap();
+            move_block(
+                path_str.clone(),
+                MoveBlockRequest {
+                    id: p1.id.clone(),
+                    new_parent_id: Some(p2.id.clone()),
+                    after_block_id: None,
+                },
+            )
+            .await
+            .unwrap();
             update_meta();
 
             let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
@@ -1069,11 +1272,159 @@ mod tests {
             let p2_idx = lines.iter().position(|l| l.contains("Parent2")).unwrap();
             let p1_idx = lines.iter().position(|l| l.contains("Parent1")).unwrap();
             let c1_idx = lines.iter().position(|l| l.contains("Child1")).unwrap();
-            
+
             assert!(p2_idx < p1_idx);
             assert!(p1_idx < c1_idx);
             assert!(lines[p1_idx].starts_with("  - Parent1"));
             assert!(lines[c1_idx].starts_with("    - Child1"));
+
+            // Teardown
+            fs::remove_dir_all(&temp_dir).unwrap();
+        });
+    }
+
+    #[test]
+    fn test_merge_blocks() {
+        tauri::async_runtime::block_on(async {
+            // Setup
+            let temp_dir =
+                std::env::temp_dir().join(format!("oxinot_test_merge_{}", Uuid::new_v4()));
+            fs::create_dir_all(&temp_dir).unwrap();
+            let path_str = temp_dir.to_string_lossy().to_string();
+            workspace::initialize_workspace(path_str.clone())
+                .await
+                .unwrap();
+
+            let conn = open_workspace_db(&path_str).unwrap();
+            let page_id = Uuid::new_v4().to_string();
+            let page_file = "MergePage.md";
+            conn.execute(
+                "INSERT INTO pages (id, title, file_path, is_directory, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)",
+                params![page_id, "MergePage", page_file, Utc::now().to_rfc3339(), Utc::now().to_rfc3339()]
+            ).unwrap();
+            fs::write(temp_dir.join(page_file), "").unwrap();
+            let update_meta = || {
+                let metadata = fs::metadata(temp_dir.join(page_file)).unwrap();
+                let mtime = metadata
+                    .modified()
+                    .unwrap()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64;
+                let size = metadata.len() as i64;
+                let conn = open_workspace_db(&path_str).unwrap();
+                conn.execute(
+                    "UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?",
+                    params![mtime, size, page_id],
+                )
+                .unwrap();
+            };
+            update_meta();
+
+            // Structure:
+            // - Block1 (content: "A")
+            // - Block2 (content: "B")
+            //   - Child2_1
+            //   - Child2_2
+            let b1 = create_block(
+                path_str.clone(),
+                CreateBlockRequest {
+                    page_id: page_id.clone(),
+                    parent_id: None,
+                    content: Some("A".to_string()),
+                    block_type: None,
+                    after_block_id: None,
+                },
+            )
+            .await
+            .unwrap();
+            update_meta();
+
+            let b2 = create_block(
+                path_str.clone(),
+                CreateBlockRequest {
+                    page_id: page_id.clone(),
+                    parent_id: None,
+                    content: Some("B".to_string()),
+                    block_type: None,
+                    after_block_id: Some(b1.id.clone()),
+                },
+            )
+            .await
+            .unwrap();
+            update_meta();
+
+            let c1 = create_block(
+                path_str.clone(),
+                CreateBlockRequest {
+                    page_id: page_id.clone(),
+                    parent_id: Some(b2.id.clone()),
+                    content: Some("C1".to_string()),
+                    block_type: None,
+                    after_block_id: None,
+                },
+            )
+            .await
+            .unwrap();
+            update_meta();
+
+            let _c2 = create_block(
+                path_str.clone(),
+                CreateBlockRequest {
+                    page_id: page_id.clone(),
+                    parent_id: Some(b2.id.clone()),
+                    content: Some("C2".to_string()),
+                    block_type: None,
+                    after_block_id: Some(c1.id.clone()),
+                },
+            )
+            .await
+            .unwrap();
+            update_meta();
+
+            // Merge Block2 into Block1
+            // Expected:
+            // - Block1 content: "AB"
+            // - Block1 children: Child2_1, Child2_2
+            // - Block2 deleted
+            merge_blocks(path_str.clone(), b2.id.clone(), None).await.unwrap();
+            update_meta();
+
+            let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
+            assert!(content.contains("- AB"));
+            assert!(!content.contains("- B")); // Original B gone (merged)
+            assert!(content.contains("  - C1")); // Indented under AB
+            assert!(content.contains("  - C2"));
+
+            // Verify DB state
+            let conn = open_workspace_db(&path_str).unwrap();
+            let b1_new: Block = conn
+                .query_row("SELECT * FROM blocks WHERE id = ?", [&b1.id], |r| {
+                    Ok(Block {
+                        id: r.get(0)?,
+                        page_id: r.get(1)?,
+                        parent_id: r.get(2)?,
+                        content: r.get(3)?,
+                        order_weight: r.get(4)?,
+                        is_collapsed: r.get::<_, i32>(5)? != 0,
+                        block_type: parse_block_type(r.get::<_, String>(6)?),
+                        language: r.get(7)?,
+                        created_at: r.get(8)?,
+                        updated_at: r.get(9)?,
+                    })
+                })
+                .unwrap();
+
+            assert_eq!(b1_new.content, "AB");
+
+            let children_count: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM blocks WHERE parent_id = ?",
+                    [&b1.id],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(children_count, 2);
 
             // Teardown
             fs::remove_dir_all(&temp_dir).unwrap();
