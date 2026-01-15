@@ -1,5 +1,11 @@
 # oxinot
 
+## 0.3.1
+
+### Patch Changes
+
+- 154a427: - enable devtools and improve error logging
+
 ## 0.3.0
 
 ### Minor Changes
