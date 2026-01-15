@@ -306,16 +306,6 @@ export const useBlockStore = create<BlockStore>()(
       const block = get().blocksById[id];
       if (!block) return;
 
-      const previousContent = block.content;
-
-      // Optimistic Update
-      set((state) => {
-        if (state.blocksById[id]) {
-          state.blocksById[id].content = content;
-          state.blocksById[id].updatedAt = new Date().toISOString();
-        }
-      });
-
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
@@ -326,13 +316,19 @@ export const useBlockStore = create<BlockStore>()(
           workspacePath,
           request: { id, content },
         });
-      } catch (error) {
-        // 롤백
+
+        // Update state with backend result
         set((state) => {
           if (state.blocksById[id]) {
-            state.blocksById[id].content = previousContent;
+            state.blocksById[id].content = content;
+            state.blocksById[id].updatedAt = new Date().toISOString();
           }
         });
+      } catch (error) {
+        console.error("Failed to update block content:", error);
+        // Reload to restore correct state
+        const pageId = get().currentPageId;
+        if (pageId) await get().loadPage(pageId);
         throw error;
       }
     },
@@ -395,25 +391,9 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     deleteBlock: async (id: string) => {
-      const { blocksById, childrenMap } = get();
+      const { blocksById } = get();
       const block = blocksById[id];
       if (!block) return;
-
-      // 백업 (롤백용)
-      const backup = {
-        block: { ...block },
-        parentKey: block.parentId ?? "root",
-        index: childrenMap[block.parentId ?? "root"]?.indexOf(id) ?? -1,
-      };
-
-      // Optimistic Delete
-      set((state) => {
-        delete state.blocksById[id];
-        const parentKey = block.parentId ?? "root";
-        state.childrenMap[parentKey] =
-          state.childrenMap[parentKey]?.filter((childId) => childId !== id) ??
-          [];
-      });
 
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
@@ -422,19 +402,17 @@ export const useBlockStore = create<BlockStore>()(
         }
 
         await invoke("delete_block", { workspacePath, blockId: id });
+
+        // Reload page to get accurate state
+        const pageId = get().currentPageId;
+        if (pageId) {
+          await get().loadPage(pageId);
+        }
       } catch (error) {
-        // 롤백
-        set((state) => {
-          state.blocksById[backup.block.id] = backup.block;
-          if (!state.childrenMap[backup.parentKey]) {
-            state.childrenMap[backup.parentKey] = [];
-          }
-          state.childrenMap[backup.parentKey].splice(
-            backup.index,
-            0,
-            backup.block.id
-          );
-        });
+        console.error("Failed to delete block:", error);
+        // Reload to restore correct state
+        const pageId = get().currentPageId;
+        if (pageId) await get().loadPage(pageId);
         throw error;
       }
     },
@@ -442,30 +420,9 @@ export const useBlockStore = create<BlockStore>()(
     // ============ Block Manipulation ============
 
     indentBlock: async (id: string) => {
-      const { blocksById, childrenMap } = get();
+      const { blocksById } = get();
       const block = blocksById[id];
       if (!block) return;
-
-      const parentKey = block.parentId ?? "root";
-      const siblings = childrenMap[parentKey] ?? [];
-      const index = siblings.indexOf(id);
-
-      if (index <= 0) return;
-
-      const prevSiblingId = siblings[index - 1];
-
-      // Optimistic
-      set((state) => {
-        state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-          (childId) => childId !== id
-        );
-
-        if (!state.childrenMap[prevSiblingId]) {
-          state.childrenMap[prevSiblingId] = [];
-        }
-        state.childrenMap[prevSiblingId].push(id);
-        state.blocksById[id].parentId = prevSiblingId;
-      });
 
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
@@ -473,14 +430,18 @@ export const useBlockStore = create<BlockStore>()(
           throw new Error("No workspace selected");
         }
 
-        const updatedBlock: BlockData = await invoke("indent_block", {
+        await invoke("indent_block", {
           workspacePath,
           blockId: id,
         });
-        set((state) => {
-          state.blocksById[id] = updatedBlock;
-        });
+
+        // Reload page to get accurate state
+        const pageId = get().currentPageId;
+        if (pageId) {
+          await get().loadPage(pageId);
+        }
       } catch (error) {
+        console.error("Failed to indent block:", error);
         const pageId = get().currentPageId;
         if (pageId) await get().loadPage(pageId);
         throw error;
@@ -492,40 +453,24 @@ export const useBlockStore = create<BlockStore>()(
       const block = blocksById[id];
       if (!block || !block.parentId) return;
 
-      const parent = blocksById[block.parentId];
-      if (!parent) return;
-
-      set((state) => {
-        const parentId = block.parentId as string; // We already checked block.parentId is not null
-        state.childrenMap[parentId] =
-          state.childrenMap[parentId]?.filter((childId) => childId !== id) ??
-          [];
-
-        const grandparentKey = parent.parentId ?? "root";
-        const parentIndex =
-          state.childrenMap[grandparentKey]?.indexOf(parentId) ?? -1;
-
-        if (!state.childrenMap[grandparentKey]) {
-          state.childrenMap[grandparentKey] = [];
-        }
-        state.childrenMap[grandparentKey].splice(parentIndex + 1, 0, id);
-        state.blocksById[id].parentId = parent.parentId;
-      });
-
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
           throw new Error("No workspace selected");
         }
 
-        const updatedBlock: BlockData = await invoke("outdent_block", {
+        await invoke("outdent_block", {
           workspacePath,
           blockId: id,
         });
-        set((state) => {
-          state.blocksById[id] = updatedBlock;
-        });
+
+        // Reload page to get accurate state
+        const pageId = get().currentPageId;
+        if (pageId) {
+          await get().loadPage(pageId);
+        }
       } catch (error) {
+        console.error("Failed to outdent block:", error);
         const pageId = get().currentPageId;
         if (pageId) await get().loadPage(pageId);
         throw error;
@@ -609,12 +554,6 @@ export const useBlockStore = create<BlockStore>()(
       const block = get().blocksById[id];
       if (!block) return;
 
-      set((state) => {
-        if (state.blocksById[id]) {
-          state.blocksById[id].isCollapsed = !state.blocksById[id].isCollapsed;
-        }
-      });
-
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
@@ -622,13 +561,16 @@ export const useBlockStore = create<BlockStore>()(
         }
 
         await invoke("toggle_collapse", { workspacePath, blockId: id });
+
+        // Reload page to get accurate state
+        const pageId = get().currentPageId;
+        if (pageId) {
+          await get().loadPage(pageId);
+        }
       } catch (error) {
-        set((state) => {
-          if (state.blocksById[id]) {
-            state.blocksById[id].isCollapsed =
-              !state.blocksById[id].isCollapsed;
-          }
-        });
+        console.error("Failed to toggle collapse:", error);
+        const pageId = get().currentPageId;
+        if (pageId) await get().loadPage(pageId);
         throw error;
       }
     },
