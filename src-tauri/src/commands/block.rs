@@ -9,6 +9,7 @@ use crate::commands::workspace::open_workspace_db;
 use crate::models::block::{
     Block, BlockType, CreateBlockRequest, MoveBlockRequest, UpdateBlockRequest,
 };
+use crate::services::wiki_link_index;
 use crate::utils::fractional_index;
 use crate::utils::page_sync::{
     sync_page_to_markdown, sync_page_to_markdown_after_create, sync_page_to_markdown_after_delete,
@@ -506,6 +507,15 @@ pub async fn create_block(
         created_block.id.as_str(),
     )?;
 
+    // Index wiki links
+    wiki_link_index::index_block_links(
+        &conn,
+        &created_block.id,
+        &created_block.content,
+        &created_block.page_id,
+    )
+    .map_err(|e| e.to_string())?;
+
     Ok(created_block)
 }
 
@@ -552,6 +562,15 @@ pub async fn update_block(
         &updated_block.page_id,
         updated_block.id.as_str(),
     )?;
+
+    // Index wiki links
+    wiki_link_index::index_block_links(
+        &conn,
+        &updated_block.id,
+        &updated_block.content,
+        &updated_block.page_id,
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(updated_block)
 }
@@ -833,6 +852,16 @@ pub async fn merge_blocks(
 
     // Updated target block (merged)
     let updated_target = get_block_by_id(&conn, &target_block.id)?;
+    
+    // Index wiki links for merged target block
+    wiki_link_index::index_block_links(
+        &conn,
+        &updated_target.id,
+        &updated_target.content,
+        &updated_target.page_id,
+    )
+    .map_err(|e| e.to_string())?;
+
     changed_blocks.push(updated_target);
 
     // Moved children
