@@ -113,6 +113,33 @@ CREATE TABLE IF NOT EXISTS block_paths (
 
 CREATE INDEX IF NOT EXISTS idx_block_paths_page ON block_paths(page_id);
 CREATE INDEX IF NOT EXISTS idx_block_paths_text ON block_paths(path_text);
+
+-- 위키 링크 인덱스 (Wiki Links)
+CREATE TABLE IF NOT EXISTS wiki_links (
+    id TEXT PRIMARY KEY,
+    from_page_id TEXT NOT NULL,
+    from_block_id TEXT NOT NULL,
+    to_page_id TEXT NULL,              -- NULL = unresolved/broken link
+    link_type TEXT NOT NULL,           -- 'page_link', 'block_link', 'embed_page', 'embed_block'
+    target_path TEXT NOT NULL,         -- normalized path: "A/B/C"
+    raw_target TEXT NOT NULL,          -- exact text in [[...]]: "A/B/C|Alias" or "A/B/C#Heading"
+    alias TEXT NULL,                   -- part after |
+    heading TEXT NULL,                 -- part after #
+    block_ref TEXT NULL,               -- ^block-id for block references
+    is_embed INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (from_page_id) REFERENCES pages(id) ON DELETE CASCADE,
+    FOREIGN KEY (from_block_id) REFERENCES blocks(id) ON DELETE CASCADE,
+    FOREIGN KEY (to_page_id) REFERENCES pages(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_wiki_links_to_page ON wiki_links(to_page_id);
+CREATE INDEX IF NOT EXISTS idx_wiki_links_target_path ON wiki_links(target_path);
+CREATE INDEX IF NOT EXISTS idx_wiki_links_from_page ON wiki_links(from_page_id);
+CREATE INDEX IF NOT EXISTS idx_wiki_links_from_block ON wiki_links(from_block_id);
+CREATE INDEX IF NOT EXISTS idx_wiki_links_type ON wiki_links(link_type);
 "#;
 
 /// Initialize the database schema
@@ -258,6 +285,45 @@ fn migrate_schema(conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
         CREATE INDEX IF NOT EXISTS idx_block_metadata_key ON block_metadata(key);
         "#,
     )?;
+
+    // Check if wiki_links table exists
+    let has_wiki_links: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='wiki_links'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if !has_wiki_links {
+        conn.execute_batch(r#"
+            CREATE TABLE wiki_links (
+                id TEXT PRIMARY KEY,
+                from_page_id TEXT NOT NULL,
+                from_block_id TEXT NOT NULL,
+                to_page_id TEXT NULL,
+                link_type TEXT NOT NULL,
+                target_path TEXT NOT NULL,
+                raw_target TEXT NOT NULL,
+                alias TEXT NULL,
+                heading TEXT NULL,
+                block_ref TEXT NULL,
+                is_embed INTEGER NOT NULL DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (from_page_id) REFERENCES pages(id) ON DELETE CASCADE,
+                FOREIGN KEY (from_block_id) REFERENCES blocks(id) ON DELETE CASCADE,
+                FOREIGN KEY (to_page_id) REFERENCES pages(id) ON DELETE SET NULL
+            );
+
+            CREATE INDEX idx_wiki_links_to_page ON wiki_links(to_page_id);
+            CREATE INDEX idx_wiki_links_target_path ON wiki_links(target_path);
+            CREATE INDEX idx_wiki_links_from_page ON wiki_links(from_page_id);
+            CREATE INDEX idx_wiki_links_from_block ON wiki_links(from_block_id);
+            CREATE INDEX idx_wiki_links_type ON wiki_links(link_type);
+        "#)?;
+    }
 
     Ok(())
 }
