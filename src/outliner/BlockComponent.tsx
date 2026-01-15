@@ -85,13 +85,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     }, [block.content, focusedBlockId, blockId]);
 
     // Commit helper: stable callback reading from refs (doesn't change every keystroke).
-    const commitDraft = useCallback(() => {
+    const commitDraft = useCallback(async () => {
       const latestDraft = draftRef.current;
       const latestBlock = useBlockStore.getState().blocksById[blockId];
 
       // Avoid unnecessary writes; also tolerate missing block during transitions.
       if (latestBlock && latestDraft !== latestBlock.content) {
-        useBlockStore.getState().updateBlockContent(blockId, latestDraft);
+        await useBlockStore.getState().updateBlockContent(blockId, latestDraft);
       }
     }, [blockId]);
 
@@ -383,16 +383,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               return true;
             }
 
-            commitDraft();
+            (async () => {
+              await commitDraft();
 
-            // Determine whether to split block or create new sibling based on cursor position
-            if (cursor === contentLength) {
-              // Cursor at end: create new sibling block
-              createBlock(blockId);
-            } else {
-              // Cursor in middle: split current block
-              useBlockStore.getState().splitBlockAtOffset(blockId, cursor);
-            }
+              // Determine whether to split block or create new sibling based on cursor position
+              if (cursor === contentLength) {
+                // Cursor at end: create new sibling block
+                await createBlock(blockId);
+              } else {
+                // Cursor in middle: split current block
+                await useBlockStore
+                  .getState()
+                  .splitBlockAtOffset(blockId, cursor);
+              }
+            })();
 
             return true; // Prevent default CodeMirror behavior
           },
@@ -436,9 +440,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 .getState()
                 .getPreviousBlock(blockId);
               if (prevBlockId) {
-                commitDraft();
-                // Pass current editor content to ensure draft is merged
-                mergeBlock(blockId, content);
+                (async () => {
+                  await commitDraft();
+                  // Pass current editor content to ensure draft is merged
+                  await mergeBlock(blockId, content);
+                })();
                 return true;
               }
             }
@@ -534,11 +540,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const view = editorRef.current?.getView();
             const cursorPos = view?.state.selection.main.head ?? null;
 
-            commitDraft();
-            if (cursorPos !== null) {
-              setFocusedBlock(blockId, cursorPos);
-            }
-            indentBlock(blockId);
+            (async () => {
+              await commitDraft();
+              await indentBlock(blockId);
+              if (cursorPos !== null) {
+                setFocusedBlock(blockId, cursorPos);
+              }
+            })();
             return true;
           },
         },
@@ -550,11 +558,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const view = editorRef.current?.getView();
             const cursorPos = view?.state.selection.main.head ?? null;
 
-            commitDraft();
-            if (cursorPos !== null) {
-              setFocusedBlock(blockId, cursorPos);
-            }
-            outdentBlock(blockId);
+            (async () => {
+              await commitDraft();
+              await outdentBlock(blockId);
+              if (cursorPos !== null) {
+                setFocusedBlock(blockId, cursorPos);
+              }
+            })();
             return true;
           },
         },
