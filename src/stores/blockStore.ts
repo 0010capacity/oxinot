@@ -41,6 +41,10 @@ interface BlockActions {
   // 페이지 로드
   loadPage: (pageId: string) => Promise<void>;
   clearPage: () => void;
+  updatePartialBlocks: (
+    blocks: BlockData[],
+    deletedBlockIds?: string[]
+  ) => void;
 
   // 블록 CRUD
   createBlock: (
@@ -151,10 +155,56 @@ export const useBlockStore = create<BlockStore>()(
     clearPage: () => {
       set((state) => {
         state.blocksById = {};
-        state.childrenMap = {};
+        state.childrenMap = { root: [] };
         state.currentPageId = null;
         state.focusedBlockId = null;
         state.selectedBlockIds = [];
+      });
+    },
+
+    updatePartialBlocks: (blocks: BlockData[], deletedBlockIds?: string[]) => {
+      set((state) => {
+        // Update or add blocks
+        for (const block of blocks) {
+          state.blocksById[block.id] = block;
+        }
+
+        // Delete blocks
+        if (deletedBlockIds) {
+          for (const id of deletedBlockIds) {
+            delete state.blocksById[id];
+          }
+        }
+
+        // Rebuild childrenMap for affected blocks
+        const affectedParentIds = new Set<string>();
+        for (const block of blocks) {
+          affectedParentIds.add(block.parentId ?? "root");
+        }
+        if (deletedBlockIds) {
+          for (const id of deletedBlockIds) {
+            const block = state.blocksById[id];
+            if (block) {
+              affectedParentIds.add(block.parentId ?? "root");
+            }
+          }
+        }
+
+        // Rebuild childrenMap for affected parents
+        for (const parentId of affectedParentIds) {
+          const parentKey = parentId === "root" ? "root" : parentId;
+          state.childrenMap[parentKey] = Object.values(state.blocksById)
+            .filter((b) => (b.parentId ?? "root") === parentKey)
+            .sort((a, b) => a.orderWeight - b.orderWeight)
+            .map((b) => b.id);
+        }
+
+        // Clean up childrenMap for deleted blocks
+        if (deletedBlockIds) {
+          for (const id of deletedBlockIds) {
+            delete state.childrenMap[id];
+          }
+        }
       });
     },
 
@@ -282,10 +332,10 @@ export const useBlockStore = create<BlockStore>()(
             },
           });
 
-          // Reload page to get accurate state
-          await get().loadPage(currentPageId);
+          // Update only the new block
+          get().updatePartialBlocks([newBlock]);
 
-          // Set focus after reload
+          // Set focus
           set((state) => {
             state.focusedBlockId = newBlock.id;
             state.targetCursorPosition = 0;
@@ -350,17 +400,14 @@ export const useBlockStore = create<BlockStore>()(
       const newParentId = hasChildren ? id : block.parentId;
       const afterBlockIdForBackend = hasChildren ? null : id;
 
-      // Update current block content first
+      // Update current block content first (this also updates state)
       try {
+        await get().updateBlockContent(id, beforeContent);
+
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
           throw new Error("No workspace selected");
         }
-
-        await invoke("update_block", {
-          workspacePath,
-          request: { id, content: beforeContent },
-        });
 
         // Create new block at appropriate position
         const newBlock: BlockData = await invoke("create_block", {
@@ -373,10 +420,10 @@ export const useBlockStore = create<BlockStore>()(
           },
         });
 
-        // Reload page to get accurate state
-        await get().loadPage(currentPageId);
+        // Update only the new block (current block already updated by updateBlockContent)
+        get().updatePartialBlocks([newBlock]);
 
-        // Set focus after reload
+        // Set focus
         set((state) => {
           state.focusedBlockId = newBlock.id;
           state.targetCursorPosition = 0;
@@ -401,13 +448,14 @@ export const useBlockStore = create<BlockStore>()(
           throw new Error("No workspace selected");
         }
 
-        await invoke("delete_block", { workspacePath, blockId: id });
+        // Backend returns all deleted IDs (block + descendants)
+        const deletedIds: string[] = await invoke("delete_block", {
+          workspacePath,
+          blockId: id,
+        });
 
-        // Reload page to get accurate state
-        const pageId = get().currentPageId;
-        if (pageId) {
-          await get().loadPage(pageId);
-        }
+        // Update only the affected blocks (remove deleted ones)
+        get().updatePartialBlocks([], deletedIds);
       } catch (error) {
         console.error("Failed to delete block:", error);
         // Reload to restore correct state
@@ -430,16 +478,14 @@ export const useBlockStore = create<BlockStore>()(
           throw new Error("No workspace selected");
         }
 
-        await invoke("indent_block", {
+        // Backend returns the updated block
+        const updatedBlock: BlockData = await invoke("indent_block", {
           workspacePath,
           blockId: id,
         });
 
-        // Reload page to get accurate state
-        const pageId = get().currentPageId;
-        if (pageId) {
-          await get().loadPage(pageId);
-        }
+        // Update only the changed block
+        get().updatePartialBlocks([updatedBlock]);
       } catch (error) {
         console.error("Failed to indent block:", error);
         const pageId = get().currentPageId;
@@ -459,16 +505,14 @@ export const useBlockStore = create<BlockStore>()(
           throw new Error("No workspace selected");
         }
 
-        await invoke("outdent_block", {
+        // Backend returns the updated block
+        const updatedBlock: BlockData = await invoke("outdent_block", {
           workspacePath,
           blockId: id,
         });
 
-        // Reload page to get accurate state
-        const pageId = get().currentPageId;
-        if (pageId) {
-          await get().loadPage(pageId);
-        }
+        // Update only the changed block
+        get().updatePartialBlocks([updatedBlock]);
       } catch (error) {
         console.error("Failed to outdent block:", error);
         const pageId = get().currentPageId;
@@ -487,16 +531,16 @@ export const useBlockStore = create<BlockStore>()(
         throw new Error("No workspace path");
       }
 
-      await invoke("move_block", {
+      // Backend returns the updated block
+      const updatedBlock: BlockData = await invoke("move_block", {
         workspacePath,
         blockId: id,
         newParentId: targetParentId,
         afterBlockId,
       });
 
-      // Reload page to reflect changes
-      const pageId = get().currentPageId;
-      if (pageId) await get().loadPage(pageId);
+      // Update only the changed block
+      get().updatePartialBlocks([updatedBlock]);
     },
 
     mergeBlock: async (id: string, currentContent?: string) => {
@@ -526,22 +570,20 @@ export const useBlockStore = create<BlockStore>()(
           await get().updateBlockContent(id, currentContent);
         }
 
-        // Backend handles the merge atomically
-        await invoke("merge_blocks", {
+        // Backend handles the merge atomically and returns changed blocks
+        const changedBlocks: BlockData[] = await invoke("merge_blocks", {
           workspacePath,
           blockId: id,
         });
 
-        // Reload page to get accurate merged state from backend
-        const pageId = get().currentPageId;
-        if (pageId) {
-          await get().loadPage(pageId);
-          // Set focus and cursor position after reload completes
-          set((state) => {
-            state.focusedBlockId = prevBlockId;
-            state.targetCursorPosition = cursorPosition;
-          });
-        }
+        // Update only the changed blocks (merged block + moved children)
+        get().updatePartialBlocks(changedBlocks, [id]);
+
+        // Set focus and cursor position
+        set((state) => {
+          state.focusedBlockId = prevBlockId;
+          state.targetCursorPosition = cursorPosition;
+        });
       } catch (error) {
         console.error("Failed to merge blocks:", error);
         // Force reload to restore correct state
@@ -560,13 +602,14 @@ export const useBlockStore = create<BlockStore>()(
           throw new Error("No workspace selected");
         }
 
-        await invoke("toggle_collapse", { workspacePath, blockId: id });
+        // Backend returns the updated block
+        const updatedBlock: BlockData = await invoke("toggle_collapse", {
+          workspacePath,
+          blockId: id,
+        });
 
-        // Reload page to get accurate state
-        const pageId = get().currentPageId;
-        if (pageId) {
-          await get().loadPage(pageId);
-        }
+        // Update only the changed block
+        get().updatePartialBlocks([updatedBlock]);
       } catch (error) {
         console.error("Failed to toggle collapse:", error);
         const pageId = get().currentPageId;
