@@ -18,6 +18,7 @@ import {
 } from "@tabler/icons-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import type { BlockData } from "../stores/blockStore";
 import { useBlockStore } from "../stores/blockStore";
 
 type MetadataType = "text" | "number" | "boolean" | "json";
@@ -76,10 +77,12 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   onClose,
 }) => {
   const updateBlock = useBlockStore((state) => state.updateBlock);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getBlock = useBlockStore((state: any) => state.getBlock);
+  const getBlock = useBlockStore((state) => state.getBlock) as (
+    id: string
+  ) => BlockData | undefined;
 
   const [items, setItems] = useState<MetadataItem[]>([]);
+  const [blockUuid, setBlockUuid] = useState<string>("");
 
   const computedColorScheme = useComputedColorScheme("light");
   const isDark = computedColorScheme === "dark";
@@ -92,6 +95,9 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
     if (blockId) {
       const block = getBlock(blockId);
       if (block) {
+        // Set the block UUID (this is the immutable ID)
+        setBlockUuid(blockId);
+
         const loadedItems: MetadataItem[] = Object.entries(block.metadata || {})
           .filter(([key]) => key !== "ID") // Filter out internal ID
           .map(([key, value]) => ({
@@ -166,7 +172,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   const updateItem = (
     index: number,
     field: keyof MetadataItem,
-    value: string,
+    value: string
   ) => {
     const newItems = [...items];
     let type = newItems[index].type;
@@ -185,7 +191,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   const handleInputKeyDown = (
     e: React.KeyboardEvent,
     index: number,
-    field: "key" | "value",
+    field: "key" | "value"
   ) => {
     if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
       e.preventDefault();
@@ -247,10 +253,41 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
           }}
         />
 
+        {/* UUID Display (Read-only) */}
+        <Box px="sm" py="xs">
+          <Group align="center" gap={8}>
+            <span style={{ fontSize: "13px", fontWeight: 500 }}>ID</span>
+            <code
+              style={{
+                fontSize: "12px",
+                padding: "4px 6px",
+                borderRadius: "4px",
+                background: isDark
+                  ? "rgba(255,255,255,0.05)"
+                  : "rgba(0,0,0,0.03)",
+                fontFamily: "monospace",
+                color: isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)",
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+              title={blockUuid}
+            >
+              {blockUuid}
+            </code>
+          </Group>
+        </Box>
+
         {/* Items */}
         <Stack gap="xs" px="sm">
           {items.map((item, index) => (
-            <Group key={index} align="center" gap={8} wrap="nowrap">
+            <Group
+              key={`${blockUuid}-${item.key}-${index}`}
+              align="center"
+              gap={8}
+              wrap="nowrap"
+            >
               {/* Property Name */}
               <TextInput
                 placeholder="key"
@@ -356,15 +393,15 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
                   Number.isNaN(Number(item.value))
                     ? true
                     : item.type === "json" && item.value
-                      ? (() => {
-                          try {
-                            JSON.parse(item.value);
-                            return false;
-                          } catch {
-                            return true;
-                          }
-                        })()
-                      : false
+                    ? (() => {
+                        try {
+                          JSON.parse(item.value);
+                          return false;
+                        } catch {
+                          return true;
+                        }
+                      })()
+                    : false
                 }
               />
 

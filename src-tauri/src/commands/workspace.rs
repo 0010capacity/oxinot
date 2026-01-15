@@ -1,4 +1,5 @@
 use crate::commands::block::block_type_to_string;
+use crate::config::{METADATA_DIR_NAME, SETTINGS_FILENAME, WORKSPACE_DB_FILENAME};
 use crate::services::markdown_to_blocks;
 use crate::services::page_path_service;
 // (removed) WorkspaceSyncService import: sync/reindex paths are unified on filesystem-driven `sync_workspace`
@@ -67,7 +68,7 @@ pub fn open_workspace_db(workspace_path: &str) -> Result<Connection, String> {
 /// Get or create workspace metadata directory
 fn get_workspace_metadata_dir(workspace_path: &str) -> Result<PathBuf, String> {
     let workspace = PathBuf::from(workspace_path);
-    let metadata_dir = workspace.join(".oxinot");
+    let metadata_dir = workspace.join(METADATA_DIR_NAME);
 
     if !metadata_dir.exists() {
         fs::create_dir_all(&metadata_dir)
@@ -80,13 +81,13 @@ fn get_workspace_metadata_dir(workspace_path: &str) -> Result<PathBuf, String> {
 /// Get workspace database path
 pub fn get_workspace_db_path(workspace_path: &str) -> Result<PathBuf, String> {
     let metadata_dir = get_workspace_metadata_dir(workspace_path)?;
-    Ok(metadata_dir.join("outliner.db"))
+    Ok(metadata_dir.join(WORKSPACE_DB_FILENAME))
 }
 
 /// Get workspace settings path
 fn get_workspace_settings_path(workspace_path: &str) -> Result<PathBuf, String> {
     let metadata_dir = get_workspace_metadata_dir(workspace_path)?;
-    Ok(metadata_dir.join("settings.json"))
+    Ok(metadata_dir.join(SETTINGS_FILENAME))
 }
 
 /// Initialize or load workspace settings
@@ -654,7 +655,9 @@ pub async fn reveal_in_finder(path: String) -> Result<(), String> {
     {
         // Try xdg-open (might open parent dir instead of selecting file)
         // Better: dbus-send or specific file manager commands if needed
-        let parent = std::path::Path::new(&path).parent().unwrap_or(std::path::Path::new("/"));
+        let parent = std::path::Path::new(&path)
+            .parent()
+            .unwrap_or(std::path::Path::new("/"));
         std::process::Command::new("xdg-open")
             .arg(parent)
             .spawn()

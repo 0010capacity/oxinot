@@ -82,7 +82,7 @@ pub fn parse_wiki_links(content: &str) -> Vec<ParsedLink> {
 }
 
 fn mask_code_blocks(content: &str) -> String {
-    let mut chars: Vec<char> = content.chars().collect();
+    let chars: Vec<char> = content.chars().collect();
     let mut result_chars = chars.clone();
 
     let mut i = 0;

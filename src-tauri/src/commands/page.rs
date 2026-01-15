@@ -122,9 +122,10 @@ pub async fn update_page(
 
     let page = get_page_by_id(&conn, &request.id)?;
 
-    let new_title = request.title.clone().unwrap_or(page.title.clone());
-    let new_parent_id = request.parent_id.or(page.parent_id.clone());
-    let new_file_path = request.file_path.clone().or(page.file_path.clone());
+    // Use provided values or fall back to existing page data
+    let new_title = request.title.clone().unwrap_or_else(|| page.title.clone());
+    let new_parent_id = request.parent_id.or_else(|| page.parent_id.clone());
+    let new_file_path = request.file_path.clone().or_else(|| page.file_path.clone());
 
     // If title changed, rename file AND rewrite all wiki-link references that point to this page's old path.
     if let Some(title) = &request.title {
@@ -185,8 +186,8 @@ pub async fn update_page(
     )
     .map_err(|e| e.to_string())?;
 
-    // Update page_paths for wiki link resolution if file_path was updated
-    if let Some(path) = &new_file_path {
+    // Always update page_paths if file_path exists (either from request or existing)
+    if let Some(ref path) = new_file_path {
         page_path_service::update_page_path(&conn, &request.id, path)
             .map_err(|e| format!("Failed to update page path: {}", e))?;
     }
