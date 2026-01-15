@@ -750,6 +750,9 @@ export const useBlockStore = create<BlockStore>()(
         const prevBlock = blocksById[prevBlockId];
         if (!prevBlock) return;
         
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) throw new Error("No workspace selected");
+
         // Paranoid sync: Ensure target block content in DB matches Store before merge
         // This handles cases where previous block has pending edits that haven't hit DB yet
         if (prevBlock) {
@@ -759,9 +762,6 @@ export const useBlockStore = create<BlockStore>()(
                 request: { id: prevBlockId, content: prevBlock.content },
              });
         }
-
-        const workspacePath = useWorkspaceStore.getState().workspacePath;
-        if (!workspacePath) throw new Error("No workspace selected");
 
         // Calculate cursor position for focus after merge
         const cursorPosition = prevBlock.content.length;
