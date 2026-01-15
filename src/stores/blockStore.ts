@@ -420,11 +420,11 @@ export const useBlockStore = create<BlockStore>()(
     updateBlockContent: async (id: string, content: string) => {
       const { mergingBlockId, mergingTargetBlockId, blocksById } = get();
       
+      // console.log(`[Store] updateBlockContent request: ${id} content="${content.slice(0, 20)}..."`);
+
       // Prevent UI from overwriting blocks involved in an active merge operation.
-      // This stops race conditions where stale UI state (draft) overwrites 
-      // the result of a backend merge (e.g., target block getting reverted to pre-merge content).
       if (id === mergingBlockId || id === mergingTargetBlockId) {
-         console.warn(`Blocked stale update for merging block ${id}`);
+         console.warn(`[Store] Blocked stale update for merging block ${id} (merging=${mergingBlockId}, target=${mergingTargetBlockId})`);
          return;
       }
 
@@ -441,6 +441,8 @@ export const useBlockStore = create<BlockStore>()(
           workspacePath,
           request: { id, content },
         });
+        
+        // console.log(`[Store] updateBlockContent success: ${id}`);
 
         // Update state with backend result
         set((state) => {
@@ -623,9 +625,14 @@ export const useBlockStore = create<BlockStore>()(
     mergeWithPrevious: async (id: string, draftContent?: string) => {
       const { blocksById, getPreviousVisibleBlock, deleteBlock, mergingBlockId } =
         get();
+      
+      console.log(`[Store] mergeWithPrevious called for ${id}`);
 
       // Prevent concurrent merges on the same block
-      if (mergingBlockId === id) return;
+      if (mergingBlockId === id) {
+          console.warn(`[Store] Concurrent merge blocked for ${id}`);
+          return;
+      }
 
       set((state) => {
         state.mergingBlockId = id;
@@ -639,6 +646,7 @@ export const useBlockStore = create<BlockStore>()(
 
         // Case 1: If current block is empty, delete it and move focus to previous
         if (contentToMerge === "") {
+          console.log(`[Store] Merging empty block ${id} -> delete`);
           const prevBlockId = getPreviousVisibleBlock(id);
           await deleteBlock(id);
 
@@ -660,8 +668,13 @@ export const useBlockStore = create<BlockStore>()(
 
         // Case 2: Non-empty block, merge into previous
         const prevBlockId = getPreviousVisibleBlock(id);
-        if (!prevBlockId) return;
+        if (!prevBlockId) {
+            console.log(`[Store] No previous block for ${id}, aborting merge`);
+            return;
+        }
         
+        console.log(`[Store] Merging ${id} into ${prevBlockId}`);
+
         // Lock the target block to prevent stale UI updates from overwriting the merge result
         set((state) => {
            state.mergingTargetBlockId = prevBlockId;
@@ -683,6 +696,7 @@ export const useBlockStore = create<BlockStore>()(
           draftContent !== undefined &&
           draftContent !== currentBlock.content
         ) {
+          console.log(`[Store] Syncing draft content for ${id} before merge`);
           await invoke("update_block", {
              workspacePath,
              request: { id, content: draftContent },
@@ -697,11 +711,13 @@ export const useBlockStore = create<BlockStore>()(
         }
 
         // Backend handles the merge atomically and returns changed blocks
+        console.log(`[Store] Invoking backend merge_blocks...`);
         const changedBlocks: BlockData[] = await invoke("merge_blocks", {
           workspacePath,
           blockId: id,
           targetId: prevBlockId,
         });
+        console.log(`[Store] Backend merge success. Changed blocks: ${changedBlocks.length}`);
 
         // Update only the changed blocks (merged block + moved children)
         get().updatePartialBlocks(changedBlocks, [id]);

@@ -92,6 +92,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
       // Avoid unnecessary writes; also tolerate missing block during transitions.
       if (latestBlock && latestDraft !== latestBlock.content) {
+        // console.log(`[Component] Committing draft for ${blockId}: "${latestDraft.slice(0, 10)}..."`);
         await useBlockStore.getState().updateBlockContent(blockId, latestDraft);
       }
     }, [blockId]);
@@ -99,6 +100,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // Focus editor when this block becomes focused
     useEffect(() => {
       if (focusedBlockId === blockId && editorRef.current) {
+        // console.log(`[Component] Focus effect for ${blockId}`);
         const view = editorRef.current?.getView();
 
         // If already focused and no target position, skip (mouse click already handled)
