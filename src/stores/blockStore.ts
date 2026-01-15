@@ -86,6 +86,9 @@ interface BlockActions {
 
   // Page Lifecycle
   openPage: (pageId: string) => Promise<void>;
+
+  // Debug
+  debugDumpState: () => Promise<void>;
 }
 
 type BlockStore = BlockState & BlockActions;
@@ -214,10 +217,52 @@ export const useBlockStore = create<BlockStore>()(
       }
     },
 
-    loadPage: async (pageId: string) => {
-       // Legacy wrapper: use openPage
-       return get().openPage(pageId);
+    debugDumpState: async () => {
+      const { currentPageId, blocksById } = get();
+      if (!currentPageId) {
+        console.warn("[Debug] No page loaded");
+        return;
+      }
+
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) return;
+
+      try {
+        console.group(`[Debug State] Page: ${currentPageId}`);
+
+        // 1. Frontend Store State
+        console.log("1. Frontend (Store):", JSON.parse(JSON.stringify(blocksById)));
+
+        // 2. DB State
+        const dbBlocks: BlockData[] = await invoke("get_page_blocks", {
+          workspacePath,
+          pageId: currentPageId,
+        });
+        const dbBlocksById: Record<string, BlockData> = {};
+        for (const b of dbBlocks) dbBlocksById[b.id] = b;
+        console.log("2. Backend (DB):", dbBlocksById);
+
+        // 3. File State
+        // Need to find file path first
+        const pages: any[] = await invoke("get_pages", { workspacePath });
+        const currentPage = pages.find((p) => p.id === currentPageId);
+        
+        if (currentPage && currentPage.file_path) {
+          const filePath = `${workspacePath}/${currentPage.file_path}`;
+          const fileContent: string = await invoke("read_file", { filePath });
+          console.log("3. File (Markdown):", `\n${fileContent}`);
+        } else {
+          console.log("3. File: (Not found or no file_path)");
+        }
+
+        console.groupEnd();
+      } catch (error) {
+        console.error("[Debug] Failed to dump state:", error);
+      }
     },
+
+    loadPage: async (pageId: string) => {
+
 
     clearPage: () => {
       set((state) => {
@@ -727,6 +772,9 @@ export const useBlockStore = create<BlockStore>()(
           state.focusedBlockId = prevBlockId;
           state.targetCursorPosition = cursorPosition;
         });
+
+        // Verify state consistency after merge
+        setTimeout(() => get().debugDumpState(), 100);
       } catch (error) {
         console.error("Failed to merge blocks:", error);
 
@@ -750,6 +798,8 @@ export const useBlockStore = create<BlockStore>()(
             state.focusedBlockId = prev ?? null;
           }
         });
+
+        setTimeout(() => get().debugDumpState(), 100);
       } finally {
         set((state) => {
           state.mergingBlockId = null;
