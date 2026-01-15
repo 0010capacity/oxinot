@@ -2,11 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-mod commands;
-mod db;
-mod models;
-mod services;
-mod utils;
+pub mod commands;
+pub mod config;
+pub mod db;
+pub mod models;
+pub mod services;
+pub mod utils;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileSystemItem {
@@ -395,7 +396,6 @@ pub fn run() {
             commands::page::move_page,
             commands::page::convert_page_to_directory,
             commands::page::debug_db_state,
-            commands::page::get_page_backlinks,
             commands::page::rewrite_wiki_links_for_page_path_change,
             // Workspace commands
             commands::workspace::initialize_workspace,
@@ -415,6 +415,11 @@ pub fn run() {
             commands::git::git_get_remote_url,
             commands::git::git_set_remote_url,
             commands::git::git_remove_remote,
+            commands::workspace::close_workspace,
+            commands::workspace::reveal_in_finder,
+            commands::wiki_link::get_page_backlinks,
+            commands::wiki_link::get_broken_links,
+            commands::wiki_link::reindex_wiki_links,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

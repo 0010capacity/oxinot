@@ -5,19 +5,16 @@ import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 
-interface PageBacklink {
-  page_id: string;
-  page_title: string;
+interface BacklinkBlock {
   block_id: string;
-  block_content: string;
-  block_order: number;
+  content: string;
+  created_at: string;
 }
 
-interface GroupedBacklinks {
-  [pageId: string]: {
-    pageTitle: string;
-    blocks: PageBacklink[];
-  };
+interface BacklinkGroup {
+  page_id: string;
+  page_title: string;
+  blocks: BacklinkBlock[];
 }
 
 interface LinkedReferencesProps {
@@ -25,7 +22,7 @@ interface LinkedReferencesProps {
 }
 
 export function LinkedReferences({ pageId }: LinkedReferencesProps) {
-  const [backlinks, setBacklinks] = useState<PageBacklink[]>([]);
+  const [backlinks, setBacklinks] = useState<BacklinkGroup[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
@@ -41,7 +38,7 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
       setError(null);
 
       try {
-        const result = await invoke<PageBacklink[]>("get_page_backlinks", {
+        const result = await invoke<BacklinkGroup[]>("get_page_backlinks", {
           workspacePath,
           pageId,
         });
@@ -49,7 +46,7 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
       } catch (err) {
         console.error("[LinkedReferences] Failed to fetch backlinks:", err);
         setError(
-          err instanceof Error ? err.message : "Failed to load backlinks",
+          err instanceof Error ? err.message : "Failed to load backlinks"
         );
       } finally {
         setIsLoading(false);
@@ -82,23 +79,17 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
     openNote(backlinkPageId, page.title, parentNames, pagePathIds);
   };
 
-  // Group backlinks by page
-  const groupedBacklinks: GroupedBacklinks = backlinks.reduce(
-    (acc, backlink) => {
-      if (!acc[backlink.page_id]) {
-        acc[backlink.page_id] = {
-          pageTitle: backlink.page_title,
-          blocks: [],
-        };
-      }
-      acc[backlink.page_id].blocks.push(backlink);
-      return acc;
-    },
-    {} as GroupedBacklinks,
-  );
+  // Convert to grouped format for accordion
+  const groupedBacklinks: Record<string, BacklinkGroup> = {};
+  for (const group of backlinks) {
+    groupedBacklinks[group.page_id] = group;
+  }
 
-  const backlinkCount = backlinks.length;
-  const pageCount = Object.keys(groupedBacklinks).length;
+  const backlinkCount = backlinks.reduce(
+    (sum, group) => sum + group.blocks.length,
+    0
+  );
+  const pageCount = backlinks.length;
 
   if (isLoading) {
     return (
@@ -215,7 +206,7 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
                     e.currentTarget.style.textDecoration = "none";
                   }}
                 >
-                  {data.pageTitle}
+                  {data.page_title}
                 </Text>
                 <Text size="xs" c="dimmed">
                   ({data.blocks.length} reference
@@ -257,7 +248,7 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
                         wordBreak: "break-word",
                       }}
                     >
-                      {block.block_content}
+                      {block.content}
                     </Text>
                   </Box>
                 ))}

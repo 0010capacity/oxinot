@@ -16,10 +16,55 @@ export interface PathInfo {
   created_time: string;
 }
 
+export interface BacklinkBlock {
+  block_id: string;
+  content: string;
+  created_at: string;
+}
+
+export interface BacklinkGroup {
+  page_id: string;
+  page_title: string;
+  blocks: BacklinkBlock[];
+}
+
+export interface WikiLink {
+  id: string;
+  from_page_id: string;
+  from_block_id: string;
+  to_page_id: string | null;
+  link_type: string;
+  target_path: string;
+  raw_target: string;
+  alias: string | null;
+  heading: string | null;
+  block_ref: string | null;
+  is_embed: boolean;
+}
+
 export const tauriAPI = {
   // Workspace operations
   selectWorkspace: async (): Promise<string | null> => {
     return await invoke<string | null>("select_workspace");
+  },
+
+  // Wiki Link Index
+  getPageBacklinks: async (
+    workspacePath: string,
+    pageId: string
+  ): Promise<BacklinkGroup[]> => {
+    return await invoke<BacklinkGroup[]>("get_page_backlinks", {
+      workspacePath,
+      pageId,
+    });
+  },
+
+  getBrokenLinks: async (workspacePath: string): Promise<WikiLink[]> => {
+    return await invoke<WikiLink[]>("get_broken_links", { workspacePath });
+  },
+
+  reindexWikiLinks: async (workspacePath: string): Promise<void> => {
+    return await invoke<void>("reindex_wiki_links", { workspacePath });
   },
 
   // File system operations

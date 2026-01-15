@@ -1,10 +1,6 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
-import {
-  Box,
-  Popover,
-  useComputedColorScheme,
-} from "@mantine/core";
+import { Box, Popover, useComputedColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -660,6 +656,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         className="block-component"
         onClick={(e) => {
           e.stopPropagation();
+        }}
+        onKeyDown={(e) => {
+          // Handle keyboard navigation for accessibility
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+          }
         }}
       >
         {indentGuide}

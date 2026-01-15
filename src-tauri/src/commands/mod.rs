@@ -2,6 +2,7 @@ pub mod block;
 pub mod git;
 pub mod page;
 pub mod search;
+pub mod wiki_link;
 pub mod workspace;
 
 /// Helper macro to get DB connection from DbState

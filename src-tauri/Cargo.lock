@@ -2515,6 +2515,7 @@ version = "0.4.2"
 dependencies = [
  "chrono",
  "log",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",

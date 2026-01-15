@@ -1,23 +1,12 @@
 use chrono::Utc;
 use rusqlite::{params, Connection};
-use serde::{Deserialize, Serialize};
 
 use crate::commands::workspace::open_workspace_db;
 use uuid::Uuid;
 
 use crate::models::page::{CreatePageRequest, Page, UpdatePageRequest};
-use crate::services::FileSyncService;
+use crate::services::{page_path_service, FileSyncService};
 use crate::utils::page_sync::sync_page_to_markdown;
-
-/// Backlink reference for a page
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PageBacklink {
-    pub page_id: String,
-    pub page_title: String,
-    pub block_id: String,
-    pub block_content: String,
-    pub block_order: i32,
-}
 
 /// Get all pages
 #[tauri::command]
@@ -113,6 +102,10 @@ pub async fn create_page(
     println!("[create_page] File created at: {}", file_path);
     println!("[create_page] Updated file_path in DB");
 
+    // Update page_paths for wiki link resolution
+    page_path_service::update_page_path(&conn, &id, &file_path)
+        .map_err(|e| format!("Failed to update page path: {}", e))?;
+
     let page = get_page_by_id(&conn, &id)?;
     println!("[create_page] Returning page: {:?}", page);
     Ok(page)
@@ -129,9 +122,10 @@ pub async fn update_page(
 
     let page = get_page_by_id(&conn, &request.id)?;
 
-    let new_title = request.title.clone().unwrap_or(page.title.clone());
-    let new_parent_id = request.parent_id.or(page.parent_id.clone());
-    let new_file_path = request.file_path.clone().or(page.file_path.clone());
+    // Use provided values or fall back to existing page data
+    let new_title = request.title.clone().unwrap_or_else(|| page.title.clone());
+    let new_parent_id = request.parent_id.or_else(|| page.parent_id.clone());
+    let new_file_path = request.file_path.clone().or_else(|| page.file_path.clone());
 
     // If title changed, rename file AND rewrite all wiki-link references that point to this page's old path.
     if let Some(title) = &request.title {
@@ -169,6 +163,10 @@ pub async fn update_page(
             rewrite_wiki_links_for_page_path_change(workspace_path.clone(), from_target, to_target)
                 .await?;
 
+            // Update page_paths for wiki link resolution with new path
+            page_path_service::update_page_path(&conn, &request.id, &new_path)
+                .map_err(|e| format!("Failed to update page path: {}", e))?;
+
             // Ensure the renamed page's file reflects the rename (serializer may rely on the new file_path)
             sync_page_to_markdown(&conn, &workspace_path, &request.id)?;
 
@@ -187,6 +185,12 @@ pub async fn update_page(
         ],
     )
     .map_err(|e| e.to_string())?;
+
+    // Always update page_paths if file_path exists (either from request or existing)
+    if let Some(ref path) = new_file_path {
+        page_path_service::update_page_path(&conn, &request.id, path)
+            .map_err(|e| format!("Failed to update page path: {}", e))?;
+    }
 
     get_page_by_id(&conn, &request.id)
 }
@@ -428,74 +432,6 @@ pub async fn debug_db_state(workspace_path: String) -> Result<String, String> {
     }
 
     Ok(result)
-}
-
-/// Get all backlinks (pages that link to this page)
-#[tauri::command]
-pub async fn get_page_backlinks(
-    workspace_path: String,
-    page_id: String,
-) -> Result<Vec<PageBacklink>, String> {
-    let conn = open_workspace_db(&workspace_path)?;
-
-    // Get the page title to search for wiki links
-    let target_page = get_page_by_id(&conn, &page_id)?;
-    let target_title = target_page.title;
-
-    println!(
-        "[get_page_backlinks] Finding backlinks for page: {}",
-        target_title
-    );
-
-    // Search for blocks containing wiki links to this page
-    // Format: [[page_title]] or [[path/page_title]] or [[page_title|alias]]
-    let search_patterns = vec![
-        format!("[[{}]]", target_title),
-        format!("[[{}|", target_title),
-        format!("/{}", target_title), // For path-based links
-    ];
-
-    let mut backlinks = Vec::new();
-
-    for pattern in search_patterns {
-        let mut stmt = conn
-            .prepare(
-                "SELECT b.id, b.content, b.order_weight, b.page_id, p.title
-                 FROM blocks b
-                 JOIN pages p ON b.page_id = p.id
-                 WHERE b.content LIKE ? AND b.page_id != ?
-                 ORDER BY p.title, b.order_weight",
-            )
-            .map_err(|e| e.to_string())?;
-
-        let pattern_search = format!("%{}%", pattern);
-        let links = stmt
-            .query_map(params![&pattern_search, &page_id], |row| {
-                Ok(PageBacklink {
-                    block_id: row.get(0)?,
-                    block_content: row.get(1)?,
-                    block_order: row.get::<_, f64>(2)? as i32,
-                    page_id: row.get(3)?,
-                    page_title: row.get(4)?,
-                })
-            })
-            .map_err(|e| e.to_string())?;
-
-        for link in links {
-            let link = link.map_err(|e| e.to_string())?;
-            // Avoid duplicates
-            if !backlinks
-                .iter()
-                .any(|b: &PageBacklink| b.block_id == link.block_id)
-            {
-                backlinks.push(link);
-            }
-        }
-    }
-
-    println!("[get_page_backlinks] Found {} backlinks", backlinks.len());
-
-    Ok(backlinks)
 }
 
 /// Rewrite wiki links in blocks that reference a moved/renamed page.
