@@ -4,7 +4,7 @@
   "baseBranch": "main",
   "changelog": "@changesets/cli/changelog",
   "commit": true,
-  "commitMessage": "chore: release v%s",
+  "commitMessage": "chore: version packages",
   "fixed": [],
   "ignore": [],
   "linked": [],
