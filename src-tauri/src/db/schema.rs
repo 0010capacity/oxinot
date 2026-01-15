@@ -58,6 +58,20 @@ CREATE TABLE IF NOT EXISTS block_refs (
 CREATE INDEX IF NOT EXISTS idx_refs_from ON block_refs(from_block_id);
 CREATE INDEX IF NOT EXISTS idx_refs_to ON block_refs(to_block_id);
 
+-- 블록 메타데이터 (key::value 형식)
+CREATE TABLE IF NOT EXISTS block_metadata (
+    id TEXT PRIMARY KEY,
+    block_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (block_id) REFERENCES blocks(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_block_metadata_block ON block_metadata(block_id);
+CREATE INDEX IF NOT EXISTS idx_block_metadata_key ON block_metadata(key);
+
 -- FTS: 링크 제안/검색을 위한 블록 검색 인덱스 (content + anchor id + path 캐시)
 -- NOTE: 이 테이블은 파생 데이터이며, 리빌드/리인덱싱 시 재생성될 수 있음.
 -- anchor_id는 마크다운 파일에만 숨겨 저장되는 "ID::<uuid>"에서 추출되어 blocks.id와 일치하도록 유지된다.
@@ -231,6 +245,17 @@ fn migrate_schema(conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
         );
         CREATE INDEX IF NOT EXISTS idx_block_paths_page ON block_paths(page_id);
         CREATE INDEX IF NOT EXISTS idx_block_paths_text ON block_paths(path_text);
+
+        CREATE TABLE IF NOT EXISTS block_metadata (
+            id TEXT PRIMARY KEY,
+            block_id TEXT NOT NULL,
+            key TEXT NOT NULL,
+            value TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (block_id) REFERENCES blocks(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_block_metadata_block ON block_metadata(block_id);
+        CREATE INDEX IF NOT EXISTS idx_block_metadata_key ON block_metadata(key);
         "#,
     )?;
 

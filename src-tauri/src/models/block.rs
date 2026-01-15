@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -13,6 +14,8 @@ pub struct Block {
     pub language: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(default)]
+    pub metadata: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,6 +62,7 @@ pub struct UpdateBlockRequest {
     pub is_collapsed: Option<bool>,
     pub block_type: Option<BlockType>,
     pub language: Option<String>,
+    pub metadata: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize)]
