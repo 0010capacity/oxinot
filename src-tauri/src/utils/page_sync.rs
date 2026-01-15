@@ -584,6 +584,11 @@ fn try_patch_bullet_block_insertion(
 
     let (mut lines, had_trailing_newline) = read_page_lines(&full_path)?;
 
+    // Safety check: ensure the block ID is not already in the file (prevent duplication)
+    if find_marker_idx(&lines, created_block_id).is_some() {
+        return Ok(false);
+    }
+
     // Infer indent from siblings; default to root indent.
     let mut indent_len_opt: Option<usize> = None;
     if let Some(ns) = next_sibling_id.as_deref() {
@@ -630,6 +635,45 @@ fn try_patch_bullet_block_insertion(
     update_page_file_metadata(conn, &full_path, page_id)?;
 
     Ok(true)
+}
+
+/// Sync a page after a block creation, attempting safe incremental insertion.
+pub fn sync_page_to_markdown_after_create(
+    conn: &Connection,
+    workspace_path: &str,
+    page_id: &str,
+    created_block_id: &str,
+) -> Result<(), String> {
+    if try_patch_bullet_block_insertion(conn, workspace_path, page_id, created_block_id)? {
+        return Ok(());
+    }
+    sync_page_to_markdown(conn, workspace_path, page_id)
+}
+
+/// Sync a page after a block update, attempting safe incremental content patch.
+pub fn sync_page_to_markdown_after_update(
+    conn: &Connection,
+    workspace_path: &str,
+    page_id: &str,
+    updated_block_id: &str,
+) -> Result<(), String> {
+    if try_patch_bullet_block_content(conn, workspace_path, page_id, updated_block_id)? {
+        return Ok(());
+    }
+    sync_page_to_markdown(conn, workspace_path, page_id)
+}
+
+/// Sync a page after a block deletion, attempting safe incremental deletion.
+pub fn sync_page_to_markdown_after_delete(
+    conn: &Connection,
+    workspace_path: &str,
+    page_id: &str,
+    deleted_block_id: &str,
+) -> Result<(), String> {
+    if try_patch_bullet_block_deletion(conn, workspace_path, page_id, deleted_block_id)? {
+        return Ok(());
+    }
+    sync_page_to_markdown(conn, workspace_path, page_id)
 }
 
 /// Sync a page's blocks from DB to its markdown file on disk.
