@@ -34,6 +34,7 @@ import {
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
+import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAdvancedSettingsStore } from "../stores/advancedSettingsStore";
@@ -88,9 +89,22 @@ export function SettingsModal({
   const computedColorScheme = useComputedColorScheme("light");
   const isDark = computedColorScheme === "dark";
 
+  // App version state
+  const [appVersion, setAppVersion] = useState<string>("");
+
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("appearance");
+
+  // Load app version from Tauri
+  useEffect(() => {
+    getVersion()
+      .then(setAppVersion)
+      .catch((err) => {
+        console.error("Failed to get app version:", err);
+        setAppVersion("unknown");
+      });
+  }, []);
 
   // Advanced settings
   const telemetryEnabled = useAdvancedSettingsStore(
@@ -1543,7 +1557,9 @@ export function SettingsModal({
                       </Text>
                     </Group>
                     <Text size="sm" c="dimmed">
-                      {t("settings.about.version", { version: "0.2.1" })}
+                      {t("settings.about.version", {
+                        version: appVersion || "Loading...",
+                      })}
                     </Text>
                   </div>
 
