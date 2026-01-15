@@ -1,5 +1,61 @@
 # oxinot
 
+## 0.3.0
+
+### Minor Changes
+
+- fd63efa: - update wiki links on file rename (#103)
+  - update wiki links on page move/rename (#108)
+  - always run CI and short-circuit docs-only changes
+  - run required checks via pull_request_target (#109)
+  - fix enter key behavior and enforce block-level rendering rules (#113)
+  - restore autocomplete keyboard navigation in link completion (#114)
+  - incremental patching for bullet edits (Closes #106) (#120)
+  - enable safe incremental insertion patching (#122)
+  - enable safe incremental relocation patching (#124)
+  - unify and stabilize block merge/split/create system (#130)
+- 149cd2a: - update wiki links on file rename (#103)
+  - update wiki links on page move/rename (#108)
+- 60ff13e: - update wiki links on file rename (#103)
+- 5b2f718: - update wiki links on file rename (#103)
+- d5107f3: - update wiki links on file rename (#103)
+  - update wiki links on page move/rename (#108)
+  - always run CI and short-circuit docs-only changes
+  - run required checks via pull_request_target (#109)
+  - fix enter key behavior and enforce block-level rendering rules (#113)
+  - restore autocomplete keyboard navigation in link completion (#114)
+  - incremental patching for bullet edits (Closes #106) (#120)
+  - enable safe incremental insertion patching (#122)
+- eddbf7c: - update wiki links on file rename (#103)
+  - update wiki links on page move/rename (#108)
+  - always run CI and short-circuit docs-only changes
+  - run required checks via pull_request_target (#109)
+- bd842fb: - update wiki links on file rename (#103)
+  - update wiki links on page move/rename (#108)
+  - always run CI and short-circuit docs-only changes
+  - run required checks via pull_request_target (#109)
+  - fix enter key behavior and enforce block-level rendering rules (#113)
+  - restore autocomplete keyboard navigation in link completion (#114)
+  - incremental patching for bullet edits (Closes #106) (#120)
+- c6d2753: - update wiki links on file rename (#103)
+  - update wiki links on page move/rename (#108)
+  - always run CI and short-circuit docs-only changes
+  - run required checks via pull_request_target (#109)
+  - fix enter key behavior and enforce block-level rendering rules (#113)
+  - restore autocomplete keyboard navigation in link completion (#114)
+  - incremental patching for bullet edits (Closes #106) (#120)
+  - enable safe incremental insertion patching (#122)
+  - enable safe incremental relocation patching (#124)
+- 5a5c4fd: - update wiki links on file rename (#103)
+  - update wiki links on page move/rename (#108)
+  - always run CI and short-circuit docs-only changes
+- 2c98169: - update wiki links on file rename (#103)
+  - update wiki links on page move/rename (#108)
+  - always run CI and short-circuit docs-only changes
+  - run required checks via pull_request_target (#109)
+  - fix enter key behavior and enforce block-level rendering rules (#113)
+  - restore autocomplete keyboard navigation in link completion (#114)
+
 ## 0.2.0
 
 ### Minor Changes
