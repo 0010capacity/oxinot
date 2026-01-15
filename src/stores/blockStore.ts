@@ -83,6 +83,12 @@ interface BlockActions {
   getBlock: (id: string) => BlockData | undefined;
   getChildren: (parentId: string | null) => string[];
   getRootBlockIds: () => string[];
+  getPreviousVisibleBlock: (id: string) => string | null;
+  /**
+   * Alias for getPreviousVisibleBlock (deprecated)
+   */
+  getPreviousBlock: (id: string) => string | null;
+  getNextBlock: (id: string) => string | null;
 
   // Page Lifecycle
   openPage: (pageId: string) => Promise<void>;

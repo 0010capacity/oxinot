@@ -1,5 +1,5 @@
 import { useComputedColorScheme } from "@mantine/core";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";

@@ -37,7 +37,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
     const createBlock = useBlockStore((state) => state.createBlock);
-    const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const indentBlock = useBlockStore((state) => state.indentBlock);
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
