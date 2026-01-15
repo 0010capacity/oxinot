@@ -59,6 +59,7 @@ interface BlockActions {
     newParentId: string | null,
     afterBlockId: string | null
   ) => Promise<void>;
+  mergeBlock: (id: string) => Promise<void>;
   toggleCollapse: (id: string) => Promise<void>;
 
   // 선택/포커스
@@ -547,6 +548,118 @@ export const useBlockStore = create<BlockStore>()(
       // Reload page to reflect changes
       const pageId = get().currentPageId;
       if (pageId) await get().loadPage(pageId);
+    },
+
+    mergeBlock: async (id: string) => {
+      const { blocksById, childrenMap, getPreviousBlock } = get();
+      const currentBlock = blocksById[id];
+      if (!currentBlock) return;
+
+      const prevBlockId = getPreviousBlock(id);
+      if (!prevBlockId) return;
+
+      const prevBlock = blocksById[prevBlockId];
+      if (!prevBlock) return;
+
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) throw new Error("No workspace selected");
+
+      // 1. Calculate new state
+      const newContent = prevBlock.content + currentBlock.content;
+      const cursorPosition = prevBlock.content.length;
+      const childrenToMove = childrenMap[id] ?? [];
+
+      // Optimistic update
+      set((state) => {
+        // Update previous block content
+        if (state.blocksById[prevBlockId]) {
+          state.blocksById[prevBlockId].content = newContent;
+          state.blocksById[prevBlockId].updatedAt = new Date().toISOString();
+        }
+
+        // Reparent children to previous block
+        // Find the last child of previous block to append after
+        const prevChildren = state.childrenMap[prevBlockId] ?? [];
+        // Determine insertion logic: usually appended to the end of prevBlock's children
+        // But strictly speaking, they should come *after* existing children of prevBlock.
+
+        if (!state.childrenMap[prevBlockId]) {
+          state.childrenMap[prevBlockId] = [];
+        }
+
+        // Add children to prevBlock
+        state.childrenMap[prevBlockId].push(...childrenToMove);
+        
+        // Update parentId for children
+        childrenToMove.forEach(childId => {
+          if (state.blocksById[childId]) {
+            state.blocksById[childId].parentId = prevBlockId;
+          }
+        });
+
+        // Delete current block
+        delete state.blocksById[id];
+        const parentKey = currentBlock.parentId ?? "root";
+        state.childrenMap[parentKey] =
+          state.childrenMap[parentKey]?.filter((childId) => childId !== id) ?? [];
+        
+        // Remove empty children entry for deleted block
+        delete state.childrenMap[id];
+
+        // Update focus
+        state.focusedBlockId = prevBlockId;
+        state.targetCursorPosition = cursorPosition;
+      });
+
+      try {
+        // 2. Execute Backend Commands
+        // Order is critical:
+        // A. Move children (so they aren't deleted by cascade)
+        // B. Update content
+        // C. Delete block
+
+        // A. Move children
+        // We need to move them one by one.
+        // To maintain order, we append them to the end of prevBlock's children.
+        // We need to know the ID of the last child of prevBlock to use as `afterBlockId`.
+        let lastChildId: string | null = null;
+        
+        // Fetch fresh state from DB or trust local? 
+        // We can trust `prevBlock`'s current children list from before the optimistic update.
+        // But `childrenMap` in `get()` is stale now because we just updated it optimistically.
+        // Actually, inside `set` we modified the draft, but `get()` returns current state? 
+        // No, `set` updates the store. 
+        // We should have captured the necessary info BEFORE the `set`.
+        
+        // However, simplistic `move_block` logic:
+        // If we move to `parent_id = prevBlockId` and `after_block_id = null`, it appends to the end?
+        // Let's check `calculate_new_order_weight` in rust.
+        // `None` -> `SELECT MAX(order_weight) ...` -> Correct, adds to end.
+        
+        for (const childId of childrenToMove) {
+            await invoke("move_block", {
+                workspacePath,
+                blockId: childId,
+                newParentId: prevBlockId,
+                afterBlockId: null // Appends to end, which preserves relative order if we do it in sequence
+            });
+        }
+
+        // B. Update content
+        await invoke("update_block", {
+            workspacePath,
+            request: { id: prevBlockId, content: newContent },
+        });
+
+        // C. Delete block
+        await invoke("delete_block", { workspacePath, blockId: id });
+
+      } catch (error) {
+        console.error("Failed to merge blocks:", error);
+        // Force reload to restore correct state
+        const pageId = get().currentPageId;
+        if (pageId) await get().loadPage(pageId);
+      }
     },
 
     toggleCollapse: async (id: string) => {

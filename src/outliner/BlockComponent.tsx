@@ -40,6 +40,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const indentBlock = useBlockStore((state) => state.indentBlock);
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
+    const mergeBlock = useBlockStore((state) => state.mergeBlock);
     const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
     const targetCursorPosition = useBlockStore(
       (state) => state.targetCursorPosition,
@@ -435,22 +436,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 .getState()
                 .getPreviousBlock(blockId);
               if (prevBlockId) {
-                const prevBlock = useBlockStore
-                  .getState()
-                  .getBlock(prevBlockId);
-                if (prevBlock) {
-                  // Merge current content into previous block
-                  const prevLength = prevBlock.content.length;
-                  const newContent = prevBlock.content + content;
                   commitDraft();
-                  useBlockStore
-                    .getState()
-                    .updateBlockContent(prevBlockId, newContent);
-                  deleteBlock(blockId);
-                  // Set cursor at the merge point
-                  setFocusedBlock(prevBlockId, prevLength);
+                  mergeBlock(blockId);
                   return true;
-                }
               }
             }
             return false; // Allow default backspace behavior
