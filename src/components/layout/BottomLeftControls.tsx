@@ -1,4 +1,9 @@
-import { ActionIcon, Tooltip, useComputedColorScheme, useMantineColorScheme } from "@mantine/core";
+import {
+  ActionIcon,
+  Tooltip,
+  useComputedColorScheme,
+  useMantineColorScheme,
+} from "@mantine/core";
 import {
   IconCommand,
   IconHelp,
@@ -7,8 +12,10 @@ import {
   IconSearch,
   IconSettings,
   IconSun,
+  IconSnowflake,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import { useSnowStore } from "../../stores/snowStore";
 
 interface BottomLeftControlsProps {
   onHomeClick?: () => void;
@@ -33,6 +40,8 @@ export function BottomLeftControls({
   const { toggleColorScheme } = useMantineColorScheme();
   const computedColorScheme = useComputedColorScheme("light");
   const isDark = computedColorScheme === "dark";
+  const isSnowEnabled = useSnowStore((state) => state.isSnowEnabled);
+  const toggleSnow = useSnowStore((state) => state.toggleSnow);
 
   const iconButtonStyles = {
     root: {
@@ -118,6 +127,29 @@ export function BottomLeftControls({
           styles={iconButtonStyles}
         >
           <IconCommand size={16} />
+        </ActionIcon>
+      </Tooltip>
+
+      <Tooltip
+        label={isSnowEnabled ? "Disable snowfall" : "Enable snowfall"}
+        position="top"
+      >
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          onClick={toggleSnow}
+          styles={{
+            root: {
+              color: isSnowEnabled
+                ? "var(--color-interactive-hover)"
+                : "var(--color-text-secondary)",
+              "&:hover": {
+                backgroundColor: "var(--color-interactive-hover)",
+              },
+            },
+          }}
+        >
+          <IconSnowflake size={16} />
         </ActionIcon>
       </Tooltip>
     </div>

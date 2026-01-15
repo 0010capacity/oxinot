@@ -1,52 +1,122 @@
-import React, { useEffect, useState } from 'react';
-import './SnowEffect.css';
+"use client";
+
+import type React from "react";
+import { useEffect, useRef } from "react";
+import { useSnowStore } from "../stores/snowStore";
 
 interface Snowflake {
-  id: number;
-  left: number;
-  animationDuration: number;
-  animationDelay: number;
-  size: number;
+  x: number;
+  y: number;
+  radius: number;
+  speed: number;
   opacity: number;
+  drift: number;
 }
 
 export const SnowEffect: React.FC = () => {
-  const [snowflakes, setSnowflakes] = useState<Snowflake[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isSnowEnabled = useSnowStore((state) => state.isSnowEnabled);
 
   useEffect(() => {
-    const count = 50;
-    const newSnowflakes: Snowflake[] = [];
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    for (let i = 0; i < count; i++) {
-      newSnowflakes.push({
-        id: i,
-        left: Math.random() * 100,
-        animationDuration: Math.random() * 5 + 3, // 3-8s
-        animationDelay: Math.random() * 5,
-        size: Math.random() * 3 + 2, // 2-5px
-        opacity: Math.random() * 0.5 + 0.3, // 0.3-0.8
-      });
+    canvas.style.position = "fixed";
+    canvas.style.top = "0";
+    canvas.style.right = "0";
+    canvas.style.bottom = "0";
+    canvas.style.left = "0";
+    canvas.style.width = "100vw";
+    canvas.style.height = "100vh";
+    canvas.style.pointerEvents = "none";
+    canvas.style.zIndex = "999";
+
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let snowflakes: Snowflake[] = [];
+
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    const createSnowflakes = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      const count = Math.floor((w * h) / 15000);
+      snowflakes = [];
+
+      for (let i = 0; i < count; i++) {
+        snowflakes.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          radius: Math.random() * 2 + 1,
+          speed: Math.random() * 0.5 + 0.2,
+          opacity: Math.random() * 0.3 + 0.1,
+          drift: Math.random() * 0.5 - 0.25,
+        });
+      }
+    };
+
+    const animate = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      ctx.clearRect(0, 0, w, h);
+
+      if (isSnowEnabled) {
+        for (const flake of snowflakes) {
+          ctx.beginPath();
+          ctx.arc(flake.x, flake.y, flake.radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 255, 255, ${flake.opacity})`;
+          ctx.fill();
+
+          flake.y += flake.speed;
+          flake.x += flake.drift + Math.sin(flake.y * 0.01) * 0.3;
+
+          if (flake.y > h) {
+            flake.y = -flake.radius;
+            flake.x = Math.random() * w;
+          }
+
+          if (flake.x > w) {
+            flake.x = 0;
+          } else if (flake.x < 0) {
+            flake.x = w;
+          }
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    if (isSnowEnabled) {
+      resizeCanvas();
+      createSnowflakes();
+      animate();
+    } else {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     }
 
-    setSnowflakes(newSnowflakes);
-  }, []);
+    const handleResize = () => {
+      resizeCanvas();
+      if (isSnowEnabled) {
+        createSnowflakes();
+      }
+    };
 
-  return (
-    <div className="snow-container" aria-hidden="true">
-      {snowflakes.map((flake) => (
-        <div
-          key={flake.id}
-          className="snowflake"
-          style={{
-            left: `${flake.left}%`,
-            width: `${flake.size}px`,
-            height: `${flake.size}px`,
-            opacity: flake.opacity,
-            animationDuration: `${flake.animationDuration}s`,
-            animationDelay: `${flake.animationDelay}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [isSnowEnabled]);
+
+  return <canvas ref={canvasRef} />;
 };
