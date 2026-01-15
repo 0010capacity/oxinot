@@ -262,7 +262,9 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     loadPage: async (pageId: string) => {
-
+       // Legacy wrapper: use openPage
+       return get().openPage(pageId);
+    },
 
     clearPage: () => {
       set((state) => {
