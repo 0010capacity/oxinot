@@ -242,15 +242,24 @@ Fixes #38
 
 ### Changesets Workflow
 
-Changesets are automatically generated when PRs are merged to main via GitHub Actions.
+Changesets are automatically generated after PRs merge to main, and a version PR is created.
+
+#### How It Works
+
+1. **PR merges to main** → CI passes
+2. **Auto Changeset workflow** runs and analyzes commits since last release
+3. **Changeset file generated** in `.changeset/` directory based on commit types
+4. **Changeset PR created** by Release workflow (chore: Version Packages)
+5. **User merges PR** → version bumps, changelog updated, git tag created
+6. **Build and Release workflow** runs → GitHub release created with binaries
 
 #### Changeset Rules
 
 Changesets auto-generated for:
-- feat: New features
-- fix: Bug fixes
-- perf: Performance improvements
-- improve: Enhancements
+- feat: New features (triggers MINOR version bump)
+- improve: Enhancements (triggers MINOR version bump)
+- fix: Bug fixes (triggers PATCH version bump)
+- perf: Performance improvements (triggers PATCH version bump)
 
 No changesets for:
 - refactor: Internal refactoring
@@ -261,39 +270,47 @@ No changesets for:
 #### Auto-Changeset Example
 
 ```bash
-# When PR is merged to main, GitHub Actions automatically:
-# 1. Analyzes commits since last release
-# 2. Detects commit types (feat, fix, perf, improve)
-# 3. Generates single changeset with highest version bump
-# 4. Commits changeset back to main branch
+# When PR is merged to main:
+# 1. CI passes on main branch
+# 2. Auto Changeset workflow runs
+# 3. Analyzes commits since last release
+# 4. Detects commit types (feat, fix, perf, improve)
+# 5. Generates single changeset with highest version bump
+# 6. Creates PR: "chore: Version Packages"
 
 # Example: PR with these commits merged:
 # - feat(editor): add block templates dropdown
 # - fix(editor): handle edge case in template selection
 
-# GitHub Actions creates .changeset/happy-cats-jump.md:
+# Auto Changeset creates .changeset/happy-cats-jump.md:
 # ---
 # "oxinot": minor
 # ---
 # 
 # - add block templates dropdown
 # - handle edge case in template selection
+
+# Release workflow creates "chore: Version Packages" PR
+# When PR merges: package.json bumped to 0.3.1, CHANGELOG updated, tag created
+# Build and Release workflow builds and creates GitHub release
 ```
 
 #### Changeset File Format
 
-Changesets creates files like `.changeset/fancy-cats-jump.md`:
+Changeset files like `.changeset/fancy-cats-jump.md`:
 
 ```markdown
 ---
 "oxinot": minor
 ---
 
-Added new block templates feature
+- add block templates dropdown
+- handle edge case in template selection
 ```
 
-Match version level to commit type:
+Version level mapping:
 - feat → minor
+- improve → minor
 - fix or perf → patch
 - BREAKING CHANGE → major
 - refactor, docs, test, chore → no changeset
@@ -308,6 +325,7 @@ Always merge back to main through PR.
 
 ### Workflow Summary
 
+**Development:**
 1. Assess task scope
 2. Create issue with gh CLI if needed (feat, improve types)
 3. Extract issue number if created
@@ -320,8 +338,15 @@ Always merge back to main through PR.
 10. CI runs automatically (lint-and-build required by branch protection)
 11. PR auto-merges when CI passes
 12. Issue auto-closes when PR merges
-13. Changeset generated and committed to main (if CI passes)
-14. User runs `npm run release` when ready
+
+**Release (Fully Automated):**
+13. Auto Changeset workflow analyzes merged commits
+14. Changeset file generated in `.changeset/`
+15. Release workflow creates "chore: Version Packages" PR
+16. User reviews and merges PR
+17. Changeset version job updates package.json and creates git tag
+18. Build and Release job creates GitHub release with binaries
+19. Done! Users receive auto-update notification
 
 ### Version File Synchronization
 
@@ -334,9 +359,9 @@ Runs automatically with `npm run version`.
 
 ## Important Notes for AI Agents
 
+### Development
 - Always use conventional commit format: `type(scope): message`
-- Changesets are automatic via GitHub Actions when PR merges to main
-- Issues are optional based on task scope
+- Issues are optional based on task scope (feat/improve always, fix/perf if substantial)
 - PRs are mandatory, direct commits to main blocked by branch protection
 - Use correct gh CLI syntax: template name not filename
 - Extract issue number after creation for branch naming
@@ -349,7 +374,15 @@ Runs automatically with `npm run version`.
 - Extract PR number from gh pr create output: `PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')`
 - Branch protection enforces: PR required, CI must pass before merge
 - Labels are added via --label flag in gh issue create
-- Changesets are generated and committed automatically by CI after PR merge to main
+
+### Release (Fully Automated)
+- **Do NOT** manually run `npm run release` or create tags - this breaks the workflow
+- Auto Changeset workflow generates changesets after CI passes on main
+- Release workflow creates "chore: Version Packages" PR with version bumps
+- User merges "chore: Version Packages" PR → tag created automatically
+- Build and Release workflow triggers on tag → creates GitHub release with binaries
+- Users receive auto-update notification once release is published
+- All version syncing (package.json, tauri.conf.json, Cargo.toml) is automatic
 
 
 ## Release Process (User Only)
