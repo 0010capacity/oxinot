@@ -396,24 +396,31 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
             <span style={{ fontSize: "12px", opacity: 0.5 }}>add property</span>
           </Group>
 
-          <Group gap="xs">
-            <ActionIcon
-              variant="subtle"
-              size="xs"
-              title="Next field"
-              style={{ fontSize: "11px", opacity: 0.5 }}
-            >
-              ↵
-            </ActionIcon>
-            <ActionIcon
-              variant="subtle"
-              size="xs"
-              onClick={handleSaveAndClose}
-              title="Close"
-              style={{ fontSize: "11px", opacity: 0.5 }}
-            >
-              esc
-            </ActionIcon>
+          <Group gap={12}>
+            <Group gap={4} style={{ opacity: 0.6 }}>
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontFamily: "monospace",
+                  fontWeight: 600,
+                }}
+              >
+                ↵
+              </span>
+              <span style={{ fontSize: "11px" }}>next field</span>
+            </Group>
+            <Group gap={4} style={{ opacity: 0.6 }}>
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontFamily: "monospace",
+                  fontWeight: 600,
+                }}
+              >
+                esc
+              </span>
+              <span style={{ fontSize: "11px" }}>close & save</span>
+            </Group>
           </Group>
         </Group>
       </Stack>
