@@ -40,18 +40,25 @@ jobs:
             PR_NUMBER="${{ github.event.pull_request.number }}"
             OWNER_REPO="${{ github.repository }}"
 
-            FILES="$(
-              gh api --paginate "repos/${OWNER_REPO}/pulls/${PR_NUMBER}/files?per_page=100" \
-                --jq '.[].filename' || true
-            )"
-
-            if [ -z "${FILES}" ]; then
-              # Be conservative: run CI if we can't determine files.
+            # Always run CI for Version Packages PR (created by changesets)
+            PR_TITLE="$(gh api "repos/${OWNER_REPO}/pulls/${PR_NUMBER}" --jq '.title' || true)"
+            if [[ "${PR_TITLE}" == *"Version Packages"* ]] || [[ "${PR_TITLE}" == "chore: Version Packages"* ]]; then
+              echo "Version Packages PR detected - CI will run"
               SHOULD_RUN=true
             else
-              NON_IGNORED="$(printf "%s\n" "${FILES}" | grep -Ev "${IGNORE_REGEX}" || true)"
-              if [ -z "${NON_IGNORED}" ]; then
-                SHOULD_RUN=false
+              FILES="$(
+                gh api --paginate "repos/${OWNER_REPO}/pulls/${PR_NUMBER}/files?per_page=100" \
+                  --jq '.[].filename' || true
+              )"
+
+              if [ -z "${FILES}" ]; then
+                # Be conservative: run CI if we can't determine files.
+                SHOULD_RUN=true
+              else
+                NON_IGNORED="$(printf "%s\n" "${FILES}" | grep -Ev "${IGNORE_REGEX}" || true)"
+                if [ -z "${NON_IGNORED}" ]; then
+                  SHOULD_RUN=false
+                fi
               fi
             fi
           elif [ "${{ github.event_name }}" = "push" ]; then
