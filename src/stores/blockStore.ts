@@ -33,6 +33,9 @@ interface BlockState {
   focusedBlockId: string | null;
   selectedBlockIds: string[];
 
+  // 작업 상태
+  mergingBlockId: string | null;
+
   // 커서 위치 추적 (블록 간 이동 시)
   targetCursorPosition: number | null;
 }
@@ -129,6 +132,7 @@ export const useBlockStore = create<BlockStore>()(
     error: null,
     focusedBlockId: null,
     selectedBlockIds: [],
+    mergingBlockId: null,
     targetCursorPosition: null,
 
     // ============ Page Operations ============
@@ -605,47 +609,56 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     mergeWithPrevious: async (id: string, draftContent?: string) => {
-      const { blocksById, getPreviousVisibleBlock, deleteBlock } = get();
-      const currentBlock = blocksById[id];
-      if (!currentBlock) return;
+      const { blocksById, getPreviousVisibleBlock, deleteBlock, mergingBlockId } =
+        get();
 
-      const contentToMerge = draftContent ?? currentBlock.content;
+      // Prevent concurrent merges on the same block
+      if (mergingBlockId === id) return;
 
-      // Case 1: If current block is empty, delete it and move focus to previous
-      if (contentToMerge === "") {
-        const prevBlockId = getPreviousVisibleBlock(id);
-        await deleteBlock(id);
-        
-        if (prevBlockId) {
-          const prevBlock = get().blocksById[prevBlockId];
-          if (prevBlock) {
-             set((state) => {
-                state.focusedBlockId = prevBlockId;
-                state.targetCursorPosition = prevBlock.content.length;
-             });
-          } else {
-             set((state) => {
-                state.focusedBlockId = prevBlockId;
-             });
-          }
-        }
-        return;
-      }
-
-      // Case 2: Non-empty block, merge into previous
-      const prevBlockId = getPreviousVisibleBlock(id);
-      if (!prevBlockId) return;
-
-      const prevBlock = blocksById[prevBlockId];
-      if (!prevBlock) return;
-
-      const workspacePath = useWorkspaceStore.getState().workspacePath;
-      if (!workspacePath) throw new Error("No workspace selected");
-
-      // Calculate cursor position for focus after merge
-      const cursorPosition = prevBlock.content.length;
+      set((state) => {
+        state.mergingBlockId = id;
+      });
 
       try {
+        const currentBlock = blocksById[id];
+        if (!currentBlock) return;
+
+        const contentToMerge = draftContent ?? currentBlock.content;
+
+        // Case 1: If current block is empty, delete it and move focus to previous
+        if (contentToMerge === "") {
+          const prevBlockId = getPreviousVisibleBlock(id);
+          await deleteBlock(id);
+
+          if (prevBlockId) {
+            const prevBlock = get().blocksById[prevBlockId];
+            if (prevBlock) {
+              set((state) => {
+                state.focusedBlockId = prevBlockId;
+                state.targetCursorPosition = prevBlock.content.length;
+              });
+            } else {
+              set((state) => {
+                state.focusedBlockId = prevBlockId;
+              });
+            }
+          }
+          return;
+        }
+
+        // Case 2: Non-empty block, merge into previous
+        const prevBlockId = getPreviousVisibleBlock(id);
+        if (!prevBlockId) return;
+
+        const prevBlock = blocksById[prevBlockId];
+        if (!prevBlock) return;
+
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) throw new Error("No workspace selected");
+
+        // Calculate cursor position for focus after merge
+        const cursorPosition = prevBlock.content.length;
+
         // If draftContent is provided, update the block content first
         if (
           draftContent !== undefined &&
@@ -671,9 +684,31 @@ export const useBlockStore = create<BlockStore>()(
         });
       } catch (error) {
         console.error("Failed to merge blocks:", error);
-        // Force reload to restore correct state
+
+        // Error recovery: Clear focus to ensure Editor components re-initialize with fresh data on reload
+        set((state) => {
+          state.focusedBlockId = null;
+        });
+
         const pageId = get().currentPageId;
         if (pageId) await get().loadPage(pageId);
+
+        // Restore focus
+        set((state) => {
+          // If the block still exists (merge failed), focus it so user can retry or see state
+          if (state.blocksById[id]) {
+            state.focusedBlockId = id;
+          } else {
+            // Block is gone (maybe deleted by race?), focus previous or root
+            const prev =
+              getPreviousVisibleBlock(id) ?? state.childrenMap.root?.[0];
+            state.focusedBlockId = prev ?? null;
+          }
+        });
+      } finally {
+        set((state) => {
+          state.mergingBlockId = null;
+        });
       }
     },
 
