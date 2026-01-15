@@ -490,11 +490,53 @@ fn try_patch_bullet_block_content(
         return Ok(false);
     }
 
+    // Check if block has metadata in DB. If so, fallback to full rewrite to ensure metadata is synced.
+    let has_metadata: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM block_metadata WHERE block_id = ?)",
+            [updated_block_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    if has_metadata {
+        return Ok(false);
+    }
+
     let (mut lines, had_trailing_newline) = read_page_lines(&full_path)?;
 
     let Some(mi) = find_marker_idx(&lines, updated_block_id) else {
         return Ok(false);
     };
+
+    // Check if block has metadata in file (lines immediately after marker).
+    // If so, fallback to full rewrite to handle potential metadata deletion/change.
+    let marker_line = &lines[mi];
+    let indent_len_val = indent_len(marker_line);
+    let mut j = mi + 1;
+    while j < lines.len() {
+        let line = &lines[j];
+        let trimmed = line.trim_start();
+        let depth = indent_len(line);
+        
+        // Metadata must be indented same as marker
+        if depth == indent_len_val && crate::utils::markdown::is_metadata_line(trimmed) {
+            return Ok(false);
+        }
+        
+        // If we hit something that is not metadata at the same level, stop checking
+        if depth <= indent_len_val {
+            break;
+        }
+        // If it's deeper (child), we stop checking for metadata but continue (it's content)
+        // Actually, metadata must be contiguous after ID.
+        // If we see a child block, metadata section is over.
+        if depth > indent_len_val {
+             break;
+        }
+        j += 1;
+    }
+
     let Some(si) = find_bullet_segment_start(&lines, mi) else {
         return Ok(false);
     };

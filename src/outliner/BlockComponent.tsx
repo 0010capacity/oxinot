@@ -12,6 +12,7 @@ import { IconCopy } from "@tabler/icons-react";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Editor, type EditorRef } from "../components/Editor";
+import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
 import {
   useBlock,
@@ -40,7 +41,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const hasChildren = childIds.length > 0;
     const focusedBlockId = useFocusedBlockId();
     const showIndentGuides = useOutlinerSettingsStore(
-      (state) => state.showIndentGuides
+      (state) => state.showIndentGuides,
     );
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
@@ -49,14 +50,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
     const splitBlockAtCursor = useBlockStore(
-      (state) => state.splitBlockAtCursor
+      (state) => state.splitBlockAtCursor,
     );
     const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
     const targetCursorPosition = useBlockStore(
-      (state) => state.targetCursorPosition
+      (state) => state.targetCursorPosition,
     );
     const clearTargetCursorPosition = useBlockStore(
-      (state) => state.clearTargetCursorPosition
+      (state) => state.clearTargetCursorPosition,
     );
 
     const blockComponentRef = useRef<HTMLDivElement>(null);
@@ -353,7 +354,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }
         }
       },
-      [blockId]
+      [blockId],
     );
 
     const handleBulletClick = useCallback(
@@ -386,7 +387,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           editorRef.current?.focus();
         }
       },
-      [blockId, hasChildren, setFocusedBlock]
+      [blockId, hasChildren, setFocusedBlock],
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
@@ -402,7 +403,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         }
         handleContentChange(value);
       },
-      [handleContentChange]
+      [handleContentChange],
     );
 
     const keybindings: KeyBinding[] = useMemo(() => {
@@ -807,62 +808,16 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             </Popover>
 
             {/* Metadata Badge - small indicator with tooltip */}
-            {block.metadata && Object.keys(block.metadata).length > 0 && (
-              <Box mt={2}>
-                <Tooltip
-                  label={
-                    <Table
-                      verticalSpacing={2}
-                      horizontalSpacing="xs"
-                      style={{ fontSize: "12px", color: "inherit" }}
-                    >
-                      <Table.Tbody>
-                        {Object.entries(block.metadata).map(([k, v]) => (
-                          <Table.Tr key={k}>
-                            <Table.Td
-                              style={{
-                                fontWeight: 600,
-                                paddingRight: 8,
-                                opacity: 0.7,
-                                borderBottom: "none",
-                              }}
-                            >
-                              {k}:
-                            </Table.Td>
-                            <Table.Td style={{ borderBottom: "none" }}>
-                              {v}
-                            </Table.Td>
-                          </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                  }
-                  position="bottom-start"
-                  openDelay={300}
-                  color={isDark ? "dark" : "gray"}
-                  withArrow
-                >
-                  <Badge
-                    size="xs"
-                    variant="dot"
-                    color="gray"
-                    style={{
-                      cursor: "pointer",
-                      textTransform: "none",
-                      paddingLeft: 0,
-                      background: "transparent",
-                      border: "none",
-                      fontWeight: 400,
-                      opacity: 0.6,
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsMetadataOpen(true);
-                    }}
-                  >
-                    {Object.keys(block.metadata).length} properties
-                  </Badge>
-                </Tooltip>
+            {block.metadata && (
+              <Box
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <MetadataBadges
+                  metadata={block.metadata}
+                  onBadgeClick={() => setIsMetadataOpen(true)}
+                />
               </Box>
             )}
           </div>
@@ -894,5 +849,5 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         </style>
       </div>
     );
-  }
+  },
 );

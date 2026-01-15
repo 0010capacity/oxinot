@@ -40,7 +40,7 @@ fn parse_id_marker(trimmed: &str) -> Option<String> {
     Some(trimmed[ID_MARKER_PREFIX.len()..].trim().to_string())
 }
 
-fn is_metadata_line(trimmed: &str) -> bool {
+pub fn is_metadata_line(trimmed: &str) -> bool {
     if trimmed.starts_with(ID_MARKER_PREFIX) {
         return false; // ID marker is not metadata
     }

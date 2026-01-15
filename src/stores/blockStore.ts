@@ -48,13 +48,13 @@ interface BlockActions {
   clearPage: () => void;
   updatePartialBlocks: (
     blocks: BlockData[],
-    deletedBlockIds?: string[]
+    deletedBlockIds?: string[],
   ) => void;
 
   // 블록 CRUD
   createBlock: (
     afterBlockId: string | null,
-    content?: string
+    content?: string,
   ) => Promise<string>;
   updateBlock: (id: string, updates: Partial<BlockData>) => Promise<void>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
@@ -62,7 +62,7 @@ interface BlockActions {
   splitBlockAtCursor: (
     id: string,
     offset: number,
-    draftContent?: string
+    draftContent?: string,
   ) => Promise<void>;
 
   // 블록 조작
@@ -71,7 +71,7 @@ interface BlockActions {
   moveBlock: (
     id: string,
     newParentId: string | null,
-    afterBlockId: string | null
+    afterBlockId: string | null,
   ) => Promise<void>;
   mergeWithPrevious: (id: string, draftContent?: string) => Promise<void>;
   toggleCollapse: (id: string) => Promise<void>;
@@ -109,7 +109,7 @@ type BlockStore = BlockState & BlockActions;
 function getInsertBelowTarget(
   currentId: string,
   blocksById: Record<string, BlockData>,
-  childrenMap: Record<string, string[]>
+  childrenMap: Record<string, string[]>,
 ): { parentId: string | null; afterBlockId: string | null } {
   const currentBlock = blocksById[currentId];
   const hasChildren = (childrenMap[currentId] ?? []).length > 0;
@@ -302,7 +302,7 @@ export const useBlockStore = create<BlockStore>()(
         const target = getInsertBelowTarget(
           afterBlockId,
           blocksById,
-          childrenMap
+          childrenMap,
         );
         parentId = target.parentId;
         afterBlockIdForBackend = target.afterBlockId;
@@ -382,7 +382,7 @@ export const useBlockStore = create<BlockStore>()(
             delete state.blocksById[tempId];
             const parentKey = parentId ?? "root";
             state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-              (id) => id !== tempId
+              (id) => id !== tempId,
             );
           });
           throw error;
@@ -442,10 +442,12 @@ export const useBlockStore = create<BlockStore>()(
         if (!workspacePath) throw new Error("No workspace selected");
 
         if (updates.metadata) {
-          await invoke("save_block_metadata", {
+          await invoke("update_block", {
             workspacePath,
-            blockId: id,
-            metadata: updates.metadata,
+            request: {
+              id,
+              metadata: updates.metadata,
+            },
           });
         }
       } catch (error) {
@@ -501,7 +503,7 @@ export const useBlockStore = create<BlockStore>()(
     splitBlockAtCursor: async (
       id: string,
       offset: number,
-      draftContent?: string
+      draftContent?: string,
     ) => {
       const { currentPageId, blocksById, childrenMap } = get();
       if (!currentPageId) throw new Error("No page loaded");
@@ -657,7 +659,7 @@ export const useBlockStore = create<BlockStore>()(
     moveBlock: async (
       id: string,
       targetParentId: string | null,
-      afterBlockId: string | null
+      afterBlockId: string | null,
     ) => {
       const workspacePath = useWorkspaceStore.getState().workspacePath;
       if (!workspacePath) {
@@ -952,7 +954,7 @@ export const useBlockStore = create<BlockStore>()(
 
       return null;
     },
-  }))
+  })),
 );
 
 // ============ Selector Hooks ============
@@ -963,7 +965,7 @@ export const useBlock = (id: string) =>
 export const useChildrenIds = (parentId: string | null) =>
   useBlockStore(
     (state) => state.childrenMap[parentId ?? "root"] ?? [],
-    shallow
+    shallow,
   );
 
 export const useFocusedBlockId = () =>

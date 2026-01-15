@@ -63,22 +63,23 @@ export const MetadataBadge: React.FC<MetadataBadgeProps> = memo(
         </Badge>
       </Tooltip>
     );
-  }
+  },
 );
 
 MetadataBadge.displayName = "MetadataBadge";
 
 interface MetadataBadgesProps {
   metadata: Record<string, string>;
-  onBadgeClick?: (key: string) => void;
+  onBadgeClick?: () => void;
 }
 
 /**
- * Container for multiple metadata badges
+ * Container for multiple metadata badges, displayed as a summary badge
  */
 export const MetadataBadges: React.FC<MetadataBadgesProps> = memo(
   ({ metadata, onBadgeClick }) => {
-    const entries = Object.entries(metadata);
+    // Filter out ID if present, as it's internal
+    const entries = Object.entries(metadata).filter(([k]) => k !== "ID");
 
     if (entries.length === 0) {
       return null;
@@ -87,19 +88,44 @@ export const MetadataBadges: React.FC<MetadataBadgesProps> = memo(
     // Sort by key for consistent display
     entries.sort(([a], [b]) => a.localeCompare(b));
 
-    return (
-      <Group gap="xs" mt="xs" wrap="wrap">
+    const tooltipContent = (
+      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
         {entries.map(([key, value]) => (
-          <MetadataBadge
-            key={key}
-            metadataKey={key}
-            value={value}
-            onClick={onBadgeClick ? () => onBadgeClick(key) : undefined}
-          />
+          <div key={key} style={{ fontSize: "12px" }}>
+            <span style={{ opacity: 0.7 }}>{key}:</span>{" "}
+            <span style={{ fontWeight: 500 }}>{truncateValue(value, 50)}</span>
+          </div>
         ))}
+      </div>
+    );
+
+    return (
+      <Group gap="xs" mt={4} wrap="wrap">
+        <Tooltip
+          label={tooltipContent}
+          withArrow
+          openDelay={300}
+          multiline
+          style={{ maxWidth: "300px" }}
+        >
+          <Badge
+            variant="dot"
+            size="sm"
+            style={{
+              cursor: onBadgeClick ? "pointer" : "default",
+              textTransform: "none",
+              fontWeight: 500,
+              paddingLeft: 0,
+            }}
+            onClick={onBadgeClick}
+            color="gray"
+          >
+            {entries.length} metadata
+          </Badge>
+        </Tooltip>
       </Group>
     );
-  }
+  },
 );
 
 MetadataBadges.displayName = "MetadataBadges";

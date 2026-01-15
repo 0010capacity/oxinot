@@ -92,13 +92,13 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
     if (blockId) {
       const block = getBlock(blockId);
       if (block) {
-        const loadedItems: MetadataItem[] = Object.entries(
-          block.metadata || {}
-        ).map(([key, value]) => ({
-          key,
-          value: String(value),
-          type: guessType(String(value)),
-        }));
+        const loadedItems: MetadataItem[] = Object.entries(block.metadata || {})
+          .filter(([key]) => key !== "ID") // Filter out internal ID
+          .map(([key, value]) => ({
+            key,
+            value: String(value),
+            type: guessType(String(value)),
+          }));
 
         // Always start with at least one empty row if empty
         if (loadedItems.length === 0) {
@@ -166,7 +166,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   const updateItem = (
     index: number,
     field: keyof MetadataItem,
-    value: string
+    value: string,
   ) => {
     const newItems = [...items];
     let type = newItems[index].type;
@@ -185,7 +185,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   const handleInputKeyDown = (
     e: React.KeyboardEvent,
     index: number,
-    field: "key" | "value"
+    field: "key" | "value",
   ) => {
     if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
       e.preventDefault();
@@ -356,15 +356,15 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
                   Number.isNaN(Number(item.value))
                     ? true
                     : item.type === "json" && item.value
-                    ? (() => {
-                        try {
-                          JSON.parse(item.value);
-                          return false;
-                        } catch {
-                          return true;
-                        }
-                      })()
-                    : false
+                      ? (() => {
+                          try {
+                            JSON.parse(item.value);
+                            return false;
+                          } catch {
+                            return true;
+                          }
+                        })()
+                      : false
                 }
               />
 
