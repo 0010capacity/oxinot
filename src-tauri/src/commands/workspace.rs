@@ -1,5 +1,6 @@
 use crate::commands::block::block_type_to_string;
 use crate::services::markdown_to_blocks;
+use crate::services::page_path_service;
 // (removed) WorkspaceSyncService import: sync/reindex paths are unified on filesystem-driven `sync_workspace`
 use chrono::Utc;
 use rusqlite::{params, Connection};
@@ -460,6 +461,10 @@ fn sync_or_create_file(
         )
         .map_err(|e| e.to_string())?;
 
+        // Update page_paths
+        page_path_service::update_page_path(conn, page_id, &rel_path)
+            .map_err(|e| format!("Failed to update page path: {}", e))?;
+
         if needs_reindex {
             // Reindex blocks
             let content = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
@@ -518,6 +523,10 @@ fn sync_or_create_file(
         ],
     )
     .map_err(|e| e.to_string())?;
+
+    // Update page_paths
+    page_path_service::update_page_path(conn, &page_id, &rel_path)
+        .map_err(|e| format!("Failed to update page path: {}", e))?;
 
     // Parse and create blocks
     let blocks = markdown_to_blocks(&content, &page_id);

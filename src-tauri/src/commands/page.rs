@@ -1,12 +1,11 @@
 use chrono::Utc;
 use rusqlite::{params, Connection};
-use serde::{Deserialize, Serialize};
 
 use crate::commands::workspace::open_workspace_db;
 use uuid::Uuid;
 
 use crate::models::page::{CreatePageRequest, Page, UpdatePageRequest};
-use crate::services::FileSyncService;
+use crate::services::{page_path_service, FileSyncService};
 use crate::utils::page_sync::sync_page_to_markdown;
 
 /// Get all pages
@@ -103,6 +102,10 @@ pub async fn create_page(
     println!("[create_page] File created at: {}", file_path);
     println!("[create_page] Updated file_path in DB");
 
+    // Update page_paths for wiki link resolution
+    page_path_service::update_page_path(&conn, &id, &file_path)
+        .map_err(|e| format!("Failed to update page path: {}", e))?;
+
     let page = get_page_by_id(&conn, &id)?;
     println!("[create_page] Returning page: {:?}", page);
     Ok(page)
@@ -159,6 +162,10 @@ pub async fn update_page(
             rewrite_wiki_links_for_page_path_change(workspace_path.clone(), from_target, to_target)
                 .await?;
 
+            // Update page_paths for wiki link resolution with new path
+            page_path_service::update_page_path(&conn, &request.id, &new_path)
+                .map_err(|e| format!("Failed to update page path: {}", e))?;
+
             // Ensure the renamed page's file reflects the rename (serializer may rely on the new file_path)
             sync_page_to_markdown(&conn, &workspace_path, &request.id)?;
 
@@ -177,6 +184,12 @@ pub async fn update_page(
         ],
     )
     .map_err(|e| e.to_string())?;
+
+    // Update page_paths for wiki link resolution if file_path was updated
+    if let Some(path) = &new_file_path {
+        page_path_service::update_page_path(&conn, &request.id, path)
+            .map_err(|e| format!("Failed to update page path: {}", e))?;
+    }
 
     get_page_by_id(&conn, &request.id)
 }

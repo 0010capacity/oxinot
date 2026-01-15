@@ -154,6 +154,7 @@ pub fn init_schema(conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
 
 /// Run database migrations
 fn migrate_schema(conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
+    use crate::services::page_path_service;
     // Check if parent_id column exists in pages table
     let has_parent_id: bool = conn
         .query_row(
@@ -297,7 +298,8 @@ fn migrate_schema(conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
         .unwrap_or(false);
 
     if !has_wiki_links {
-        conn.execute_batch(r#"
+        conn.execute_batch(
+            r#"
             CREATE TABLE wiki_links (
                 id TEXT PRIMARY KEY,
                 from_page_id TEXT NOT NULL,
@@ -322,7 +324,23 @@ fn migrate_schema(conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
             CREATE INDEX idx_wiki_links_from_page ON wiki_links(from_page_id);
             CREATE INDEX idx_wiki_links_from_block ON wiki_links(from_block_id);
             CREATE INDEX idx_wiki_links_type ON wiki_links(link_type);
-        "#)?;
+        "#,
+        )?;
+    }
+
+    // Populate page_paths for existing pages that don't have entries yet
+    let needs_page_paths_migration: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pages WHERE id NOT IN (SELECT page_id FROM page_paths)",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if needs_page_paths_migration {
+        println!("[migrate_schema] Populating page_paths for existing pages...");
+        page_path_service::migrate_populate_page_paths(conn)?;
     }
 
     Ok(())

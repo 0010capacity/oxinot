@@ -1,6 +1,33 @@
-use rusqlite::{Connection, params, OptionalExtension};
-use uuid::Uuid;
 use crate::services::wiki_link_parser::parse_wiki_links;
+use rusqlite::{params, Connection, OptionalExtension};
+use uuid::Uuid;
+
+fn resolve_link_target(
+    conn: &Connection,
+    target_path: &str,
+) -> Result<Option<String>, rusqlite::Error> {
+    let target_basename = target_path.split('/').last().unwrap_or(target_path);
+    let pattern = format!("%/{}", target_basename);
+
+    // Single query with priority: exact match > pattern match > basename match
+    let mut stmt = conn.prepare(
+        "SELECT page_id FROM page_paths
+         WHERE path_text = ?
+         UNION
+         SELECT page_id FROM page_paths
+         WHERE path_text LIKE ? AND path_text != ?
+         UNION
+         SELECT page_id FROM page_paths
+         WHERE path_text = ?
+         LIMIT 1",
+    )?;
+
+    stmt.query_row(
+        params![target_path, pattern, target_path, target_basename],
+        |row| row.get(0),
+    )
+    .optional()
+}
 
 pub fn index_block_links(
     conn: &Connection,
@@ -16,26 +43,33 @@ pub fn index_block_links(
 
     // 2. Parse new links
     let links = parse_wiki_links(block_content);
-    
+
     if links.is_empty() {
         return Ok(());
     }
 
     // 3. Resolve and insert
-    let mut stmt_resolve = conn.prepare("SELECT page_id FROM page_paths WHERE path_text = ? LIMIT 1")?;
-    
-    let mut stmt_insert = conn.prepare(r#"
+    let mut stmt_insert = conn.prepare(
+        r#"
         INSERT INTO wiki_links (
-            id, from_page_id, from_block_id, to_page_id, link_type, 
+            id, from_page_id, from_block_id, to_page_id, link_type,
             target_path, raw_target, alias, heading, block_ref, is_embed
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    "#)?;
+    "#,
+    )?;
 
     for link in links {
-        let to_page_id: Option<String> = stmt_resolve.query_row(params![link.target_path], |row| row.get(0)).optional()?;
-        
+        let to_page_id: Option<String> = resolve_link_target(&conn, &link.target_path)?;
+
+        if to_page_id.is_none() {
+            eprintln!(
+                "[index_block_links] Unresolved link '{}' in block {} from page {}",
+                link.target_path, block_id, page_id
+            );
+        }
+
         let id = Uuid::new_v4().to_string();
-        
+
         stmt_insert.execute(params![
             id,
             page_id,
@@ -56,14 +90,15 @@ pub fn index_block_links(
 
 pub fn reindex_all_links(conn: &mut Connection) -> Result<(), rusqlite::Error> {
     let tx = conn.transaction()?;
-    
+
     // Clear all
     tx.execute("DELETE FROM wiki_links", [])?;
-    
+
     // Fetch all blocks that might have links
     let blocks: Vec<(String, String, String)> = {
-        let mut stmt = tx.prepare("SELECT id, page_id, content FROM blocks WHERE content LIKE '%[[%'")?;
-        
+        let mut stmt =
+            tx.prepare("SELECT id, page_id, content FROM blocks WHERE content LIKE '%[[%'")?;
+
         let block_iter = stmt.query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -74,22 +109,31 @@ pub fn reindex_all_links(conn: &mut Connection) -> Result<(), rusqlite::Error> {
 
         block_iter.collect::<Result<_, _>>()?
     };
-    
+
     {
-        let mut stmt_resolve = tx.prepare("SELECT page_id FROM page_paths WHERE path_text = ? LIMIT 1")?;
-        let mut stmt_insert = tx.prepare(r#"
+        let mut stmt_insert = tx.prepare(
+            r#"
             INSERT INTO wiki_links (
-                id, from_page_id, from_block_id, to_page_id, link_type, 
+                id, from_page_id, from_block_id, to_page_id, link_type,
                 target_path, raw_target, alias, heading, block_ref, is_embed
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#)?;
-        
+        "#,
+        )?;
+
         for (block_id, page_id, content) in blocks {
             let links = parse_wiki_links(&content);
             for link in links {
-                 let to_page_id: Option<String> = stmt_resolve.query_row(params![link.target_path], |row| row.get(0)).optional()?;
-                 let id = Uuid::new_v4().to_string();
-                 stmt_insert.execute(params![
+                let to_page_id: Option<String> = resolve_link_target(&tx, &link.target_path)?;
+
+                if to_page_id.is_none() {
+                    eprintln!(
+                        "[reindex_all_links] Unresolved link '{}' in block {} from page {}",
+                        link.target_path, block_id, page_id
+                    );
+                }
+
+                let id = Uuid::new_v4().to_string();
+                stmt_insert.execute(params![
                     id,
                     page_id,
                     block_id,
@@ -105,7 +149,7 @@ pub fn reindex_all_links(conn: &mut Connection) -> Result<(), rusqlite::Error> {
             }
         }
     }
-    
+
     tx.commit()?;
     Ok(())
 }
