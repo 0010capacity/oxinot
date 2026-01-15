@@ -7,6 +7,12 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      force_build:
+        description: "Force build and release (ignore changeset status)"
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -66,11 +72,11 @@ jobs:
           git push origin "v${VERSION}"
 
   # Step 2: Build and create GitHub release
-  # This job runs when a version tag is pushed (v*) OR when changeset publishes a release
+  # This job runs when a version tag is pushed (v*) OR when changeset publishes a release OR when manually triggered
   build-and-release:
     name: Build and Release (Tag or Changeset)
     needs: changeset
-    if: ${{ always() && (startsWith(github.ref, 'refs/tags/v') || needs.changeset.outputs.published == 'true') }}
+    if: ${{ always() && (startsWith(github.ref, 'refs/tags/v') || needs.changeset.outputs.published == 'true' || inputs.force_build == true) }}
     runs-on: macos-latest
     permissions:
       contents: write
