@@ -1,6 +1,4 @@
-import {
-  useComputedColorScheme,
-} from "@mantine/core";
+import { useComputedColorScheme } from "@mantine/core";
 import { useEffect } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
@@ -29,38 +27,27 @@ export function BlockEditor({
   const computedColorScheme = useComputedColorScheme("light");
   const isDark = computedColorScheme === "dark";
 
-  const loadPage = useBlockStore((state) => state.loadPage);
-  const createBlock = useBlockStore((state) => state.createBlock);
+  const openPage = useBlockStore((state) => state.openPage);
   const isLoading = useBlockStore((state) => state.isLoading);
   const error = useBlockStore((state) => state.error);
   const childrenMap = useBlockStore((state) => state.childrenMap);
-  const currentPageId = useBlockStore((state) => state.currentPageId);
 
   const focusedBlockId = useViewStore((state) => state.focusedBlockId);
 
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
 
-  // Load page blocks
+  // Load page blocks (deterministic open flow)
   useEffect(() => {
     if (pageId) {
-      loadPage(pageId);
+      openPage(pageId);
     }
-  }, [pageId, loadPage]);
+  }, [pageId, openPage]);
 
-  // Auto-create first block if page is empty
-  useEffect(() => {
-    if (!isLoading && !error && pageId && currentPageId === pageId) {
-      const rootBlocks = childrenMap.root || [];
-      const hasBlocks = rootBlocks.length > 0;
-
-      if (!hasBlocks) {
-        createBlock(null, "").catch((err) => {
-          console.error("Failed to create initial block:", err);
-        });
-      }
-    }
-  }, [isLoading, error, pageId, currentPageId, childrenMap, createBlock]);
+  // Determine which blocks to show based on zoom level
+  const blocksToShow = focusedBlockId
+    ? [focusedBlockId]
+    : childrenMap.root || [];
 
   if (isLoading) {
     return (
@@ -92,10 +79,7 @@ export function BlockEditor({
     );
   }
 
-  // Determine which blocks to show based on zoom level
-  const blocksToShow = focusedBlockId
-    ? [focusedBlockId]
-    : childrenMap.root || [];
+  // blocksToShow is computed above (includes in-flight initial create handling)
 
   return (
     <PageContainer className={isDark ? "theme-dark" : "theme-light"}>
