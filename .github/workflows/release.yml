@@ -46,6 +46,7 @@ jobs:
         uses: changesets/action@v1
         with:
           version: npm run version
+          publish: echo "Changesets processed, proceeding to git tag creation"
           title: "chore: Version Packages"
           commit: "chore: version packages"
           createGithubReleases: false
