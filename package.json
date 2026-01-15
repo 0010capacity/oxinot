@@ -18,6 +18,7 @@
     "version:sync": "node sync-versions.js",
     "version": "changeset version && npm run version:sync",
     "release": "npm run version && npm run build",
+    "changeset:auto": "node auto-changeset.cjs",
     "prepare": "husky"
   },
   "dependencies": {
