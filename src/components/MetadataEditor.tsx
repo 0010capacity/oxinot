@@ -382,32 +382,40 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
           ))}
         </Stack>
 
-        {/* Add Property Button */}
-        <Group px="sm" pt={8}>
-          <ActionIcon
-            variant="subtle"
-            size="sm"
-            onClick={addItem}
-            title="Add property"
-          >
-            <IconPlus size={14} />
-          </ActionIcon>
-          <span style={{ fontSize: "12px", opacity: 0.5 }}>add property</span>
-        </Group>
+        {/* Footer */}
+        <Group justify="space-between" px="sm" pt={8} pb="sm">
+          <Group gap={4}>
+            <ActionIcon
+              variant="subtle"
+              size="sm"
+              onClick={addItem}
+              title="Add property"
+            >
+              <IconPlus size={14} />
+            </ActionIcon>
+            <span style={{ fontSize: "12px", opacity: 0.5 }}>add property</span>
+          </Group>
 
-        {/* Footer Help Text */}
-        <Box
-          px="sm"
-          pt={8}
-          pb="sm"
-          style={{
-            fontSize: "11px",
-            opacity: 0.4,
-            fontFamily: "monospace",
-          }}
-        >
-          ↵ next • esc close
-        </Box>
+          <Group gap="xs">
+            <ActionIcon
+              variant="subtle"
+              size="xs"
+              title="Next field"
+              style={{ fontSize: "11px", opacity: 0.5 }}
+            >
+              ↵
+            </ActionIcon>
+            <ActionIcon
+              variant="subtle"
+              size="xs"
+              onClick={handleSaveAndClose}
+              title="Close"
+              style={{ fontSize: "11px", opacity: 0.5 }}
+            >
+              esc
+            </ActionIcon>
+          </Group>
+        </Group>
       </Stack>
     </Box>
   );
