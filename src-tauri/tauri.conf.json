@@ -50,13 +50,13 @@
         "trafficLightPosition": {
           "x": 20,
           "y": 22
-        }
+        },
+        "devtools": true
       }
     ],
     "security": {
       "csp": null
     },
-    "withGlobalTauri": false,
-    "enableDevtools": true
+    "withGlobalTauri": false
   }
 }
