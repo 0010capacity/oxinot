@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: release
-  cancel_in_progress: false
+  cancel-in-progress: false
 
 env:
   RUST_BACKTRACE: 1
