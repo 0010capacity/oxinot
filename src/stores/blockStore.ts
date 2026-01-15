@@ -231,7 +231,10 @@ export const useBlockStore = create<BlockStore>()(
         console.group(`[Debug State] Page: ${currentPageId}`);
 
         // 1. Frontend Store State
-        console.log("1. Frontend (Store):", JSON.parse(JSON.stringify(blocksById)));
+        console.log("1. Frontend (Store):", {
+            blocks: JSON.parse(JSON.stringify(blocksById)),
+            children: JSON.parse(JSON.stringify(get().childrenMap))
+        });
 
         // 2. DB State
         const dbBlocks: BlockData[] = await invoke("get_page_blocks", {
@@ -247,10 +250,17 @@ export const useBlockStore = create<BlockStore>()(
         const pages: any[] = await invoke("get_pages", { workspacePath });
         const currentPage = pages.find((p) => p.id === currentPageId);
         
+        console.log("[Debug] Page info:", currentPage);
+
         if (currentPage && currentPage.file_path) {
+          // file_path is relative to workspace root
           const filePath = `${workspacePath}/${currentPage.file_path}`;
-          const fileContent: string = await invoke("read_file", { filePath });
-          console.log("3. File (Markdown):", `\n${fileContent}`);
+          try {
+              const fileContent: string = await invoke("read_file", { filePath });
+              console.log("3. File (Markdown):", `\n${fileContent}`);
+          } catch (e) {
+              console.error(`[Debug] Failed to read file at ${filePath}:`, e);
+          }
         } else {
           console.log("3. File: (Not found or no file_path)");
         }
@@ -721,6 +731,10 @@ export const useBlockStore = create<BlockStore>()(
         }
         
         console.log(`[Store] Merging ${id} into ${prevBlockId}`);
+        
+        // Log children state before merge
+        const sourceChildren = get().childrenMap[id] ?? [];
+        console.log(`[Store] Source block ${id} has children in Store: ${JSON.stringify(sourceChildren)}`);
 
         // Lock the target block to prevent stale UI updates from overwriting the merge result
         set((state) => {
@@ -764,7 +778,7 @@ export const useBlockStore = create<BlockStore>()(
           blockId: id,
           targetId: prevBlockId,
         });
-        console.log(`[Store] Backend merge success. Changed blocks: ${changedBlocks.length}`);
+        console.log(`[Store] Backend merge success. Changed blocks: ${changedBlocks.length} IDs: ${changedBlocks.map(b => b.id).join(", ")}`);
 
         // Update only the changed blocks (merged block + moved children)
         get().updatePartialBlocks(changedBlocks, [id]);
