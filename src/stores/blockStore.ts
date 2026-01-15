@@ -167,8 +167,12 @@ export const useBlockStore = create<BlockStore>()(
         // Collect affected parent IDs before any modifications
         const affectedParentIds = new Set<string>();
 
-        // Add parents of updated/added blocks
+        // Add parents of updated/added blocks (including previous parent for moves)
         for (const block of blocks) {
+          const existing = state.blocksById[block.id];
+          if (existing && existing.parentId !== block.parentId) {
+            affectedParentIds.add(existing.parentId ?? "root");
+          }
           affectedParentIds.add(block.parentId ?? "root");
         }
 
