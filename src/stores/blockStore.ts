@@ -161,96 +161,144 @@ export const useBlockStore = create<BlockStore>()(
     // ============ Block CRUD ============
 
     createBlock: async (afterBlockId: string | null, content?: string) => {
-      const { currentPageId, blocksById } = get();
+      const { currentPageId, blocksById, childrenMap } = get();
       if (!currentPageId) throw new Error("No page loaded");
 
-      // 부모 결정
+      // Determine where to place the new block:
+      // If afterBlock has children, new block becomes first child
+      // Otherwise, new block becomes next sibling
       let parentId: string | null = null;
+      let afterBlockIdForBackend: string | null = null;
+
       if (afterBlockId) {
-        parentId = blocksById[afterBlockId]?.parentId ?? null;
+        const afterBlock = blocksById[afterBlockId];
+        const hasChildren = (childrenMap[afterBlockId] ?? []).length > 0;
+
+        if (hasChildren) {
+          // Create as first child of afterBlock
+          parentId = afterBlockId;
+          afterBlockIdForBackend = null; // null means first child
+        } else {
+          // Create as next sibling of afterBlock
+          parentId = afterBlock?.parentId ?? null;
+          afterBlockIdForBackend = afterBlockId;
+        }
       }
 
-      // Optimistic: 임시 ID로 즉시 추가
-      // NOTE: This must happen synchronously before any async work so the editor
-      // can render a root block immediately (avoids "empty-state" flicker/races on
-      // first open of a new, empty page).
-      const tempId = `temp-${Date.now()}`;
-      const nowIso = new Date().toISOString();
-      const tempBlock: BlockData = {
-        id: tempId,
-        pageId: currentPageId,
-        parentId,
-        content: content ?? "",
-        orderWeight: Date.now(),
-        isCollapsed: false,
-        blockType: "bullet",
-        createdAt: nowIso,
-        updatedAt: nowIso,
-      };
+      // Use optimistic update only for root block creation (initial empty page)
+      // to avoid flicker. For user-initiated creates, reload for accuracy.
+      const isRootBlockCreation = afterBlockId === null && content === "";
 
-      set((state) => {
-        state.blocksById[tempId] = tempBlock;
-        const parentKey = parentId ?? "root";
-        if (!state.childrenMap[parentKey]) {
-          state.childrenMap[parentKey] = [];
-        }
+      if (isRootBlockCreation) {
+        // Optimistic: 임시 ID로 즉시 추가
+        // NOTE: This must happen synchronously before any async work so the editor
+        // can render a root block immediately (avoids "empty-state" flicker/races on
+        // first open of a new, empty page).
+        const tempId = `temp-${Date.now()}`;
+        const nowIso = new Date().toISOString();
+        const tempBlock: BlockData = {
+          id: tempId,
+          pageId: currentPageId,
+          parentId,
+          content: content ?? "",
+          orderWeight: Date.now(),
+          isCollapsed: false,
+          blockType: "bullet",
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        };
 
-        if (afterBlockId) {
-          const afterIndex = state.childrenMap[parentKey].indexOf(afterBlockId);
-          state.childrenMap[parentKey].splice(afterIndex + 1, 0, tempId);
-        } else {
+        set((state) => {
+          state.blocksById[tempId] = tempBlock;
+          const parentKey = parentId ?? "root";
+          if (!state.childrenMap[parentKey]) {
+            state.childrenMap[parentKey] = [];
+          }
           state.childrenMap[parentKey].push(tempId);
-        }
-
-        state.focusedBlockId = tempId;
-      });
-
-      // Kick off the backend create after the optimistic state is committed.
-      // Yield one tick to ensure React/Zustand subscribers can render the temp block.
-      await Promise.resolve();
-
-      try {
-        // 실제 생성
-        const workspacePath = useWorkspaceStore.getState().workspacePath;
-        if (!workspacePath) {
-          throw new Error("No workspace selected");
-        }
-
-        const newBlock: BlockData = await invoke("create_block", {
-          workspacePath,
-          request: {
-            pageId: currentPageId,
-            parentId,
-            afterBlockId,
-            content,
-          },
+          state.focusedBlockId = tempId;
         });
 
-        // 임시 블록을 실제 블록으로 교체
-        set((state) => {
-          delete state.blocksById[tempId];
-          state.blocksById[newBlock.id] = newBlock;
+        // Kick off the backend create after the optimistic state is committed.
+        // Yield one tick to ensure React/Zustand subscribers can render the temp block.
+        await Promise.resolve();
 
-          const parentKey = parentId ?? "root";
-          const tempIndex = state.childrenMap[parentKey].indexOf(tempId);
-          if (tempIndex !== -1) {
-            state.childrenMap[parentKey][tempIndex] = newBlock.id;
+        try {
+          const workspacePath = useWorkspaceStore.getState().workspacePath;
+          if (!workspacePath) {
+            throw new Error("No workspace selected");
           }
 
-          state.focusedBlockId = newBlock.id;
-        });
+          const newBlock: BlockData = await invoke("create_block", {
+            workspacePath,
+            request: {
+              pageId: currentPageId,
+              parentId,
+              afterBlockId: afterBlockIdForBackend,
+              content,
+            },
+          });
 
-        return newBlock.id;
-      } catch (error) {
-        // 롤백
-        set((state) => {
-          delete state.blocksById[tempId];
-          const parentKey = parentId ?? "root";
-          state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-            (id) => id !== tempId
-          );
-        });
-        throw error;
+          // 임시 블록을 실제 블록으로 교체
+          set((state) => {
+            delete state.blocksById[tempId];
+            state.blocksById[newBlock.id] = newBlock;
+
+            const parentKey = parentId ?? "root";
+            const tempIndex = state.childrenMap[parentKey].indexOf(tempId);
+            if (tempIndex !== -1) {
+              state.childrenMap[parentKey][tempIndex] = newBlock.id;
+            }
+
+            state.focusedBlockId = newBlock.id;
+          });
+
+          return newBlock.id;
+        } catch (error) {
+          // 롤백
+          set((state) => {
+            delete state.blocksById[tempId];
+            const parentKey = parentId ?? "root";
+            state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
+              (id) => id !== tempId
+            );
+          });
+          throw error;
+        }
+      } else {
+        // User-initiated block creation: no optimistic update, reload for accuracy
+        try {
+          const workspacePath = useWorkspaceStore.getState().workspacePath;
+          if (!workspacePath) {
+            throw new Error("No workspace selected");
+          }
+
+          const newBlock: BlockData = await invoke("create_block", {
+            workspacePath,
+            request: {
+              pageId: currentPageId,
+              parentId,
+              afterBlockId: afterBlockIdForBackend,
+              content,
+            },
+          });
+
+          // Reload page to get accurate state
+          await get().loadPage(currentPageId);
+
+          // Set focus after reload
+          set((state) => {
+            state.focusedBlockId = newBlock.id;
+            state.targetCursorPosition = 0;
+          });
+
+          return newBlock.id;
+        } catch (error) {
+          console.error("Failed to create block:", error);
+          // Reload to restore correct state
+          const pageId = get().currentPageId;
+          if (pageId) await get().loadPage(pageId);
+          throw error;
+        }
       }
     },
 
@@ -290,7 +338,7 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     splitBlockAtOffset: async (id: string, offset: number) => {
-      const { currentPageId, blocksById } = get();
+      const { currentPageId, blocksById, childrenMap } = get();
       if (!currentPageId) throw new Error("No page loaded");
 
       const block = blocksById[id];
@@ -299,93 +347,49 @@ export const useBlockStore = create<BlockStore>()(
       const beforeContent = block.content.slice(0, offset);
       const afterContent = block.content.slice(offset);
 
-      // Create new block with after content
-      const tempId = `temp-${Date.now()}`;
-      const tempBlock: BlockData = {
-        id: tempId,
-        pageId: currentPageId,
-        parentId: block.parentId,
-        content: afterContent,
-        orderWeight: Date.now(),
-        isCollapsed: false,
-        blockType: "bullet",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      // Determine where to place the new block:
+      // If current block has children, new block becomes first child
+      // Otherwise, new block becomes next sibling
+      const hasChildren = (childrenMap[id] ?? []).length > 0;
+      const newParentId = hasChildren ? id : block.parentId;
+      const afterBlockIdForBackend = hasChildren ? null : id;
 
-      // Optimistic update
-      set((state) => {
-        // Update current block content
-        if (state.blocksById[id]) {
-          state.blocksById[id].content = beforeContent;
-          state.blocksById[id].updatedAt = new Date().toISOString();
-        }
-
-        // Add new block
-        state.blocksById[tempId] = tempBlock;
-        const parentKey = block.parentId ?? "root";
-        if (!state.childrenMap[parentKey]) {
-          state.childrenMap[parentKey] = [];
-        }
-
-        const blockIndex = state.childrenMap[parentKey].indexOf(id);
-        if (blockIndex !== -1) {
-          state.childrenMap[parentKey].splice(blockIndex + 1, 0, tempId);
-        }
-
-        // Focus new block at start
-        state.focusedBlockId = tempId;
-        state.targetCursorPosition = 0;
-      });
-
+      // Update current block content first
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
           throw new Error("No workspace selected");
         }
 
-        // Update current block
         await invoke("update_block", {
           workspacePath,
           request: { id, content: beforeContent },
         });
 
-        // Create new block
+        // Create new block at appropriate position
         const newBlock: BlockData = await invoke("create_block", {
           workspacePath,
           request: {
             pageId: currentPageId,
-            parentId: block.parentId,
-            afterBlockId: id,
+            parentId: newParentId,
+            afterBlockId: afterBlockIdForBackend,
             content: afterContent,
           },
         });
 
-        // Replace temp block with real block
+        // Reload page to get accurate state
+        await get().loadPage(currentPageId);
+
+        // Set focus after reload
         set((state) => {
-          delete state.blocksById[tempId];
-          state.blocksById[newBlock.id] = newBlock;
-
-          const parentKey = block.parentId ?? "root";
-          const tempIndex = state.childrenMap[parentKey].indexOf(tempId);
-          if (tempIndex !== -1) {
-            state.childrenMap[parentKey][tempIndex] = newBlock.id;
-          }
-
           state.focusedBlockId = newBlock.id;
+          state.targetCursorPosition = 0;
         });
       } catch (error) {
-        // Rollback
-        set((state) => {
-          if (state.blocksById[id]) {
-            state.blocksById[id].content = block.content;
-          }
-          delete state.blocksById[tempId];
-          const parentKey = block.parentId ?? "root";
-          state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-            (bid) => bid !== tempId
-          );
-        });
+        console.error("Failed to split block:", error);
+        // Reload to restore correct state
+        const pageId = get().currentPageId;
+        if (pageId) await get().loadPage(pageId);
         throw error;
       }
     },
