@@ -728,8 +728,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               withArrow
               shadow="md"
               trapFocus={false}
-              closeOnEscape={false}
-              closeOnClickOutside={false}
+              closeOnEscape
+              closeOnClickOutside
               transitionProps={{ duration: 0 }}
             >
               <Popover.Target>

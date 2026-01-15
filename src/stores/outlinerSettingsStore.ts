@@ -91,6 +91,7 @@ interface OutlinerSettings {
   showBlockCount: boolean;
   showCodeBlockLineNumbers: boolean;
   indentSize: number;
+  metadataDisplayStyle: "property" | "box";
 }
 
 interface OutlinerSettingsStore extends OutlinerSettings {
@@ -102,6 +103,7 @@ interface OutlinerSettingsStore extends OutlinerSettings {
   setShowBlockCount: (value: boolean) => void;
   setShowCodeBlockLineNumbers: (value: boolean) => void;
   setIndentSize: (size: number) => void;
+  setMetadataDisplayStyle: (style: "property" | "box") => void;
 }
 
 export const useOutlinerSettingsStore =
@@ -115,6 +117,7 @@ export const useOutlinerSettingsStore =
         showBlockCount: false,
         showCodeBlockLineNumbers: true,
         indentSize: 24,
+        metadataDisplayStyle: "property",
 
         // Actions
         toggleIndentGuides: () =>
@@ -133,6 +136,9 @@ export const useOutlinerSettingsStore =
 
         setIndentSize: (size: number) => set({ indentSize: size }),
 
+        setMetadataDisplayStyle: (style: "property" | "box") =>
+          set({ metadataDisplayStyle: style }),
+
         setFontFamily: (font: FontFamily) => {
           set({ fontFamily: font });
           // Update CSS variable
@@ -140,7 +146,7 @@ export const useOutlinerSettingsStore =
           if (fontOption) {
             document.documentElement.style.setProperty(
               "--font-family",
-              fontOption.stack,
+              fontOption.stack
             );
           }
         },
@@ -148,14 +154,14 @@ export const useOutlinerSettingsStore =
         getFontStack: () => {
           const fontFamily = get().fontFamily;
           const fontOption = FONT_OPTIONS.find(
-            (opt) => opt.value === fontFamily,
+            (opt) => opt.value === fontFamily
           );
           return fontOption?.stack || FONT_OPTIONS[0].stack;
         },
       }),
       {
         name: "outliner-settings",
-      },
+      }
     ),
-    shallow,
+    shallow
   );

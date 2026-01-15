@@ -189,6 +189,12 @@ export function SettingsModal({
   const setIndentSize = useOutlinerSettingsStore(
     (state) => state.setIndentSize
   );
+  const metadataDisplayStyle = useOutlinerSettingsStore(
+    (state) => state.metadataDisplayStyle
+  );
+  const setMetadataDisplayStyle = useOutlinerSettingsStore(
+    (state) => state.setMetadataDisplayStyle
+  );
 
   // Git
   const isGitRepo = useGitStore((state) => state.isRepo);
@@ -1110,6 +1116,27 @@ export function SettingsModal({
                         min={12}
                         max={48}
                         step={2}
+                      />
+                    </div>
+                  )}
+
+                  {matchesSearch("metadata display style") && (
+                    <div>
+                      <Text size="sm" fw={500} mb={8}>
+                        Metadata Display Style
+                      </Text>
+                      <Text size="xs" c="dimmed" mb={8}>
+                        Choose how to display block metadata (key::value)
+                      </Text>
+                      <SegmentedControl
+                        value={metadataDisplayStyle}
+                        onChange={(value) =>
+                          setMetadataDisplayStyle(value as "property" | "box")
+                        }
+                        data={[
+                          { label: "▸ Property Block", value: "property" },
+                          { label: "□ Gray Box", value: "box" },
+                        ]}
                       />
                     </div>
                   )}

@@ -56,6 +56,7 @@ interface BlockActions {
     afterBlockId: string | null,
     content?: string
   ) => Promise<string>;
+  updateBlock: (id: string, updates: Partial<BlockData>) => Promise<void>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
   splitBlockAtCursor: (
@@ -421,6 +422,41 @@ export const useBlockStore = create<BlockStore>()(
           if (pageId) await get().loadPage(pageId);
           throw error;
         }
+      }
+    },
+
+    updateBlock: async (id: string, updates: Partial<BlockData>) => {
+      const { blocksById } = get();
+      const block = blocksById[id];
+      if (!block) return;
+
+      // Optimistic update
+      set((state) => {
+        if (state.blocksById[id]) {
+          state.blocksById[id] = { ...state.blocksById[id], ...updates };
+        }
+      });
+
+      try {
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) throw new Error("No workspace selected");
+
+        if (updates.metadata) {
+          await invoke("save_block_metadata", {
+            workspacePath,
+            blockId: id,
+            metadata: updates.metadata,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to update block:", error);
+        // Revert
+        set((state) => {
+          if (state.blocksById[id]) {
+            state.blocksById[id] = block;
+          }
+        });
+        throw error;
       }
     },
 
