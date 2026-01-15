@@ -1,5 +1,11 @@
 # oxinot
 
+## 0.4.2
+
+### Patch Changes
+
+- c51d2a6: fix(updater): enable process restart capability for auto-updates
+
 ## 0.4.1
 
 ### Patch Changes
