@@ -35,6 +35,7 @@ interface BlockState {
 
   // 작업 상태
   mergingBlockId: string | null;
+  mergingTargetBlockId: string | null;
 
   // 커서 위치 추적 (블록 간 이동 시)
   targetCursorPosition: number | null;
@@ -133,6 +134,7 @@ export const useBlockStore = create<BlockStore>()(
     focusedBlockId: null,
     selectedBlockIds: [],
     mergingBlockId: null,
+    mergingTargetBlockId: null,
     targetCursorPosition: null,
 
     // ============ Page Operations ============
@@ -416,7 +418,17 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     updateBlockContent: async (id: string, content: string) => {
-      const block = get().blocksById[id];
+      const { mergingBlockId, mergingTargetBlockId, blocksById } = get();
+      
+      // Prevent UI from overwriting blocks involved in an active merge operation.
+      // This stops race conditions where stale UI state (draft) overwrites 
+      // the result of a backend merge (e.g., target block getting reverted to pre-merge content).
+      if (id === mergingBlockId || id === mergingTargetBlockId) {
+         console.warn(`Blocked stale update for merging block ${id}`);
+         return;
+      }
+
+      const block = blocksById[id];
       if (!block) return;
 
       try {
@@ -649,6 +661,11 @@ export const useBlockStore = create<BlockStore>()(
         // Case 2: Non-empty block, merge into previous
         const prevBlockId = getPreviousVisibleBlock(id);
         if (!prevBlockId) return;
+        
+        // Lock the target block to prevent stale UI updates from overwriting the merge result
+        set((state) => {
+           state.mergingTargetBlockId = prevBlockId;
+        });
 
         const prevBlock = blocksById[prevBlockId];
         if (!prevBlock) return;
@@ -660,11 +677,23 @@ export const useBlockStore = create<BlockStore>()(
         const cursorPosition = prevBlock.content.length;
 
         // If draftContent is provided, update the block content first
+        // NOTE: We directly invoke backend/state update here to bypass the 
+        // 'mergingBlockId' guard in updateBlockContent.
         if (
           draftContent !== undefined &&
           draftContent !== currentBlock.content
         ) {
-          await get().updateBlockContent(id, draftContent);
+          await invoke("update_block", {
+             workspacePath,
+             request: { id, content: draftContent },
+          });
+          
+          set((state) => {
+            if (state.blocksById[id]) {
+                state.blocksById[id].content = draftContent;
+                state.blocksById[id].updatedAt = new Date().toISOString();
+            }
+          });
         }
 
         // Backend handles the merge atomically and returns changed blocks
@@ -708,6 +737,7 @@ export const useBlockStore = create<BlockStore>()(
       } finally {
         set((state) => {
           state.mergingBlockId = null;
+          state.mergingTargetBlockId = null;
         });
       }
     },
