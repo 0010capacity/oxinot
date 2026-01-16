@@ -6,8 +6,7 @@ import { useWorkspaceStore } from "./workspaceStore";
 import { useBlockUIStore } from "./blockUIStore";
 import {
   getInsertBelowTarget,
-  rebuildChildrenMapForParents,
-  collectAffectedParentIds,
+  updateChildrenMap,
   normalizeBlocks,
 } from "./blockGraphHelpers";
 
@@ -177,37 +176,24 @@ export const useBlockStore = create<BlockStore>()(
 
     updatePartialBlocks: (blocks: BlockData[], deletedBlockIds?: string[]) => {
       set((state) => {
-        // Collect affected parent IDs before any modifications
-        const affectedParentIds = collectAffectedParentIds(
+        // 1. Update childrenMap incrementally (O(M*K + K log K))
+        // Pass state.blocksById BEFORE updating it so the helper can find old parents
+        updateChildrenMap(
+          state.childrenMap,
+          state.blocksById,
           blocks,
-          deletedBlockIds,
-          state.blocksById
+          deletedBlockIds ?? []
         );
 
-        // Update or add blocks
+        // 2. Update blocksById
         for (const block of blocks) {
           state.blocksById[block.id] = block;
         }
 
-        // Delete blocks
+        // 3. Remove deleted blocks from blocksById
         if (deletedBlockIds) {
           for (const id of deletedBlockIds) {
             delete state.blocksById[id];
-          }
-        }
-
-        // Rebuild childrenMap for affected parents using helper
-        const updatedChildrenMap = rebuildChildrenMapForParents(
-          affectedParentIds,
-          state.blocksById,
-          state.childrenMap
-        );
-        state.childrenMap = updatedChildrenMap;
-
-        // Clean up childrenMap for deleted blocks
-        if (deletedBlockIds) {
-          for (const id of deletedBlockIds) {
-            delete state.childrenMap[id];
           }
         }
       });
