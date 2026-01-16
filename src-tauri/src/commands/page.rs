@@ -4,7 +4,7 @@ use rusqlite::{params, Connection};
 use crate::commands::workspace::open_workspace_db;
 use uuid::Uuid;
 
-use crate::models::page::{CreatePageRequest, Page, UpdatePageRequest};
+use crate::models::page::{CreatePageRequest, MovePageRequest, Page, UpdatePageRequest};
 use crate::services::{page_path_service, FileSyncService};
 use crate::utils::page_sync::sync_page_to_markdown;
 
@@ -57,6 +57,7 @@ pub async fn get_pages(workspace_path: String) -> Result<Vec<Page>, String> {
 /// Create a new page
 #[tauri::command]
 pub async fn create_page(
+    app: tauri::AppHandle,
     workspace_path: String,
     request: CreatePageRequest,
 ) -> Result<Page, String> {
@@ -108,12 +109,17 @@ pub async fn create_page(
 
     let page = get_page_by_id(&conn, &id)?;
     println!("[create_page] Returning page: {:?}", page);
+
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
     Ok(page)
 }
 
 /// Update a page
 #[tauri::command]
 pub async fn update_page(
+    app: tauri::AppHandle,
     workspace_path: String,
     request: UpdatePageRequest,
 ) -> Result<Page, String> {
@@ -192,12 +198,21 @@ pub async fn update_page(
             .map_err(|e| format!("Failed to update page path: {}", e))?;
     }
 
-    get_page_by_id(&conn, &request.id)
+    let page = get_page_by_id(&conn, &request.id)?;
+
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
+    Ok(page)
 }
 
 /// Delete a page (and all its blocks)
 #[tauri::command]
-pub async fn delete_page(workspace_path: String, page_id: String) -> Result<bool, String> {
+pub async fn delete_page(
+    app: tauri::AppHandle,
+    workspace_path: String,
+    page_id: String,
+) -> Result<bool, String> {
     let conn = open_workspace_db(&workspace_path)?;
 
     // Get parent before deletion
@@ -218,6 +233,9 @@ pub async fn delete_page(workspace_path: String, page_id: String) -> Result<bool
     if let Some(pid) = parent_id {
         check_and_convert_to_file(&conn, &workspace_path, &pid)?;
     }
+
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
     Ok(true)
 }
@@ -249,8 +267,9 @@ fn get_page_by_id(conn: &Connection, id: &str) -> Result<Page, String> {
 /// Move a page to a new parent
 #[tauri::command]
 pub async fn move_page(
+    app: tauri::AppHandle,
     workspace_path: String,
-    request: crate::models::page::MovePageRequest,
+    request: MovePageRequest,
 ) -> Result<Page, String> {
     let conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
@@ -308,7 +327,12 @@ pub async fn move_page(
         check_and_convert_to_file(&conn, &workspace_path, &old_pid)?;
     }
 
-    get_page_by_id(&conn, &request.id)
+    let page = get_page_by_id(&conn, &request.id)?;
+
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
+    Ok(page)
 }
 
 /// Check if target_id is a descendant of page_id
@@ -373,6 +397,7 @@ fn check_and_convert_to_file(
 /// Convert a page to directory (when adding first child)
 #[tauri::command]
 pub async fn convert_page_to_directory(
+    app: tauri::AppHandle,
     workspace_path: String,
     page_id: String,
 ) -> Result<Page, String> {
@@ -392,7 +417,12 @@ pub async fn convert_page_to_directory(
     )
     .map_err(|e| e.to_string())?;
 
-    get_page_by_id(&conn, &page_id)
+    let page = get_page_by_id(&conn, &page_id)?;
+
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
+    Ok(page)
 }
 
 /// Debug: Check database state

@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { useErrorStore } from "@/stores/errorStore";
 import { useGitStore } from "@/stores/gitStore";
 import { showToast } from "@/utils/toast";
@@ -22,7 +23,7 @@ export interface GitManagementActions {
 }
 
 export const useGitManagement = (
-  workspacePath: string,
+  workspacePath: string
 ): GitManagementState & GitManagementActions => {
   const hasGitChanges = useGitStore((state) => state.hasChanges);
   const isGitRepo = useGitStore((state) => state.isRepo);
@@ -41,6 +42,7 @@ export const useGitManagement = (
   const addError = useErrorStore((state) => state.addError);
   const [gitMenuOpen, setGitMenuOpen] = useState(false);
 
+  // Initialize Git on workspace load
   useEffect(() => {
     if (!workspacePath) return;
 
@@ -56,29 +58,37 @@ export const useGitManagement = (
     initializeGit();
   }, [workspacePath, initGit, checkGitStatus]);
 
+  // Listen for workspace-changed events from backend
+  // Backend emits this event after any file operation (block/page create/update/delete)
   useEffect(() => {
     if (!workspacePath || !isGitRepo) return;
 
-    const intervalId = setInterval(() => {
-      checkGitStatus(workspacePath).catch((error) => {
-        console.error("[useGitManagement] Status check failed:", error);
-      });
-    }, 3000);
+    const unlistenPromise = listen<string>("workspace-changed", (event) => {
+      // Only check status if the changed workspace matches our current workspace
+      if (event.payload === workspacePath) {
+        checkGitStatus(workspacePath).catch((error) => {
+          console.error(
+            "[useGitManagement] Failed to check git status:",
+            error
+          );
+        });
+      }
+    });
 
-    return () => clearInterval(intervalId);
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
   }, [workspacePath, isGitRepo, checkGitStatus]);
 
+  // Auto-commit on configured interval
   useEffect(() => {
     if (!workspacePath || !autoCommitEnabled) return;
 
-    const intervalId = setInterval(
-      () => {
-        autoCommit(workspacePath).catch((error) => {
-          console.error("[useGitManagement] Auto-commit failed:", error);
-        });
-      },
-      autoCommitInterval * 60 * 1000,
-    );
+    const intervalId = setInterval(() => {
+      autoCommit(workspacePath).catch((error) => {
+        console.error("[useGitManagement] Auto-commit failed:", error);
+      });
+    }, autoCommitInterval * 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, [workspacePath, autoCommitEnabled, autoCommitInterval, autoCommit]);

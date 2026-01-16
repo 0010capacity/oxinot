@@ -740,33 +740,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           ref={blockComponentRef}
           className="block-component"
           onMouseDown={(e) => {
-            console.log("[BlockComponent] onMouseDown - button:", e.button);
-            console.log(
-              "[BlockComponent] Selection before preventDefault:",
-              window.getSelection()?.toString()
-            );
             // Prevent default text selection on right-click
             if (e.button === 2) {
-              console.log(
-                "[BlockComponent] Right-click detected, calling preventDefault"
-              );
               e.preventDefault();
               e.stopPropagation();
               // Clear any existing selection to prevent browser from auto-selecting text
               window.getSelection()?.removeAllRanges();
             }
-            console.log(
-              "[BlockComponent] Selection after preventDefault:",
-              window.getSelection()?.toString()
-            );
           }}
-          onContextMenu={() => {
-            console.log("[BlockComponent] onContextMenu triggered");
-            console.log(
-              "[BlockComponent] Selection at contextmenu:",
-              window.getSelection()?.toString()
-            );
-          }}
+          onContextMenu={() => {}}
           onKeyDown={(e) => {
             // Handle keyboard navigation for accessibility
             if (e.key === "Enter" || e.key === " ") {

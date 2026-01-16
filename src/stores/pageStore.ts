@@ -66,7 +66,6 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
     // ============ Page Operations ============
 
     loadPages: async () => {
-      console.log("[PageStore] loadPages called");
       set((state) => {
         state.isLoading = true;
         state.error = null;
@@ -79,7 +78,6 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         }
 
         const pages: PageData[] = await invoke("get_pages", { workspacePath });
-        console.log("[PageStore] Received pages from backend:", pages.length);
 
         const pagesById: Record<string, PageData> = {};
         const pageIds: string[] = [];
@@ -90,7 +88,6 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         }
 
         set((state) => {
-          console.log("[PageStore] Setting state with pages:", pageIds.length);
           state.pagesById = pagesById;
           state.pageIds = pageIds;
           state.isLoading = false;
@@ -100,7 +97,6 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
             state.currentPageId = pageIds[0];
           }
         });
-        console.log("[PageStore] State updated successfully");
 
         // Return the loaded data so callers can use it immediately
         return { pageIds, pagesById };
@@ -115,26 +111,19 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
     },
 
     createPage: async (title: string, parentId?: string) => {
-      try {
-        const workspacePath = useWorkspaceStore.getState().workspacePath;
-        if (!workspacePath) {
-          throw new Error("No workspace selected");
-        }
-
-        const newPage: PageData = await invoke("create_page", {
-          workspacePath,
-          request: { title, parentId: parentId || null },
-        });
-
-        console.log("[PageStore] Page created:", newPage);
-
-        // Don't manually update store - let loadPages handle it
-        // This prevents race conditions and ensures consistency
-        return newPage.id;
-      } catch (error) {
-        console.error("[PageStore] Failed to create page:", error);
-        throw error;
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        throw new Error("No workspace selected");
       }
+
+      const newPage = await invoke<PageData>("create_page", {
+        workspacePath,
+        request: { title, parentId: parentId || null },
+      });
+
+      // Don't manually update store - let loadPages handle it
+      // This prevents race conditions and ensures consistency
+      return newPage.id;
     },
 
     updatePageTitle: async (id: string, title: string) => {
