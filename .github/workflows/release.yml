@@ -59,6 +59,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Trigger CI for Version Packages PR
+        if: steps.changesets.outputs.pullRequestNumber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          PR_NUMBER="${{ steps.changesets.outputs.pullRequestNumber }}"
+
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Triggering CI for PR #$PR_NUMBER by forcing a workflow re-run"
+            # Close and reopen the PR to trigger CI
+            # (GitHub's security model prevents changesets/action from triggering CI automatically)
+            gh pr close "$PR_NUMBER" || true
+            sleep 2
+            gh pr reopen "$PR_NUMBER" || true
+          fi
+
   # Step 1.5: Create version tag when Version Packages commit is pushed to main
   # This runs after the "chore: Version Packages" PR is merged by detecting version bumps
   create-version-tag:
