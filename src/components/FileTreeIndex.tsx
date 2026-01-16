@@ -65,12 +65,12 @@ export function FileTreeIndex() {
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const workspaceName = workspacePath?.split("/").pop() || "Workspace";
   const showIndentGuides = useOutlinerSettingsStore(
-    (state) => state.showIndentGuides,
+    (state) => state.showIndentGuides
   );
 
   // Use single selector to ensure atomic updates
   const pages = usePageStore((state) =>
-    state.pageIds.map((id) => state.pagesById[id]).filter(Boolean),
+    state.pageIds.map((id) => state.pagesById[id]).filter(Boolean)
   );
 
   const [isCreating, setIsCreating] = useState(false);
@@ -97,16 +97,8 @@ export function FileTreeIndex() {
   const [pageToDelete, setPageToDelete] = useState<PageData | null>(null);
 
   useEffect(() => {
-    console.log("[FileTreeIndex] Initial load pages");
-    loadPages().then(() => {
-      console.log("[FileTreeIndex] Initial pages loaded");
-    });
+    loadPages();
   }, [loadPages]);
-
-  // Monitor pages changes
-  useEffect(() => {
-    console.log("[FileTreeIndex] pages changed! New length:", pages.length);
-  }, [pages.length]);
 
   // Mouse-based drag and drop
   useEffect(() => {
@@ -137,10 +129,10 @@ export function FileTreeIndex() {
       // Find element under cursor
       const elements = document.elementsFromPoint(e.clientX, e.clientY);
       const pageElement = elements.find((el) =>
-        el.getAttribute("data-page-id"),
+        el.getAttribute("data-page-id")
       );
       const dropZone = elements.find(
-        (el) => el.getAttribute("data-drop-zone") === "root",
+        (el) => el.getAttribute("data-drop-zone") === "root"
       );
 
       if (pageElement) {
@@ -188,7 +180,7 @@ export function FileTreeIndex() {
           }
         } else if (dragOverPageId && draggedPageId !== dragOverPageId) {
           console.log(
-            `[FileTreeIndex] Dropping ${draggedPageId} on ${dragOverPageId}`,
+            `[FileTreeIndex] Dropping ${draggedPageId} on ${dragOverPageId}`
           );
           try {
             await movePage(draggedPageId, dragOverPageId);
@@ -230,11 +222,11 @@ export function FileTreeIndex() {
           "[FileTreeIndex] Creating page:",
           title.trim(),
           "parent:",
-          creatingParentId,
+          creatingParentId
         );
         const newPageId = await createPage(
           title.trim(),
-          creatingParentId || undefined,
+          creatingParentId || undefined
         );
         console.log("[FileTreeIndex] Page created with ID:", newPageId);
 
@@ -243,7 +235,7 @@ export function FileTreeIndex() {
         await loadPages();
         console.log(
           "[FileTreeIndex] Pages reloaded. Total pages:",
-          pages.length,
+          pages.length
         );
 
         setIsCreating(false);
@@ -262,7 +254,7 @@ export function FileTreeIndex() {
         setIsSubmitting(false);
       }
     },
-    [creatingParentId, createPage, loadPages, pages.length],
+    [creatingParentId, createPage, loadPages, pages.length]
   );
 
   const handleCancelCreate = useCallback(() => {
@@ -278,7 +270,7 @@ export function FileTreeIndex() {
         setEditValue(page.title);
       }
     },
-    [pages],
+    [pages]
   );
 
   const handleEditSubmit = useCallback(async () => {
@@ -307,7 +299,7 @@ export function FileTreeIndex() {
       setPageToDelete(page);
       setDeleteModalOpened(true);
     },
-    [pages],
+    [pages]
   );
 
   const confirmDeletePage = useCallback(async () => {
@@ -382,7 +374,7 @@ export function FileTreeIndex() {
         })
         .sort((a, b) => a.title.localeCompare(b.title));
     },
-    [pages],
+    [pages]
   );
 
   // Render page tree recursively
@@ -449,7 +441,7 @@ export function FileTreeIndex() {
       handleCancelCreate,
       isSubmitting,
       showIndentGuides,
-    ],
+    ]
   );
 
   const rootPages = useMemo(() => buildTree(null), [buildTree]);
