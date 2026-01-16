@@ -15,20 +15,24 @@ impl FileSyncService {
         }
     }
 
-    /// Compute workspace-relative path from absolute path
-    /// Returns a path relative to workspace_root with `/` separators
+    /// Compute workspace-relative path from absolute path.
+    ///
+    /// Uses `Path::strip_prefix()` for safe, cross-platform relative path computation.
+    /// Converts path separators to forward slashes (/) for consistent storage.
+    ///
+    /// # Returns
+    /// Workspace-relative path with forward slash separators, or error if path is outside workspace.
     fn compute_rel_path(&self, abs_path: &Path) -> Result<String, String> {
-        abs_path
+        // Use strip_prefix for safe cross-platform path handling
+        let rel_path = abs_path
             .strip_prefix(&self.workspace_path)
-            .map_err(|_| format!("Path {:?} is not under workspace root", abs_path))
-            .and_then(|rel| {
-                rel.to_str()
-                    .map(|s| {
-                        // Convert backslashes to forward slashes for cross-platform consistency
-                        s.replace('\\', "/")
-                    })
-                    .ok_or_else(|| "Path contains invalid UTF-8".to_string())
-            })
+            .map_err(|_| format!("Path {:?} is not under workspace root", abs_path))?;
+
+        // Convert path to string with forward slashes (consistent across all platforms)
+        rel_path
+            .to_str()
+            .ok_or_else(|| "Path contains invalid UTF-8".to_string())
+            .map(|s| s.replace('\\', "/"))
     }
 
     /// Get the file path for a page based on its hierarchy

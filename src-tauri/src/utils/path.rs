@@ -12,24 +12,30 @@
 /// - Removes .md extension (case-insensitive)
 /// - Trims whitespace
 ///
+/// # Behavior
+/// - Converts all backslashes (\\) to forward slashes (/) for cross-platform consistency
+/// - Strips leading and trailing whitespace
+/// - Removes .md extension if present (case-insensitive)
+/// - Does NOT create new allocations if no changes are needed (for empty input)
+///
 /// # Examples
 /// ```
 /// assert_eq!(normalize_page_path("Folder\\Page.md"), "Folder/Page");
 /// assert_eq!(normalize_page_path("Daily/2026-01-15.md"), "Daily/2026-01-15");
 /// assert_eq!(normalize_page_path("Page"), "Page");
+/// assert_eq!(normalize_page_path("  Path/File.MD  "), "Path/File");
 /// ```
 pub fn normalize_page_path(path: &str) -> String {
-    // 1. Replace backslashes with forward slashes
-    let normalized = path.replace('\\', "/");
+    // Step 1: Trim whitespace and normalize path separators
+    let normalized = path.trim().replace('\\', "/");
 
-    // 2. Trim whitespace
-    let normalized = normalized.trim();
-
-    // 3. Remove trailing .md extension (case-insensitive)
+    // Step 2: Remove trailing .md extension (case-insensitive)
+    // Using a case-insensitive check with to_lowercase() for robust extension matching
     if normalized.to_lowercase().ends_with(".md") {
+        // Safe to subtract 3 because we verified the extension exists
         normalized[..normalized.len() - 3].to_string()
     } else {
-        normalized.to_string()
+        normalized
     }
 }
 

@@ -166,8 +166,10 @@ fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bo
         .map_err(|e| format!("Failed to open workspace database: {}", e))?;
 
     // Find and delete pages with matching file path
-    // We need to handle both absolute and relative paths
-    let target_path_normalized = target_path.replace('\\', "/");
+    // Normalize path separators for consistent database queries (Windows uses \, others use /)
+    let target_path_normalized = PathBuf::from(&target_path)
+        .to_string_lossy()
+        .replace('\\', "/");
 
     // Get all pages and find those matching this path
     let mut stmt = conn
