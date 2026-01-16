@@ -188,17 +188,16 @@ fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bo
     validate_no_path_traversal(&workspace_path, "workspace_path")?;
     validate_no_path_traversal(&target_path, "target_path")?;
 
-    // Delete from database first
     let conn = commands::workspace::open_workspace_db(&workspace_path)
         .map_err(|e| format!("Failed to open workspace database: {}", e))?;
 
-    // Find and delete pages with matching file path
+    // Find pages with matching file path
     // Normalize path separators for consistent database queries (Windows uses \, others use /)
     let target_path_normalized = PathBuf::from(&target_path)
         .to_string_lossy()
         .replace('\\', "/");
 
-    // Get all pages and find those matching this path
+    // Get all pages matching this path
     let mut stmt = conn
         .prepare("SELECT id FROM pages WHERE file_path = ? OR file_path LIKE ?")
         .map_err(|e| e.to_string())?;
@@ -215,23 +214,53 @@ fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bo
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // Delete each page (this will cascade delete blocks and references)
-    for page_id in page_ids {
-        conn.execute("DELETE FROM pages WHERE id = ?", [&page_id])
-            .map_err(|e| e.to_string())?;
+    // Step 1: Mark pages as deleting (soft delete)
+    for page_id in page_ids.iter() {
+        conn.execute(
+            "UPDATE pages SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            [page_id],
+        )
+        .map_err(|e| e.to_string())?;
     }
 
-    // Now delete from filesystem
+    // Step 2: Delete from filesystem
     let path = Path::new(&target_path);
-    let metadata = fs::metadata(path).map_err(|e| format!("Error getting path info: {}", e))?;
+    let delete_result = (|| -> Result<(), String> {
+        let metadata = fs::metadata(path).map_err(|e| format!("Error getting path info: {}", e))?;
 
-    if metadata.is_dir() {
-        fs::remove_dir_all(path).map_err(|e| format!("Error deleting directory: {}", e))?;
-    } else {
-        fs::remove_file(path).map_err(|e| format!("Error deleting file: {}", e))?;
+        if metadata.is_dir() {
+            fs::remove_dir_all(path).map_err(|e| format!("Error deleting directory: {}", e))?;
+        } else {
+            fs::remove_file(path).map_err(|e| format!("Error deleting file: {}", e))?;
+        }
+
+        Ok(())
+    })();
+
+    // Step 3: Handle result
+    match delete_result {
+        Ok(()) => {
+            // Filesystem deletion succeeded, now delete from DB
+            for page_id in page_ids {
+                conn.execute("DELETE FROM pages WHERE id = ?", [&page_id])
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(true)
+        }
+        Err(e) => {
+            // Filesystem deletion failed, revert soft delete flag
+            for page_id in page_ids.iter() {
+                let _ = conn.execute(
+                    "UPDATE pages SET is_deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    [page_id],
+                );
+            }
+            Err(format!(
+                "Failed to delete from filesystem, reverted DB changes: {}",
+                e
+            ))
+        }
     }
-
-    Ok(true)
 }
 
 #[tauri::command]

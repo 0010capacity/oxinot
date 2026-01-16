@@ -23,8 +23,10 @@ pub fn remove_page_path(conn: &Connection, page_id: &str) -> Result<(), rusqlite
 }
 
 pub fn migrate_populate_page_paths(conn: &Connection) -> Result<(), rusqlite::Error> {
-    // Populate page_paths table from existing pages
-    let mut stmt = conn.prepare("SELECT id, file_path FROM pages WHERE file_path IS NOT NULL")?;
+    // Populate page_paths table from existing pages (exclude soft-deleted)
+    let mut stmt = conn.prepare(
+        "SELECT id, file_path FROM pages WHERE file_path IS NOT NULL AND is_deleted = 0",
+    )?;
 
     let pages: Vec<(String, String)> = stmt
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
