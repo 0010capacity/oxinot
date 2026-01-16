@@ -1,8 +1,10 @@
 import { Group, Text } from "@mantine/core";
 import { IconChevronRight } from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
 import { useBlockStore } from "../stores/blockStore";
 import { usePageStore } from "../stores/pageStore";
 import { useBreadcrumb, useViewStore, useZoomPath } from "../stores/viewStore";
+import "./breadcrumb.css";
 
 interface BreadcrumbProps {
   workspaceName: string;
@@ -15,6 +17,7 @@ export function Breadcrumb({
 
   onNavigateHome,
 }: BreadcrumbProps) {
+  const { t } = useTranslation();
   const zoomPath = useZoomPath();
   const breadcrumb = useBreadcrumb();
   const pagePathIds = useViewStore((state) => state.pagePathIds);
@@ -62,19 +65,14 @@ export function Breadcrumb({
         return (
           <Group gap="xs" wrap="nowrap" key={item}>
             {!isFirst && <IconChevronRight size={16} opacity={0.3} />}
-            <Text
-              size="xl"
-              fw={isLast ? 600 : 400}
-              c={isLast ? undefined : "dimmed"}
-              style={{
-                cursor: isWorkspace || !isLast ? "pointer" : "default",
-                whiteSpace: "nowrap",
-              }}
-              onClick={
-                isWorkspace
-                  ? onNavigateHome
-                  : !isLast
-                    ? async () => {
+            {isWorkspace || !isLast ? (
+              <button
+                type="button"
+                className="breadcrumb-item breadcrumb-button"
+                onClick={
+                  isWorkspace
+                    ? onNavigateHome
+                    : async () => {
                         // Navigate to intermediate page
                         // index 0 = workspace (skip)
                         // index 1 = first page, etc.
@@ -101,13 +99,25 @@ export function Breadcrumb({
                           openNote(pageId, page.title, parentNames, parentIds);
                         }
                       }
-                    : zoomPath.length > 0
-                      ? () => handleZoomToLevel(-1)
-                      : undefined
-              }
-            >
-              {truncateText(item)}
-            </Text>
+                }
+              >
+                <Text
+                  size="xl"
+                  fw={isLast ? 600 : 400}
+                  c={isLast ? undefined : "dimmed"}
+                >
+                  {truncateText(item)}
+                </Text>
+              </button>
+            ) : (
+              <Text
+                size="xl"
+                fw={isLast ? 600 : 400}
+                c={isLast ? undefined : "dimmed"}
+              >
+                {truncateText(item)}
+              </Text>
+            )}
           </Group>
         );
       })}
@@ -118,24 +128,38 @@ export function Breadcrumb({
         if (!block) return null;
 
         const isLast = index === zoomPath.length - 1;
-        const displayText = truncateText(block.content || "Untitled Block");
+        const displayText = truncateText(
+          block.content || t("common.untitled_block")
+        );
 
         return (
           <Group gap="xs" wrap="nowrap" key={blockId}>
             <IconChevronRight size={16} opacity={0.3} />
-            <Text
-              size="xl"
-              fw={isLast ? 600 : 400}
-              c={isLast ? undefined : "dimmed"}
-              style={{
-                cursor: isLast ? "default" : "pointer",
-                whiteSpace: "nowrap",
-              }}
-              onClick={!isLast ? () => handleZoomToLevel(index) : undefined}
-              title={block.content}
-            >
-              {displayText}
-            </Text>
+            {!isLast ? (
+              <button
+                type="button"
+                className="breadcrumb-item breadcrumb-button"
+                onClick={() => handleZoomToLevel(index)}
+                title={block.content}
+              >
+                <Text
+                  size="xl"
+                  fw={isLast ? 600 : 400}
+                  c={isLast ? undefined : "dimmed"}
+                >
+                  {displayText}
+                </Text>
+              </button>
+            ) : (
+              <Text
+                size="xl"
+                fw={isLast ? 600 : 400}
+                c={isLast ? undefined : "dimmed"}
+                title={block.content}
+              >
+                {displayText}
+              </Text>
+            )}
           </Group>
         );
       })}

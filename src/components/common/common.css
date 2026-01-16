@@ -1,0 +1,45 @@
+/* CollapseToggle Component */
+.collapse-toggle {
+  flex-shrink: 0;
+  width: var(--layout-collapse-toggle-size);
+  height: var(--layout-collapse-toggle-size);
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: currentColor;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--transition-normal), background-color var(--transition-normal);
+  border-radius: var(--radius-sm);
+  position: relative;
+  z-index: 1;
+}
+
+.collapse-toggle.collapsed {
+  opacity: var(--opacity-disabled);
+}
+
+.collapse-toggle.expanded {
+  opacity: 0;
+}
+
+.collapse-toggle:hover {
+  opacity: 1;
+  background-color: var(--color-interactive-hover);
+}
+
+.collapse-toggle svg {
+  transition: transform var(--transition-normal);
+}
+
+.collapse-toggle.collapsed svg {
+  transform: rotate(0deg);
+}
+
+.collapse-toggle.expanded svg {
+  transform: rotate(90deg);
+}
