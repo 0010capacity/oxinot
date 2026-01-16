@@ -162,11 +162,14 @@
 .block-editor .cm-content {
   padding: 2px var(--spacing-xs) !important;
   background: transparent !important;
+  font-size: var(--editor-font-size) !important;
+  line-height: var(--editor-line-height) !important;
 }
 
 .block-editor .cm-line {
   padding: 0 !important;
-  line-height: var(--layout-bullet-container-size) !important;
+  font-size: var(--editor-font-size) !important;
+  line-height: var(--editor-line-height) !important;
 }
 
 /* Ensure active line background is transparent */
