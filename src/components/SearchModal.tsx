@@ -1,4 +1,4 @@
-import { Box, Loader, Modal, Stack, Text, TextInput, useComputedColorScheme } from "@mantine/core";
+import { Box, Loader, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { IconFile, IconFolder, IconSearch } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -27,8 +27,6 @@ interface FlatPageItem {
 }
 
 export function SearchModal({ opened, onClose }: SearchModalProps) {
-  const computedColorScheme = useComputedColorScheme("light");
-  const isDark = computedColorScheme === "dark";
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -195,8 +193,8 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
               <span
                 key={`${pageId}-highlight-${partCounter}`}
                 style={{
-                  backgroundColor: isDark ? "#ffd43b" : "#fff3bf",
-                  color: isDark ? "#000" : "#000",
+                  backgroundColor: "var(--color-interactive-selected)",
+                  color: "inherit",
                   fontWeight: 600,
                 }}
               >
@@ -242,15 +240,11 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                   borderRadius: "6px",
                   cursor: "pointer",
                   backgroundColor: isSelected
-                    ? isDark
-                      ? "rgba(255, 255, 255, 0.08)"
-                      : "rgba(0, 0, 0, 0.05)"
+                    ? "var(--color-interactive-selected)"
                     : "transparent",
                   border: `1px solid ${
                     isSelected
-                      ? isDark
-                        ? "#373A40"
-                        : "#dee2e6"
+                      ? "var(--color-border-secondary)"
                       : "transparent"
                   }`,
                   transition: "all 0.15s ease",
@@ -282,7 +276,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                         fontSize: "0.7rem",
                         userSelect: "none",
                         width: "12px",
-                        color: isDark ? "#909296" : "#868e96",
+                        color: "var(--color-text-tertiary)",
                         border: "none",
                         background: "none",
                         padding: "0",
@@ -297,18 +291,18 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                   {page.isDirectory ? (
                     <IconFolder
                       size={14}
-                      style={{ color: isDark ? "#909296" : "#868e96" }}
+                      style={{ color: "var(--color-text-tertiary)" }}
                     />
                   ) : (
                     <IconFile
                       size={14}
-                      style={{ color: isDark ? "#909296" : "#868e96" }}
+                      style={{ color: "var(--color-text-tertiary)" }}
                     />
                   )}
                   <Text
                     size="sm"
                     style={{
-                      color: isDark ? "#c1c2c5" : "#495057",
+                      color: "var(--color-text-secondary)",
                       fontSize: "0.9rem",
                     }}
                   >
@@ -350,15 +344,11 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                 cursor: "pointer",
                 backgroundColor:
                   selectedIndex === index
-                    ? isDark
-                      ? "rgba(255, 255, 255, 0.08)"
-                      : "rgba(0, 0, 0, 0.05)"
+                    ? "var(--color-interactive-selected)"
                     : "transparent",
                 border: `1px solid ${
                   selectedIndex === index
-                    ? isDark
-                      ? "#373A40"
-                      : "#dee2e6"
+                    ? "var(--color-border-secondary)"
                     : "transparent"
                 }`,
                 transition: "all 0.15s ease",
@@ -375,19 +365,19 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                 {result.result_type === "page" ? (
                   <IconFile
                     size={14}
-                    style={{ color: isDark ? "#909296" : "#868e96" }}
+                    style={{ color: "var(--color-text-tertiary)" }}
                   />
                 ) : (
                   <IconFile
                     size={14}
-                    style={{ color: isDark ? "#909296" : "#868e96" }}
+                    style={{ color: "var(--color-text-tertiary)" }}
                   />
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Text
                     size="sm"
                     style={{
-                      color: isDark ? "#c1c2c5" : "#495057",
+                      color: "var(--color-text-secondary)",
                       fontSize: "0.9rem",
                       marginBottom: "2px",
                     }}
@@ -397,7 +387,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                   <Text
                     size="xs"
                     style={{
-                      color: isDark ? "#909296" : "#868e96",
+                      color: "var(--color-text-tertiary)",
                       lineHeight: 1.4,
                       fontSize: "0.8rem",
                     }}

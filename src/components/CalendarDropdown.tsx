@@ -1,4 +1,4 @@
-import { ActionIcon, Box, Button, Stack, Text, useComputedColorScheme } from "@mantine/core";
+import { ActionIcon, Box, Button, Stack, Text } from "@mantine/core";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
@@ -10,8 +10,6 @@ interface CalendarDropdownProps {
 }
 
 export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
-  const computedColorScheme = useComputedColorScheme("light");
-  const isDark = computedColorScheme === "dark";
   const [currentDate, setCurrentDate] = useState(new Date());
   const pagesById = usePageStore((state) => state.pagesById);
   const pageIds = usePageStore((state) => state.pageIds);
@@ -274,28 +272,22 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
             cursor: "pointer",
             borderRadius: "4px",
             border: isToday
-              ? `2px solid ${isDark ? "#4dabf7" : "#228be6"}`
+              ? "2px solid var(--color-accent)"
               : "2px solid transparent",
             backgroundColor: hasNote
-              ? isDark
-                ? "rgba(74, 171, 247, 0.15)"
-                : "rgba(34, 139, 230, 0.1)"
+              ? "var(--color-interactive-selected)"
               : "transparent",
             transition: "all 0.15s ease",
             fontWeight: hasNote ? 600 : 400,
-            color: isDark ? "#c1c2c5" : "#495057",
+            color: "var(--color-text-secondary)",
             fontSize: "13px",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = isDark
-              ? "rgba(255, 255, 255, 0.08)"
-              : "rgba(0, 0, 0, 0.05)";
+            e.currentTarget.style.backgroundColor = "var(--color-interactive-hover)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = hasNote
-              ? isDark
-                ? "rgba(74, 171, 247, 0.15)"
-                : "rgba(34, 139, 230, 0.1)"
+              ? "var(--color-interactive-selected)"
               : "transparent";
           }}
         >

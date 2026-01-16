@@ -1,4 +1,4 @@
-import { Box, Kbd, Modal, Stack, Text, TextInput, useComputedColorScheme } from "@mantine/core";
+import { Box, Kbd, Modal, Stack, Text, TextInput } from "@mantine/core";
 import {
   IconFile,
   IconFolderPlus,
@@ -38,8 +38,6 @@ export function CommandPalette({
   onOpenSettings,
   onOpenHelp,
 }: CommandPaletteProps) {
-  const computedColorScheme = useComputedColorScheme("light");
-  const isDark = computedColorScheme === "dark";
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -324,15 +322,11 @@ export function CommandPalette({
                     cursor: "pointer",
                     backgroundColor:
                       selectedIndex === index
-                        ? isDark
-                          ? "rgba(255, 255, 255, 0.08)"
-                          : "rgba(0, 0, 0, 0.05)"
+                        ? "var(--color-interactive-hover)"
                         : "transparent",
                     border: `1px solid ${
                       selectedIndex === index
-                        ? isDark
-                          ? "#373A40"
-                          : "#dee2e6"
+                        ? "var(--color-border-secondary)"
                         : "transparent"
                     }`,
                     transition: "all 0.15s ease",
@@ -348,7 +342,7 @@ export function CommandPalette({
                   >
                     <div
                       style={{
-                        color: isDark ? "#909296" : "#868e96",
+                        color: "var(--color-text-tertiary)",
                         display: "flex",
                         alignItems: "center",
                       }}
@@ -359,7 +353,7 @@ export function CommandPalette({
                       <Text
                         size="sm"
                         style={{
-                          color: isDark ? "#c1c2c5" : "#495057",
+                          color: "var(--color-text-secondary)",
                           fontSize: "0.9rem",
                           marginBottom: command.description ? "2px" : 0,
                         }}
@@ -370,7 +364,7 @@ export function CommandPalette({
                         <Text
                           size="xs"
                           style={{
-                            color: isDark ? "#909296" : "#868e96",
+                            color: "var(--color-text-tertiary)",
                             fontSize: "0.8rem",
                           }}
                         >

@@ -398,27 +398,27 @@
 }
 
 .alert-info {
-  background-color: rgba(66, 153, 225, 0.1);
-  border-color: rgba(66, 153, 225, 0.3);
-  color: #4299e1;
+  background-color: color-mix(in srgb, var(--color-text-link), transparent 90%);
+  border-color: color-mix(in srgb, var(--color-text-link), transparent 70%);
+  color: var(--color-text-link);
 }
 
 .alert-success {
-  background-color: rgba(72, 187, 120, 0.1);
-  border-color: rgba(72, 187, 120, 0.3);
-  color: #48bb78;
+  background-color: color-mix(in srgb, var(--color-success), transparent 90%);
+  border-color: color-mix(in srgb, var(--color-success), transparent 70%);
+  color: var(--color-success);
 }
 
 .alert-warning {
-  background-color: rgba(237, 137, 54, 0.1);
-  border-color: rgba(237, 137, 54, 0.3);
-  color: #ed8936;
+  background-color: color-mix(in srgb, var(--color-warning), transparent 90%);
+  border-color: color-mix(in srgb, var(--color-warning), transparent 70%);
+  color: var(--color-warning);
 }
 
 .alert-error {
-  background-color: rgba(245, 101, 101, 0.1);
-  border-color: rgba(245, 101, 101, 0.3);
-  color: #f56565;
+  background-color: color-mix(in srgb, var(--color-error), transparent 90%);
+  border-color: color-mix(in srgb, var(--color-error), transparent 70%);
+  color: var(--color-error);
 }
 
 /* ============================================================================

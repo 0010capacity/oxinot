@@ -125,7 +125,7 @@ span[class*="heading"],
   display: block;
   width: 100%;
   height: 0;
-  border-bottom: 2px solid rgba(127, 127, 127, 0.2);
+  border-bottom: 2px solid var(--color-border-primary);
   margin-top: 0.3em;
   margin-bottom: 0.5em;
 }
@@ -136,23 +136,12 @@ span[class*="heading"],
   display: block;
   width: 100%;
   height: 0;
-  border-bottom: 1px solid rgba(127, 127, 127, 0.15);
+  border-bottom: 1px solid var(--color-border-secondary);
   margin-top: 0.25em;
   margin-bottom: 0.4em;
 }
 
-/* Dark mode adjustments for heading dividers */
-.cm-editor.cm-focused .cm-line.cm-activeLine:has(.cm-heading-1)::after,
-.cm-editor.cm-focused
-  .cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-1)::after {
-  border-bottom-color: rgba(200, 200, 200, 0.25);
-}
-
-.cm-editor.cm-focused .cm-line.cm-activeLine:has(.cm-heading-2)::after,
-.cm-editor.cm-focused
-  .cm-line.cm-activeLine:has(.cm-heading-text.cm-heading-2)::after {
-  border-bottom-color: rgba(200, 200, 200, 0.2);
-}
+/* Dark mode adjustments handled by CSS variables */
 
 /* CodeMirror Editor Styles */
 .cm-editor {
@@ -202,17 +191,17 @@ span[class*="heading"],
 }
 
 .cm-code-block-language {
-  background: rgba(128, 128, 128, 0.2);
+  background: var(--color-bg-secondary);
   padding: 0.25em 0.5em;
   font-size: 0.85em;
   font-family: monospace;
-  color: #888;
+  color: var(--color-text-tertiary);
 }
 
 /* Inline Code Styles */
 .cm-inline-code {
   font-family: "Monaco", "Menlo", "Ubuntu Mono", "Courier New", monospace;
-  background: rgba(128, 128, 128, 0.15);
+  background: var(--color-bg-secondary);
   padding: 0.1em 0.3em;
   border-radius: 3px;
   font-size: 0.9em;
@@ -220,13 +209,13 @@ span[class*="heading"],
 
 /* Link Styles */
 .cm-link-text {
-  color: #4dabf7;
+  color: var(--color-text-link);
   text-decoration: underline;
   cursor: pointer;
 }
 
 .cm-link-text:hover {
-  color: #339af0;
+  color: var(--color-accent);
 }
 
 /* Wiki Link Styles - NUCLEAR OPTION: Override all possible CodeMirror classes */
@@ -249,10 +238,10 @@ span.cm-wiki-link,
 
 /* Blockquote Styles */
 .cm-blockquote {
-  border-left: 3px solid #ccc;
+  border-left: 3px solid var(--color-border-primary);
   padding-left: 1em;
   margin-left: 0;
-  color: #666;
+  color: var(--color-text-secondary);
   font-style: italic;
 }
 
@@ -304,20 +293,20 @@ span.cm-wiki-link,
 .cm-dim-marker {
   opacity: 0.4 !important;
   font-size: 0.85em !important;
-  color: rgba(127, 127, 127, 0.6) !important;
+  color: var(--color-text-tertiary) !important;
   text-decoration: none !important;
   text-decoration-line: none !important;
   border-bottom: none !important;
 }
 
 .cm-link-url {
-  color: #4dabf7 !important;
+  color: var(--color-text-link) !important;
   opacity: 1;
 }
 
 .cm-link-url,
 .cm-link-url * {
-  color: #4dabf7 !important;
+  color: var(--color-text-link) !important;
 }
 
 /* Token spans inside markers can get their own generated classes (e.g. .c7) that re-apply underline.
@@ -349,7 +338,7 @@ span.cm-wiki-link,
 
   /* Make it easier to read against varying backgrounds */
   background: var(--color-surface, rgba(20, 20, 20, 0.95));
-  border: 1px solid rgba(127, 127, 127, 0.25);
+  border: 1px solid var(--color-border-primary);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
 
   /* Ensure the list doesn't get squeezed */
@@ -391,7 +380,7 @@ span.cm-wiki-link,
   .cm-tooltip-autocomplete
   > ul
   > li[aria-selected="true"] {
-  background: rgba(77, 171, 247, 0.18);
+  background: var(--color-interactive-selected);
 }
 
 .md-autocomplete-tooltip .cm-completionLabel {

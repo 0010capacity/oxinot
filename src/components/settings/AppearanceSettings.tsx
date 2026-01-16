@@ -4,7 +4,6 @@ import {
   Slider,
   Stack,
   Text,
-  useComputedColorScheme,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { FontFamily } from "../../stores/themeStore";
@@ -22,7 +21,6 @@ export function AppearanceSettings({
   fontOptions,
 }: AppearanceSettingsProps) {
   const { t } = useTranslation();
-  const isDark = useComputedColorScheme("light") === "dark";
 
   return (
     <Stack gap="xl">
@@ -57,7 +55,7 @@ export function AppearanceSettings({
                   marginTop: 12,
                   padding: 16,
                   borderRadius: 6,
-                  backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                  backgroundColor: "var(--color-bg-tertiary)",
                   fontFamily: getFontStack(),
                 }}
               >

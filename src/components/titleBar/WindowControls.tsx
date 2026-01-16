@@ -82,7 +82,7 @@ export function WindowControls({ show = true }: WindowControlsProps) {
             borderRadius: "0",
             "&:hover": {
               backgroundColor: "var(--color-error)",
-              color: "#ffffff",
+              color: "white",
             },
           },
         }}

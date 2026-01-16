@@ -310,7 +310,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             decoration: Decoration.mark({
               class: "cm-table-separator",
               attributes: {
-                style: "opacity: 0.4; color: #888;",
+                style: "opacity: 0.4; color: var(--color-text-tertiary);",
               },
             }),
           });
@@ -324,8 +324,8 @@ function buildDecorations(view: EditorView): DecorationSet {
         .filter((cell) => cell.length > 0);
 
       const rowStyle = isHeader
-        ? `display: grid; grid-template-columns: repeat(${cells.length}, 1fr); gap: 0; padding: 0.75em 0; font-weight: 600; background: linear-gradient(to bottom, rgba(128, 128, 128, 0.08), rgba(128, 128, 128, 0.12)); border: 1px solid rgba(128, 128, 128, 0.25); border-bottom: 2px solid rgba(128, 128, 128, 0.4); margin-top: 0.5em;`
-        : `display: grid; grid-template-columns: repeat(${cells.length}, 1fr); gap: 0; padding: 0.6em 0; border-left: 1px solid rgba(128, 128, 128, 0.25); border-right: 1px solid rgba(128, 128, 128, 0.25); border-bottom: 1px solid rgba(128, 128, 128, 0.25);`;
+        ? `display: grid; grid-template-columns: repeat(${cells.length}, 1fr); gap: 0; padding: 0.75em 0; font-weight: 600; background: var(--color-interactive-hover); border: 1px solid var(--color-border-primary); border-bottom: 2px solid var(--color-border-secondary); margin-top: 0.5em;`
+        : `display: grid; grid-template-columns: repeat(${cells.length}, 1fr); gap: 0; padding: 0.6em 0; border-left: 1px solid var(--color-border-primary); border-right: 1px solid var(--color-border-primary); border-bottom: 1px solid var(--color-border-primary);`;
 
       decorations.push({
         from: line.from,
@@ -354,7 +354,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             attributes: {
               style: `padding: 0 1em; ${
                 idx < cells.length - 1
-                  ? "border-right: 1px solid rgba(128, 128, 128, 0.2);"
+                  ? "border-right: 1px solid var(--color-border-primary);"
                   : ""
               }`,
             },
@@ -385,7 +385,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             to: line.from + i + 1,
             decoration: Decoration.mark({
               class: "cm-table-pipe",
-              attributes: { style: "opacity: 0.3; color: #888;" },
+              attributes: { style: "opacity: 0.3; color: var(--color-text-tertiary);" },
             }),
           });
         }
@@ -466,7 +466,7 @@ function buildDecorations(view: EditorView): DecorationSet {
               class: "cm-footnote-def",
               attributes: {
                 style:
-                  "color: #888; font-size: 0.9em; font-style: italic; opacity: 0.7;",
+                  "color: var(--color-text-tertiary); font-size: 0.9em; font-style: italic; opacity: 0.7;",
               },
             }),
           });
@@ -484,11 +484,10 @@ function buildDecorations(view: EditorView): DecorationSet {
           to: refEnd,
           decoration: Decoration.mark({
             class: "cm-footnote-ref",
-            attributes: {
-              style:
-                "color: #4dabf7; font-size: 0.85em; vertical-align: super; cursor: pointer;",
-            },
-          }),
+                          attributes: {
+                            style:
+                              "color: var(--color-text-link); font-size: 0.85em; vertical-align: super; cursor: pointer;",
+                          },          }),
         });
         match = footnoteRefRegex.exec(lineText);
       }
@@ -609,7 +608,7 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
 export const hybridRenderingTheme = EditorView.theme({
   // Task checkbox styling
   ".cm-task-checkbox": {
-    accentColor: "#0969da",
+    accentColor: "var(--color-accent)",
   },
 
   // Heading general styling
@@ -704,7 +703,7 @@ export const hybridRenderingTheme = EditorView.theme({
   // Inline code
   ".cm-inline-code": {
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
-    backgroundColor: "rgba(127, 127, 127, 0.1)",
+    backgroundColor: "var(--color-bg-secondary)",
     padding: "0.2em 0.4em",
     borderRadius: "3px",
     fontSize: "0.9em",
@@ -712,17 +711,17 @@ export const hybridRenderingTheme = EditorView.theme({
 
   // Link text
   ".cm-link-text": {
-    color: "#0969da",
+    color: "var(--color-text-link)",
     textDecoration: "underline",
     cursor: "pointer",
   },
 
   // Blockquote
   ".cm-blockquote": {
-    borderLeft: "3px solid rgba(127, 127, 127, 0.3)",
+    borderLeft: "3px solid var(--color-border-primary)",
     paddingLeft: "12px",
     marginLeft: "4px",
-    color: "rgba(127, 127, 127, 0.8)",
+    color: "var(--color-text-secondary)",
     fontStyle: "italic",
   },
 
@@ -739,7 +738,7 @@ export const hybridRenderingTheme = EditorView.theme({
 
   ".cm-table-separator": {
     opacity: "0.3",
-    color: "#858585",
+    color: "var(--color-text-tertiary)",
   },
 
   ".cm-table-separator-hidden": {
@@ -753,13 +752,13 @@ export const hybridRenderingTheme = EditorView.theme({
 
   ".cm-table-delimiter": {
     opacity: "0.4",
-    color: "#858585",
+    color: "var(--color-text-tertiary)",
     padding: "0 4px",
   },
 
   ".cm-table-pipe": {
     opacity: "0.3",
-    color: "#858585",
+    color: "var(--color-text-tertiary)",
   },
 
   ".cm-table-pipe-hidden": {
@@ -771,7 +770,7 @@ export const hybridRenderingTheme = EditorView.theme({
   ".cm-table-header": {
     display: "table-header-group",
     fontWeight: "600",
-    background: "rgba(127, 127, 127, 0.1)",
+    background: "var(--color-interactive-hover)",
   },
 
   ".cm-table-body-row": {
@@ -790,14 +789,14 @@ export const hybridRenderingTheme = EditorView.theme({
 
   // Autolink (for future autolink handler)
   ".cm-autolink": {
-    color: "#0969da",
+    color: "var(--color-text-link)",
     textDecoration: "underline",
     cursor: "pointer",
   },
 
   // Footnote reference (for future footnote handler)
   ".cm-footnote-ref": {
-    color: "#0969da",
+    color: "var(--color-text-link)",
     fontSize: "0.85em",
     verticalAlign: "super",
     cursor: "pointer",
@@ -805,7 +804,7 @@ export const hybridRenderingTheme = EditorView.theme({
 
   // Footnote definition (for future footnote handler)
   ".cm-footnote-def": {
-    color: "rgba(127, 127, 127, 0.8)",
+    color: "var(--color-text-secondary)",
     fontSize: "0.9em",
     fontStyle: "italic",
     opacity: "0.8",
@@ -813,7 +812,7 @@ export const hybridRenderingTheme = EditorView.theme({
 
   // Obsidian features
   ".cm-wiki-link": {
-    color: "#8b5cf6",
+    color: "var(--color-accent)",
     textDecoration: "none !important",
   },
   ".cm-content .cm-wiki-link": {
@@ -840,23 +839,23 @@ export const hybridRenderingTheme = EditorView.theme({
   // Block references / embeds
   // ((uuid)) and !((uuid)) are rendered as token-like highlights; UUID is hidden by handler.
   ".cm-block-ref": {
-    color: "#8b5cf6",
+    color: "var(--color-accent)",
     textDecoration: "none",
     cursor: "pointer",
     fontWeight: 500,
     padding: "0 2px",
     borderRadius: "4px",
-    background: "rgba(139, 92, 246, 0.12)",
+    background: "color-mix(in srgb, var(--color-accent), transparent 88%)",
   },
   ".cm-block-embed": {
-    color: "#8b5cf6",
+    color: "var(--color-accent)",
     textDecoration: "none",
     cursor: "pointer",
     fontWeight: 600,
     padding: "0 2px",
     borderRadius: "4px",
-    background: "rgba(139, 92, 246, 0.18)",
-    boxShadow: "inset 0 0 0 1px rgba(139, 92, 246, 0.35)",
+    background: "color-mix(in srgb, var(--color-accent), transparent 82%)",
+    boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-accent), transparent 65%)",
   },
 
   // Embed subtree widget container (read-only)
@@ -870,8 +869,8 @@ export const hybridRenderingTheme = EditorView.theme({
   },
 
   ".cm-tag": {
-    color: "#10b981",
-    background: "rgba(16, 185, 129, 0.1)",
+    color: "var(--color-success)",
+    background: "color-mix(in srgb, var(--color-success), transparent 90%)",
     padding: "0.1em 0.3em",
     borderRadius: "3px",
     cursor: "pointer",
@@ -880,13 +879,13 @@ export const hybridRenderingTheme = EditorView.theme({
 
   ".cm-highlight": {
     background:
-      "linear-gradient(to bottom, rgba(255, 235, 59, 0.3), rgba(255, 235, 59, 0.4))",
+      "linear-gradient(to bottom, color-mix(in srgb, var(--color-warning), transparent 70%), color-mix(in srgb, var(--color-warning), transparent 60%))",
     padding: "0.1em 0.2em",
     borderRadius: "2px",
   },
 
   ".cm-comment": {
-    color: "#888",
+    color: "var(--color-text-tertiary)",
     opacity: "0.6",
     fontStyle: "italic",
   },

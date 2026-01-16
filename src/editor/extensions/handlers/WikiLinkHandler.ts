@@ -256,7 +256,7 @@ export class WikiLinkHandler extends BaseHandler {
             createStyledText(aliasStart, aliasEnd, {
               className: "cm-wiki-link",
               style: `
-                color: #8b5cf6;
+                color: var(--color-accent);
                 cursor: pointer;
                 font-weight: 500;
                 text-decoration: none !important;
@@ -290,7 +290,7 @@ export class WikiLinkHandler extends BaseHandler {
             createStyledText(linkStart, linkEnd, {
               className: "cm-wiki-link",
               style: `
-                color: #8b5cf6;
+                color: var(--color-accent);
                 cursor: pointer;
                 font-weight: 500;
                 text-decoration: none !important;
