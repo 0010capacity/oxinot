@@ -3,8 +3,8 @@ import type { ColorPalette } from "./types";
 // Define base color palettes for each variant
 export const COLOR_VARIANTS = {
   default: {
-    accent: "#6366f1",
-    accentHover: "#818cf8",
+    accent: "#7c3aed",
+    accentHover: "#8b9dff",
   },
   blue: {
     accent: "#3b82f6",
@@ -28,87 +28,90 @@ export const COLOR_VARIANTS = {
 function hexToRgb(hex: string): string {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
-    ? `${Number.parseInt(result[1], 16)}, ${Number.parseInt(result[2], 16)}, ${Number.parseInt(result[3], 16)}`
+    ? `${Number.parseInt(result[1], 16)}, ${Number.parseInt(
+        result[2],
+        16
+      )}, ${Number.parseInt(result[3], 16)}`
     : "0, 0, 0";
 }
 
 // Generate color palettes for dark and light schemes
 export function createColorPalette(
   scheme: "dark" | "light",
-  variant: keyof typeof COLOR_VARIANTS,
+  variant: keyof typeof COLOR_VARIANTS
 ): ColorPalette {
   const variantColors = COLOR_VARIANTS[variant];
 
   if (scheme === "dark") {
     return {
       bg: {
-        primary: "#1a1a1a",
-        secondary: "#1a1b1e",
-        tertiary: "#0b0c0f",
-        elevated: "#252525",
+        primary: "#0f0f0f",
+        secondary: "#1a1a1d",
+        tertiary: "#3a3a42",
+        elevated: "#2a2a30",
       },
       text: {
-        primary: "#e0e0e0",
-        secondary: "#c1c2c5",
-        tertiary: "#909296",
-        link: variantColors.accentHover,
+        primary: "#f0f0f2",
+        secondary: "#d4d4d8",
+        tertiary: "#a1a1a6",
+        link: "#8b9dff",
       },
       border: {
-        primary: "rgba(255, 255, 255, 0.1)",
-        secondary: "rgba(255, 255, 255, 0.06)",
-        focus: variantColors.accent,
+        primary: "rgba(255, 255, 255, 0.12)",
+        secondary: "rgba(255, 255, 255, 0.08)",
+        focus: "#7c3aed",
       },
       interactive: {
-        hover: "rgba(255, 255, 255, 0.08)",
-        active: "rgba(255, 255, 255, 0.12)",
-        selected: `rgba(${hexToRgb(variantColors.accent)}, 0.15)`,
-        focus: `rgba(${hexToRgb(variantColors.accent)}, 0.3)`,
+        hover: "rgba(255, 255, 255, 0.1)",
+        active: "rgba(255, 255, 255, 0.15)",
+        selected: "rgba(124, 58, 237, 0.2)",
+        focus: "rgba(124, 58, 237, 0.3)",
       },
-      accent: variantColors.accent,
+      accent: "#7c3aed",
       success: "#10b981",
       warning: "#f59e0b",
-      error: "#ef4444",
+      error: "#ff6b6b",
       bullet: {
-        default: "rgba(255, 255, 255, 0.4)",
-        hover: "rgba(255, 255, 255, 0.7)",
-        active: "rgba(255, 255, 255, 0.85)",
+        default: "rgba(255, 255, 255, 0.35)",
+        hover: "rgba(255, 255, 255, 0.65)",
+        active: "rgba(255, 255, 255, 0.9)",
       },
-      indentGuide: "rgba(255, 255, 255, 0.06)",
+      indentGuide: "rgba(255, 255, 255, 0.08)",
     };
   }
 
   return {
     bg: {
       primary: "#ffffff",
-      secondary: "#f8f9fa",
-      tertiary: "#f1f3f5",
-      elevated: "#ffffff",
+      secondary: "#f9f9fb",
+      tertiary: "#f5f5f8",
+      elevated: "#efefef",
     },
     text: {
       primary: "#1a1a1a",
-      secondary: "#495057",
-      tertiary: "#868e96",
-      link: variantColors.accent,
+      secondary: "#3a3a3a",
+      tertiary: "#7a7a7e",
+      link: "#5b63f5",
     },
     border: {
-      primary: "rgba(0, 0, 0, 0.1)",
-      secondary: "rgba(0, 0, 0, 0.06)",
-      focus: variantColors.accent,
+      primary: "rgba(0, 0, 0, 0.08)",
+      secondary: "rgba(0, 0, 0, 0.05)",
+      focus: "#6366f1",
     },
     interactive: {
-      hover: "rgba(0, 0, 0, 0.05)",
+      hover: "rgba(0, 0, 0, 0.04)",
       active: "rgba(0, 0, 0, 0.08)",
-      selected: `rgba(${hexToRgb(variantColors.accent)}, 0.1)`,
-      focus: `rgba(${hexToRgb(variantColors.accent)}, 0.2)`,
+      selected: "rgba(99, 102, 241, 0.12)",
+      focus: "rgba(99, 102, 241, 0.2)",
     },
-    accent: variantColors.accent,
-    success: "#10b981",
-    warning: "#f59e0b",
-    error: "#ef4444",
+    accent: "#6366f1",
+    success: "#059669",
+    warning: "#d97706",
+    error: "#dc2626",
     bullet: {
-      default: "rgba(0, 0, 0, 0.4)",
-      hover: "rgba(0, 0, 0, 0.7)",
-      active: "rgba(0, 0, 0, 0.85)",
+      default: "rgba(0, 0, 0, 0.25)",
+      hover: "rgba(0, 0, 0, 0.55)",
+      active: "rgba(0, 0, 0, 0.8)",
     },
     indentGuide: "rgba(0, 0, 0, 0.06)",
   };
