@@ -2,40 +2,40 @@
 /* These are fallback values, overridden by ThemeProvider */
 
 :root {
-  /* Background Colors */
-  --color-bg-primary: #1a1a1a;
-  --color-bg-secondary: #1a1b1e;
-  --color-bg-tertiary: #0b0c0f;
-  --color-bg-elevated: #252525;
+  /* Background Colors - Improved dark mode with better contrast */
+  --color-bg-primary: #0f0f0f;
+  --color-bg-secondary: #1a1a1d;
+  --color-bg-tertiary: #242429;
+  --color-bg-elevated: #2a2a30;
 
-  /* Text Colors */
-  --color-text-primary: #e0e0e0;
-  --color-text-secondary: #c1c2c5;
-  --color-text-tertiary: #909296;
-  --color-text-link: #818cf8;
+  /* Text Colors - Enhanced contrast for readability */
+  --color-text-primary: #f0f0f2;
+  --color-text-secondary: #d4d4d8;
+  --color-text-tertiary: #a1a1a6;
+  --color-text-link: #8b9dff;
 
-  /* Border Colors */
-  --color-border-primary: rgba(255, 255, 255, 0.1);
-  --color-border-secondary: rgba(255, 255, 255, 0.06);
-  --color-border-focus: #6366f1;
+  /* Border Colors - Better visibility */
+  --color-border-primary: rgba(255, 255, 255, 0.12);
+  --color-border-secondary: rgba(255, 255, 255, 0.08);
+  --color-border-focus: #7c3aed;
 
-  /* Interactive Colors */
-  --color-interactive-hover: rgba(255, 255, 255, 0.08);
-  --color-interactive-active: rgba(255, 255, 255, 0.12);
-  --color-interactive-selected: rgba(99, 102, 241, 0.15);
-  --color-interactive-focus: rgba(99, 102, 241, 0.3);
+  /* Interactive Colors - Refined for consistency */
+  --color-interactive-hover: rgba(255, 255, 255, 0.1);
+  --color-interactive-active: rgba(255, 255, 255, 0.15);
+  --color-interactive-selected: rgba(124, 58, 237, 0.2);
+  --color-interactive-focus: rgba(124, 58, 237, 0.3);
 
-  /* Semantic Colors */
-  --color-accent: #6366f1;
+  /* Semantic Colors - Adjusted for dark mode visibility */
+  --color-accent: #7c3aed;
   --color-success: #10b981;
   --color-warning: #f59e0b;
-  --color-error: #ef4444;
+  --color-error: #ff6b6b;
 
-  /* Component-Specific Colors */
-  --color-bullet-default: rgba(255, 255, 255, 0.4);
-  --color-bullet-hover: rgba(255, 255, 255, 0.7);
-  --color-bullet-active: rgba(255, 255, 255, 0.85);
-  --color-indent-guide: rgba(255, 255, 255, 0.06);
+  /* Component-Specific Colors - Better visual hierarchy */
+  --color-bullet-default: rgba(255, 255, 255, 0.35);
+  --color-bullet-hover: rgba(255, 255, 255, 0.65);
+  --color-bullet-active: rgba(255, 255, 255, 0.9);
+  --color-indent-guide: rgba(255, 255, 255, 0.08);
 
   /* Spacing */
   --spacing-xs: 4px;
@@ -93,7 +93,54 @@
   --opacity-active: 0.85;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 2px 4px -1px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Light mode color overrides */
+@media (prefers-color-scheme: light) {
+  :root {
+    /* Background Colors - Light mode */
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f9f9fb;
+    --color-bg-tertiary: #f0f0f3;
+    --color-bg-elevated: #efefef;
+
+    /* Text Colors - Light mode */
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #3a3a3a;
+    --color-text-tertiary: #7a7a7e;
+    --color-text-link: #5b63f5;
+
+    /* Border Colors - Light mode */
+    --color-border-primary: rgba(0, 0, 0, 0.08);
+    --color-border-secondary: rgba(0, 0, 0, 0.05);
+    --color-border-focus: #6366f1;
+
+    /* Interactive Colors - Light mode */
+    --color-interactive-hover: rgba(0, 0, 0, 0.04);
+    --color-interactive-active: rgba(0, 0, 0, 0.08);
+    --color-interactive-selected: rgba(99, 102, 241, 0.12);
+    --color-interactive-focus: rgba(99, 102, 241, 0.2);
+
+    /* Semantic Colors - Light mode */
+    --color-accent: #6366f1;
+    --color-success: #059669;
+    --color-warning: #d97706;
+    --color-error: #dc2626;
+
+    /* Component-Specific Colors - Light mode */
+    --color-bullet-default: rgba(0, 0, 0, 0.25);
+    --color-bullet-hover: rgba(0, 0, 0, 0.55);
+    --color-bullet-active: rgba(0, 0, 0, 0.8);
+    --color-indent-guide: rgba(0, 0, 0, 0.06);
+
+    /* Shadows - Light mode */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07),
+      0 2px 4px -1px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+  }
 }
