@@ -37,6 +37,7 @@ import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useTranslation } from "react-i18next";
 import { useAppSettingsStore } from "./stores/appSettingsStore";
+import { useThemeStore } from "./stores/themeStore";
 
 import { useHomepage } from "./hooks/useHomepage";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -87,6 +88,8 @@ function AppContent({ workspacePath }: AppContentProps) {
   const { showIndex, setWorkspaceName } = useViewStore();
 
   const getFontStack = useOutlinerSettingsStore((state) => state.getFontStack);
+  const editorFontSize = useThemeStore((state) => state.editorFontSize);
+  const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
 
   // Modal states
   const [settingsOpened, setSettingsOpened] = useState(false);
@@ -115,11 +118,19 @@ function AppContent({ workspacePath }: AppContentProps) {
     onHelp: () => setHelpOpened(true),
   });
 
-  // Apply saved font on mount
+  // Apply saved font, size, and line height settings on mount and when they change
   useEffect(() => {
     const fontStack = getFontStack();
     document.documentElement.style.setProperty("--font-family", fontStack);
-  }, [getFontStack]);
+    document.documentElement.style.setProperty(
+      "--editor-font-size",
+      `${editorFontSize}px`
+    );
+    document.documentElement.style.setProperty(
+      "--editor-line-height",
+      `${editorLineHeight}`
+    );
+  }, [getFontStack, editorFontSize, editorLineHeight]);
 
   const handleMigrationCancelWithWorkspace = () => {
     handleMigrationCancel();

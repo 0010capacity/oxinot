@@ -58,6 +58,10 @@
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.6;
 
+  /* Editor Settings - Dynamic */
+  --editor-font-size: 16px;
+  --editor-line-height: 1.6;
+
   /* Border Radius */
   --radius-sm: 3px;
   --radius-md: 6px;
