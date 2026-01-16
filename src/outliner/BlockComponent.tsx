@@ -753,9 +753,19 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 "[BlockComponent] Right-click detected, calling preventDefault"
               );
               e.preventDefault();
+              e.stopPropagation();
+              // Clear any existing selection to prevent browser from auto-selecting text
+              window.getSelection()?.removeAllRanges();
             }
             console.log(
               "[BlockComponent] Selection after preventDefault:",
+              window.getSelection()?.toString()
+            );
+          }}
+          onContextMenu={() => {
+            console.log("[BlockComponent] onContextMenu triggered");
+            console.log(
+              "[BlockComponent] Selection at contextmenu:",
               window.getSelection()?.toString()
             );
           }}
