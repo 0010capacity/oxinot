@@ -105,6 +105,16 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
+      // CRITICAL: Check if this context menu should actually handle this event
+      // by verifying the event target is within our container
+      const target = e.currentTarget;
+      if (containerRef.current && target !== containerRef.current) {
+        console.warn(
+          "[ContextMenu] Context menu event from different element, ignoring"
+        );
+        return;
+      }
+
       e.preventDefault();
       e.stopPropagation();
 
@@ -161,7 +171,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         ref={containerRef}
         className={className}
         style={{ position: "relative", ...style }}
-        onContextMenuCapture={handleContextMenu}
+        onContextMenu={handleContextMenu}
       >
         {children}
       </div>
@@ -204,8 +214,18 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                   leftSection={item.icon}
                   color={item.color}
                   onClick={(e) => {
+                    console.log("[ContextMenu] Menu item clicked:", item.label);
+                    e.preventDefault();
                     e.stopPropagation();
+                    console.log(
+                      "[ContextMenu] Executing onClick handler for:",
+                      item.label
+                    );
                     item.onClick();
+                    console.log(
+                      "[ContextMenu] Closing menu after onClick for:",
+                      item.label
+                    );
                     setOpenMenuId(null);
                   }}
                   disabled={item.disabled}

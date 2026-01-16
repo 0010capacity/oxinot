@@ -175,6 +175,13 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     updatePartialBlocks: (blocks: BlockData[], deletedBlockIds?: string[]) => {
+      console.log(
+        "[blockStore.updatePartialBlocks] Called with:",
+        "blocks:",
+        blocks.map((b) => b.id),
+        "deletedBlockIds:",
+        deletedBlockIds
+      );
       set((state) => {
         // 1. Update childrenMap incrementally (O(M*K + K log K))
         // Pass state.blocksById BEFORE updating it so the helper can find old parents
@@ -185,17 +192,40 @@ export const useBlockStore = create<BlockStore>()(
           deletedBlockIds ?? []
         );
 
+        console.log("[blockStore.updatePartialBlocks] After updateChildrenMap");
+
         // 2. Update blocksById
         for (const block of blocks) {
           state.blocksById[block.id] = block;
         }
 
+        console.log(
+          "[blockStore.updatePartialBlocks] After updating blocksById"
+        );
+
         // 3. Remove deleted blocks from blocksById
         if (deletedBlockIds) {
+          console.log(
+            "[blockStore.updatePartialBlocks] Deleting blocks from blocksById:",
+            deletedBlockIds
+          );
           for (const id of deletedBlockIds) {
-            delete state.blocksById[id];
+            if (state.blocksById[id]) {
+              console.log("[blockStore.updatePartialBlocks] Deleting:", id);
+              delete state.blocksById[id];
+            } else {
+              console.warn(
+                "[blockStore.updatePartialBlocks] Block not found in blocksById:",
+                id
+              );
+            }
           }
         }
+
+        console.log(
+          "[blockStore.updatePartialBlocks] Final state has blocks:",
+          Object.keys(state.blocksById).length
+        );
       });
     },
 
@@ -472,21 +502,43 @@ export const useBlockStore = create<BlockStore>()(
     deleteBlock: async (id: string) => {
       const { blocksById, getPreviousVisibleBlock } = get();
       const block = blocksById[id];
-      if (!block) return;
+      console.log(
+        "[blockStore.deleteBlock] Starting deletion for blockId:",
+        id,
+        "block:",
+        block
+      );
+      if (!block) {
+        console.warn("[blockStore.deleteBlock] Block not found:", id);
+        return;
+      }
 
       // Prevent deleting the last block of a page to ensure the editor always has a place to type.
       const totalBlocks = Object.keys(blocksById).length;
+      console.log(
+        "[blockStore.deleteBlock] Total blocks before deletion:",
+        totalBlocks
+      );
       if (totalBlocks <= 1) {
+        console.warn("[blockStore.deleteBlock] Cannot delete last block");
         return;
       }
 
       // Check if we need to move focus BEFORE deletion (so we know where to go)
       const { focusedBlockId } = useBlockUIStore.getState();
       let nextFocusId: string | null = null;
+      console.log(
+        "[blockStore.deleteBlock] Current focused block:",
+        focusedBlockId
+      );
 
       if (focusedBlockId === id) {
         // If deleting the focused block, move focus to previous visible block
         nextFocusId = getPreviousVisibleBlock(id);
+        console.log(
+          "[blockStore.deleteBlock] Next focus will be:",
+          nextFocusId
+        );
       }
 
       try {
@@ -496,37 +548,59 @@ export const useBlockStore = create<BlockStore>()(
         }
 
         // Backend returns all deleted IDs (block + descendants)
+        console.log(
+          "[blockStore.deleteBlock] Invoking backend delete_block command"
+        );
         const deletedIds: string[] = await invoke("delete_block", {
           workspacePath,
           blockId: id,
         });
 
+        console.log(
+          "[blockStore.deleteBlock] Backend returned deleted IDs:",
+          deletedIds
+        );
+
         // Update only the affected blocks (remove deleted ones)
+        console.log(
+          "[blockStore.deleteBlock] Updating partial blocks, deletedIds:",
+          deletedIds
+        );
         get().updatePartialBlocks([], deletedIds);
 
         // Cleanup UI state if needed
         const currentUI = useBlockUIStore.getState();
 
         // 1. Handle Focus
-        if (currentUI.focusedBlockId && deletedIds.includes(currentUI.focusedBlockId)) {
+        if (
+          currentUI.focusedBlockId &&
+          deletedIds.includes(currentUI.focusedBlockId)
+        ) {
+          console.log(
+            "[blockStore.deleteBlock] Adjusting focus due to deletion"
+          );
           if (nextFocusId) {
-             useBlockUIStore.setState({ focusedBlockId: nextFocusId });
+            useBlockUIStore.setState({ focusedBlockId: nextFocusId });
           } else {
-             useBlockUIStore.setState({ focusedBlockId: null });
+            useBlockUIStore.setState({ focusedBlockId: null });
           }
         }
 
         // 2. Handle Merge State
         if (
-          (currentUI.mergingBlockId && deletedIds.includes(currentUI.mergingBlockId)) ||
-          (currentUI.mergingTargetBlockId && deletedIds.includes(currentUI.mergingTargetBlockId))
+          (currentUI.mergingBlockId &&
+            deletedIds.includes(currentUI.mergingBlockId)) ||
+          (currentUI.mergingTargetBlockId &&
+            deletedIds.includes(currentUI.mergingTargetBlockId))
         ) {
+          console.log("[blockStore.deleteBlock] Clearing merge state");
           useBlockUIStore.setState({
             mergingBlockId: null,
             mergingTargetBlockId: null,
           });
         }
 
+        console.log("[blockStore.deleteBlock] Deletion completed successfully");
       } catch (error) {
         console.error("Failed to delete block:", error);
         // Reload to restore correct state
