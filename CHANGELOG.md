@@ -1,5 +1,20 @@
 # oxinot
 
+## 0.9.0
+
+### Minor Changes
+
+- bd28b86: - Ensure Space inserts during IME and completion
+  - fix component reusability, styling, i18n, and accessibility (#197)
+- bd28b86: - Ensure Space inserts during IME and completion
+  - fix component reusability, styling, i18n, and accessibility (#197)
+  - add IPC input validation and enable CSP (#199)
+
+### Patch Changes
+
+- bd28b86: - Ensure Space inserts during IME and completion
+- bd28b86: - Ensure Space inserts during IME and completion
+
 ## 0.8.0
 
 ### Minor Changes
