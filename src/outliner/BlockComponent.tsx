@@ -698,9 +698,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         <div
           ref={blockComponentRef}
           className="block-component"
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
           onKeyDown={(e) => {
             // Handle keyboard navigation for accessibility
             if (e.key === "Enter" || e.key === " ") {
