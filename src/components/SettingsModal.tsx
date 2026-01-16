@@ -7,6 +7,7 @@ import {
   useMantineColorScheme,
   useComputedColorScheme,
 } from "@mantine/core";
+import styles from "./SettingsModal.module.css";
 import {
   IconAppWindow,
   IconBrandGit,
@@ -431,13 +432,8 @@ export function SettingsModal({
                 advanced: hasMatchInTab("advanced"),
                 about: hasMatchInTab("about"),
               }).some((v) => v) && (
-                <div style={{ padding: 8, marginBottom: 12 }}>
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: "var(--mantine-color-gray-6)",
-                    }}
-                  >
+                <div className={styles.noResultsContainer}>
+                  <p className={styles.noResultsText}>
                     {t("settings.search_active")}
                   </p>
                 </div>
@@ -523,14 +519,7 @@ export function SettingsModal({
           </Stack>
         </Tabs.List>
 
-        <div
-          style={{
-            flex: 1,
-            padding: "24px",
-            height: "100%",
-            overflowY: "auto",
-          }}
-        >
+        <div className={styles.contentWrapper}>
           <Tabs.Panel value="appearance">
             <AppearanceSettings
               matchesSearch={matchesSearch}
