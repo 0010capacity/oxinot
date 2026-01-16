@@ -1,3 +1,4 @@
+import { watch } from "@tauri-apps/plugin-fs";
 import { useErrorStore } from "@/stores/errorStore";
 import { useGitStore } from "@/stores/gitStore";
 import { showToast } from "@/utils/toast";
@@ -21,8 +22,12 @@ export interface GitManagementActions {
   setGitMenuOpen: (open: boolean) => void;
 }
 
+// Debounce delay for file watcher events (500ms)
+// Allows batching of multiple file changes into a single git status check
+const GIT_WATCHER_DEBOUNCE_MS = 500;
+
 export const useGitManagement = (
-  workspacePath: string,
+  workspacePath: string
 ): GitManagementState & GitManagementActions => {
   const hasGitChanges = useGitStore((state) => state.hasChanges);
   const isGitRepo = useGitStore((state) => state.isRepo);
@@ -41,6 +46,7 @@ export const useGitManagement = (
   const addError = useErrorStore((state) => state.addError);
   const [gitMenuOpen, setGitMenuOpen] = useState(false);
 
+  // Initialize Git on workspace load
   useEffect(() => {
     if (!workspacePath) return;
 
@@ -56,29 +62,87 @@ export const useGitManagement = (
     initializeGit();
   }, [workspacePath, initGit, checkGitStatus]);
 
+  // File system watcher: detect changes and check git status
+  // Uses debounced watcher to batch multiple file changes
   useEffect(() => {
     if (!workspacePath || !isGitRepo) return;
 
-    const intervalId = setInterval(() => {
-      checkGitStatus(workspacePath).catch((error) => {
-        console.error("[useGitManagement] Status check failed:", error);
-      });
-    }, 3000);
+    let unwatchPromise: Promise<() => void> | null = null;
+    let debounceTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    return () => clearInterval(intervalId);
+    const startWatcher = async () => {
+      try {
+        // Watch workspace directory for changes with debounce
+        // 'watch' provides debounced events, avoiding excessive git status checks
+        unwatchPromise = watch(
+          ".",
+          () => {
+            // Debounce: only check git status after changes settle
+            if (debounceTimeoutId) {
+              clearTimeout(debounceTimeoutId);
+            }
+
+            debounceTimeoutId = setTimeout(() => {
+              checkGitStatus(workspacePath).catch((error) => {
+                console.error(
+                  "[useGitManagement] File watcher git status check failed:",
+                  error
+                );
+              });
+            }, GIT_WATCHER_DEBOUNCE_MS);
+          },
+          {
+            recursive: true,
+            delayMs: 300, // Tauri's built-in debounce for watcher events
+          }
+        );
+
+        console.debug(
+          "[useGitManagement] File system watcher started for workspace:",
+          workspacePath
+        );
+      } catch (error) {
+        console.error(
+          "[useGitManagement] Failed to start file watcher:",
+          error
+        );
+        // Fallback: use polling if watcher fails
+        const fallbackIntervalId = setInterval(() => {
+          checkGitStatus(workspacePath).catch((error) => {
+            console.error(
+              "[useGitManagement] Fallback polling git status check failed:",
+              error
+            );
+          });
+        }, 10000); // 10 second fallback polling
+
+        return () => clearInterval(fallbackIntervalId);
+      }
+    };
+
+    startWatcher();
+
+    return () => {
+      // Cleanup: stop watching and clear debounce timeout
+      if (debounceTimeoutId) {
+        clearTimeout(debounceTimeoutId);
+      }
+
+      unwatchPromise?.then((unwatch) => {
+        unwatch();
+      });
+    };
   }, [workspacePath, isGitRepo, checkGitStatus]);
 
+  // Auto-commit on configured interval
   useEffect(() => {
     if (!workspacePath || !autoCommitEnabled) return;
 
-    const intervalId = setInterval(
-      () => {
-        autoCommit(workspacePath).catch((error) => {
-          console.error("[useGitManagement] Auto-commit failed:", error);
-        });
-      },
-      autoCommitInterval * 60 * 1000,
-    );
+    const intervalId = setInterval(() => {
+      autoCommit(workspacePath).catch((error) => {
+        console.error("[useGitManagement] Auto-commit failed:", error);
+      });
+    }, autoCommitInterval * 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, [workspacePath, autoCommitEnabled, autoCommitInterval, autoCommit]);
