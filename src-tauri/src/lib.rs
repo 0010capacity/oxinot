@@ -51,49 +51,6 @@ async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, Strin
         // Run incremental sync to index workspace files
         let _ = commands::workspace::sync_workspace_incremental(path_str.clone()).await;
 
-        // Check if workspace is empty and create Welcome.md if needed
-        match fs::read_dir(&path_str) {
-            Ok(entries) => {
-                let md_files: Vec<_> = entries
-                    .filter_map(|e| e.ok())
-                    .filter(|e| {
-                        e.path()
-                            .extension()
-                            .and_then(|s| s.to_str())
-                            .map(|s| s == "md")
-                            .unwrap_or(false)
-                    })
-                    .collect();
-
-                if md_files.is_empty() {
-                    let welcome_path = PathBuf::from(&path_str).join("Welcome.md");
-                    let welcome_content = r#"# Welcome
-
-Welcome to your new workspace! 🎉
-
-## Getting Started
-
-Start creating your notes and documents here.
-  This is a block-based outliner
-  You can nest content infinitely
-    Like this!
-
-## Features
-
-Markdown support with live rendering
-Outliner-style editing
-File organization"#;
-
-                    if let Err(e) = fs::write(welcome_path, welcome_content) {
-                        eprintln!("Error creating Welcome.md: {}", e);
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("Error reading directory: {}", e);
-            }
-        }
-
         Ok(Some(path_str))
     } else {
         Ok(None)
