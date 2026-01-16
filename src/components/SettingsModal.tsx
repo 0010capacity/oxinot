@@ -356,12 +356,11 @@ export function SettingsModal({
       title={t("common.settings")}
       size="xl"
       centered
-      fullScreen
       styles={{
         body: {
           padding: 0,
-          height: "100vh",
-          maxHeight: "100vh",
+          height: "75vh",
+          maxHeight: "750px",
         },
       }}
     >
