@@ -141,13 +141,13 @@ export const useGitManagement = (
         // Watch workspace directory for changes with debounce
         // 'watch' provides debounced events, avoiding excessive git status checks
         logger.info("Calling watch() function", {
-          path: ".",
+          path: workspacePath,
           recursive: true,
           delayMs: 300,
         });
 
         unwatchPromise = watch(
-          ".",
+          workspacePath,
           () => {
             fileChangeCountRef.current += 1;
             const changeCount = fileChangeCountRef.current;
