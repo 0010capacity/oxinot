@@ -4,6 +4,12 @@ import { shallow } from "zustand/shallow";
 import { createWithEqualityFn as create } from "zustand/traditional";
 import { useWorkspaceStore } from "./workspaceStore";
 import { useBlockUIStore } from "./blockUIStore";
+import {
+  getInsertBelowTarget,
+  rebuildChildrenMapForParents,
+  collectAffectedParentIds,
+  normalizeBlocks,
+} from "./blockGraphHelpers";
 
 // ============ Types ============
 
@@ -83,37 +89,6 @@ interface BlockActions {
 
 type BlockStore = BlockState & BlockActions;
 
-// ============ Helper Functions ============
-
-/**
- * Determines where to insert a new block relative to a current block.
- * Rule:
- * 1. If current block has children: insert as FIRST CHILD.
- * 2. Else: insert as NEXT SIBLING.
- */
-function getInsertBelowTarget(
-  currentId: string,
-  blocksById: Record<string, BlockData>,
-  childrenMap: Record<string, string[]>
-): { parentId: string | null; afterBlockId: string | null } {
-  const currentBlock = blocksById[currentId];
-  const hasChildren = (childrenMap[currentId] ?? []).length > 0;
-
-  if (hasChildren) {
-    // Rule: First child
-    return {
-      parentId: currentId,
-      afterBlockId: null, // null means "at start" (first child)
-    };
-  }
-
-  // Rule: Next sibling
-  return {
-    parentId: currentBlock?.parentId ?? null,
-    afterBlockId: currentId,
-  };
-}
-
 // ============ Store Implementation ============
 
 export const useBlockStore = create<BlockStore>()(
@@ -148,25 +123,7 @@ export const useBlockStore = create<BlockStore>()(
         });
 
         // Normalize
-        const blocksById: Record<string, BlockData> = {};
-        const childrenMap: Record<string, string[]> = { root: [] };
-
-        for (const block of blocks) {
-          blocksById[block.id] = block;
-
-          const parentKey = block.parentId ?? "root";
-          if (!childrenMap[parentKey]) {
-            childrenMap[parentKey] = [];
-          }
-          childrenMap[parentKey].push(block.id);
-        }
-
-        // orderWeight sort
-        for (const key of Object.keys(childrenMap)) {
-          childrenMap[key].sort((a, b) => {
-            return blocksById[a].orderWeight - blocksById[b].orderWeight;
-          });
-        }
+        const { blocksById, childrenMap } = normalizeBlocks(blocks);
 
         // Check for empty page and handle initial block
         const isRootEmpty = (childrenMap.root ?? []).length === 0;
@@ -221,26 +178,11 @@ export const useBlockStore = create<BlockStore>()(
     updatePartialBlocks: (blocks: BlockData[], deletedBlockIds?: string[]) => {
       set((state) => {
         // Collect affected parent IDs before any modifications
-        const affectedParentIds = new Set<string>();
-
-        // Add parents of updated/added blocks (including previous parent for moves)
-        for (const block of blocks) {
-          const existing = state.blocksById[block.id];
-          if (existing && existing.parentId !== block.parentId) {
-            affectedParentIds.add(existing.parentId ?? "root");
-          }
-          affectedParentIds.add(block.parentId ?? "root");
-        }
-
-        // Add parents of deleted blocks (BEFORE deleting them!)
-        if (deletedBlockIds) {
-          for (const id of deletedBlockIds) {
-            const block = state.blocksById[id];
-            if (block) {
-              affectedParentIds.add(block.parentId ?? "root");
-            }
-          }
-        }
+        const affectedParentIds = collectAffectedParentIds(
+          blocks,
+          deletedBlockIds,
+          state.blocksById
+        );
 
         // Update or add blocks
         for (const block of blocks) {
@@ -254,14 +196,13 @@ export const useBlockStore = create<BlockStore>()(
           }
         }
 
-        // Rebuild childrenMap for affected parents
-        for (const parentId of affectedParentIds) {
-          const parentKey = parentId === "root" ? "root" : parentId;
-          state.childrenMap[parentKey] = Object.values(state.blocksById)
-            .filter((b) => (b.parentId ?? "root") === parentKey)
-            .sort((a, b) => a.orderWeight - b.orderWeight)
-            .map((b) => b.id);
-        }
+        // Rebuild childrenMap for affected parents using helper
+        const updatedChildrenMap = rebuildChildrenMapForParents(
+          affectedParentIds,
+          state.blocksById,
+          state.childrenMap
+        );
+        state.childrenMap = updatedChildrenMap;
 
         // Clean up childrenMap for deleted blocks
         if (deletedBlockIds) {
