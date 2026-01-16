@@ -25,9 +25,7 @@
     }
   },
   "plugins": {
-    "fs": {
-      "active": true
-    },
+    "fs": {},
     "updater": {
       "active": true,
       "endpoints": [
