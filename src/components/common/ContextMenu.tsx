@@ -1,6 +1,6 @@
 import { Menu } from "@mantine/core";
 import type React from "react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 export interface ContextMenuItem {
   label: string;
@@ -17,6 +17,7 @@ export interface ContextMenuSection {
 interface ContextMenuProps {
   children: React.ReactNode;
   sections: ContextMenuSection[];
+  textSelectionSections?: ContextMenuSection[]; // Optional sections for text selection
   disabled?: boolean;
   className?: string;
   style?: React.CSSProperties;
@@ -25,12 +26,42 @@ interface ContextMenuProps {
 export const ContextMenu: React.FC<ContextMenuProps> = ({
   children,
   sections,
+  textSelectionSections,
   disabled = false,
   className,
   style,
 }) => {
   const [opened, setOpened] = useState(false);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
+  const [activeSections, setActiveSections] =
+    useState<ContextMenuSection[]>(sections);
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Check if there's selected text
+      const selection = window.getSelection();
+      const selectedText = selection?.toString().trim();
+
+      // If text is selected and we have textSelectionSections, use those
+      if (
+        selectedText &&
+        textSelectionSections &&
+        textSelectionSections.length > 0
+      ) {
+        setActiveSections(textSelectionSections);
+      } else {
+        // Otherwise, use the default sections
+        setActiveSections(sections);
+      }
+
+      setCoords({ x: e.clientX, y: e.clientY });
+      setOpened(true);
+    },
+    [sections, textSelectionSections]
+  );
 
   if (disabled) {
     return <>{children}</>;
@@ -41,12 +72,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       <div
         className={className}
         style={{ position: "relative", ...style }}
-        onContextMenuCapture={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setCoords({ x: e.clientX, y: e.clientY });
-          setOpened(true);
-        }}
+        onContextMenuCapture={handleContextMenu}
       >
         {children}
       </div>
@@ -81,7 +107,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         </Menu.Target>
 
         <Menu.Dropdown>
-          {sections.map((section, sectionIndex) => (
+          {activeSections.map((section, sectionIndex) => (
             <div key={section.items[0]?.label || sectionIndex}>
               {section.items.map((item) => (
                 <Menu.Item
@@ -98,7 +124,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                   {item.label}
                 </Menu.Item>
               ))}
-              {sectionIndex < sections.length - 1 && <Menu.Divider />}
+              {sectionIndex < activeSections.length - 1 && <Menu.Divider />}
             </div>
           ))}
         </Menu.Dropdown>

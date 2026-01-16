@@ -10,6 +10,13 @@ import { Notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
 import "@mantine/notifications/styles.css";
 
+// Prevent default context menu globally
+if (typeof window !== "undefined") {
+  window.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+  });
+}
+
 import { CommandPalette } from "./components/CommandPalette";
 import { ErrorNotifications } from "./components/ErrorNotifications";
 import { FileTreeIndex } from "./components/FileTreeIndex";

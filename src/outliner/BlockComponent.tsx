@@ -39,7 +39,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const hasChildren = childIds.length > 0;
     const focusedBlockId = useFocusedBlockId();
     const showIndentGuides = useOutlinerSettingsStore(
-      (state) => state.showIndentGuides,
+      (state) => state.showIndentGuides
     );
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
@@ -48,15 +48,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
     const splitBlockAtCursor = useBlockStore(
-      (state) => state.splitBlockAtCursor,
+      (state) => state.splitBlockAtCursor
     );
     const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
     const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const targetCursorPosition = useBlockStore(
-      (state) => state.targetCursorPosition,
+      (state) => state.targetCursorPosition
     );
     const clearTargetCursorPosition = useBlockStore(
-      (state) => state.clearTargetCursorPosition,
+      (state) => state.clearTargetCursorPosition
     );
 
     const { t } = useTranslation();
@@ -105,7 +105,47 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           ],
         },
       ],
-      [block.content, blockId, deleteBlock, t],
+      [block.content, blockId, deleteBlock, t]
+    );
+
+    // Text selection context menu
+    const textSelectionSections: ContextMenuSection[] = useMemo(
+      () => [
+        {
+          items: [
+            {
+              label: t("common.context_menu.copy"),
+              onClick: () => {
+                const selection = window.getSelection();
+                const selectedText = selection?.toString() || "";
+                if (selectedText) {
+                  navigator.clipboard.writeText(selectedText);
+                }
+              },
+            },
+            {
+              label: t("common.context_menu.cut"),
+              onClick: async () => {
+                const selection = window.getSelection();
+                const selectedText = selection?.toString() || "";
+                if (selectedText && editorRef.current) {
+                  await navigator.clipboard.writeText(selectedText);
+                  // Delete selected text by replacing with empty string
+                  const view = editorRef.current.getView();
+                  if (view) {
+                    const { from, to } = view.state.selection.main;
+                    view.dispatch({
+                      changes: { from, to, insert: "" },
+                      selection: { anchor: from },
+                    });
+                  }
+                }
+              },
+            },
+          ],
+        },
+      ],
+      [t]
     );
 
     // Cleanup timeout on unmount
@@ -390,7 +430,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }
         }
       },
-      [blockId],
+      [blockId]
     );
 
     const handleBulletClick = useCallback(
@@ -423,7 +463,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           editorRef.current?.focus();
         }
       },
-      [blockId, hasChildren, setFocusedBlock],
+      [blockId, hasChildren, setFocusedBlock]
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
@@ -439,7 +479,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         }
         handleContentChange(value);
       },
-      [handleContentChange],
+      [handleContentChange]
     );
 
     const keybindings: KeyBinding[] = useMemo(() => {
@@ -694,7 +734,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       ) : null;
 
     return (
-      <ContextMenu sections={contextMenuSections}>
+      <ContextMenu
+        sections={contextMenuSections}
+        textSelectionSections={textSelectionSections}
+      >
         <div
           ref={blockComponentRef}
           className="block-component"
@@ -891,5 +934,5 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         </div>
       </ContextMenu>
     );
-  },
+  }
 );

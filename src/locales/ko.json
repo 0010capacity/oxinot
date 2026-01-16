@@ -17,12 +17,15 @@
     "new_page": "새 페이지",
     "home": "홈",
     "context_menu": {
+      "add_child": "하위 페이지 추가",
       "rename": "이름 변경",
       "delete": "삭제",
       "copy_path": "경로 복사",
       "copy_content": "내용 복사",
       "copy_id": "ID 복사",
-      "edit_metadata": "메타데이터 편집"
+      "edit_metadata": "메타데이터 편집",
+      "copy": "복사",
+      "cut": "잘라내기"
     }
   },
   "navigation": {

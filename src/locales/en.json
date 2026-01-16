@@ -17,12 +17,15 @@
     "new_page": "New page",
     "home": "Home",
     "context_menu": {
+      "add_child": "Add child page",
       "rename": "Rename",
       "delete": "Delete",
       "copy_path": "Copy path",
       "copy_content": "Copy content",
       "copy_id": "Copy ID",
-      "edit_metadata": "Edit metadata"
+      "edit_metadata": "Edit metadata",
+      "copy": "Copy",
+      "cut": "Cut"
     }
   },
   "navigation": {
