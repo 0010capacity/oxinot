@@ -115,29 +115,30 @@ export function AppearanceSettings({
               <Text size="sm" fw={500} mb={8}>
                 {t("settings.appearance.editor_line_height")}
               </Text>
-              <Group gap="md" align="center">
-                <Slider
-                  value={editorLineHeight}
-                  onChange={setEditorLineHeight}
-                  min={1.2}
-                  max={2.0}
-                  step={0.1}
-                  marks={[
-                    { value: 1.2, label: "1.2" },
-                    { value: 1.6, label: "1.6" },
-                    { value: 2.0, label: "2.0" },
-                  ]}
-                  style={{ flex: 1 }}
-                />
+              <Group gap="md" align="flex-start">
+                <div style={{ flex: 1 }}>
+                  <Slider
+                    value={editorLineHeight}
+                    onChange={setEditorLineHeight}
+                    min={1.2}
+                    max={2.0}
+                    step={0.1}
+                    marks={[
+                      { value: 1.2, label: "1.2" },
+                      { value: 1.6, label: "1.6" },
+                      { value: 2.0, label: "2.0" },
+                    ]}
+                  />
+                </div>
                 <Text
                   size="sm"
                   fw={500}
-                  style={{ minWidth: 50, textAlign: "right" }}
+                  style={{ minWidth: 50, textAlign: "right", marginTop: 8 }}
                 >
                   {editorLineHeight.toFixed(1)}
                 </Text>
               </Group>
-              <Text size="xs" c="dimmed" mt={4}>
+              <Text size="xs" c="dimmed" mt={12}>
                 {t("settings.appearance.editor_line_height_desc")}
               </Text>
             </div>
