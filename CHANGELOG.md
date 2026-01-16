@@ -1,5 +1,12 @@
 # oxinot
 
+## 0.6.1
+
+### Patch Changes
+
+- 657a3d2: - prevent infinite changeset loop and auto-create version tags
+  - remove invalid publish parameter from changesets action
+
 ## 0.6.0
 
 ### Minor Changes
