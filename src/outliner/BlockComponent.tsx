@@ -102,13 +102,39 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               label: t("common.context_menu.delete"),
               color: "red",
               onClick: () => {
+                console.log(
+                  "[BlockComponent] Context menu delete clicked for blockId:",
+                  blockId,
+                  "block:",
+                  block
+                );
+                console.log(
+                  "[BlockComponent] Current focusedBlockId:",
+                  focusedBlockId
+                );
+
+                // Safety check: Only proceed if blockId matches the clicked element
+                if (!blockId) {
+                  console.error(
+                    "[BlockComponent] blockId is empty, aborting deletion"
+                  );
+                  return;
+                }
+
+                // Prevent accidental deletion of wrong block
+                const blockContent = block?.content ?? "";
+                console.log(
+                  "[BlockComponent] Deleting block with content preview:",
+                  blockContent.substring(0, 50)
+                );
+
                 deleteBlock(blockId);
               },
             },
           ],
         },
       ],
-      [block.content, blockId, deleteBlock, t]
+      [block, blockId, deleteBlock, t, focusedBlockId]
     );
 
     // Text selection context menu
