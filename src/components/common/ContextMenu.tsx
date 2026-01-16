@@ -40,7 +40,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     <>
       <div
         className={className}
-        style={style}
+        style={{ position: "relative", ...style }}
         onContextMenuCapture={(e) => {
           e.preventDefault();
           e.stopPropagation();
