@@ -1,20 +1,9 @@
 import {
-  Badge,
-  Button,
-  Group,
   Modal,
-  NumberInput,
-  Progress,
-  SegmentedControl,
-  Select,
-  Slider,
-  Stack,
-  Switch,
   Tabs,
-  Text,
   TextInput,
-  Tooltip,
-  useComputedColorScheme,
+  Stack,
+  Button,
   useMantineColorScheme,
 } from "@mantine/core";
 import {
@@ -22,16 +11,13 @@ import {
   IconBrandGit,
   IconCalendar,
   IconClock,
-  IconDownload,
   IconHome,
   IconKeyboard,
   IconLanguage,
   IconList,
   IconPalette,
-  IconPlus,
   IconSearch,
   IconSettings,
-  IconTrash,
   IconX,
 } from "@tabler/icons-react";
 import { getVersion } from "@tauri-apps/api/app";
@@ -39,20 +25,21 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAdvancedSettingsStore } from "../stores/advancedSettingsStore";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
-import { useUpdaterStore } from "../stores/updaterStore";
-import {
-  type DateOrder,
-  type DateSeparator,
-  type TimeFormat,
-  useClockFormatStore,
-} from "../stores/clockFormatStore";
+import { useClockFormatStore } from "../stores/clockFormatStore";
 import { useGitStore } from "../stores/gitStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
-import {
-  type ColorVariant,
-  type FontFamily,
-  useThemeStore,
-} from "../stores/themeStore";
+import { type FontFamily, useThemeStore } from "../stores/themeStore";
+import { AboutSettings } from "./settings/AboutSettings";
+import { AdvancedSettings } from "./settings/AdvancedSettings";
+import { AppearanceSettings } from "./settings/AppearanceSettings";
+import { DailyNotesSettings } from "./settings/DailyNotesSettings";
+import { DatetimeSettings } from "./settings/DatetimeSettings";
+import { GitSettings } from "./settings/GitSettings";
+import { HomepageSettings } from "./settings/HomepageSettings";
+import { LanguageSettings } from "./settings/LanguageSettings";
+import { OutlinerSettings } from "./settings/OutlinerSettings";
+import { ShortcutsSettings } from "./settings/ShortcutsSettings";
+import { ThemeSettings } from "./settings/ThemeSettings";
 
 const FONT_FAMILY_VALUES: FontFamily[] = [
   "system",
@@ -86,15 +73,13 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
-  const computedColorScheme = useComputedColorScheme("light");
-  const isDark = computedColorScheme === "dark";
 
   // App version state
   const [appVersion, setAppVersion] = useState<string>("");
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("appearance");
+  const [activeTab, setActiveTab] = useState<string | null>("appearance");
 
   // Build font options dynamically from i18n
   const fontOptions: Array<{ label: string; value: FontFamily }> =
@@ -139,6 +124,7 @@ export function SettingsModal({
   const resetAllSettings = useAdvancedSettingsStore(
     (state) => state.resetAllSettings
   );
+  const clearCache = useAdvancedSettingsStore((state) => state.clearCache);
 
   // Theme
   const colorVariant = useThemeStore((state) => state.colorVariant);
@@ -239,52 +225,7 @@ export function SettingsModal({
   const getRemoteUrl = useGitStore((state) => state.getRemoteUrl);
   const setRemoteUrl = useGitStore((state) => state.setRemoteUrl);
   const removeRemote = useGitStore((state) => state.removeRemote);
-  const clearCache = useAdvancedSettingsStore((state) => state.clearCache);
 
-  // Remote URL management state
-  const [remoteUrlInput, setRemoteUrlInput] = useState("");
-  const [isEditingRemote, setIsEditingRemote] = useState(false);
-
-  const handleGitCommit = async () => {
-    if (!workspacePath || !hasGitChanges) return;
-    const timestamp = new Date().toISOString();
-    try {
-      await gitCommit(workspacePath, `Auto-save: ${timestamp}`);
-    } catch (error) {
-      console.error("Commit failed:", error);
-    }
-  };
-
-  const handleSetRemoteUrl = async () => {
-    if (!workspacePath || !remoteUrlInput.trim()) return;
-    try {
-      await setRemoteUrl(workspacePath, remoteUrlInput.trim());
-      setIsEditingRemote(false);
-      setRemoteUrlInput("");
-    } catch (error) {
-      console.error("Failed to set remote URL:", error);
-    }
-  };
-
-  const handleRemoveRemote = async () => {
-    if (!workspacePath) return;
-    if (window.confirm(t("settings.git.remove_remote_confirm"))) {
-      try {
-        await removeRemote(workspacePath);
-      } catch (error) {
-        console.error("Failed to remove remote:", error);
-      }
-    }
-  };
-
-  // Load remote URL when opening settings
-  useEffect(() => {
-    if (workspacePath && isGitRepo) {
-      getRemoteUrl(workspacePath);
-    }
-  }, [workspacePath, isGitRepo, getRemoteUrl]);
-
-  // Search functionality - search within actual setting items
   const matchesSearch = (text: string) => {
     if (!searchQuery.trim()) return true;
     return text.toLowerCase().includes(searchQuery.toLowerCase());
@@ -301,11 +242,11 @@ export function SettingsModal({
         t("settings.appearance.font_family").toLowerCase(),
         t("settings.appearance.editor_font_size").toLowerCase(),
         t("settings.appearance.editor_line_height").toLowerCase(),
-        "typography",
+        t("common.search_keywords.typography").toLowerCase(),
         "inter",
         "system",
         "roboto",
-        "monospace",
+        t("common.search_keywords.monospace").toLowerCase(),
         "preview",
       ],
       theme: [
@@ -356,25 +297,25 @@ export function SettingsModal({
         t("settings.outliner.block_count").toLowerCase(),
         t("settings.outliner.code_block_line_numbers").toLowerCase(),
         t("settings.outliner.indent_size").toLowerCase(),
-        "blocks",
-        "code block",
+        t("common.search_keywords.blocks").toLowerCase(),
+        t("common.search_keywords.code_block").toLowerCase(),
         "line numbers",
       ],
       git: [
         t("settings.git.title").toLowerCase(),
-        "git",
-        "repository",
-        "commit",
+        t("common.search_keywords.git").toLowerCase(),
+        t("common.search_keywords.repository").toLowerCase(),
+        t("common.search_keywords.commit").toLowerCase(),
         t("settings.git.auto_commit").toLowerCase(),
         t("settings.git.remote_repo").toLowerCase(),
-        "push",
-        "pull",
+        t("common.search_keywords.push").toLowerCase(),
+        t("common.search_keywords.pull").toLowerCase(),
         "interval",
         "status",
       ],
       shortcuts: [
         t("settings.shortcuts.title").toLowerCase(),
-        "hotkey",
+        t("common.search_keywords.hotkey").toLowerCase(),
         t("settings.shortcuts.command_palette").toLowerCase(),
         t("settings.shortcuts.search").toLowerCase(),
         t("settings.shortcuts.toggle_index").toLowerCase(),
@@ -390,8 +331,8 @@ export function SettingsModal({
         "danger",
       ],
       about: [
-        "version",
-        "changelog",
+        t("common.search_keywords.version").toLowerCase(),
+        t("common.search_keywords.changelog").toLowerCase(),
         "oxinot",
         "info",
         "update",
@@ -399,9 +340,9 @@ export function SettingsModal({
       ],
       language: [
         t("settings.language.title").toLowerCase(),
-        "english",
-        "korean",
-        "locale",
+        t("common.search_keywords.english").toLowerCase(),
+        t("common.search_keywords.korean").toLowerCase(),
+        t("common.search_keywords.locale").toLowerCase(),
       ],
     };
 
@@ -412,126 +353,168 @@ export function SettingsModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={
-        <Group gap="xs">
-          <Text size="lg" fw={600}>
-            {t("settings.title")}
-          </Text>
-        </Group>
-      }
+      title={t("common.settings")}
       size="xl"
+      centered
+      fullScreen
       styles={{
         body: {
           padding: 0,
-          height: "75vh",
-          maxHeight: "750px",
+          height: "100vh",
+          maxHeight: "100vh",
         },
       }}
     >
-      {/* Search Bar */}
-      <div
-        style={{
-          padding: "16px 24px",
-          borderBottom: `1px solid ${isDark ? "#2C2E33" : "#DEE2E6"}`,
-        }}
-      >
-        <TextInput
-          placeholder={t("settings.search_placeholder")}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.currentTarget.value)}
-          leftSection={<IconSearch size={16} />}
-          rightSection={
-            searchQuery && (
-              <IconX
-                size={16}
-                style={{ cursor: "pointer" }}
-                onClick={() => setSearchQuery("")}
-              />
-            )
-          }
-        />
-        {searchQuery && (
-          <Text size="xs" c="dimmed" mt={8}>
-            {t("settings.search_active")}
-          </Text>
-        )}
-      </div>
       <Tabs
         value={activeTab}
-        onChange={(value) => setActiveTab(value || "appearance")}
+        onChange={setActiveTab}
         orientation="vertical"
-        style={{ height: "calc(100% - 70px)" }}
-      >
-        <Tabs.List
-          style={{
-            borderRight: `1px solid ${isDark ? "#2C2E33" : "#DEE2E6"}`,
+        styles={{
+          root: {
+            display: "flex",
+            height: "100%",
+          },
+          list: {
+            borderRight: "1px solid var(--mantine-color-gray-2)",
             minWidth: 200,
-            padding: "12px 8px",
+            padding: 16,
             height: "100%",
             overflowY: "auto",
-          }}
-        >
-          {hasMatchInTab("appearance") && (
-            <Tabs.Tab
-              value="appearance"
-              leftSection={<IconAppWindow size={16} />}
-            >
-              {t("settings.tabs.appearance")}
-            </Tabs.Tab>
-          )}
-          {hasMatchInTab("language") && (
-            <Tabs.Tab value="language" leftSection={<IconLanguage size={16} />}>
-              {t("settings.tabs.language")}
-            </Tabs.Tab>
-          )}
-          {hasMatchInTab("theme") && (
-            <Tabs.Tab value="theme" leftSection={<IconPalette size={16} />}>
-              {t("settings.tabs.theme")}
-            </Tabs.Tab>
-          )}
-          {hasMatchInTab("datetime") && (
-            <Tabs.Tab value="datetime" leftSection={<IconClock size={16} />}>
-              {t("settings.tabs.datetime")}
-            </Tabs.Tab>
-          )}
-          {hasMatchInTab("daily") && (
-            <Tabs.Tab value="daily" leftSection={<IconCalendar size={16} />}>
-              {t("settings.tabs.daily_notes")}
-            </Tabs.Tab>
-          )}
-          {hasMatchInTab("homepage") && (
-            <Tabs.Tab value="homepage" leftSection={<IconHome size={16} />}>
-              {t("settings.tabs.homepage")}
-            </Tabs.Tab>
-          )}
-          {hasMatchInTab("outliner") && (
-            <Tabs.Tab value="outliner" leftSection={<IconList size={16} />}>
-              {t("settings.tabs.outliner")}
-            </Tabs.Tab>
-          )}
-          {hasMatchInTab("git") && (
-            <Tabs.Tab value="git" leftSection={<IconBrandGit size={16} />}>
-              {t("settings.tabs.version_control")}
-            </Tabs.Tab>
-          )}
-          {hasMatchInTab("shortcuts") && (
-            <Tabs.Tab
-              value="shortcuts"
-              leftSection={<IconKeyboard size={16} />}
-            >
-              {t("settings.tabs.shortcuts")}
-            </Tabs.Tab>
-          )}
-          {hasMatchInTab("advanced") && (
-            <Tabs.Tab value="advanced" leftSection={<IconSettings size={16} />}>
-              {t("settings.tabs.advanced")}
-            </Tabs.Tab>
-          )}
-          {hasMatchInTab("about") && (
-            <Tabs.Tab value="about" leftSection={<IconSettings size={16} />}>
-              {t("settings.tabs.about")}
-            </Tabs.Tab>
-          )}
+          },
+          panel: {
+            flex: 1,
+            padding: "24px",
+            height: "100%",
+            overflowY: "auto",
+          },
+        }}
+      >
+        <Tabs.List>
+          <Stack gap={0} w="100%">
+            <TextInput
+              placeholder={t("settings.search_placeholder")}
+              leftSection={<IconSearch size={16} />}
+              rightSection={
+                searchQuery ? (
+                  <Button
+                    variant="subtle"
+                    size="xs"
+                    p={0}
+                    onClick={() => setSearchQuery("")}
+                  >
+                    <IconX size={14} />
+                  </Button>
+                ) : null
+              }
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.currentTarget.value)}
+              mb={16}
+            />
+
+            {searchQuery.trim() &&
+              !Object.values({
+                appearance: hasMatchInTab("appearance"),
+                language: hasMatchInTab("language"),
+                theme: hasMatchInTab("theme"),
+                datetime: hasMatchInTab("datetime"),
+                daily: hasMatchInTab("daily"),
+                homepage: hasMatchInTab("homepage"),
+                outliner: hasMatchInTab("outliner"),
+                git: hasMatchInTab("git"),
+                shortcuts: hasMatchInTab("shortcuts"),
+                advanced: hasMatchInTab("advanced"),
+                about: hasMatchInTab("about"),
+              }).some((v) => v) && (
+                <div style={{ padding: 8, marginBottom: 12 }}>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "var(--mantine-color-gray-6)",
+                    }}
+                  >
+                    {t("settings.search_active")}
+                  </p>
+                </div>
+              )}
+
+            {hasMatchInTab("appearance") && (
+              <Tabs.Tab
+                value="appearance"
+                leftSection={<IconAppWindow size={16} />}
+              >
+                {t("settings.tabs.appearance")}
+              </Tabs.Tab>
+            )}
+
+            {hasMatchInTab("language") && (
+              <Tabs.Tab
+                value="language"
+                leftSection={<IconLanguage size={16} />}
+              >
+                {t("settings.tabs.language")}
+              </Tabs.Tab>
+            )}
+
+            {hasMatchInTab("theme") && (
+              <Tabs.Tab value="theme" leftSection={<IconPalette size={16} />}>
+                {t("settings.tabs.theme")}
+              </Tabs.Tab>
+            )}
+
+            {hasMatchInTab("datetime") && (
+              <Tabs.Tab value="datetime" leftSection={<IconClock size={16} />}>
+                {t("settings.tabs.datetime")}
+              </Tabs.Tab>
+            )}
+
+            {hasMatchInTab("daily") && (
+              <Tabs.Tab value="daily" leftSection={<IconCalendar size={16} />}>
+                {t("settings.tabs.daily_notes")}
+              </Tabs.Tab>
+            )}
+
+            {hasMatchInTab("homepage") && (
+              <Tabs.Tab value="homepage" leftSection={<IconHome size={16} />}>
+                {t("settings.tabs.homepage")}
+              </Tabs.Tab>
+            )}
+
+            {hasMatchInTab("outliner") && (
+              <Tabs.Tab value="outliner" leftSection={<IconList size={16} />}>
+                {t("settings.tabs.outliner")}
+              </Tabs.Tab>
+            )}
+
+            {hasMatchInTab("git") && (
+              <Tabs.Tab value="git" leftSection={<IconBrandGit size={16} />}>
+                {t("settings.tabs.version_control")}
+              </Tabs.Tab>
+            )}
+
+            {hasMatchInTab("shortcuts") && (
+              <Tabs.Tab
+                value="shortcuts"
+                leftSection={<IconKeyboard size={16} />}
+              >
+                {t("settings.tabs.shortcuts")}
+              </Tabs.Tab>
+            )}
+
+            {hasMatchInTab("advanced") && (
+              <Tabs.Tab
+                value="advanced"
+                leftSection={<IconSettings size={16} />}
+              >
+                {t("settings.tabs.advanced")}
+              </Tabs.Tab>
+            )}
+
+            {hasMatchInTab("about") && (
+              <Tabs.Tab value="about" leftSection={<IconSettings size={16} />}>
+                {t("settings.tabs.about")}
+              </Tabs.Tab>
+            )}
+          </Stack>
         </Tabs.List>
 
         <div
@@ -542,1268 +525,142 @@ export function SettingsModal({
             overflowY: "auto",
           }}
         >
-          {/* Appearance Tab */}
           <Tabs.Panel value="appearance">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  {t("settings.appearance.title")}
-                </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  {t("settings.appearance.description")}
-                </Text>
-
-                <Stack gap="lg">
-                  {matchesSearch(t("settings.appearance.font_family")) && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.appearance.font_family")}
-                      </Text>
-                      <Select
-                        value={fontFamily}
-                        onChange={(value) => {
-                          if (value) setFontFamily(value as FontFamily);
-                        }}
-                        data={fontOptions}
-                        placeholder={t("settings.appearance.font_family")}
-                        searchable
-                      />
-                      <Text size="xs" c="dimmed" mt={4}>
-                        {t("settings.appearance.font_family_desc")}
-                      </Text>
-                      <div
-                        style={{
-                          marginTop: 12,
-                          padding: 16,
-                          borderRadius: 6,
-                          backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                          fontFamily: getFontStack(),
-                        }}
-                      >
-                        <Text size="sm" style={{ fontFamily: getFontStack() }}>
-                          The quick brown fox jumps over the lazy dog
-                        </Text>
-                        <Text
-                          size="xs"
-                          c="dimmed"
-                          mt={4}
-                          style={{ fontFamily: getFontStack() }}
-                        >
-                          0123456789 !@#$%^&*()
-                        </Text>
-                      </div>
-                    </div>
-                  )}
-
-                  {matchesSearch(t("settings.appearance.editor_font_size")) && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.appearance.editor_font_size")}
-                      </Text>
-                      <Group gap="md" align="center">
-                        <Slider
-                          value={editorFontSize}
-                          onChange={setEditorFontSize}
-                          min={12}
-                          max={24}
-                          step={1}
-                          marks={[
-                            { value: 12, label: "12" },
-                            { value: 16, label: "16" },
-                            { value: 20, label: "20" },
-                            { value: 24, label: "24" },
-                          ]}
-                          style={{ flex: 1 }}
-                        />
-                        <Text
-                          size="sm"
-                          fw={500}
-                          style={{ minWidth: 50, textAlign: "right" }}
-                        >
-                          {editorFontSize}px
-                        </Text>
-                      </Group>
-                      <Text size="xs" c="dimmed" mt={4}>
-                        {t("settings.appearance.editor_font_size_desc")}
-                      </Text>
-                    </div>
-                  )}
-
-                  {matchesSearch(
-                    t("settings.appearance.editor_line_height")
-                  ) && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.appearance.editor_line_height")}
-                      </Text>
-                      <Group gap="md" align="center">
-                        <Slider
-                          value={editorLineHeight}
-                          onChange={setEditorLineHeight}
-                          min={1.2}
-                          max={2.0}
-                          step={0.1}
-                          marks={[
-                            { value: 1.2, label: "1.2" },
-                            { value: 1.6, label: "1.6" },
-                            { value: 2.0, label: "2.0" },
-                          ]}
-                          style={{ flex: 1 }}
-                        />
-                        <Text
-                          size="sm"
-                          fw={500}
-                          style={{ minWidth: 50, textAlign: "right" }}
-                        >
-                          {editorLineHeight.toFixed(1)}
-                        </Text>
-                      </Group>
-                      <Text size="xs" c="dimmed" mt={4}>
-                        {t("settings.appearance.editor_line_height_desc")}
-                      </Text>
-                    </div>
-                  )}
-                </Stack>
-              </div>
-            </Stack>
+            <AppearanceSettings
+              matchesSearch={matchesSearch}
+              fontFamily={fontFamily}
+              setFontFamily={setFontFamily}
+              getFontStack={getFontStack}
+              editorFontSize={editorFontSize}
+              setEditorFontSize={setEditorFontSize}
+              editorLineHeight={editorLineHeight}
+              setEditorLineHeight={setEditorLineHeight}
+              fontOptions={fontOptions}
+            />
           </Tabs.Panel>
 
-          {/* Language Tab */}
           <Tabs.Panel value="language">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  {t("settings.tabs.language")}
-                </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  {t("settings.language.description")}
-                </Text>
-
-                <Stack gap="lg">
-                  <div>
-                    <Text size="sm" fw={500} mb={8}>
-                      {t("settings.language.select")}
-                    </Text>
-                    <Select
-                      value={language || i18n.language}
-                      onChange={(value) => {
-                        const newLang = value || "en";
-                        setLanguage(newLang);
-                        i18n.changeLanguage(newLang);
-                      }}
-                      data={[
-                        { label: "English", value: "en" },
-                        { label: "한국어", value: "ko" },
-                      ]}
-                      allowDeselect={false}
-                    />
-                  </div>
-                </Stack>
-              </div>
-            </Stack>
+            <LanguageSettings
+              matchesSearch={matchesSearch}
+              language={language}
+              i18nLanguage={i18n.language}
+              setLanguage={setLanguage}
+            />
           </Tabs.Panel>
 
-          {/* Theme Tab */}
           <Tabs.Panel value="theme">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  {t("settings.theme.title")}
-                </Text>
-
-                <Stack gap="lg">
-                  {matchesSearch(t("settings.theme.color_mode")) && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.theme.color_mode")}
-                      </Text>
-                      <SegmentedControl
-                        value={colorScheme}
-                        onChange={(value) => {
-                          if (
-                            value === "light" ||
-                            value === "dark" ||
-                            value === "auto"
-                          ) {
-                            setColorScheme(value);
-                          }
-                        }}
-                        data={[
-                          {
-                            label: t("settings.theme.modes.light"),
-                            value: "light",
-                          },
-                          {
-                            label: t("settings.theme.modes.dark"),
-                            value: "dark",
-                          },
-                          {
-                            label: t("settings.theme.modes.auto"),
-                            value: "auto",
-                          },
-                        ]}
-                        fullWidth
-                      />
-                    </div>
-                  )}
-
-                  {matchesSearch(t("settings.theme.color_variant")) && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.theme.color_variant")}
-                      </Text>
-                      <SegmentedControl
-                        value={colorVariant}
-                        onChange={(value) =>
-                          setColorVariant(value as ColorVariant)
-                        }
-                        data={[
-                          {
-                            label: t("settings.theme.variants.default"),
-                            value: "default",
-                          },
-                          {
-                            label: t("settings.theme.variants.blue"),
-                            value: "blue",
-                          },
-                          {
-                            label: t("settings.theme.variants.purple"),
-                            value: "purple",
-                          },
-                          {
-                            label: t("settings.theme.variants.green"),
-                            value: "green",
-                          },
-                          {
-                            label: t("settings.theme.variants.amber"),
-                            value: "amber",
-                          },
-                        ]}
-                        fullWidth
-                      />
-                    </div>
-                  )}
-                </Stack>
-              </div>
-            </Stack>
+            <ThemeSettings
+              matchesSearch={matchesSearch}
+              colorScheme={colorScheme}
+              setColorScheme={(scheme) => {
+                if (
+                  scheme === "light" ||
+                  scheme === "dark" ||
+                  scheme === "auto"
+                ) {
+                  setColorScheme(scheme);
+                }
+              }}
+              colorVariant={colorVariant}
+              setColorVariant={setColorVariant}
+            />
           </Tabs.Panel>
 
-          {/* DateTime Tab */}
-
-          {/* Date & Time Tab */}
           <Tabs.Panel value="datetime">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  {t("settings.datetime.title")}
-                </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  {t("settings.datetime.description")}
-                </Text>
-
-                <Stack gap="lg">
-                  {matchesSearch(t("settings.datetime.time_format")) && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.datetime.time_format")}
-                      </Text>
-                      <Select
-                        value={timeFormat}
-                        onChange={(value) => setTimeFormat(value as TimeFormat)}
-                        data={[
-                          { label: "24-Hour (13:34)", value: "24h" },
-                          { label: "12-Hour (01:34 PM)", value: "12h" },
-                        ]}
-                        placeholder={t("settings.datetime.time_format")}
-                      />
-                    </div>
-                  )}
-
-                  {matchesSearch(t("settings.datetime.date_order")) && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.datetime.date_order")}
-                      </Text>
-                      <Select
-                        value={dateOrder}
-                        onChange={(value) => setDateOrder(value as DateOrder)}
-                        data={[
-                          { label: "Month/Day/Year (MDY)", value: "MDY" },
-                          { label: "Day/Month/Year (DMY)", value: "DMY" },
-                          { label: "Year/Month/Day (YMD)", value: "YMD" },
-                        ]}
-                        placeholder={t("settings.datetime.date_order")}
-                      />
-                      <Text size="xs" c="dimmed" mt={4}>
-                        {t("settings.datetime.date_separator_desc")}
-                      </Text>
-                    </div>
-                  )}
-
-                  {matchesSearch(t("settings.datetime.date_separator")) && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.datetime.date_separator")}
-                      </Text>
-                      <Select
-                        value={dateSeparator}
-                        onChange={(value) =>
-                          setDateSeparator(value as DateSeparator)
-                        }
-                        data={[
-                          { label: "Slash (/)", value: "/" },
-                          { label: "Hyphen (-)", value: "-" },
-                          { label: "Dot (.)", value: "." },
-                        ]}
-                        placeholder={t("settings.datetime.date_separator")}
-                      />
-                    </div>
-                  )}
-
-                  {matchesSearch(t("settings.datetime.timezone")) && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.datetime.timezone")}
-                      </Text>
-                      <Select
-                        value={timezone}
-                        onChange={(value) => {
-                          if (value) setTimezone(value);
-                        }}
-                        data={(() => {
-                          const systemTz =
-                            Intl.DateTimeFormat().resolvedOptions().timeZone;
-                          const timezones = [
-                            { label: "UTC", value: "UTC" },
-                            {
-                              label: "America/New_York (EST)",
-                              value: "America/New_York",
-                            },
-                            {
-                              label: "America/Chicago (CST)",
-                              value: "America/Chicago",
-                            },
-                            {
-                              label: "America/Denver (MST)",
-                              value: "America/Denver",
-                            },
-                            {
-                              label: "America/Los_Angeles (PST)",
-                              value: "America/Los_Angeles",
-                            },
-                            {
-                              label: "Europe/London (GMT)",
-                              value: "Europe/London",
-                            },
-                            {
-                              label: "Europe/Paris (CET)",
-                              value: "Europe/Paris",
-                            },
-                            {
-                              label: "Europe/Berlin (CET)",
-                              value: "Europe/Berlin",
-                            },
-                            {
-                              label: "Asia/Seoul (KST)",
-                              value: "Asia/Seoul",
-                            },
-                            {
-                              label: "Asia/Tokyo (JST)",
-                              value: "Asia/Tokyo",
-                            },
-                            {
-                              label: "Asia/Shanghai (CST)",
-                              value: "Asia/Shanghai",
-                            },
-                            {
-                              label: "Asia/Hong_Kong (HKT)",
-                              value: "Asia/Hong_Kong",
-                            },
-                            {
-                              label: "Asia/Singapore (SGT)",
-                              value: "Asia/Singapore",
-                            },
-                            {
-                              label: "Australia/Sydney (AEDT)",
-                              value: "Australia/Sydney",
-                            },
-                          ];
-                          const systemTzExists = timezones.some(
-                            (tz) => tz.value === systemTz
-                          );
-                          return systemTzExists
-                            ? timezones
-                            : [
-                                {
-                                  label: `System Default (${systemTz})`,
-                                  value: systemTz,
-                                },
-                                ...timezones,
-                              ];
-                        })()}
-                        placeholder={t("settings.datetime.timezone")}
-                        searchable
-                      />
-                    </div>
-                  )}
-
-                  {matchesSearch(t("settings.datetime.preview")) && (
-                    <div
-                      style={{
-                        padding: 16,
-                        borderRadius: 6,
-                        backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                      }}
-                    >
-                      <Text size="sm" fw={500} mb={4}>
-                        {t("settings.datetime.preview")}
-                      </Text>
-                      <Text size="sm">
-                        {useClockFormatStore.getState().formatDate(new Date())}{" "}
-                        |{" "}
-                        {useClockFormatStore.getState().formatTime(new Date())}
-                      </Text>
-                    </div>
-                  )}
-                </Stack>
-              </div>
-            </Stack>
+            <DatetimeSettings
+              matchesSearch={matchesSearch}
+              timeFormat={timeFormat}
+              dateOrder={dateOrder}
+              dateSeparator={dateSeparator}
+              setTimeFormat={setTimeFormat}
+              setDateOrder={setDateOrder}
+              setDateSeparator={setDateSeparator}
+              timezone={timezone}
+              setTimezone={setTimezone}
+            />
           </Tabs.Panel>
 
-          {/* Daily Notes Tab */}
           <Tabs.Panel value="daily">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  {t("settings.daily_notes.title")}
-                </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  {t("settings.daily_notes.description")}
-                </Text>
-
-                <Stack gap="lg">
-                  {matchesSearch("Daily Notes Path folder") && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.daily_notes.path")}
-                      </Text>
-                      <TextInput
-                        value={dailyNotesPath}
-                        onChange={(event) =>
-                          setDailyNotesPath(event.currentTarget.value)
-                        }
-                        placeholder={t("settings.daily_notes.path_placeholder")}
-                        description={t("settings.daily_notes.path_desc")}
-                      />
-                    </div>
-                  )}
-                </Stack>
-              </div>
-            </Stack>
+            <DailyNotesSettings
+              matchesSearch={matchesSearch}
+              dailyNotesPath={dailyNotesPath}
+              setDailyNotesPath={setDailyNotesPath}
+            />
           </Tabs.Panel>
 
-          {/* Homepage Tab */}
           <Tabs.Panel value="homepage">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  {t("settings.homepage.title")}
-                </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  {t("settings.homepage.description")}
-                </Text>
-
-                <Stack gap="lg">
-                  {matchesSearch("Homepage Type start default") && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.homepage.type")}
-                      </Text>
-                      <Select
-                        value={homepageType}
-                        onChange={(value) =>
-                          setHomepageType(
-                            value as "daily-note" | "index" | "custom-page"
-                          )
-                        }
-                        data={[
-                          {
-                            label: t("settings.homepage.types.daily_note"),
-                            value: "daily-note",
-                          },
-                          {
-                            label: t("settings.homepage.types.index"),
-                            value: "index",
-                          },
-                          {
-                            label: t("settings.homepage.types.custom_page"),
-                            value: "custom-page",
-                          },
-                        ]}
-                        placeholder={t("settings.homepage.type_placeholder")}
-                      />
-                      <Text size="xs" c="dimmed" mt={4}>
-                        {t("settings.homepage.type_desc")}
-                      </Text>
-                    </div>
-                  )}
-
-                  {homepageType === "custom-page" && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.homepage.custom_page")}
-                      </Text>
-                      <Select
-                        value={customHomepageId || ""}
-                        onChange={(value) => setCustomHomepageId(value || null)}
-                        data={pageIds.map((id) => ({
-                          label: pagesById[id]?.title || id,
-                          value: id,
-                        }))}
-                        placeholder={t(
-                          "settings.homepage.custom_page_placeholder"
-                        )}
-                        searchable
-                      />
-                    </div>
-                  )}
-                </Stack>
-              </div>
-            </Stack>
+            <HomepageSettings
+              matchesSearch={matchesSearch}
+              homepageType={homepageType}
+              setHomepageType={(type) =>
+                setHomepageType(type as "daily-note" | "index" | "custom-page")
+              }
+              customHomepageId={customHomepageId}
+              setCustomHomepageId={setCustomHomepageId}
+              pagesById={pagesById}
+              pageIds={pageIds}
+            />
           </Tabs.Panel>
 
-          {/* Outliner Tab */}
           <Tabs.Panel value="outliner">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  {t("settings.outliner.title")}
-                </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  {t("settings.outliner.description")}
-                </Text>
-
-                <Stack gap="lg">
-                  {matchesSearch("indent guides") && (
-                    <Switch
-                      label={t("settings.outliner.indent_guides")}
-                      description={t("settings.outliner.indent_guides_desc")}
-                      checked={showIndentGuides}
-                      onChange={toggleIndentGuides}
-                    />
-                  )}
-
-                  {matchesSearch("auto expand blocks") && (
-                    <Switch
-                      label={t("settings.outliner.auto_expand")}
-                      description={t("settings.outliner.auto_expand_desc")}
-                      checked={autoExpandBlocks}
-                      onChange={(event) =>
-                        setAutoExpandBlocks?.(event.currentTarget.checked)
-                      }
-                    />
-                  )}
-
-                  {matchesSearch("block count") && (
-                    <Switch
-                      label={t("settings.outliner.block_count")}
-                      description={t("settings.outliner.block_count_desc")}
-                      checked={showBlockCount}
-                      onChange={(event) =>
-                        setShowBlockCount?.(event.currentTarget.checked)
-                      }
-                    />
-                  )}
-
-                  {matchesSearch("code block line numbers") && (
-                    <Switch
-                      label={t("settings.outliner.code_block_line_numbers")}
-                      description={t(
-                        "settings.outliner.code_block_line_numbers_desc"
-                      )}
-                      checked={showCodeBlockLineNumbers}
-                      onChange={(event) =>
-                        setShowCodeBlockLineNumbers?.(
-                          event.currentTarget.checked
-                        )
-                      }
-                    />
-                  )}
-
-                  {matchesSearch("indent size") && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        {t("settings.outliner.indent_size")}
-                      </Text>
-                      <NumberInput
-                        value={indentSize}
-                        onChange={(value) => {
-                          if (typeof value === "number") {
-                            setIndentSize(value);
-                          }
-                        }}
-                        min={12}
-                        max={48}
-                        step={2}
-                      />
-                    </div>
-                  )}
-
-                  {matchesSearch("metadata display style") && (
-                    <div>
-                      <Text size="sm" fw={500} mb={8}>
-                        Metadata Display Style
-                      </Text>
-                      <Text size="xs" c="dimmed" mb={8}>
-                        Choose how to display block metadata (key::value)
-                      </Text>
-                      <SegmentedControl
-                        value={metadataDisplayStyle}
-                        onChange={(value) =>
-                          setMetadataDisplayStyle(value as "property" | "box")
-                        }
-                        data={[
-                          { label: "▸ Property Block", value: "property" },
-                          { label: "□ Gray Box", value: "box" },
-                        ]}
-                      />
-                    </div>
-                  )}
-                </Stack>
-              </div>
-            </Stack>
+            <OutlinerSettings
+              matchesSearch={matchesSearch}
+              showIndentGuides={showIndentGuides}
+              toggleIndentGuides={toggleIndentGuides}
+              autoExpandBlocks={autoExpandBlocks}
+              setAutoExpandBlocks={setAutoExpandBlocks}
+              showBlockCount={showBlockCount}
+              setShowBlockCount={setShowBlockCount}
+              showCodeBlockLineNumbers={showCodeBlockLineNumbers}
+              setShowCodeBlockLineNumbers={setShowCodeBlockLineNumbers}
+              indentSize={indentSize}
+              setIndentSize={setIndentSize}
+              metadataDisplayStyle={metadataDisplayStyle}
+              setMetadataDisplayStyle={(style) =>
+                setMetadataDisplayStyle(style as "property" | "box")
+              }
+            />
           </Tabs.Panel>
 
-          {/* Git Tab */}
           <Tabs.Panel value="git">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  {t("settings.git.title")}
-                </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  {t("settings.git.description")}
-                </Text>
-
-                <Stack gap="lg">
-                  {!isGitRepo ? (
-                    matchesSearch("initialize git repository") && (
-                      <>
-                        <Button
-                          leftSection={<IconBrandGit size={16} />}
-                          onClick={() =>
-                            workspacePath && initGit(workspacePath)
-                          }
-                          variant="filled"
-                          color="blue"
-                        >
-                          {t("settings.git.init_button")}
-                        </Button>
-
-                        <div
-                          style={{
-                            padding: 16,
-                            borderRadius: 6,
-                            backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                          }}
-                        >
-                          <Text size="sm" fw={500} mb={8}>
-                            {t("settings.git.why_git")}
-                          </Text>
-                          <Text size="sm" c="dimmed">
-                            • Track all changes to your notes
-                            <br />• Never lose work - full history available
-                            <br />• Sync across devices with remote repositories
-                            <br />• Collaborate with others using GitHub,
-                            GitLab, etc.
-                            {t("settings.git.why_git_desc")}
-                          </Text>
-                        </div>
-                      </>
-                    )
-                  ) : (
-                    <>
-                      {matchesSearch("repository location path") && (
-                        <div>
-                          <Text size="sm" fw={500} mb={8}>
-                            {t("settings.git.repo_location")}
-                          </Text>
-                          <Text
-                            size="sm"
-                            c="dimmed"
-                            style={{
-                              fontFamily: "monospace",
-                              backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                              padding: "8px 12px",
-                              borderRadius: "4px",
-                              wordBreak: "break-all",
-                            }}
-                          >
-                            {workspacePath}
-                          </Text>
-                        </div>
-                      )}
-
-                      {matchesSearch("current status commit changes") && (
-                        <div>
-                          <Text size="sm" fw={500} mb={8}>
-                            {t("settings.git.current_status")}
-                          </Text>
-                          <Group gap="xs" mb={8}>
-                            <Button
-                              size="sm"
-                              variant="light"
-                              color={hasGitChanges ? "yellow" : "gray"}
-                              onClick={handleGitCommit}
-                              disabled={!hasGitChanges}
-                            >
-                              {hasGitChanges
-                                ? t("settings.git.commit_changes")
-                                : t("settings.git.no_changes")}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="subtle"
-                              onClick={() =>
-                                workspacePath && checkGitStatus(workspacePath)
-                              }
-                            >
-                              {t("settings.git.refresh")}
-                            </Button>
-                          </Group>
-                          <Text
-                            size="xs"
-                            c={hasGitChanges ? "yellow" : "dimmed"}
-                          >
-                            {hasGitChanges
-                              ? t("settings.git.uncommitted_changes")
-                              : t("settings.git.all_committed")}
-                          </Text>
-                        </div>
-                      )}
-
-                      {matchesSearch("auto commit interval") && (
-                        <div
-                          style={{
-                            padding: 16,
-                            borderRadius: 6,
-                            backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                            borderLeft: `3px solid ${
-                              isDark ? "#4C6EF5" : "#5C7CFA"
-                            }`,
-                          }}
-                        >
-                          <Text size="sm" fw={500} mb={8}>
-                            {t("settings.git.auto_commit")}
-                          </Text>
-                          <Switch
-                            label={t("settings.git.enable_auto_commit")}
-                            description={t(
-                              "settings.git.enable_auto_commit_desc"
-                            )}
-                            checked={autoCommitEnabled}
-                            onChange={(event) =>
-                              setAutoCommitEnabled(event.currentTarget.checked)
-                            }
-                            mb={autoCommitEnabled ? 12 : 0}
-                          />
-
-                          {autoCommitEnabled && (
-                            <>
-                              <Text size="sm" fw={500} mb={8}>
-                                {t("settings.git.commit_interval")}
-                              </Text>
-                              <NumberInput
-                                value={autoCommitInterval}
-                                onChange={(value) =>
-                                  setAutoCommitInterval(
-                                    typeof value === "number" ? value : 5
-                                  )
-                                }
-                                min={1}
-                                max={60}
-                                step={1}
-                                suffix=" min"
-                              />
-                              <Text size="xs" c="dimmed" mt={8}>
-                                {t("settings.git.commit_interval_desc", {
-                                  interval: autoCommitInterval,
-                                })}
-                              </Text>
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      {matchesSearch("remote repository url push pull") && (
-                        <div
-                          style={{
-                            padding: 16,
-                            borderRadius: 6,
-                            backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                            borderLeft: `3px solid ${
-                              isDark ? "#4C6EF5" : "#5C7CFA"
-                            }`,
-                          }}
-                        >
-                          <Text size="sm" fw={500} mb={8}>
-                            {t("settings.git.remote_repo")}
-                          </Text>
-                          {remoteUrl ? (
-                            <Stack gap="xs">
-                              <Group gap="xs" align="flex-start">
-                                <Text
-                                  size="sm"
-                                  c="dimmed"
-                                  style={{
-                                    fontFamily: "monospace",
-                                    flex: 1,
-                                    wordBreak: "break-all",
-                                  }}
-                                >
-                                  {remoteUrl}
-                                </Text>
-                                <Tooltip label={t("tooltips.remove_remote")}>
-                                  <Button
-                                    size="xs"
-                                    variant="subtle"
-                                    color="red"
-                                    onClick={handleRemoveRemote}
-                                  >
-                                    <IconX size={14} />
-                                  </Button>
-                                </Tooltip>
-                              </Group>
-                              <Text size="xs" c="dimmed">
-                                {t("settings.git.push_pull_hint")}
-                              </Text>
-                            </Stack>
-                          ) : isEditingRemote ? (
-                            <Stack gap="xs">
-                              <TextInput
-                                placeholder={t(
-                                  "settings.git.remote_url_placeholder"
-                                )}
-                                value={remoteUrlInput}
-                                onChange={(e) =>
-                                  setRemoteUrlInput(e.currentTarget.value)
-                                }
-                                size="sm"
-                              />
-                              <Group gap="xs">
-                                <Button
-                                  size="xs"
-                                  variant="light"
-                                  onClick={handleSetRemoteUrl}
-                                  disabled={!remoteUrlInput.trim()}
-                                >
-                                  {t("common.save")}
-                                </Button>
-                                <Button
-                                  size="xs"
-                                  variant="subtle"
-                                  onClick={() => {
-                                    setIsEditingRemote(false);
-                                    setRemoteUrlInput("");
-                                  }}
-                                >
-                                  {t("common.cancel")}
-                                </Button>
-                              </Group>
-                            </Stack>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="light"
-                              leftSection={<IconPlus size={16} />}
-                              onClick={() => setIsEditingRemote(true)}
-                            >
-                              {t("settings.git.add_remote")}
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </Stack>
-              </div>
-            </Stack>
+            <GitSettings
+              matchesSearch={matchesSearch}
+              isGitRepo={isGitRepo}
+              hasGitChanges={hasGitChanges}
+              autoCommitEnabled={autoCommitEnabled}
+              setAutoCommitEnabled={setAutoCommitEnabled}
+              autoCommitInterval={autoCommitInterval}
+              setAutoCommitInterval={setAutoCommitInterval}
+              checkGitStatus={checkGitStatus}
+              gitCommit={gitCommit}
+              initGit={initGit}
+              remoteUrl={remoteUrl}
+              getRemoteUrl={getRemoteUrl}
+              setRemoteUrl={setRemoteUrl}
+              removeRemote={removeRemote}
+              workspacePath={workspacePath}
+            />
           </Tabs.Panel>
 
-          {/* Shortcuts Tab */}
           <Tabs.Panel value="shortcuts">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  {t("settings.shortcuts.title")}
-                </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  {t("settings.shortcuts.description")}
-                </Text>
-
-                <Stack gap="md">
-                  {matchesSearch("keyboard shortcuts hotkey command") && (
-                    <div
-                      style={{
-                        padding: 16,
-                        borderRadius: 6,
-                        backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                      }}
-                    >
-                      <Group justify="space-between" mb={8}>
-                        <Text size="sm" fw={500}>
-                          {t("settings.shortcuts.command_palette")}
-                        </Text>
-                        <Badge variant="light">Cmd+K</Badge>
-                      </Group>
-                      <Group justify="space-between" mb={8}>
-                        <Text size="sm" fw={500}>
-                          {t("settings.shortcuts.search")}
-                        </Text>
-                        <Badge variant="light">Cmd+P</Badge>
-                      </Group>
-                      <Group justify="space-between" mb={8}>
-                        <Text size="sm" fw={500}>
-                          {t("common.settings")}
-                        </Text>
-                        <Badge variant="light">Cmd+,</Badge>
-                      </Group>
-                      <Group justify="space-between" mb={8}>
-                        <Text size="sm" fw={500}>
-                          {t("settings.shortcuts.help")}
-                        </Text>
-                        <Badge variant="light">Cmd+?</Badge>
-                      </Group>
-                      <Group justify="space-between">
-                        <Text size="sm" fw={500}>
-                          {t("settings.shortcuts.toggle_index")}
-                        </Text>
-                        <Badge variant="light">Cmd+\</Badge>
-                      </Group>
-                    </div>
-                  )}
-                </Stack>
-              </div>
-            </Stack>
+            <ShortcutsSettings matchesSearch={matchesSearch} />
           </Tabs.Panel>
 
-          {/* Advanced Tab */}
           <Tabs.Panel value="advanced">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  {t("settings.advanced.title")}
-                </Text>
-                <Text size="sm" c="dimmed" mb="xl">
-                  {t("settings.advanced.description")}
-                </Text>
-
-                <Stack gap="lg">
-                  {matchesSearch("cache clear") && (
-                    <div>
-                      <Text size="sm" fw={500} mb={12}>
-                        {t("settings.advanced.cache")}
-                      </Text>
-                      <Button
-                        size="sm"
-                        variant="light"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              t("settings.advanced.clear_cache_confirm")
-                            )
-                          ) {
-                            clearCache();
-                          }
-                        }}
-                      >
-                        {t("settings.advanced.clear_cache")}
-                      </Button>
-                    </div>
-                  )}
-
-                  {matchesSearch("developer telemetry anonymous") && (
-                    <div
-                      style={{
-                        padding: 16,
-                        borderRadius: 6,
-                        backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                        borderLeft: `3px solid ${
-                          isDark ? "#4C6EF5" : "#5C7CFA"
-                        }`,
-                      }}
-                    >
-                      <Text size="sm" fw={500} mb={12}>
-                        {t("settings.advanced.developer_options")}
-                      </Text>
-                      <Stack gap="md">
-                        <Switch
-                          label={t("settings.advanced.telemetry")}
-                          description={t("settings.advanced.telemetry_desc")}
-                          checked={telemetryEnabled}
-                          onChange={(event) =>
-                            setTelemetryEnabled(event.currentTarget.checked)
-                          }
-                        />
-                      </Stack>
-                    </div>
-                  )}
-
-                  {matchesSearch("reset settings danger") && (
-                    <div
-                      style={{
-                        padding: 16,
-                        borderRadius: 6,
-                        backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                        borderLeft: `3px solid ${
-                          isDark ? "#FA5252" : "#FF6B6B"
-                        }`,
-                      }}
-                    >
-                      <Text size="sm" fw={500} mb={12} c="red">
-                        {t("settings.advanced.danger_zone")}
-                      </Text>
-                      <Stack gap="md">
-                        <div>
-                          <Text size="sm" fw={500} mb={4}>
-                            {t("settings.advanced.reset_settings")}
-                          </Text>
-                          <Text size="xs" c="dimmed" mb={8}>
-                            {t("settings.advanced.reset_settings_desc")}
-                          </Text>
-                          <Button
-                            size="sm"
-                            variant="light"
-                            color="red"
-                            leftSection={<IconTrash size={16} />}
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  t("settings.advanced.reset_confirm")
-                                )
-                              ) {
-                                resetAllSettings();
-                              }
-                            }}
-                          >
-                            {t("settings.advanced.reset_settings")}
-                          </Button>
-                        </div>
-                      </Stack>
-                    </div>
-                  )}
-                </Stack>
-              </div>
-            </Stack>
+            <AdvancedSettings
+              matchesSearch={matchesSearch}
+              telemetryEnabled={telemetryEnabled}
+              setTelemetryEnabled={setTelemetryEnabled}
+              resetAllSettings={resetAllSettings}
+              clearCache={clearCache}
+            />
           </Tabs.Panel>
 
-          {/* About Tab */}
           <Tabs.Panel value="about">
-            <Stack gap="xl">
-              <div>
-                <Text size="xl" fw={600} mb="lg">
-                  {t("settings.about.title")}
-                </Text>
-
-                <Stack gap="lg">
-                  <div>
-                    <Group gap="xs" mb={8}>
-                      <Text size="lg" fw={600}>
-                        {t("settings.about.app_name")}
-                      </Text>
-                    </Group>
-                    <Text size="sm" c="dimmed">
-                      {t("settings.about.version", {
-                        version: appVersion || "Loading...",
-                      })}
-                    </Text>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: 16,
-                      borderRadius: 8,
-                      backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                      border: `1px solid ${isDark ? "#373A40" : "#E9ECEF"}`,
-                    }}
-                  >
-                    <Group justify="space-between" mb={8} align="flex-start">
-                      <Text size="sm" fw={600}>
-                        {t("settings.about.updates_title")}
-                      </Text>
-                      {useUpdaterStore.getState().status === "checking" && (
-                        <Badge color="blue" variant="light">
-                          Checking...
-                        </Badge>
-                      )}
-                      {useUpdaterStore.getState().status === "available" && (
-                        <Badge color="green" variant="light">
-                          Update Available
-                        </Badge>
-                      )}
-                      {useUpdaterStore.getState().status === "uptodate" && (
-                        <Badge color="gray" variant="light">
-                          Latest Version
-                        </Badge>
-                      )}
-                    </Group>
-
-                    {(() => {
-                      const status = useUpdaterStore((state) => state.status);
-                      const version = useUpdaterStore((state) => state.version);
-                      const body = useUpdaterStore((state) => state.body);
-                      const error = useUpdaterStore((state) => state.error);
-                      const progress = useUpdaterStore(
-                        (state) => state.progress
-                      );
-                      const checkForUpdates = useUpdaterStore(
-                        (state) => state.checkForUpdates
-                      );
-                      const installUpdate = useUpdaterStore(
-                        (state) => state.installUpdate
-                      );
-
-                      if (status === "checking") {
-                        return (
-                          <Text size="sm" c="dimmed">
-                            Checking for updates...
-                          </Text>
-                        );
-                      }
-
-                      if (status === "uptodate") {
-                        return (
-                          <Stack gap="xs">
-                            <Text size="sm" c="dimmed">
-                              Oxinot is up to date.
-                            </Text>
-                            <Group>
-                              <Button
-                                size="xs"
-                                variant="light"
-                                onClick={() => checkForUpdates(false)}
-                                leftSection={<IconDownload size={16} />}
-                              >
-                                Check Again
-                              </Button>
-                            </Group>
-                          </Stack>
-                        );
-                      }
-
-                      if (status === "available") {
-                        return (
-                          <Stack gap="md">
-                            <Text size="sm">
-                              A new version{" "}
-                              <Text span fw={700}>
-                                {version}
-                              </Text>{" "}
-                              is available.
-                            </Text>
-                            {body && (
-                              <div
-                                style={{
-                                  maxHeight: 150,
-                                  overflowY: "auto",
-                                  padding: 8,
-                                  backgroundColor: isDark ? "#25262B" : "#fff",
-                                  borderRadius: 4,
-                                  fontSize: 12,
-                                }}
-                              >
-                                <Text
-                                  size="xs"
-                                  style={{ whiteSpace: "pre-wrap" }}
-                                >
-                                  {body}
-                                </Text>
-                              </div>
-                            )}
-                            <Group>
-                              <Button
-                                size="xs"
-                                onClick={installUpdate}
-                                leftSection={<IconDownload size={16} />}
-                              >
-                                Update Now
-                              </Button>
-                            </Group>
-                          </Stack>
-                        );
-                      }
-
-                      if (status === "downloading") {
-                        return (
-                          <Stack gap="xs">
-                            <Group justify="space-between">
-                              <Text size="sm">Downloading update...</Text>
-                              <Text size="xs" c="dimmed">
-                                {Math.round(progress)}%
-                              </Text>
-                            </Group>
-                            <Progress value={progress} animated size="sm" />
-                          </Stack>
-                        );
-                      }
-
-                      if (status === "downloaded") {
-                        return (
-                          <Stack gap="xs">
-                            <Text size="sm" c="green">
-                              Update downloaded successfully.
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              The application will restart automatically.
-                            </Text>
-                          </Stack>
-                        );
-                      }
-
-                      if (status === "error") {
-                        return (
-                          <Stack gap="xs">
-                            <Text size="sm" c="red">
-                              Error checking for updates:
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              {error}
-                            </Text>
-                            <Button
-                              size="xs"
-                              variant="light"
-                              color="red"
-                              onClick={() => checkForUpdates(false)}
-                            >
-                              Try Again
-                            </Button>
-                          </Stack>
-                        );
-                      }
-
-                      // Idle state
-                      return (
-                        <Stack gap="xs">
-                          <Text size="sm" c="dimmed">
-                            {t("settings.about.updates_desc")}
-                          </Text>
-                          <Group>
-                            <Button
-                              size="xs"
-                              variant="light"
-                              onClick={() => checkForUpdates(false)}
-                              leftSection={<IconDownload size={16} />}
-                            >
-                              {t("settings.about.check_updates_btn")}
-                            </Button>
-                          </Group>
-                        </Stack>
-                      );
-                    })()}
-                  </div>
-                </Stack>
-              </div>
-            </Stack>
+            <AboutSettings
+              matchesSearch={matchesSearch}
+              appVersion={appVersion}
+            />
           </Tabs.Panel>
         </div>
       </Tabs>
