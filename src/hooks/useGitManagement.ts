@@ -2,7 +2,7 @@ import { watch } from "@tauri-apps/plugin-fs";
 import { useErrorStore } from "@/stores/errorStore";
 import { useGitStore } from "@/stores/gitStore";
 import { showToast } from "@/utils/toast";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface GitManagementState {
   hasChanges: boolean;
@@ -25,6 +25,21 @@ export interface GitManagementActions {
 // Debounce delay for file watcher events (500ms)
 // Allows batching of multiple file changes into a single git status check
 const GIT_WATCHER_DEBOUNCE_MS = 500;
+
+// Simple logger for git monitoring
+const logger = {
+  info: (msg: string, data?: unknown) => {
+    console.log(`[GitMonitor] ${msg}`, data ? data : "");
+  },
+  debug: (msg: string, data?: unknown) => {
+    if (process.env.NODE_ENV === "development") {
+      console.debug(`[GitMonitor] ${msg}`, data ? data : "");
+    }
+  },
+  error: (msg: string, error?: unknown) => {
+    console.error(`[GitMonitor] ${msg}`, error ? error : "");
+  },
+};
 
 export const useGitManagement = (
   workspacePath: string
@@ -64,31 +79,57 @@ export const useGitManagement = (
 
   // File system watcher: detect changes and check git status
   // Uses debounced watcher to batch multiple file changes
+  const watcherInitializedRef = useRef(false);
+  const fileChangeCountRef = useRef(0);
+
   useEffect(() => {
     if (!workspacePath || !isGitRepo) return;
 
     let unwatchPromise: Promise<() => void> | null = null;
     let debounceTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const watcherStartTime = Date.now();
 
     const startWatcher = async () => {
       try {
+        logger.info("Starting file system watcher", { workspacePath });
+        watcherInitializedRef.current = true;
+
         // Watch workspace directory for changes with debounce
         // 'watch' provides debounced events, avoiding excessive git status checks
         unwatchPromise = watch(
           ".",
           () => {
+            fileChangeCountRef.current += 1;
+            const changeCount = fileChangeCountRef.current;
+
+            logger.debug("File change detected", {
+              changeNumber: changeCount,
+              elapsedMs: Date.now() - watcherStartTime,
+            });
+
             // Debounce: only check git status after changes settle
             if (debounceTimeoutId) {
+              logger.debug("Clearing previous debounce timer", {
+                changeNumber: changeCount,
+              });
               clearTimeout(debounceTimeoutId);
             }
 
             debounceTimeoutId = setTimeout(() => {
-              checkGitStatus(workspacePath).catch((error) => {
-                console.error(
-                  "[useGitManagement] File watcher git status check failed:",
-                  error
-                );
+              logger.info("Debounce settled, checking git status", {
+                changeNumber: changeCount,
+                debounceDelayMs: GIT_WATCHER_DEBOUNCE_MS,
               });
+
+              checkGitStatus(workspacePath)
+                .then(() => {
+                  logger.debug("Git status check completed", {
+                    changeNumber: changeCount,
+                  });
+                })
+                .catch((error) => {
+                  logger.error("File watcher git status check failed", error);
+                });
             }, GIT_WATCHER_DEBOUNCE_MS);
           },
           {
@@ -97,40 +138,63 @@ export const useGitManagement = (
           }
         );
 
-        console.debug(
-          "[useGitManagement] File system watcher started for workspace:",
-          workspacePath
-        );
+        logger.info("File system watcher initialized successfully", {
+          workspace: workspacePath,
+          recursive: true,
+          tauroDebounceMs: 300,
+          appDebounceMs: GIT_WATCHER_DEBOUNCE_MS,
+        });
       } catch (error) {
-        console.error(
-          "[useGitManagement] Failed to start file watcher:",
+        logger.error(
+          "Failed to start file watcher, using fallback polling",
           error
         );
+        watcherInitializedRef.current = false;
+
         // Fallback: use polling if watcher fails
         const fallbackIntervalId = setInterval(() => {
-          checkGitStatus(workspacePath).catch((error) => {
-            console.error(
-              "[useGitManagement] Fallback polling git status check failed:",
-              error
-            );
-          });
+          logger.debug("Fallback polling: checking git status");
+
+          checkGitStatus(workspacePath)
+            .then(() => {
+              logger.debug("Fallback polling: git status check completed");
+            })
+            .catch((error) => {
+              logger.error("Fallback polling git status check failed", error);
+            });
         }, 10000); // 10 second fallback polling
 
-        return () => clearInterval(fallbackIntervalId);
+        return () => {
+          logger.info("Cleaning up fallback polling");
+          clearInterval(fallbackIntervalId);
+        };
       }
     };
 
     startWatcher();
 
     return () => {
+      logger.info("Cleaning up file system watcher", {
+        workspace: workspacePath,
+        fileChangesDetected: fileChangeCountRef.current,
+      });
+
       // Cleanup: stop watching and clear debounce timeout
       if (debounceTimeoutId) {
         clearTimeout(debounceTimeoutId);
       }
 
-      unwatchPromise?.then((unwatch) => {
-        unwatch();
-      });
+      unwatchPromise
+        ?.then((unwatch) => {
+          unwatch();
+          logger.debug("Watcher unsubscribed successfully");
+        })
+        .catch((error) => {
+          logger.error("Error unsubscribing watcher", error);
+        });
+
+      watcherInitializedRef.current = false;
+      fileChangeCountRef.current = 0;
     };
   }, [workspacePath, isGitRepo, checkGitStatus]);
 
