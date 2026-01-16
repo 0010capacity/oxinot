@@ -1012,6 +1012,7 @@ fn get_block_by_id(conn: &Connection, id: &str) -> Result<Block, String> {
     Ok(block)
 }
 
+#[allow(dead_code)]
 fn collect_descendant_ids(conn: &Connection, block_id: &str) -> Result<Vec<String>, String> {
     // Recursive CTE to collect all descendants
     let mut stmt = conn

@@ -310,9 +310,6 @@ pub fn run() {
         .setup(|app| {
             // No global DB - each command will open workspace-specific DB as needed
 
-            // Initialize fs plugin for file system operations (watch, etc.)
-            app.handle().plugin(tauri_plugin_fs::init())?;
-
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
