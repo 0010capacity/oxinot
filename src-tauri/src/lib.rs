@@ -415,6 +415,7 @@ pub fn run() {
             commands::block::search_blocks,
             commands::block::resolve_block_path,
             commands::block::get_block,
+            commands::block::get_blocks,
             commands::block::get_block_ancestors,
             commands::block::get_block_subtree,
             // Page commands
