@@ -7,6 +7,7 @@ import {
   useMantineColorScheme,
   useComputedColorScheme,
 } from "@mantine/core";
+import styles from "./SettingsModal.module.css";
 import {
   IconAppWindow,
   IconBrandGit,
@@ -201,12 +202,6 @@ export function SettingsModal({
   const indentSize = useOutlinerSettingsStore((state) => state.indentSize);
   const setIndentSize = useOutlinerSettingsStore(
     (state) => state.setIndentSize
-  );
-  const metadataDisplayStyle = useOutlinerSettingsStore(
-    (state) => state.metadataDisplayStyle
-  );
-  const setMetadataDisplayStyle = useOutlinerSettingsStore(
-    (state) => state.setMetadataDisplayStyle
   );
 
   // Git
@@ -406,6 +401,7 @@ export function SettingsModal({
                     size="xs"
                     p={0}
                     onClick={() => setSearchQuery("")}
+                    aria-label={t("common.clear_search")}
                   >
                     <IconX size={14} />
                   </Button>
@@ -431,13 +427,8 @@ export function SettingsModal({
                 advanced: hasMatchInTab("advanced"),
                 about: hasMatchInTab("about"),
               }).some((v) => v) && (
-                <div style={{ padding: 8, marginBottom: 12 }}>
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: "var(--mantine-color-gray-6)",
-                    }}
-                  >
+                <div className={styles.noResultsContainer}>
+                  <p className={styles.noResultsText}>
                     {t("settings.search_active")}
                   </p>
                 </div>
@@ -523,14 +514,7 @@ export function SettingsModal({
           </Stack>
         </Tabs.List>
 
-        <div
-          style={{
-            flex: 1,
-            padding: "24px",
-            height: "100%",
-            overflowY: "auto",
-          }}
-        >
+        <div className={styles.contentWrapper}>
           <Tabs.Panel value="appearance">
             <AppearanceSettings
               matchesSearch={matchesSearch}
@@ -621,10 +605,6 @@ export function SettingsModal({
               setShowCodeBlockLineNumbers={setShowCodeBlockLineNumbers}
               indentSize={indentSize}
               setIndentSize={setIndentSize}
-              metadataDisplayStyle={metadataDisplayStyle}
-              setMetadataDisplayStyle={(style) =>
-                setMetadataDisplayStyle(style as "property" | "box")
-              }
             />
           </Tabs.Panel>
 
