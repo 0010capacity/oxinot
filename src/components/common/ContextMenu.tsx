@@ -18,6 +18,8 @@ interface ContextMenuProps {
   children: React.ReactNode;
   sections: ContextMenuSection[];
   disabled?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 // Custom trigger to hijack the default click behavior
@@ -29,11 +31,14 @@ interface ContextMenuTriggerProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerProps>(
-  ({ onClick, onContextMenu, onTriggerClick, children, ...other }, ref) => {
+  (
+    { onClick, onContextMenuCapture, onTriggerClick, children, ...other },
+    ref,
+  ) => {
     return (
       <div
         ref={ref}
-        onContextMenu={onContextMenu}
+        onContextMenuCapture={onContextMenuCapture}
         onClick={() => {
           // Close the menu if clicked (optional, ensures clean state)
           onTriggerClick?.();
@@ -51,6 +56,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   children,
   sections,
   disabled = false,
+  className,
+  style,
 }) => {
   const [opened, setOpened] = useState(false);
 
@@ -71,12 +78,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     >
       <Menu.Target>
         <ContextMenuTrigger
-          onContextMenu={(e: React.MouseEvent) => {
+          onContextMenuCapture={(e: React.MouseEvent) => {
             e.preventDefault();
             e.stopPropagation();
             setOpened(true);
           }}
           onTriggerClick={() => setOpened(false)}
+          className={className}
+          style={style}
         >
           {children}
         </ContextMenuTrigger>

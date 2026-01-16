@@ -134,7 +134,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
 
   return (
     <div className="group/node relative">
-      <ContextMenu sections={contextMenuSections}>
+      <ContextMenu sections={contextMenuSections} className="w-full">
         {/* Wrapper div for ContextMenu trigger area - contains arrow and main row */}
         <div className="relative">
           {item.is_directory && (
