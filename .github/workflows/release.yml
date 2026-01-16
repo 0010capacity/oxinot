@@ -184,6 +184,33 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Extract Changelog
+        id: changelog
+        shell: bash
+        run: |
+          VERSION="${{ steps.tag.outputs.name }}"
+          VERSION=${VERSION#v}
+
+          echo "Extracting changelog for version $VERSION"
+
+          # Extract section from CHANGELOG.md
+          awk -v ver="$VERSION" '
+            /^## / {
+              if (p) { exit }
+              if ($2 == ver) { p=1; next }
+            }
+            p
+          ' CHANGELOG.md > RELEASE_BODY.md
+
+          # If file is empty, use default message
+          if [ ! -s RELEASE_BODY.md ]; then
+            echo "See the assets to download this version and check the release notes." > RELEASE_BODY.md
+          fi
+
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          cat RELEASE_BODY.md >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Import Code-Signing Certificates for macOS
         uses: Apple-Actions/import-codesign-certs@v2
         with:
@@ -206,6 +233,6 @@ jobs:
         with:
           tagName: ${{ steps.tag.outputs.name }}
           releaseName: "Oxinot ${{ steps.tag.outputs.name }}"
-          releaseBody: "See the assets to download this version and check the release notes."
+          releaseBody: ${{ env.RELEASE_BODY }}
           releaseDraft: false
           prerelease: false
