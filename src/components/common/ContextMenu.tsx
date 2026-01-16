@@ -71,30 +71,36 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   // Save selection on mousedown before browser can change it
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
-      if (e.button === 2 && containerRef.current?.contains(e.target as Node)) {
+      if (e.button === 2) {
         const selection = window.getSelection();
         if (selection && selection.rangeCount > 0) {
-          const ranges: Range[] = [];
-          for (let i = 0; i < selection.rangeCount; i++) {
-            ranges.push(selection.getRangeAt(i).cloneRange());
+          const range = selection.getRangeAt(0);
+          // Only save if it's an actual selection (not just a cursor)
+          if (!range.collapsed) {
+            const ranges: Range[] = [];
+            for (let i = 0; i < selection.rangeCount; i++) {
+              ranges.push(selection.getRangeAt(i).cloneRange());
+            }
+            savedSelectionRef.current = {
+              text: selection.toString(),
+              ranges,
+            };
+            console.log(
+              "[ContextMenu] Saved selection on mousedown:",
+              savedSelectionRef.current.text
+            );
+            return;
           }
-          savedSelectionRef.current = {
-            text: selection.toString(),
-            ranges,
-          };
-          console.log(
-            "[ContextMenu] Saved selection on mousedown:",
-            savedSelectionRef.current.text
-          );
-        } else {
-          savedSelectionRef.current = null;
-          console.log("[ContextMenu] No selection on mousedown");
         }
+        // No valid selection, clear it
+        savedSelectionRef.current = null;
+        console.log("[ContextMenu] No selection on mousedown");
       }
     };
 
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mousedown", handleMouseDown, true);
+    return () =>
+      document.removeEventListener("mousedown", handleMouseDown, true);
   }, []);
 
   const handleContextMenu = useCallback(

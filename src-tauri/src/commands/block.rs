@@ -581,11 +581,11 @@ pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Ve
     let conn = open_workspace_db(&workspace_path)?;
 
     // Get page_id and parent_id before deletion
-    let (page_id, parent_id, order_weight): (String, Option<String>, String) = conn
+    let (page_id, parent_id): (String, Option<String>) = conn
         .query_row(
-            "SELECT page_id, parent_id, order_weight FROM blocks WHERE id = ?",
+            "SELECT page_id, parent_id FROM blocks WHERE id = ?",
             [&block_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .map_err(|e| e.to_string())?;
 
