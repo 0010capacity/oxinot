@@ -2561,7 +2561,7 @@ dependencies = [
 
 [[package]]
 name = "oxinot"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "chrono",
  "log",

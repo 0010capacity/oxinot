@@ -15,7 +15,18 @@
     "success": "Success",
     "confirm": "Confirm",
     "new_page": "New page",
-    "home": "Home"
+    "home": "Home",
+    "context_menu": {
+      "add_child": "Add child page",
+      "rename": "Rename",
+      "delete": "Delete",
+      "copy_path": "Copy path",
+      "copy_content": "Copy content",
+      "copy_id": "Copy ID",
+      "edit_metadata": "Edit metadata",
+      "copy": "Copy",
+      "cut": "Cut"
+    }
   },
   "navigation": {
     "go_back": "Go back",

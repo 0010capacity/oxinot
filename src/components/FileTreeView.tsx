@@ -1,6 +1,6 @@
-import { IconEdit, IconTrash } from "@tabler/icons-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { type FileSystemItem, tauriAPI } from "../tauri-api";
 import { ContextMenu, type ContextMenuSection } from "./common/ContextMenu";
@@ -22,6 +22,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
   const [newName, setNewName] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
   const { deleteItem, renameItem } = useWorkspaceStore();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (isRenaming && renameInputRef.current) {
@@ -100,13 +101,11 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
     {
       items: [
         {
-          label: "Rename",
-          icon: <IconEdit size={16} />,
+          label: t("common.context_menu.rename"),
           onClick: handleRename,
         },
         {
-          label: "Delete",
-          icon: <IconTrash size={16} />,
+          label: t("common.context_menu.delete"),
           color: "red",
           onClick: () => {
             if (confirm(`Are you sure you want to delete ${item.name}?`)) {
@@ -114,6 +113,12 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
                 console.error("Error deleting item:", error);
               });
             }
+          },
+        },
+        {
+          label: t("common.context_menu.copy_path"),
+          onClick: () => {
+            navigator.clipboard.writeText(item.path);
           },
         },
       ],
@@ -128,9 +133,10 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
   }
 
   return (
-    <>
-      <ContextMenu sections={contextMenuSections}>
-        <div className="group/node relative">
+    <div className="group/node relative">
+      <ContextMenu sections={contextMenuSections} className="w-full h-full">
+        {/* Wrapper div for ContextMenu trigger area - contains arrow and main row */}
+        <div className="relative">
           {item.is_directory && (
             <button
               type="button"
@@ -146,7 +152,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
 
           <button
             type="button"
-            className={`flex items-start gap-2 py-1 -ml-2 pl-2 rounded-md hover:bg-surface-light dark:hover:bg-white/5 transition-colors pr-2 cursor-pointer ${
+            className={`flex items-start gap-2 py-1 -ml-2 pl-2 rounded-md hover:bg-surface-light dark:hover:bg-white/5 transition-colors pr-2 cursor-pointer w-full text-left ${
               item.is_directory ? "" : ""
             }`}
             onClick={handleToggle}
@@ -193,22 +199,22 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
               </>
             )}
           </button>
-
-          {item.is_directory && isExpanded && children.length > 0 && (
-            <div className="pl-6 ml-[11px] border-l border-gray-100 dark:border-white/5 flex flex-col mt-0.5">
-              {children.map((child) => (
-                <FileTreeNode
-                  key={child.path}
-                  item={child}
-                  level={level + 1}
-                  onFileClick={onFileClick}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </ContextMenu>
-    </>
+
+      {item.is_directory && isExpanded && children.length > 0 && (
+        <div className="pl-6 ml-[11px] border-l border-gray-100 dark:border-white/5 flex flex-col mt-0.5">
+          {children.map((child) => (
+            <FileTreeNode
+              key={child.path}
+              item={child}
+              level={level + 1}
+              onFileClick={onFileClick}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

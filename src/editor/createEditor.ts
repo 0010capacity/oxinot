@@ -410,6 +410,9 @@ function createEmbedNavigateEventHandler(): Extension {
 
 function createBlockRefClickHandler(): Extension {
   const handleClick = (event: MouseEvent, view: EditorView) => {
+    // Only handle left clicks
+    if (event.button !== 0) return false;
+
     const target = event.target as HTMLElement | null;
     if (!target) return false;
 
@@ -962,6 +965,9 @@ function createWikiLinkClickHandler(
   onOpenWikiLink?: (raw: string, noteTitle: string) => void
 ): Extension {
   const handleClick = (event: MouseEvent, view: EditorView) => {
+    // Only handle left clicks
+    if (event.button !== 0) return false;
+
     const target = event.target as HTMLElement | null;
     if (!target) return false;
 
@@ -1048,6 +1054,9 @@ function normalizeExternalUrl(rawUrl: string): string | null {
 
 function createExternalLinkClickHandler(): Extension {
   const handleClick = (event: MouseEvent, view: EditorView) => {
+    // Only handle left clicks
+    if (event.button !== 0) return false;
+
     const target = event.target as HTMLElement | null;
     if (!target) return false;
 
@@ -1141,6 +1150,12 @@ function createFocusListeners(
 function createMouseDownHandler(): Extension {
   return EditorView.domEventHandlers({
     mousedown: (event, view) => {
+      // Prevent CodeMirror from selecting text on right-click
+      if (event.button === 2) {
+        event.preventDefault();
+        return true; // Stop CodeMirror from handling this
+      }
+
       // Only handle clicks on unfocused editors
       if (view.hasFocus) {
         return false; // Let CodeMirror handle normally
@@ -1163,6 +1178,11 @@ function createMouseDownHandler(): Extension {
       }
 
       return false;
+    },
+    contextmenu: (event) => {
+      // Prevent CodeMirror from creating selection on contextmenu
+      event.preventDefault();
+      return true; // Stop CodeMirror from handling this
     },
   });
 }
