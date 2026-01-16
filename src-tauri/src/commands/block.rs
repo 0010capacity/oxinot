@@ -211,7 +211,6 @@ pub async fn get_blocks(
     );
 
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-ㄴㅇ
 
     let blocks = stmt
         .query_map(
