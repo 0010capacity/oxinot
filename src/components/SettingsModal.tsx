@@ -203,12 +203,6 @@ export function SettingsModal({
   const setIndentSize = useOutlinerSettingsStore(
     (state) => state.setIndentSize
   );
-  const metadataDisplayStyle = useOutlinerSettingsStore(
-    (state) => state.metadataDisplayStyle
-  );
-  const setMetadataDisplayStyle = useOutlinerSettingsStore(
-    (state) => state.setMetadataDisplayStyle
-  );
 
   // Git
   const isGitRepo = useGitStore((state) => state.isRepo);
@@ -610,10 +604,6 @@ export function SettingsModal({
               setShowCodeBlockLineNumbers={setShowCodeBlockLineNumbers}
               indentSize={indentSize}
               setIndentSize={setIndentSize}
-              metadataDisplayStyle={metadataDisplayStyle}
-              setMetadataDisplayStyle={(style) =>
-                setMetadataDisplayStyle(style as "property" | "box")
-              }
             />
           </Tabs.Panel>
 

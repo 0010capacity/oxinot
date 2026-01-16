@@ -1,10 +1,4 @@
-import {
-  NumberInput,
-  SegmentedControl,
-  Stack,
-  Switch,
-  Text,
-} from "@mantine/core";
+import { NumberInput, Stack, Switch, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { OutlinerSettingsProps } from "./types";
 
@@ -20,8 +14,6 @@ export function OutlinerSettings({
   setShowCodeBlockLineNumbers,
   indentSize,
   setIndentSize,
-  metadataDisplayStyle,
-  setMetadataDisplayStyle,
 }: OutlinerSettingsProps) {
   const { t } = useTranslation();
 
@@ -93,28 +85,6 @@ export function OutlinerSettings({
                 min={12}
                 max={48}
                 step={2}
-              />
-            </div>
-          )}
-
-          {matchesSearch("metadata display style") && (
-            <div>
-              <Text size="sm" fw={500} mb={8}>
-                Metadata Display Style
-              </Text>
-              <Text size="xs" c="dimmed" mb={8}>
-                Choose how to display block metadata (key::value)
-              </Text>
-              <SegmentedControl
-                value={metadataDisplayStyle}
-                onChange={(value) => {
-                  if (value)
-                    setMetadataDisplayStyle(value as "property" | "box");
-                }}
-                data={[
-                  { label: "▸ Property Block", value: "property" },
-                  { label: "□ Gray Box", value: "box" },
-                ]}
               />
             </div>
           )}
