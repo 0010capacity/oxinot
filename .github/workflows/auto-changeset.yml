@@ -39,7 +39,27 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Check if we should skip changeset generation
+        id: check_skip
+        run: |
+          set -euo pipefail
+
+          # Get the last commit message and author
+          LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          LAST_COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+
+          # If the last commit is "chore: auto-generate changeset" from github-actions bot,
+          # skip generating another changeset to prevent infinite loop
+          if [[ "$LAST_COMMIT_AUTHOR" == "github-actions[bot]" ]] && \
+             [[ "$LAST_COMMIT_MESSAGE" == *"chore: auto-generate changeset"* ]]; then
+            echo "Last commit is workflow-generated - skipping to prevent infinite loop"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Generate Changeset
+        if: steps.check_skip.outputs.skip == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -55,8 +75,13 @@ jobs:
             echo "changeset_generated=false" >> "$GITHUB_ENV"
           fi
 
+      - name: Skip changeset PR creation (workflow-generated commits only)
+        if: steps.check_skip.outputs.skip == 'true'
+        run: |
+          echo "No changeset needed - only workflow-generated commits since last release"
+
       - name: Create or Update PR
-        if: env.changeset_generated == 'true'
+        if: steps.check_skip.outputs.skip == 'false' && env.changeset_generated == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

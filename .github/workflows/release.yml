@@ -27,16 +27,14 @@ env:
 
 jobs:
   # Step 1: Handle changeset and create version PR
-  # This job runs on main branch pushes (not tag pushes)
+  # This job runs on main branch pushes to create/update the "chore: Version Packages" PR
   changeset:
     name: Changeset Version
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
-    outputs:
-      published: ${{ steps.changesets.outputs.published }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,32 +49,84 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Create Release PR or Publish
+      - name: Create Release PR
         id: changesets
         uses: changesets/action@v1
         with:
           version: npm run version
-          publish: echo "Changesets processed"
+          publish: false
           title: "chore: Version Packages"
           createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and Push Version Tag
-        if: steps.changesets.outputs.published == 'true'
+  # Step 1.5: Create version tag when Version Packages commit is pushed to main
+  # This runs after the "chore: Version Packages" PR is merged by detecting version bumps
+  create-version-tag:
+    name: Create Version Tag
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Check if version tag should be created
+        id: check_tag
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          set -euo pipefail
+
+          # Get current version from package.json
+          CURRENT_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "")
+
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "Could not determine current version"
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          TAG_NAME="v${CURRENT_VERSION}"
+
+          # Check if tag already exists
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME already exists"
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Check if the last commit is a version bump commit (from changesets/action)
+          # Changesets action creates commits with the version info in the message
+          LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          if [[ "$LAST_COMMIT_MESSAGE" == *"Version Packages"* ]]; then
+            echo "Version bump commit detected - will create tag $TAG_NAME"
+            echo "should_tag=true" >> "$GITHUB_OUTPUT"
+            echo "version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "Last commit is not a version bump commit"
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and Push Version Tag
+        if: steps.check_tag.outputs.should_tag == 'true'
+        run: |
+          VERSION="${{ steps.check_tag.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v${VERSION}" -m "Release v${VERSION}"
           git push origin "v${VERSION}"
 
   # Step 2: Build and create GitHub release
-  # This job runs when a version tag is pushed (v*) OR when changeset publishes a release OR when manually triggered
+  # This job runs when a version tag is pushed (v*) OR when manually triggered with force_build
   build-and-release:
-    name: Build and Release (Tag or Changeset)
-    needs: changeset
-    if: ${{ always() && (startsWith(github.ref, 'refs/tags/v') || needs.changeset.outputs.published == 'true' || inputs.force_build == true) }}
+    name: Build and Release
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.force_build == true
     runs-on: macos-latest
     permissions:
       contents: write
