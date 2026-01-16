@@ -54,7 +54,6 @@ jobs:
         uses: changesets/action@v1
         with:
           version: npm run version
-          publish: false
           title: "chore: Version Packages"
           createGithubReleases: false
         env:
