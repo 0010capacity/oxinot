@@ -153,7 +153,7 @@ export function getBlockPath(block: Block): Block[] {
 
 export function getPreviousBlock(
   blocks: Block[],
-  currentId: string,
+  currentId: string
 ): Block | null {
   const flat = flattenBlocks(blocks);
   const index = flat.findIndex((b) => b.id === currentId);
@@ -229,154 +229,11 @@ export function getVisibleDescendantCount(block: Block): number {
 }
 
 /**
- * Parse markdown text into a block tree structure
- */
-export function parseMarkdownToBlocks(markdown: string): Block[] {
-  if (typeof markdown !== "string") {
-    debug.error("parseMarkdownToBlocks: markdown is not a string", markdown);
-    return [createBlock("", 0)];
-  }
-
-  try {
-    const lines = markdown.split("\n");
-    const blocks: Block[] = [];
-
-    // Fence block parsing state
-    let inFenceBlock = false;
-    let fenceLevel = 0;
-    let fenceContentLines: string[] = [];
-
-    // Code block parsing state
-    let inCodeBlock = false;
-    let codeLevel = 0;
-    let codeContentLines: string[] = [];
-    let codeLanguage = "";
-
-    for (const rawLine of lines) {
-      if (rawLine.trim() === "") continue;
-
-      // Count leading spaces/tabs for indentation level
-      const match = rawLine.match(/^(\s*)/);
-      const indent = match ? match[1] : "";
-      const level = Math.floor(indent.length / INDENT_SIZE);
-
-      const trimmedStart = rawLine.trimStart();
-      const afterBullet = trimmedStart
-        .replace(/^[-*+]\s+/, "")
-        .replace(/^\d+\.\s+/, "");
-
-      // Check for fence block marker (///)
-      const isFenceDelimiter = afterBullet.trim() === FENCE_MARKERS.DELIMITER;
-
-      // Check for code block markers (```)
-      const isCodeFence = afterBullet.trim().startsWith(CODE_MARKERS.FENCE);
-      const codeMatch = afterBullet.trim().match(/^```(\w*)$/);
-
-      // Handle code blocks first
-      if (inCodeBlock) {
-        if (isCodeFence && level === codeLevel) {
-          // Close code block
-          const last = blocks[blocks.length - 1];
-          if (last) {
-            last.content = codeContentLines.join("\n");
-            last.fenceState = "closed";
-          }
-          inCodeBlock = false;
-          codeLevel = 0;
-          codeContentLines = [];
-          codeLanguage = "";
-          continue;
-        }
-
-        // Collect code content
-        codeContentLines.push(afterBullet);
-        continue;
-      }
-
-      // Handle fence blocks
-      if (inFenceBlock) {
-        if (isFenceDelimiter && level === fenceLevel) {
-          // Close fence block and finalize content
-          const last = blocks[blocks.length - 1];
-          if (last) {
-            last.content = fenceContentLines.join("\n");
-            last.fenceState = "closed";
-          }
-          inFenceBlock = false;
-          fenceLevel = 0;
-          fenceContentLines = [];
-          continue;
-        }
-
-        // Collect fence content
-        fenceContentLines.push(afterBullet);
-        continue;
-      }
-
-      // Not in any special block - check for block triggers
-      if (isCodeFence && codeMatch) {
-        // Start code block
-        inCodeBlock = true;
-        codeLevel = level;
-        codeContentLines = [];
-        codeLanguage = codeMatch[1] || "";
-
-        const codeBlock = createBlock("", level);
-        codeBlock.kind = BLOCK_KINDS.CODE as "code";
-        codeBlock.fenceState = "open";
-        codeBlock.language = codeLanguage;
-        blocks.push(codeBlock);
-        continue;
-      }
-
-      if (isFenceDelimiter) {
-        // Start fence block
-        inFenceBlock = true;
-        fenceLevel = level;
-        fenceContentLines = [];
-
-        const fenceBlock = createBlock("", level);
-        fenceBlock.kind = BLOCK_KINDS.FENCE as "fence";
-        fenceBlock.fenceState = "open";
-        blocks.push(fenceBlock);
-        continue;
-      }
-
-      // Normal bullet block
-      const content = afterBullet;
-      blocks.push(createBlock(content, level));
-    }
-
-    // Auto-close any open special blocks
-    if (inCodeBlock) {
-      const last = blocks[blocks.length - 1];
-      if (last) {
-        last.content = codeContentLines.join("\n");
-        last.fenceState = "closed";
-      }
-    }
-
-    if (inFenceBlock) {
-      const last = blocks[blocks.length - 1];
-      if (last) {
-        last.content = fenceContentLines.join("\n");
-        last.fenceState = "closed";
-      }
-    }
-
-    return buildBlockTree(blocks);
-  } catch (error) {
-    debug.error("parseMarkdownToBlocks: parsing error", error);
-    return [createBlock("", 0)];
-  }
-}
-
-/**
  * Convert block tree to markdown text
  */
 export function blocksToMarkdown(
   blocks: Block[],
-  includeCollapsed = true,
+  includeCollapsed = true
 ): string {
   if (!Array.isArray(blocks)) {
     debug.error("blocksToMarkdown: blocks is not an array", blocks);
