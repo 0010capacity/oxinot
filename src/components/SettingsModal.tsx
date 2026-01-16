@@ -54,19 +54,19 @@ import {
   useThemeStore,
 } from "../stores/themeStore";
 
-const FONT_OPTIONS: Array<{ label: string; value: FontFamily }> = [
-  { label: "System Default", value: "system" },
-  { label: "Inter", value: "inter" },
-  { label: "SF Pro", value: "sf-pro" },
-  { label: "Roboto", value: "roboto" },
-  { label: "Open Sans", value: "open-sans" },
-  { label: "Lato", value: "lato" },
-  { label: "Source Sans Pro", value: "source-sans" },
-  { label: "Noto Sans", value: "noto-sans" },
-  { label: "IBM Plex Sans", value: "ibm-plex" },
-  { label: "JetBrains Mono", value: "jetbrains-mono" },
-  { label: "Fira Code", value: "fira-code" },
-  { label: "Cascadia Code", value: "cascadia" },
+const FONT_FAMILY_VALUES: FontFamily[] = [
+  "system",
+  "inter",
+  "sf-pro",
+  "roboto",
+  "open-sans",
+  "lato",
+  "source-sans",
+  "noto-sans",
+  "ibm-plex",
+  "jetbrains-mono",
+  "fira-code",
+  "cascadia",
 ];
 
 interface SettingsModalProps {
@@ -95,6 +95,29 @@ export function SettingsModal({
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("appearance");
+
+  // Build font options dynamically from i18n
+  const fontOptions: Array<{ label: string; value: FontFamily }> =
+    FONT_FAMILY_VALUES.map((value) => {
+      const keyMap: Record<string, string> = {
+        system: "system_default",
+        inter: "inter",
+        "sf-pro": "sf_pro",
+        roboto: "roboto",
+        "open-sans": "open_sans",
+        lato: "lato",
+        "source-sans": "source_sans",
+        "noto-sans": "noto_sans",
+        "ibm-plex": "ibm_plex",
+        "jetbrains-mono": "jetbrains_mono",
+        "fira-code": "fira_code",
+        cascadia: "cascadia",
+      };
+      return {
+        label: t(`settings.appearance.font_options.${keyMap[value]}`),
+        value: value as FontFamily,
+      };
+    });
 
   // Load app version from Tauri
   useEffect(() => {
@@ -541,7 +564,7 @@ export function SettingsModal({
                         onChange={(value) => {
                           if (value) setFontFamily(value as FontFamily);
                         }}
-                        data={FONT_OPTIONS}
+                        data={fontOptions}
                         placeholder={t("settings.appearance.font_family")}
                         searchable
                       />

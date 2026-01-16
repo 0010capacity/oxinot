@@ -16,6 +16,9 @@
     "confirm": "확인",
     "new_page": "새 페이지",
     "home": "홈",
+    "expand": "펼치기",
+    "collapse": "접기",
+    "untitled_block": "제목 없는 블록",
     "context_menu": {
       "add_child": "하위 페이지 추가",
       "rename": "이름 변경",
@@ -63,7 +66,21 @@
       "editor_font_size": "에디터 글꼴 크기",
       "editor_font_size_desc": "에디터의 글꼴 크기를 조정합니다",
       "editor_line_height": "에디터 줄 높이",
-      "editor_line_height_desc": "줄 간격을 조정합니다"
+      "editor_line_height_desc": "줄 간격을 조정합니다",
+      "font_options": {
+        "system_default": "시스템 기본값",
+        "inter": "Inter",
+        "sf_pro": "SF Pro",
+        "roboto": "Roboto",
+        "open_sans": "Open Sans",
+        "lato": "Lato",
+        "source_sans": "Source Sans Pro",
+        "noto_sans": "Noto Sans",
+        "ibm_plex": "IBM Plex Sans",
+        "jetbrains_mono": "JetBrains Mono",
+        "fira_code": "Fira Code",
+        "cascadia": "Cascadia Code"
+      }
     },
     "theme": {
       "title": "테마",
