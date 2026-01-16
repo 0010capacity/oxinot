@@ -28,6 +28,8 @@ import { useOutlinerSettingsStore } from "./stores/outlinerSettingsStore";
 import { usePageStore } from "./stores/pageStore";
 import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
 import { useWorkspaceStore } from "./stores/workspaceStore";
+import { useTranslation } from "react-i18next";
+import { useAppSettingsStore } from "./stores/appSettingsStore";
 
 import { useHomepage } from "./hooks/useHomepage";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -241,6 +243,23 @@ function AppContent({ workspacePath }: AppContentProps) {
 
 function App() {
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
+  const { i18n } = useTranslation();
+  const language = useAppSettingsStore((state) => state.language);
+  const setLanguage = useAppSettingsStore((state) => state.setLanguage);
+
+  useEffect(() => {
+    if (!language) {
+      // First run: detect system language
+      const systemLang = navigator.language;
+      const defaultLang = systemLang.startsWith("ko") ? "ko" : "en";
+
+      setLanguage(defaultLang);
+      i18n.changeLanguage(defaultLang);
+    } else if (i18n.language !== language) {
+      // Restore saved language if different from i18n
+      i18n.changeLanguage(language);
+    }
+  }, [language, setLanguage, i18n]);
 
   if (!workspacePath) {
     return (
