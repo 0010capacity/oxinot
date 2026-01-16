@@ -30,58 +30,97 @@ export function getInsertBelowTarget(
 }
 
 /**
- * Rebuilds the childrenMap for specified parent IDs.
- * Used after blocks are added, updated, or deleted.
+ * Efficiently updates childrenMap based on updated and deleted blocks.
+ * Avoids O(N) full traversal by only processing affected parents.
+ *
+ * NOTE: blocksById must still contain the blocks being deleted during this call
+ * if we want to find their parents, OR the caller must provide affected parent IDs.
  */
-export function rebuildChildrenMapForParents(
-  parentIds: Set<string>,
+export function updateChildrenMap(
+  childrenMap: Record<string, string[]>,
   blocksById: Record<string, BlockData>,
-  currentChildrenMap: Record<string, string[]>
-): Record<string, string[]> {
-  const updated = { ...currentChildrenMap };
-
-  for (const parentId of parentIds) {
-    const parentKey = parentId === "root" ? "root" : parentId;
-    updated[parentKey] = Object.values(blocksById)
-      .filter((b) => (b.parentId ?? "root") === parentKey)
-      .sort((a, b) => a.orderWeight - b.orderWeight)
-      .map((b) => b.id);
-  }
-
-  return updated;
-}
-
-/**
- * Collects affected parent IDs when blocks are updated or deleted.
- * This is needed to rebuild the childrenMap efficiently.
- */
-export function collectAffectedParentIds(
   updatedBlocks: BlockData[],
-  deletedBlockIds: string[] | undefined,
-  blocksById: Record<string, BlockData>
-): Set<string> {
+  deletedBlockIds: string[] = []
+): void {
   const affectedParentIds = new Set<string>();
 
-  // Add parents of updated/added blocks (including previous parent for moves)
-  for (const block of updatedBlocks) {
-    const existing = blocksById[block.id];
-    if (existing && existing.parentId !== block.parentId) {
-      affectedParentIds.add(existing.parentId ?? "root");
-    }
-    affectedParentIds.add(block.parentId ?? "root");
-  }
-
-  // Add parents of deleted blocks (BEFORE deleting them!)
-  if (deletedBlockIds) {
-    for (const id of deletedBlockIds) {
-      const block = blocksById[id];
-      if (block) {
-        affectedParentIds.add(block.parentId ?? "root");
+  // 1. Handle deleted blocks: remove from their parents
+  for (const id of deletedBlockIds) {
+    const block = blocksById[id];
+    if (block) {
+      const parentKey = block.parentId ?? "root";
+      if (childrenMap[parentKey]) {
+        childrenMap[parentKey] = childrenMap[parentKey].filter(
+          (cid) => cid !== id
+        );
+        affectedParentIds.add(parentKey);
       }
     }
+    // Also remove the deleted block's own children list
+    delete childrenMap[id];
   }
 
-  return affectedParentIds;
+  // 2. Handle updated/added blocks
+  for (const block of updatedBlocks) {
+    const existing = blocksById[block.id];
+    const newParentKey = block.parentId ?? "root";
+
+    if (existing) {
+      const oldParentKey = existing.parentId ?? "root";
+      if (oldParentKey !== newParentKey) {
+        // Parent changed: remove from old parent
+        if (childrenMap[oldParentKey]) {
+          childrenMap[oldParentKey] = childrenMap[oldParentKey].filter(
+            (cid) => cid !== block.id
+          );
+          affectedParentIds.add(oldParentKey);
+        }
+
+        // Add to new parent
+        if (!childrenMap[newParentKey]) {
+          childrenMap[newParentKey] = [];
+        }
+        if (!childrenMap[newParentKey].includes(block.id)) {
+          childrenMap[newParentKey].push(block.id);
+        }
+        affectedParentIds.add(newParentKey);
+      } else {
+        // Parent same, but orderWeight or other metadata might have changed
+        // Ensure it's in the list (might be new if it's the first time we see it)
+        if (!childrenMap[newParentKey]) {
+          childrenMap[newParentKey] = [];
+        }
+        if (!childrenMap[newParentKey].includes(block.id)) {
+          childrenMap[newParentKey].push(block.id);
+        }
+        affectedParentIds.add(newParentKey);
+      }
+    } else {
+      // New block: add to parent
+      if (!childrenMap[newParentKey]) {
+        childrenMap[newParentKey] = [];
+      }
+      if (!childrenMap[newParentKey].includes(block.id)) {
+        childrenMap[newParentKey].push(block.id);
+      }
+      affectedParentIds.add(newParentKey);
+    }
+  }
+
+  // 3. Re-sort children for affected parents
+  // Create a temporary map of updated weights for faster lookup during sort
+  const updatedWeights = new Map(updatedBlocks.map((b) => [b.id, b.orderWeight]));
+
+  for (const parentKey of affectedParentIds) {
+    const list = childrenMap[parentKey];
+    if (list) {
+      list.sort((a, b) => {
+        const wA = updatedWeights.get(a) ?? blocksById[a]?.orderWeight ?? 0;
+        const wB = updatedWeights.get(b) ?? blocksById[b]?.orderWeight ?? 0;
+        return wA - wB;
+      });
+    }
+  }
 }
 
 /**
