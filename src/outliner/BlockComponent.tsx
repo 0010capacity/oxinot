@@ -71,8 +71,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       typeof setTimeout
     > | null>(null);
 
-    const contextMenuSections: ContextMenuSection[] = useMemo(
-      () => [
+    const contextMenuSections: ContextMenuSection[] = useMemo(() => {
+      if (!block) return [];
+      return [
         {
           items: [
             {
@@ -102,9 +103,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             },
           ],
         },
-      ],
-      [block.content, blockId, deleteBlock, t]
-    );
+      ];
+    }, [block, blockId, deleteBlock, t]);
 
     // Text selection context menu
     const textSelectionSections: ContextMenuSection[] = useMemo(
@@ -192,11 +192,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     // Local draft is the immediate source of truth while editing.
     // This prevents controlled-value "ping-pong" that can break IME composition.
-    const [draft, setDraft] = useState<string>(block.content);
+    const [draft, setDraft] = useState<string>(block?.content || "");
 
     // Keep the latest draft in a ref so callbacks/keybindings can stay stable
     // (otherwise keybindings change every keystroke and the editor view gets recreated).
-    const draftRef = useRef<string>(block.content);
+    const draftRef = useRef<string>(block?.content || "");
 
     // Keep draft in sync when the underlying block changes (e.g., page load, external update)
     // but do not overwrite while this block is focused (editing session owns the draft),
