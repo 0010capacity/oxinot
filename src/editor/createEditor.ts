@@ -27,6 +27,7 @@ import {
   tooltips,
 } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-shell";
 
 import { useBlockStore } from "../stores/blockStore";
 import { usePageStore } from "../stores/pageStore";
@@ -1024,6 +1025,80 @@ function createWikiLinkClickHandler(
   });
 }
 
+function normalizeExternalUrl(rawUrl: string): string | null {
+  const url = rawUrl.trim();
+  if (!url) return null;
+  if (url.startsWith("#")) return null;
+
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("mailto:") ||
+    url.startsWith("tel:")
+  ) {
+    return url;
+  }
+
+  if (/^[^\s/]+\.[^\s/]+/.test(url)) {
+    return `https://${url}`;
+  }
+
+  return null;
+}
+
+function createExternalLinkClickHandler(): Extension {
+  const handleClick = (event: MouseEvent, view: EditorView) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return false;
+
+    const el = target.closest?.(".cm-link-text") as HTMLElement | null;
+    if (!el) return false;
+
+    // Prevent CM selection changes + browser default behaviors
+    event.preventDefault();
+    event.stopPropagation();
+
+    const pos = view.posAtDOM(el);
+    if (pos == null) return true;
+
+    const line = view.state.doc.lineAt(pos);
+    const lineText = line.text;
+
+    const offsetInLine = Math.max(
+      0,
+      Math.min(pos - line.from, lineText.length)
+    );
+
+    const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
+    let match: RegExpExecArray | null = linkRegex.exec(lineText);
+    let clickedUrl: string | null = null;
+
+    while (match !== null) {
+      const full = match[0];
+      const start = match.index;
+      const end = start + full.length;
+      if (offsetInLine >= start && offsetInLine <= end) {
+        clickedUrl = match[2] ?? "";
+        break;
+      }
+      match = linkRegex.exec(lineText);
+    }
+
+    const normalizedUrl = clickedUrl ? normalizeExternalUrl(clickedUrl) : null;
+    if (!normalizedUrl) return true;
+
+    open(normalizedUrl).catch((error) => {
+      console.error("Failed to open external link:", error);
+    });
+    return true;
+  };
+
+  return EditorView.domEventHandlers({
+    mousedown: handleClick,
+    click: handleClick,
+  });
+}
+
 /**
  * Create focus/blur listener extensions
  */
@@ -1201,6 +1276,9 @@ export function createEditor(
 
     // Wiki link click navigation
     createWikiLinkClickHandler(config.onOpenWikiLink),
+
+    // External markdown link click navigation
+    createExternalLinkClickHandler(),
 
     // Mousedown handler for immediate cursor positioning on unfocused editors
     createMouseDownHandler(),
