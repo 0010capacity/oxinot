@@ -10,6 +10,9 @@ import { Notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
 import "@mantine/notifications/styles.css";
 
+import { invoke } from "@tauri-apps/api/core";
+import { showToast } from "./utils/toast";
+
 // Prevent default context menu globally
 if (typeof window !== "undefined") {
   window.addEventListener("contextmenu", (e) => {
@@ -79,6 +82,8 @@ interface AppContentProps {
 }
 
 function AppContent({ workspacePath }: AppContentProps) {
+  const { t } = useTranslation();
+
   const { selectWorkspace } = useWorkspaceStore();
   const currentPageId = usePageStore((state) => state.currentPageId);
   const pagesById = usePageStore((state) => state.pagesById);
@@ -248,13 +253,50 @@ function AppContent({ workspacePath }: AppContentProps) {
       <HelpModal opened={helpOpened} onClose={() => setHelpOpened(false)} />
 
       {/* Settings Modal */}
-      <SettingsModal
-        opened={settingsOpened}
-        onClose={() => setSettingsOpened(false)}
-        workspacePath={workspacePath}
-        pagesById={pagesById}
-        pageIds={pageIds}
-      />
+            <SettingsModal
+              opened={settingsOpened}
+              onClose={() => setSettingsOpened(false)}
+              workspacePath={workspacePath}
+              pagesById={pagesById}
+              pageIds={pageIds}
+              vacuumDatabase={async () => {
+                if (workspacePath) {
+                  try {
+                    await invoke("vacuum_db", { workspacePath });
+                    showToast({
+                      message: t("settings.advanced.vacuum_db_success"),
+                      type: "success",
+                    });
+                  } catch (error) {
+                    showToast({
+                      message: t("settings.advanced.vacuum_db_error", {
+                        error: String(error),
+                      }),
+                      type: "error",
+                    });
+                  }
+                }
+              }}
+              optimizeDatabase={async () => {
+                if (workspacePath) {
+                  try {
+                    await invoke("optimize_db", { workspacePath });
+                    showToast({
+                      message: t("settings.advanced.optimize_db_success"),
+                      type: "success",
+                    });
+                  } catch (error) {
+                    showToast({
+                      message: t("settings.advanced.optimize_db_error", {
+                        error: String(error),
+                      }),
+                      type: "error",
+                    });
+                  }
+                }
+              }}
+              t={t}
+            />
 
       <Notifications />
       <ErrorNotifications />

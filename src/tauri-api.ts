@@ -222,6 +222,17 @@ export const tauriAPI = {
       { workspacePath }
     );
   },
+
+  // DB Maintenance
+  vacuumDb: async (workspacePath: string): Promise<void> => {
+    validatePath(workspacePath, "workspacePath");
+    return await invoke<void>("vacuum_db", { workspacePath });
+  },
+
+  optimizeDb: async (workspacePath: string): Promise<void> => {
+    validatePath(workspacePath, "workspacePath");
+    return await invoke<void>("optimize_db", { workspacePath });
+  },
 };
 
 // Export validation utilities for use in other modules

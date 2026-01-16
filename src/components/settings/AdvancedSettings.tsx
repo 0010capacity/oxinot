@@ -14,6 +14,8 @@ export function AdvancedSettings({
   setTelemetryEnabled,
   resetAllSettings,
   clearCache,
+  vacuumDatabase,
+  optimizeDatabase,
 }: AdvancedSettingsProps) {
   const { t } = useTranslation();
 
@@ -46,6 +48,67 @@ export function AdvancedSettings({
               >
                 {t("settings.advanced.clear_cache")}
               </Button>
+            </div>
+          )}
+
+          {matchesSearch("database maintenance vacuum optimize") && (
+            <div
+              style={{
+                padding: 16,
+                borderRadius: 6,
+                backgroundColor: "var(--color-bg-tertiary)",
+                borderLeft: "3px solid var(--color-accent)",
+              }}
+            >
+              <Text size="sm" fw={500} mb={12}>
+                {t("settings.advanced.database_maintenance")}
+              </Text>
+              <Stack gap="md">
+                <div>
+                  <Text size="sm" fw={500} mb={4}>
+                    {t("settings.advanced.vacuum_db_title")}
+                  </Text>
+                  <Text size="xs" c="dimmed" mb={8}>
+                    {t("settings.advanced.vacuum_db_desc")}
+                  </Text>
+                  <Button
+                    size="sm"
+                    variant="light"
+                    onClick={() => {
+                      if (
+                        window.confirm(t("settings.advanced.vacuum_db_confirm"))
+                      ) {
+                        vacuumDatabase();
+                      }
+                    }}
+                  >
+                    {t("settings.advanced.vacuum_db")}
+                  </Button>
+                </div>
+                <div>
+                  <Text size="sm" fw={500} mb={4}>
+                    {t("settings.advanced.optimize_db_title")}
+                  </Text>
+                  <Text size="xs" c="dimmed" mb={8}>
+                    {t("settings.advanced.optimize_db_desc")}
+                  </Text>
+                  <Button
+                    size="sm"
+                    variant="light"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          t("settings.advanced.optimize_db_confirm")
+                        )
+                      ) {
+                        optimizeDatabase();
+                      }
+                    }}
+                  >
+                    {t("settings.advanced.optimize_db")}
+                  </Button>
+                </div>
+              </Stack>
             </div>
           )}
 
