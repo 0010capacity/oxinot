@@ -144,7 +144,7 @@ fn save_workspace_settings(
 
 /// Initialize workspace: create metadata directory, DB, and settings
 #[tauri::command]
-pub async fn initialize_workspace(workspace_path: String) -> Result<WorkspaceSettings, String> {
+pub fn initialize_workspace(workspace_path: String) -> Result<WorkspaceSettings, String> {
     // Create metadata directory
     let _metadata_dir = get_workspace_metadata_dir(&workspace_path)?;
 
@@ -159,7 +159,7 @@ pub async fn initialize_workspace(workspace_path: String) -> Result<WorkspaceSet
 /// Sync workspace: scan all markdown files and sync with database
 /// This is the source of truth - filesystem drives the database
 #[tauri::command]
-pub async fn sync_workspace(workspace_path: String) -> Result<MigrationResult, String> {
+pub fn sync_workspace(workspace_path: String) -> Result<MigrationResult, String> {
     let conn = open_workspace_db(&workspace_path)?;
     let workspace_root = PathBuf::from(&workspace_path);
 
@@ -565,7 +565,7 @@ fn sync_or_create_file(
 /// - Track per-file mtime/size and only reindex changed pages
 /// - Or move incremental detection into the filesystem-driven engine
 #[tauri::command]
-pub async fn sync_workspace_incremental(workspace_path: String) -> Result<MigrationResult, String> {
+pub fn sync_workspace_incremental(workspace_path: String) -> Result<MigrationResult, String> {
     // Unify on the canonical filesystem-driven sync to ensure:
     // - Dir/Dir.md is never treated as a separate page node
     // - parent_id relationships are derived from directory structure consistently
@@ -575,7 +575,7 @@ pub async fn sync_workspace_incremental(workspace_path: String) -> Result<Migrat
     );
 
     // Reuse the same engine as full sync (no DB wipe here).
-    sync_workspace(workspace_path).await
+    sync_workspace(workspace_path)
 }
 
 /// Full reindex: delete all and rebuild from files
@@ -589,7 +589,7 @@ pub async fn sync_workspace_incremental(workspace_path: String) -> Result<Migrat
 /// full reindex should use the filesystem-driven sync, which treats Dir/Dir.md
 /// as the content source for the directory page (Notion-like).
 #[tauri::command]
-pub async fn reindex_workspace(workspace_path: String) -> Result<MigrationResult, String> {
+pub fn reindex_workspace(workspace_path: String) -> Result<MigrationResult, String> {
     let conn = open_workspace_db(&workspace_path)?;
 
     println!(
@@ -605,7 +605,7 @@ pub async fn reindex_workspace(workspace_path: String) -> Result<MigrationResult
 
     // Rebuild from filesystem using the canonical, filesystem-driven sync.
     // This ensures directory-notes (Dir/Dir.md) do not become duplicate pages.
-    let result = sync_workspace(workspace_path.clone()).await?;
+    let result = sync_workspace(workspace_path.clone())?;
 
     println!(
         "[reindex_workspace] Complete: {} pages indexed",
@@ -632,7 +632,7 @@ pub async fn close_workspace() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn reveal_in_finder(path: String) -> Result<(), String> {
+pub fn reveal_in_finder(path: String) -> Result<bool, String> {
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
@@ -664,5 +664,5 @@ pub async fn reveal_in_finder(path: String) -> Result<(), String> {
             .map_err(|e| format!("Failed to open file manager: {}", e))?;
     }
 
-    Ok(())
+    Ok(true)
 }

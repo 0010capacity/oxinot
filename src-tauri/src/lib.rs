@@ -28,7 +28,7 @@ pub struct PathInfo {
 }
 
 #[tauri::command]
-async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, String> {
+fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
 
     let folder = app
@@ -42,14 +42,13 @@ async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, Strin
 
         // Initialize workspace metadata (.oxinot folder)
         commands::workspace::initialize_workspace(path_str.clone())
-            .await
             .map_err(|e| format!("Failed to initialize workspace: {}", e))?;
 
         // Initialize git repository if not already initialized
-        let _ = commands::git::git_init(path_str.clone()).await;
+        let _ = commands::git::git_init(path_str.clone());
 
         // Run incremental sync to index workspace files
-        let _ = commands::workspace::sync_workspace_incremental(path_str.clone()).await;
+        let _ = commands::workspace::sync_workspace_incremental(path_str.clone());
 
         Ok(Some(path_str))
     } else {
@@ -58,7 +57,7 @@ async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, Strin
 }
 
 #[tauri::command]
-async fn read_directory(dir_path: String) -> Result<Vec<FileSystemItem>, String> {
+fn read_directory(dir_path: String) -> Result<Vec<FileSystemItem>, String> {
     let entries = fs::read_dir(&dir_path).map_err(|e| format!("Error reading directory: {}", e))?;
 
     let mut items = Vec::new();
@@ -101,18 +100,18 @@ async fn read_directory(dir_path: String) -> Result<Vec<FileSystemItem>, String>
 }
 
 #[tauri::command]
-async fn read_file(file_path: String) -> Result<String, String> {
+fn read_file(file_path: String) -> Result<String, String> {
     fs::read_to_string(&file_path).map_err(|e| format!("Error reading file: {}", e))
 }
 
 #[tauri::command]
-async fn write_file(file_path: String, content: String) -> Result<bool, String> {
+fn write_file(file_path: String, content: String) -> Result<bool, String> {
     fs::write(&file_path, content).map_err(|e| format!("Error writing file: {}", e))?;
     Ok(true)
 }
 
 #[tauri::command]
-async fn create_file(dir_path: String, file_name: String) -> Result<String, String> {
+fn create_file(dir_path: String, file_name: String) -> Result<String, String> {
     let file_path = PathBuf::from(&dir_path).join(&file_name);
 
     if file_path.exists() {
@@ -128,7 +127,7 @@ async fn create_file(dir_path: String, file_name: String) -> Result<String, Stri
 }
 
 #[tauri::command]
-async fn create_directory(parent_path: String, dir_name: String) -> Result<String, String> {
+fn create_directory(parent_path: String, dir_name: String) -> Result<String, String> {
     let dir_path = PathBuf::from(&parent_path).join(&dir_name);
 
     fs::create_dir_all(&dir_path).map_err(|e| format!("Error creating directory: {}", e))?;
@@ -147,7 +146,7 @@ async fn create_directory(parent_path: String, dir_name: String) -> Result<Strin
 }
 
 #[tauri::command]
-async fn delete_path(target_path: String) -> Result<bool, String> {
+fn delete_path(target_path: String) -> Result<bool, String> {
     let path = Path::new(&target_path);
     let metadata = fs::metadata(path).map_err(|e| format!("Error getting path info: {}", e))?;
 
@@ -161,7 +160,7 @@ async fn delete_path(target_path: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
-async fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bool, String> {
+fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bool, String> {
     // Delete from database first
     let conn = commands::workspace::open_workspace_db(&workspace_path)
         .map_err(|e| format!("Failed to open workspace database: {}", e))?;
@@ -207,7 +206,7 @@ async fn delete_path_with_db(workspace_path: String, target_path: String) -> Res
 }
 
 #[tauri::command]
-async fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
+fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
     let old = Path::new(&old_path);
     let parent = old
         .parent()
@@ -220,7 +219,7 @@ async fn rename_path(old_path: String, new_name: String) -> Result<String, Strin
 }
 
 #[tauri::command]
-async fn move_path(source_path: String, target_parent_path: String) -> Result<String, String> {
+fn move_path(source_path: String, target_parent_path: String) -> Result<String, String> {
     let source = Path::new(&source_path);
     let file_name = source
         .file_name()
@@ -239,7 +238,7 @@ async fn move_path(source_path: String, target_parent_path: String) -> Result<St
 }
 
 #[tauri::command]
-async fn convert_file_to_directory(file_path: String) -> Result<String, String> {
+fn convert_file_to_directory(file_path: String) -> Result<String, String> {
     let file = Path::new(&file_path);
 
     // Read the file content first
@@ -270,7 +269,7 @@ async fn convert_file_to_directory(file_path: String) -> Result<String, String> 
 }
 
 #[tauri::command]
-async fn get_path_info(target_path: String) -> Result<PathInfo, String> {
+fn get_path_info(target_path: String) -> Result<PathInfo, String> {
     let metadata =
         fs::metadata(&target_path).map_err(|e| format!("Error getting path info: {}", e))?;
 
