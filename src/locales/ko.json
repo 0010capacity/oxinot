@@ -1,6 +1,7 @@
 {
   "common": {
     "search": "검색",
+    "clear_search": "검색 지우기",
     "settings": "설정",
     "help": "도움말",
     "close": "닫기",

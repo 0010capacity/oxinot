@@ -407,6 +407,7 @@ export function SettingsModal({
                     size="xs"
                     p={0}
                     onClick={() => setSearchQuery("")}
+                    aria-label={t("common.clear_search")}
                   >
                     <IconX size={14} />
                   </Button>
