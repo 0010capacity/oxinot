@@ -367,10 +367,10 @@ fn check_and_convert_to_file(
         return Ok(());
     }
 
-    // Count children
+    // Count children (exclude soft-deleted)
     let child_count: i32 = conn
         .query_row(
-            "SELECT COUNT(*) FROM pages WHERE parent_id = ?",
+            "SELECT COUNT(*) FROM pages WHERE parent_id = ? AND is_deleted = 0",
             [page_id],
             |row| row.get(0),
         )

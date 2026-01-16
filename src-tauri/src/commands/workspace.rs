@@ -213,7 +213,7 @@ pub fn sync_workspace(workspace_path: String) -> Result<MigrationResult, String>
     // If found, we must wipe DB and force full reindex
     {
         let mut stmt = conn
-            .prepare("SELECT COUNT(*) FROM pages WHERE file_path IS NOT NULL AND (file_path LIKE '/%' OR file_path LIKE '%:\\%')")
+            .prepare("SELECT COUNT(*) FROM pages WHERE file_path IS NOT NULL AND (file_path LIKE '/%' OR file_path LIKE '%:\\%') AND is_deleted = 0")
             .map_err(|e| e.to_string())?;
 
         let has_absolute: i32 = stmt
@@ -239,7 +239,9 @@ pub fn sync_workspace(workspace_path: String) -> Result<MigrationResult, String>
         std::collections::HashMap::new();
     {
         let mut stmt = conn
-            .prepare("SELECT id, file_path FROM pages WHERE file_path IS NOT NULL")
+            .prepare(
+                "SELECT id, file_path FROM pages WHERE file_path IS NOT NULL AND is_deleted = 0",
+            )
             .map_err(|e| e.to_string())?;
 
         let pages = stmt
