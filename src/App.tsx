@@ -31,7 +31,7 @@ import { Updater } from "./components/Updater";
 import { SnowEffect } from "./components/SnowEffect";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 import { BlockEditor } from "./outliner/BlockEditor";
-import { useOutlinerSettingsStore } from "./stores/outlinerSettingsStore";
+
 import { usePageStore } from "./stores/pageStore";
 import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
 import { useWorkspaceStore } from "./stores/workspaceStore";
@@ -87,9 +87,10 @@ function AppContent({ workspacePath }: AppContentProps) {
   const breadcrumb = useBreadcrumb();
   const { showIndex, setWorkspaceName } = useViewStore();
 
-  const getFontStack = useOutlinerSettingsStore((state) => state.getFontStack);
+  const fontFamily = useThemeStore((state) => state.fontFamily);
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
+  const getFontStack = useThemeStore((state) => state.getFontStack);
 
   // Modal states
   const [settingsOpened, setSettingsOpened] = useState(false);
@@ -120,8 +121,11 @@ function AppContent({ workspacePath }: AppContentProps) {
 
   // Apply saved font, size, and line height settings on mount and when they change
   useEffect(() => {
-    const fontStack = getFontStack();
-    document.documentElement.style.setProperty("--font-family", fontStack);
+    // Explicitly use fontFamily to ensure updates when it changes
+    if (fontFamily) {
+      const fontStack = getFontStack();
+      document.documentElement.style.setProperty("--font-family", fontStack);
+    }
     document.documentElement.style.setProperty(
       "--editor-font-size",
       `${editorFontSize}px`
@@ -130,7 +134,7 @@ function AppContent({ workspacePath }: AppContentProps) {
       "--editor-line-height",
       `${editorLineHeight}`
     );
-  }, [getFontStack, editorFontSize, editorLineHeight]);
+  }, [fontFamily, editorFontSize, editorLineHeight, getFontStack]);
 
   const handleMigrationCancelWithWorkspace = () => {
     handleMigrationCancel();
