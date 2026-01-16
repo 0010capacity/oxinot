@@ -319,6 +319,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
       // Intercept Enter key during or after IME composition at DOM level (capture phase)
       const handleKeyDown = (e: KeyboardEvent) => {
+        // Clear IME flag on Space key - ensures normal text input after composition
+        if (e.key === " ") {
+          imeStateRef.current.lastInputWasComposition = false;
+        }
+
         // Determine if this Enter is IME-related by checking:
         // 1. Active composition (e.g., Japanese IME candidate selection)
         // 2. Last input was composition-based (e.g., Korean IME finished composition)
