@@ -1,6 +1,7 @@
 {
   "common": {
     "search": "Search",
+    "clear_search": "Clear search",
     "settings": "Settings",
     "help": "Help",
     "close": "Close",
