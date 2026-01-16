@@ -580,26 +580,46 @@ pub async fn update_block(
 pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Vec<String>, String> {
     let conn = open_workspace_db(&workspace_path)?;
 
-    // Get page_id before deletion
-    let page_id: String = conn
+    // Get page_id and parent_id before deletion
+    let (page_id, parent_id, order_weight): (String, Option<String>, String) = conn
         .query_row(
-            "SELECT page_id FROM blocks WHERE id = ?",
+            "SELECT page_id, parent_id, order_weight FROM blocks WHERE id = ?",
             [&block_id],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .map_err(|e| e.to_string())?;
 
-    // Collect all descendant IDs
-    let deleted_ids = collect_descendant_ids(&conn, &block_id)?;
+    // Get all direct children of the block to be deleted
+    let mut stmt = conn
+        .prepare("SELECT id FROM blocks WHERE parent_id = ? ORDER BY order_weight")
+        .map_err(|e| e.to_string())?;
 
-    // Delete the block and all descendants (CASCADE from schema)
+    let children: Vec<String> = stmt
+        .query_map([&block_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<String>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+
+    // Move children to the deleted block's parent (merge/promote children)
+    for child_id in children {
+        conn.execute(
+            "UPDATE blocks SET parent_id = ?, updated_at = ? WHERE id = ?",
+            params![&parent_id, &now, &child_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    // Delete only the target block (children are now preserved and promoted)
     conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
         .map_err(|e| e.to_string())?;
 
-    // Sync to markdown file (allow targeted patching for this delete; may fall back to full rewrite)
+    // Sync to markdown file
     sync_page_to_markdown_after_delete(&conn, &workspace_path, &page_id, block_id.as_str())?;
 
-    Ok(deleted_ids)
+    // Return only the deleted block ID (not descendants since they're preserved)
+    Ok(vec![block_id])
 }
 
 // NOTE: Page-to-markdown sync is implemented in `utils/page_sync.rs` as a shared helper.
@@ -852,7 +872,7 @@ pub async fn merge_blocks(
 
     // Updated target block (merged)
     let updated_target = get_block_by_id(&conn, &target_block.id)?;
-    
+
     // Index wiki links for merged target block
     wiki_link_index::index_block_links(
         &conn,

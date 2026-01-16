@@ -1,6 +1,7 @@
 import { Menu } from "@mantine/core";
 import type React from "react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { create } from "zustand";
 
 export interface ContextMenuItem {
   label: string;
@@ -13,6 +14,17 @@ export interface ContextMenuItem {
 export interface ContextMenuSection {
   items: ContextMenuItem[];
 }
+
+// Global state to ensure only one context menu is open at a time
+interface ContextMenuState {
+  openMenuId: string | null;
+  setOpenMenuId: (id: string | null) => void;
+}
+
+const useContextMenuStore = create<ContextMenuState>((set) => ({
+  openMenuId: null,
+  setOpenMenuId: (id) => set({ openMenuId: id }),
+}));
 
 interface ContextMenuProps {
   children: React.ReactNode;
@@ -31,39 +43,80 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   className,
   style,
 }) => {
-  const [opened, setOpened] = useState(false);
+  const menuId = useRef(`context-menu-${Math.random()}`).current;
+  const openMenuId = useContextMenuStore((state) => state.openMenuId);
+  const setOpenMenuId = useContextMenuStore((state) => state.setOpenMenuId);
+  const opened = openMenuId === menuId;
+
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const [activeSections, setActiveSections] =
     useState<ContextMenuSection[]>(sections);
+  const savedSelectionRef = useRef<{
+    text: string;
+    ranges: Range[];
+  } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleOpenChange = useCallback(
+    (isOpen: boolean) => {
+      if (isOpen) {
+        setOpenMenuId(menuId);
+      } else if (openMenuId === menuId) {
+        setOpenMenuId(null);
+      }
+    },
+    [menuId, openMenuId, setOpenMenuId]
+  );
+
+  // Save selection on mousedown before browser can change it
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button === 2 && containerRef.current?.contains(e.target as Node)) {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const ranges: Range[] = [];
+          for (let i = 0; i < selection.rangeCount; i++) {
+            ranges.push(selection.getRangeAt(i).cloneRange());
+          }
+          savedSelectionRef.current = {
+            text: selection.toString(),
+            ranges,
+          };
+          console.log(
+            "[ContextMenu] Saved selection on mousedown:",
+            savedSelectionRef.current.text
+          );
+        } else {
+          savedSelectionRef.current = null;
+          console.log("[ContextMenu] No selection on mousedown");
+        }
+      }
+    };
+
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, []);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
-      // Check if there's selected text (not just cursor position)
-      const selection = window.getSelection();
+      // Use the saved selection from mousedown, not the current one
+      const savedSelection = savedSelectionRef.current;
       let hasSelection = false;
 
       console.log("[ContextMenu] Right-click detected");
-      console.log("[ContextMenu] selection:", selection);
-      console.log("[ContextMenu] selection.rangeCount:", selection?.rangeCount);
+      console.log("[ContextMenu] savedSelection:", savedSelection);
 
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        console.log("[ContextMenu] range.collapsed:", range.collapsed);
-        console.log("[ContextMenu] selected text:", selection.toString());
-        // collapsed means it's just a cursor, not a selection
-        if (!range.collapsed) {
-          const selectedText = selection.toString().trim();
-          hasSelection = selectedText.length > 0;
-          console.log(
-            "[ContextMenu] hasSelection:",
-            hasSelection,
-            "text:",
-            selectedText
-          );
-        }
+      if (savedSelection && savedSelection.text.trim().length > 0) {
+        hasSelection = true;
+        console.log(
+          "[ContextMenu] hasSelection:",
+          hasSelection,
+          "text:",
+          savedSelection.text
+        );
       }
 
       console.log("[ContextMenu] Final hasSelection:", hasSelection);
@@ -87,9 +140,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       }
 
       setCoords({ x: e.clientX, y: e.clientY });
-      setOpened(true);
+      setOpenMenuId(menuId);
     },
-    [sections, textSelectionSections]
+    [sections, textSelectionSections, menuId, setOpenMenuId]
   );
 
   if (disabled) {
@@ -99,6 +152,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   return (
     <>
       <div
+        ref={containerRef}
         className={className}
         style={{ position: "relative", ...style }}
         onContextMenuCapture={handleContextMenu}
@@ -108,7 +162,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
       <Menu
         opened={opened}
-        onChange={setOpened}
+        onChange={handleOpenChange}
         shadow="md"
         width={200}
         // Use a portal to ensure it renders at body level, avoiding z-index issues
@@ -146,7 +200,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     item.onClick();
-                    setOpened(false);
+                    setOpenMenuId(null);
                   }}
                   disabled={item.disabled}
                 >
