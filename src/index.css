@@ -337,9 +337,9 @@ span.cm-wiki-link,
   border-radius: 8px;
 
   /* Make it easier to read against varying backgrounds */
-  background: var(--color-surface, rgba(20, 20, 20, 0.95));
+  background: var(--color-bg-elevated);
   border: 1px solid var(--color-border-primary);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-lg);
 
   /* Ensure the list doesn't get squeezed */
   padding: 4px;
