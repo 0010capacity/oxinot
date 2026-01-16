@@ -63,19 +63,36 @@ export const useGitManagement = (
 
   // Initialize Git on workspace load
   useEffect(() => {
-    if (!workspacePath) return;
+    logger.info("Init effect triggered", { workspacePath });
+
+    if (!workspacePath) {
+      logger.info("Init effect: no workspacePath, returning");
+      return;
+    }
 
     const initializeGit = async () => {
       try {
+        logger.info("Initializing git", { workspacePath });
         await initGit(workspacePath);
+        logger.info("Git initialized, checking status", { workspacePath });
         await checkGitStatus(workspacePath);
+        logger.info("Git status checked", { workspacePath });
       } catch (error) {
-        console.error("[useGitManagement] Failed to initialize git:", error);
+        logger.error("Failed to initialize git", error);
       }
     };
 
     initializeGit();
   }, [workspacePath, initGit, checkGitStatus]);
+
+  // Track isGitRepo state changes to debug watcher initialization
+  useEffect(() => {
+    logger.info("isGitRepo state changed", {
+      isGitRepo,
+      workspacePath,
+      timestamp: new Date().toISOString(),
+    });
+  }, [isGitRepo, workspacePath]);
 
   // File system watcher: detect changes and check git status
   // Uses debounced watcher to batch multiple file changes
