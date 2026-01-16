@@ -11,26 +11,35 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use uuid::Uuid;
 
-/// Compute workspace-relative path from absolute path
-/// Example: /home/user/repo/Test4/File.md with workspace /home/user/repo
-/// Returns: "Test4/File.md" (always uses `/` separators)
+/// Compute workspace-relative path from absolute path.
+///
+/// Uses `Path::strip_prefix()` for safe, cross-platform relative path computation.
+/// Converts path separators to forward slashes (/) for consistent storage in database.
+///
+/// # Arguments
+/// * `abs_path` - Absolute path to convert
+/// * `workspace_root` - Root of the workspace
+///
+/// # Returns
+/// Workspace-relative path with forward slash separators, or error if path is outside workspace.
+///
+/// # Example
+/// - Input: `/home/user/repo/Test4/File.md`, workspace: `/home/user/repo`
+/// - Output: `Test4/File.md`
 fn compute_rel_path(abs_path: &Path, workspace_root: &Path) -> Result<String, String> {
-    abs_path
-        .strip_prefix(workspace_root)
-        .map_err(|_| {
-            format!(
-                "Path {:?} is not under workspace root {:?}",
-                abs_path, workspace_root
-            )
-        })
-        .and_then(|rel| {
-            rel.to_str()
-                .map(|s| {
-                    // Convert backslashes to forward slashes for cross-platform consistency
-                    s.replace('\\', "/")
-                })
-                .ok_or_else(|| "Path contains invalid UTF-8".to_string())
-        })
+    // Use strip_prefix for safe cross-platform path handling
+    let rel_path = abs_path.strip_prefix(workspace_root).map_err(|_| {
+        format!(
+            "Path {:?} is not under workspace root {:?}",
+            abs_path, workspace_root
+        )
+    })?;
+
+    // Convert path to string with forward slashes (consistent across all platforms)
+    rel_path
+        .to_str()
+        .ok_or_else(|| "Path contains invalid UTF-8".to_string())
+        .map(|s| s.replace('\\', "/"))
 }
 
 #[derive(Debug, Serialize, Deserialize)]
