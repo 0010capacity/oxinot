@@ -81,30 +81,31 @@ export function AppearanceSettings({
               <Text size="sm" fw={500} mb={8}>
                 {t("settings.appearance.editor_font_size")}
               </Text>
-              <Group gap="md" align="center">
-                <Slider
-                  value={editorFontSize}
-                  onChange={setEditorFontSize}
-                  min={12}
-                  max={24}
-                  step={1}
-                  marks={[
-                    { value: 12, label: "12" },
-                    { value: 16, label: "16" },
-                    { value: 20, label: "20" },
-                    { value: 24, label: "24" },
-                  ]}
-                  style={{ flex: 1 }}
-                />
+              <Group gap="md" align="flex-start">
+                <div style={{ flex: 1 }}>
+                  <Slider
+                    value={editorFontSize}
+                    onChange={setEditorFontSize}
+                    min={12}
+                    max={24}
+                    step={1}
+                    marks={[
+                      { value: 12, label: "12" },
+                      { value: 16, label: "16" },
+                      { value: 20, label: "20" },
+                      { value: 24, label: "24" },
+                    ]}
+                  />
+                </div>
                 <Text
                   size="sm"
                   fw={500}
-                  style={{ minWidth: 50, textAlign: "right" }}
+                  style={{ minWidth: 50, textAlign: "right", marginTop: 8 }}
                 >
                   {editorFontSize}px
                 </Text>
               </Group>
-              <Text size="xs" c="dimmed" mt={4}>
+              <Text size="xs" c="dimmed" mt={12}>
                 {t("settings.appearance.editor_font_size_desc")}
               </Text>
             </div>
