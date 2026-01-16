@@ -72,7 +72,7 @@ This ensures workflow commits are never processed as changes needing changesets.
 
 When the `changesets/action` created and merged a "chore: Version Packages" PR (which bumps the version in `package.json`), the `release.yml` workflow had a step to create a git tag. However, this step only ran if `steps.changesets.outputs.published == 'true'`.
 
-The issue: The changesets action was configured with `publish: echo "Changesets processed"`, which doesn't actually publish anything. The `published` output is only set to `true` when the action actually publishes releases. Since we only wanted to create a PR (not publish), the `published` output was always `false`, and the tag creation step never ran.
+The issue: The changesets action's `publish` parameter doesn't support `false` as a value in changesets/action@v1. By default, when the `publish` parameter is omitted, the action only creates a PR without publishing. The `published` output is only set to `true` when using a valid publish command that actually publishes releases. Since we only wanted to create a PR (not publish), we needed to omit the `publish` parameter entirely.
 
 Without the tag:
 - The tag that should be created was missing
@@ -84,12 +84,25 @@ Without the tag:
 
 The release workflow had two logical flaws:
 
-1. **Unclear publish configuration**: Using `publish: echo "Changesets processed"` was a workaround that didn't properly indicate intent
+1. **Invalid publish configuration**: Using `publish: false` is not valid syntax for changesets/action@v1. The action treats any value (including "false") as a command to execute, causing it to fail with "The process '/usr/bin/false' failed with exit code 1"
 2. **Tag creation dependency**: The tag creation step depended on a `published` output that would never be true for our workflow
 
 ### Solution
 
-Restructured the release workflow with a separate `create-version-tag` job that:
+Two changes were needed:
+
+**First:** Remove the invalid `publish` parameter. By omitting it, the action correctly skips publishing and only creates/updates a PR.
+
+```yaml
+uses: changesets/action@v1
+with:
+  version: npm run version
+  # Omit 'publish' parameter to skip publishing
+  title: "chore: Version Packages"
+  createGithubReleases: false
+```
+
+**Second:** Create a separate `create-version-tag` job that runs independently on main pushes (not dependent on the action's `published` output). This job:
 
 1. Runs independently on main pushes (in parallel with the `changeset` job)
 2. Detects when the version has been bumped by checking:
@@ -143,6 +156,7 @@ This approach is:
 - **Safe**: Checks that tag doesn't already exist before creating
 - **Clear**: Explicitly detects version bump commits
 - **Automatic**: Requires no additional manual steps
+- **Valid**: Uses only valid changesets/action parameters
 
 ## Updated Workflow Flow
 
