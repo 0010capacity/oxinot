@@ -1,5 +1,51 @@
 import { invoke } from "@tauri-apps/api/core";
 
+// Input validation utilities
+const validatePath = (path: string, paramName: string): void => {
+  if (!path || typeof path !== "string") {
+    throw new Error(`${paramName} must be a non-empty string`);
+  }
+  // Prevent path traversal attempts
+  if (path.includes("..")) {
+    throw new Error(`${paramName} contains invalid path traversal sequence`);
+  }
+};
+
+const validateFileName = (fileName: string): void => {
+  if (!fileName || typeof fileName !== "string") {
+    throw new Error("fileName must be a non-empty string");
+  }
+  // Check for path separators
+  if (fileName.includes("/") || fileName.includes("\\")) {
+    throw new Error("fileName must not contain path separators");
+  }
+  // Check for illegal characters (common across platforms)
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally checking for control characters
+  const illegalChars = /[<>:"|?*\x00-\x1f]/;
+  if (illegalChars.test(fileName)) {
+    throw new Error("fileName contains illegal characters");
+  }
+};
+
+const validateUrl = (url: string): void => {
+  try {
+    const parsed = new URL(url);
+    // Only allow safe schemes
+    const allowedSchemes = ["http:", "https:", "mailto:"];
+    if (!allowedSchemes.includes(parsed.protocol)) {
+      throw new Error(
+        `URL scheme '${
+          parsed.protocol
+        }' is not allowed. Only ${allowedSchemes.join(", ")} are permitted`
+      );
+    }
+  } catch (e) {
+    throw new Error(
+      `Invalid URL: ${e instanceof Error ? e.message : String(e)}`
+    );
+  }
+};
+
 export interface FileSystemItem {
   name: string;
   path: string;
@@ -69,18 +115,23 @@ export const tauriAPI = {
 
   // File system operations
   readDirectory: async (dirPath: string): Promise<FileSystemItem[]> => {
+    validatePath(dirPath, "dirPath");
     return await invoke<FileSystemItem[]>("read_directory", { dirPath });
   },
 
   readFile: async (filePath: string): Promise<string> => {
+    validatePath(filePath, "filePath");
     return await invoke<string>("read_file", { filePath });
   },
 
   writeFile: async (filePath: string, content: string): Promise<boolean> => {
+    validatePath(filePath, "filePath");
     return await invoke<boolean>("write_file", { filePath, content });
   },
 
   createFile: async (dirPath: string, fileName: string): Promise<string> => {
+    validatePath(dirPath, "dirPath");
+    validateFileName(fileName);
     return await invoke<string>("create_file", { dirPath, fileName });
   },
 
@@ -88,10 +139,13 @@ export const tauriAPI = {
     parentPath: string,
     dirName: string
   ): Promise<string> => {
+    validatePath(parentPath, "parentPath");
+    validateFileName(dirName);
     return await invoke<string>("create_directory", { parentPath, dirName });
   },
 
   deletePath: async (targetPath: string): Promise<boolean> => {
+    validatePath(targetPath, "targetPath");
     return await invoke<boolean>("delete_path", { targetPath });
   },
 
@@ -99,6 +153,8 @@ export const tauriAPI = {
     workspacePath: string,
     targetPath: string
   ): Promise<boolean> => {
+    validatePath(workspacePath, "workspacePath");
+    validatePath(targetPath, "targetPath");
     return await invoke<boolean>("delete_path_with_db", {
       workspacePath,
       targetPath,
@@ -106,6 +162,8 @@ export const tauriAPI = {
   },
 
   renamePath: async (oldPath: string, newName: string): Promise<string> => {
+    validatePath(oldPath, "oldPath");
+    validateFileName(newName);
     return await invoke<string>("rename_path", { oldPath, newName });
   },
 
@@ -113,14 +171,18 @@ export const tauriAPI = {
     sourcePath: string,
     targetParentPath: string
   ): Promise<string> => {
+    validatePath(sourcePath, "sourcePath");
+    validatePath(targetParentPath, "targetParentPath");
     return await invoke<string>("move_path", { sourcePath, targetParentPath });
   },
 
   convertFileToDirectory: async (filePath: string): Promise<string> => {
+    validatePath(filePath, "filePath");
     return await invoke<string>("convert_file_to_directory", { filePath });
   },
 
   getPathInfo: async (targetPath: string): Promise<PathInfo> => {
+    validatePath(targetPath, "targetPath");
     return await invoke<PathInfo>("get_path_info", { targetPath });
   },
 
@@ -130,6 +192,9 @@ export const tauriAPI = {
     fromPath: string,
     toPath: string
   ): Promise<number> => {
+    validatePath(workspacePath, "workspacePath");
+    validatePath(fromPath, "fromPath");
+    validatePath(toPath, "toPath");
     return await invoke<number>("rewrite_wiki_links_for_page_path_change", {
       workspacePath,
       fromPath,
@@ -141,6 +206,7 @@ export const tauriAPI = {
   syncWorkspaceIncremental: async (
     workspacePath: string
   ): Promise<{ pages: number; blocks: number }> => {
+    validatePath(workspacePath, "workspacePath");
     return await invoke<{ pages: number; blocks: number }>(
       "sync_workspace_incremental",
       { workspacePath }
@@ -150,9 +216,13 @@ export const tauriAPI = {
   reindexWorkspace: async (
     workspacePath: string
   ): Promise<{ pages: number; blocks: number }> => {
+    validatePath(workspacePath, "workspacePath");
     return await invoke<{ pages: number; blocks: number }>(
       "reindex_workspace",
       { workspacePath }
     );
   },
 };
+
+// Export validation utilities for use in other modules
+export { validatePath, validateFileName, validateUrl };

@@ -1,9 +1,16 @@
-//! Path normalization utilities for consistent handling of file paths across the codebase.
+//! Path normalization and security validation utilities for consistent handling of file paths across the codebase.
 //!
 //! Ensures all page paths are normalized to:
 //! - Forward slashes (/) instead of backslashes (\)
 //! - No .md extension
 //! - Workspace-relative (not absolute)
+//!
+//! Security features:
+//! - Path traversal prevention (blocking ../ sequences)
+//! - Workspace containment validation
+//! - Filename sanitization
+
+use std::path::PathBuf;
 
 /// Normalize a file path to standard format.
 ///
@@ -37,6 +44,117 @@ pub fn normalize_page_path(path: &str) -> String {
     } else {
         normalized
     }
+}
+
+/// Validates that a path does not contain path traversal sequences.
+///
+/// Blocks attempts to escape directories using `..` components.
+///
+/// # Arguments
+/// * `path` - The path string to validate
+/// * `param_name` - Name of the parameter (for error messages)
+///
+/// # Returns
+/// `Ok(())` if the path is safe, `Err(String)` with error message if validation fails.
+///
+/// # Examples
+/// ```
+/// assert!(validate_no_path_traversal("folder/file.md", "path").is_ok());
+/// assert!(validate_no_path_traversal("../etc/passwd", "path").is_err());
+/// ```
+pub fn validate_no_path_traversal(path: &str, param_name: &str) -> Result<(), String> {
+    if path.is_empty() {
+        return Err(format!("{} must not be empty", param_name));
+    }
+
+    // Check for explicit .. components
+    if path.contains("..") {
+        return Err(format!(
+            "{} contains invalid path traversal sequence (..)",
+            param_name
+        ));
+    }
+
+    Ok(())
+}
+
+/// Validates that a path is contained within a workspace directory.
+///
+/// Ensures the resolved absolute path stays within the workspace boundaries.
+///
+/// # Arguments
+/// * `workspace_path` - The workspace root directory
+/// * `target_path` - The path to validate
+///
+/// # Returns
+/// `Ok(())` if the path is contained within workspace, `Err(String)` otherwise.
+pub fn validate_workspace_containment(
+    workspace_path: &str,
+    target_path: &str,
+) -> Result<(), String> {
+    let workspace = PathBuf::from(workspace_path)
+        .canonicalize()
+        .map_err(|e| format!("Invalid workspace path: {}", e))?;
+
+    let target = PathBuf::from(target_path)
+        .canonicalize()
+        .map_err(|e| format!("Invalid target path: {}", e))?;
+
+    if !target.starts_with(&workspace) {
+        return Err("Path is outside workspace boundaries".to_string());
+    }
+
+    Ok(())
+}
+
+/// Validates a filename for illegal characters and path separators.
+///
+/// Prevents directory traversal and OS-specific illegal characters.
+///
+/// # Arguments
+/// * `filename` - The filename to validate
+///
+/// # Returns
+/// `Ok(())` if filename is valid, `Err(String)` with error message if validation fails.
+///
+/// # Examples
+/// ```
+/// assert!(validate_filename("document.md").is_ok());
+/// assert!(validate_filename("../secret.md").is_err());
+/// assert!(validate_filename("file/name.md").is_err());
+/// ```
+pub fn validate_filename(filename: &str) -> Result<(), String> {
+    if filename.is_empty() {
+        return Err("Filename must not be empty".to_string());
+    }
+
+    // Check for path separators
+    if filename.contains('/') || filename.contains('\\') {
+        return Err("Filename must not contain path separators".to_string());
+    }
+
+    // Check for illegal characters (common across Windows, macOS, Linux)
+    // < > : " | ? * and control characters (0x00-0x1F)
+    for ch in filename.chars() {
+        if matches!(ch, '<' | '>' | ':' | '"' | '|' | '?' | '*') || ch.is_ascii_control() {
+            return Err(format!("Filename contains illegal character: '{}'", ch));
+        }
+    }
+
+    // Check for reserved names on Windows
+    let name_upper = filename.to_uppercase();
+    let reserved = [
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    ];
+
+    for reserved_name in &reserved {
+        if name_upper == *reserved_name || name_upper.starts_with(&format!("{}.", reserved_name)) {
+            return Err(format!("Filename uses reserved name: {}", reserved_name));
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -84,5 +202,59 @@ mod tests {
     #[test]
     fn test_normalize_empty_string() {
         assert_eq!(normalize_page_path(""), "");
+    }
+
+    #[test]
+    fn test_validate_no_path_traversal_valid() {
+        assert!(validate_no_path_traversal("folder/file.md", "path").is_ok());
+        assert!(validate_no_path_traversal("a/b/c/file.md", "path").is_ok());
+    }
+
+    #[test]
+    fn test_validate_no_path_traversal_invalid() {
+        assert!(validate_no_path_traversal("../etc/passwd", "path").is_err());
+        assert!(validate_no_path_traversal("folder/../../../etc/passwd", "path").is_err());
+        assert!(validate_no_path_traversal("..", "path").is_err());
+    }
+
+    #[test]
+    fn test_validate_no_path_traversal_empty() {
+        assert!(validate_no_path_traversal("", "path").is_err());
+    }
+
+    #[test]
+    fn test_validate_filename_valid() {
+        assert!(validate_filename("document.md").is_ok());
+        assert!(validate_filename("My File.txt").is_ok());
+        assert!(validate_filename("file-name_123.md").is_ok());
+    }
+
+    #[test]
+    fn test_validate_filename_invalid_separators() {
+        assert!(validate_filename("folder/file.md").is_err());
+        assert!(validate_filename("folder\\file.md").is_err());
+        assert!(validate_filename("../file.md").is_err());
+    }
+
+    #[test]
+    fn test_validate_filename_invalid_characters() {
+        assert!(validate_filename("file<name>.md").is_err());
+        assert!(validate_filename("file:name.md").is_err());
+        assert!(validate_filename("file|name.md").is_err());
+        assert!(validate_filename("file?name.md").is_err());
+        assert!(validate_filename("file*name.md").is_err());
+    }
+
+    #[test]
+    fn test_validate_filename_reserved_names() {
+        assert!(validate_filename("CON").is_err());
+        assert!(validate_filename("con.txt").is_err());
+        assert!(validate_filename("PRN.md").is_err());
+        assert!(validate_filename("AUX").is_err());
+    }
+
+    #[test]
+    fn test_validate_filename_empty() {
+        assert!(validate_filename("").is_err());
     }
 }
