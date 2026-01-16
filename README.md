@@ -121,18 +121,10 @@ The interface is inspired by modern note-taking apps with a clean, minimal desig
 
 ```
 oxinot/
-├── src/                      # React frontend
-│   ├── components/           # UI components
-│   │   └── FileTreeView.tsx  # File tree outliner view
-│   ├── contexts/             # React contexts
-│   │   └── WorkspaceContext.tsx  # Workspace state management
-│   ├── outliner/             # Block editor implementation
-│   │   ├── BlockEditor.tsx   # Main editor component
-│   │   ├── types.ts          # Block type definitions
-│   │   └── blockUtils.ts     # Block manipulation utilities
-│   ├── App.tsx               # Main app component
-│   ├── tauri-api.ts          # Tauri backend API wrapper
-│   └── index.css             # Global styles
+├── src/
+│   ├── components/       # UI Components
+│   ├── stores/           # Zustand state stores
+│   ├── utils/            # Helper functions
 ├── src-tauri/                # Rust backend
 │   ├── src/
 │   │   └── lib.rs            # File system commands
