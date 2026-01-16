@@ -140,6 +140,15 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
     keymap.of([
       ...(config.keybindings ?? []),
 
+      // Force insert Space to bypass any blockers (completion keymap, IME artifacts, etc)
+      {
+        key: "Space",
+        run: (view) => {
+          view.dispatch(view.state.replaceSelection(" "));
+          return true;
+        },
+      },
+
       // Custom backspace handler for [[ ]], (( )), ![[  ]], !(( )) pairs
       {
         key: "Backspace",
@@ -800,7 +809,7 @@ function createUnifiedLinkAutocomplete(): Extension {
     // Keep exactly one autocompletion extension and combine sources here to avoid:
     // "Config merge conflict for field override"
     override: [wikiSource, blockSource],
-    defaultKeymap: true,
+    defaultKeymap: false, // Disable default keymap to prevent Space from closing completion
     activateOnTyping: true,
 
     // Render the tooltip into a fixed-position portal so it can't be clipped by
