@@ -16,7 +16,6 @@
     "updater:allow-install",
     "updater:allow-download-and-install",
     "process:default",
-    "shell:allow-open",
-    "fs:allow-watch"
+    "shell:allow-open"
   ]
 }
