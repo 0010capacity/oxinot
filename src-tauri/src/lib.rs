@@ -386,10 +386,11 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            select_workspace,
+            select_workspace, // Renamed to avoid conflict
             read_directory,
             read_file,
             write_file,
@@ -431,6 +432,9 @@ pub fn run() {
             commands::workspace::sync_workspace,
             commands::workspace::sync_workspace_incremental,
             commands::workspace::reindex_workspace,
+            // DB maintenance commands
+            commands::db::vacuum_db,
+            commands::db::optimize_db,
             // Search commands
             commands::search::search_content,
             // Git commands

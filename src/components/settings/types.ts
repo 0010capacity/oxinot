@@ -99,6 +99,8 @@ export interface AdvancedSettingsProps extends SettingsComponentProps {
   setTelemetryEnabled: (enabled: boolean) => void;
   resetAllSettings: () => void;
   clearCache: () => void;
+  vacuumDatabase: () => void;
+  optimizeDatabase: () => void;
 }
 
 export interface AboutSettingsProps extends SettingsComponentProps {

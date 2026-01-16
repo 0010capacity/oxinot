@@ -25,6 +25,7 @@ import {
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import { useAdvancedSettingsStore } from "../stores/advancedSettingsStore";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
 import { useClockFormatStore } from "../stores/clockFormatStore";
@@ -64,6 +65,9 @@ interface SettingsModalProps {
   workspacePath: string | null;
   pagesById: Record<string, { id: string; title: string }>;
   pageIds: string[];
+  vacuumDatabase: () => Promise<void>;
+  optimizeDatabase: () => Promise<void>;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }
 
 export function SettingsModal({
@@ -72,6 +76,9 @@ export function SettingsModal({
   workspacePath,
   pagesById,
   pageIds,
+  vacuumDatabase,
+  optimizeDatabase,
+  t: tFromProps, // Rename t prop to tFromProps to avoid conflict with useTranslation's t
 }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
@@ -324,8 +331,13 @@ export function SettingsModal({
         "check updates",
         t("settings.advanced.telemetry").toLowerCase(),
         t("settings.advanced.developer_options").toLowerCase(),
-        t("settings.advanced.reset_settings").toLowerCase(),
+        "reset settings",
         "danger",
+        "database",
+        "vacuum",
+        "optimize",
+        t("settings.advanced.vacuum_db_title").toLowerCase(),
+        t("settings.advanced.optimize_db_title").toLowerCase(),
       ],
       about: [
         t("common.search_keywords.version").toLowerCase(),
@@ -350,7 +362,7 @@ export function SettingsModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={t("common.settings")}
+      title={tFromProps("common.settings")}
       size="xl"
       centered
       styles={{
@@ -392,7 +404,7 @@ export function SettingsModal({
         <Tabs.List>
           <Stack gap={0} w="100%">
             <TextInput
-              placeholder={t("settings.search_placeholder")}
+              placeholder={tFromProps("settings.search_placeholder")}
               leftSection={<IconSearch size={16} />}
               rightSection={
                 searchQuery ? (
@@ -401,7 +413,7 @@ export function SettingsModal({
                     size="xs"
                     p={0}
                     onClick={() => setSearchQuery("")}
-                    aria-label={t("common.clear_search")}
+                    aria-label={tFromProps("common.clear_search")}
                   >
                     <IconX size={14} />
                   </Button>
@@ -639,6 +651,8 @@ export function SettingsModal({
               setTelemetryEnabled={setTelemetryEnabled}
               resetAllSettings={resetAllSettings}
               clearCache={clearCache}
+              vacuumDatabase={vacuumDatabase}
+              optimizeDatabase={optimizeDatabase}
             />
           </Tabs.Panel>
 

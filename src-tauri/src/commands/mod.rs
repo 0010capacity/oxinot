@@ -1,4 +1,5 @@
 pub mod block;
+pub mod db;
 pub mod git;
 pub mod page;
 pub mod search;
