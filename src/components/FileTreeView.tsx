@@ -133,9 +133,10 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
   }
 
   return (
-    <>
+    <div className="group/node relative">
       <ContextMenu sections={contextMenuSections}>
-        <div className="group/node relative">
+        {/* Wrapper div for ContextMenu trigger area - contains arrow and main row */}
+        <div className="relative">
           {item.is_directory && (
             <button
               type="button"
@@ -151,7 +152,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
 
           <button
             type="button"
-            className={`flex items-start gap-2 py-1 -ml-2 pl-2 rounded-md hover:bg-surface-light dark:hover:bg-white/5 transition-colors pr-2 cursor-pointer ${
+            className={`flex items-start gap-2 py-1 -ml-2 pl-2 rounded-md hover:bg-surface-light dark:hover:bg-white/5 transition-colors pr-2 cursor-pointer w-full text-left ${
               item.is_directory ? "" : ""
             }`}
             onClick={handleToggle}
@@ -198,22 +199,22 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
               </>
             )}
           </button>
-
-          {item.is_directory && isExpanded && children.length > 0 && (
-            <div className="pl-6 ml-[11px] border-l border-gray-100 dark:border-white/5 flex flex-col mt-0.5">
-              {children.map((child) => (
-                <FileTreeNode
-                  key={child.path}
-                  item={child}
-                  level={level + 1}
-                  onFileClick={onFileClick}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </ContextMenu>
-    </>
+
+      {item.is_directory && isExpanded && children.length > 0 && (
+        <div className="pl-6 ml-[11px] border-l border-gray-100 dark:border-white/5 flex flex-col mt-0.5">
+          {children.map((child) => (
+            <FileTreeNode
+              key={child.path}
+              item={child}
+              level={level + 1}
+              onFileClick={onFileClick}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

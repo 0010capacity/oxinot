@@ -1,5 +1,6 @@
 import { Menu } from "@mantine/core";
-import React, { forwardRef, useState } from "react";
+import type React from "react";
+import { forwardRef, useState } from "react";
 
 export interface ContextMenuItem {
   label: string;
@@ -33,7 +34,7 @@ const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerProps>(
       <div
         ref={ref}
         onContextMenu={onContextMenu}
-        onClick={(e) => {
+        onClick={() => {
           // Close the menu if clicked (optional, ensures clean state)
           onTriggerClick?.();
           // We intentionally do NOT call the 'onClick' passed by Mantine (which would toggle the menu)
