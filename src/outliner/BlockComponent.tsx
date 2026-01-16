@@ -12,13 +12,13 @@ import {
 import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
-import {
-  useBlock,
-  useBlockStore,
-  useChildrenIds,
-  useFocusedBlockId,
-} from "../stores/blockStore";
+import { useBlock, useBlockStore, useChildrenIds } from "../stores/blockStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
+import {
+  useFocusedBlockId,
+  useTargetCursorPosition,
+} from "../stores/blockUIStore";
+import { useBlockUIStore } from "../stores/blockUIStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
@@ -50,12 +50,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const splitBlockAtCursor = useBlockStore(
       (state) => state.splitBlockAtCursor
     );
-    const setFocusedBlock = useBlockStore((state) => state.setFocusedBlock);
     const deleteBlock = useBlockStore((state) => state.deleteBlock);
-    const targetCursorPosition = useBlockStore(
-      (state) => state.targetCursorPosition
-    );
-    const clearTargetCursorPosition = useBlockStore(
+    const targetCursorPosition = useTargetCursorPosition();
+    const setFocusedBlock = useBlockUIStore((state) => state.setFocusedBlock);
+    const clearTargetCursorPosition = useBlockUIStore(
       (state) => state.clearTargetCursorPosition
     );
 
