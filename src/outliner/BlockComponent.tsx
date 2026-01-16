@@ -741,6 +741,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         <div
           ref={blockComponentRef}
           className="block-component"
+          onMouseDown={(e) => {
+            // Prevent default text selection on right-click
+            if (e.button === 2) {
+              e.preventDefault();
+            }
+          }}
           onKeyDown={(e) => {
             // Handle keyboard navigation for accessibility
             if (e.key === "Enter" || e.key === " ") {
