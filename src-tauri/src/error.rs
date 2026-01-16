@@ -8,6 +8,7 @@
 //! # Error Conversion
 //! Errors automatically convert to String for Tauri command responses via Display trait.
 
+use rusqlite;
 use std::io;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -121,6 +122,13 @@ impl OxinotError {
 
 /// Result type alias for Oxinot operations.
 pub type Result<T> = std::result::Result<T, OxinotError>;
+
+/// Convert rusqlite errors to OxinotError
+impl From<rusqlite::Error> for OxinotError {
+    fn from(err: rusqlite::Error) -> Self {
+        OxinotError::Database(err.to_string())
+    }
+}
 
 /// Trait for converting errors to Tauri command responses.
 /// Automatically implements Display which converts to String for Tauri.
