@@ -1,5 +1,34 @@
 # oxinot
 
+## 0.8.0
+
+### Minor Changes
+
+- 82a7e02: - use Path/PathBuf methods for cross-platform path handling (#183)
+  - introduce thiserror for structured error handling (#184)
+- 82a7e02: - use Path/PathBuf methods for cross-platform path handling (#183)
+- fcfa422: - use Path/PathBuf methods for cross-platform path handling (#183)
+  - introduce thiserror for structured error handling (#184)
+  - flush pending block updates on component unmount (#187)
+  - split block UI state into separate blockUIStore (#188)
+  - implement event-based git monitoring (#191)
+  - Ensure Space inserts during IME and completion (#193)
+- 82a7e02: - use Path/PathBuf methods for cross-platform path handling (#183)
+  - introduce thiserror for structured error handling (#184)
+- 82a7e02: - use Path/PathBuf methods for cross-platform path handling (#183)
+  - introduce thiserror for structured error handling (#184)
+  - flush pending block updates on component unmount (#187)
+  - split block UI state into separate blockUIStore (#188)
+- 5e09f6f: - use Path/PathBuf methods for cross-platform path handling (#183)
+  - introduce thiserror for structured error handling (#184)
+  - flush pending block updates on component unmount (#187)
+  - split block UI state into separate blockUIStore (#188)
+  - implement event-based git monitoring (#191)
+- 82a7e02: - use Path/PathBuf methods for cross-platform path handling (#183)
+  - introduce thiserror for structured error handling (#184)
+  - flush pending block updates on component unmount (#187)
+  - split block UI state into separate blockUIStore (#188)
+
 ## 0.7.0
 
 ### Minor Changes
