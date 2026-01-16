@@ -5,7 +5,7 @@
   /* Background Colors - Improved dark mode with better contrast */
   --color-bg-primary: #0f0f0f;
   --color-bg-secondary: #1a1a1d;
-  --color-bg-tertiary: #323238;
+  --color-bg-tertiary: #3a3a42;
   --color-bg-elevated: #2a2a30;
 
   /* Text Colors - Enhanced contrast for readability */
@@ -105,7 +105,7 @@
     /* Background Colors - Light mode */
     --color-bg-primary: #ffffff;
     --color-bg-secondary: #f9f9fb;
-    --color-bg-tertiary: #f3f3f6;
+    --color-bg-tertiary: #f5f5f8;
     --color-bg-elevated: #efefef;
 
     /* Text Colors - Light mode */
