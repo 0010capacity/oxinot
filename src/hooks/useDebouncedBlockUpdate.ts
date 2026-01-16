@@ -4,9 +4,15 @@ import { useBlockStore } from "../stores/blockStore";
 const DEBOUNCE_MS = 300;
 
 export function useDebouncedBlockUpdate(blockId: string) {
-  const updateBlockContent = useBlockStore((state) => state.updateBlockContent);
+  // Store blockId in ref to avoid recreation of debounced function
+  const blockIdRef = useRef(blockId);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingContentRef = useRef<string | undefined>(undefined);
+
+  // Update blockId ref when it changes
+  useEffect(() => {
+    blockIdRef.current = blockId;
+  }, [blockId]);
 
   const debouncedUpdate = useCallback(
     (content: string) => {
@@ -18,12 +24,19 @@ export function useDebouncedBlockUpdate(blockId: string) {
 
       timerRef.current = setTimeout(() => {
         if (pendingContentRef.current !== undefined) {
-          updateBlockContent(blockId, pendingContentRef.current);
+          // Access the current version of updateBlockContent
+          const currentUpdateBlockContent =
+            useBlockStore.getState().updateBlockContent;
+          currentUpdateBlockContent(
+            blockIdRef.current,
+            pendingContentRef.current
+          );
           pendingContentRef.current = undefined;
         }
       }, DEBOUNCE_MS);
     },
-    [blockId, updateBlockContent]
+    // Empty dependency array - blockId changes handled via ref
+    []
   );
 
   const flushUpdate = useCallback(() => {
@@ -31,10 +44,12 @@ export function useDebouncedBlockUpdate(blockId: string) {
       clearTimeout(timerRef.current);
     }
     if (pendingContentRef.current !== undefined) {
-      updateBlockContent(blockId, pendingContentRef.current);
+      const currentUpdateBlockContent =
+        useBlockStore.getState().updateBlockContent;
+      currentUpdateBlockContent(blockIdRef.current, pendingContentRef.current);
       pendingContentRef.current = undefined;
     }
-  }, [blockId, updateBlockContent]);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
