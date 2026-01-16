@@ -29,6 +29,25 @@
       "edit_metadata": "Edit metadata",
       "copy": "Copy",
       "cut": "Cut"
+    },
+    "search_keywords": {
+      "typography": "Typography",
+      "font": "Font",
+      "monospace": "Monospace",
+      "blocks": "Blocks",
+      "code_block": "Code Block",
+      "indent": "Indent",
+      "repository": "Repository",
+      "git": "Git",
+      "commit": "Commit",
+      "push": "Push",
+      "pull": "Pull",
+      "version": "Version",
+      "changelog": "Changelog",
+      "hotkey": "Hotkey",
+      "locale": "Locale",
+      "english": "English",
+      "korean": "Korean"
     }
   },
   "navigation": {
@@ -203,7 +222,19 @@
       "updates_title": "Updates",
       "updates_desc": "Oxinot is kept up-to-date automatically using Tauri Updater.",
       "check_update_msg": "Check for updates now.",
-      "check_updates_btn": "Check for Updates"
+      "check_updates_btn": "Check for Updates",
+      "checking_status": "Checking...",
+      "update_available": "Update Available",
+      "latest_version": "Latest Version",
+      "checking_for_updates": "Checking for updates...",
+      "up_to_date": "Oxinot is up to date.",
+      "check_again": "Check Again",
+      "new_version_available": "A new version {{version}} is available.",
+      "downloading_update": "Downloading update...",
+      "download_success": "Update downloaded successfully.",
+      "auto_restart": "The application will restart automatically.",
+      "update_error": "Error checking for updates:",
+      "update_now": "Update Now"
     },
     "language": {
       "title": "Language",
