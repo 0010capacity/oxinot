@@ -28,6 +28,11 @@ pub struct GetBlockRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetBlocksRequest {
+    pub block_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetBlockSubtreeRequest {
     pub block_id: String,
     /// Optional max depth relative to the requested root (0 = root only).
@@ -177,6 +182,62 @@ pub async fn get_block(
 ) -> Result<Option<BlockWithPath>, String> {
     let conn = open_workspace_db(&workspace_path)?;
     get_block_with_ancestors(&conn, &request.block_id)
+}
+
+/// Get multiple blocks by id (used for batched fetching).
+#[tauri::command]
+pub async fn get_blocks(
+    workspace_path: String,
+    request: GetBlocksRequest,
+) -> Result<Vec<Block>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    if request.block_ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Rusqlite doesn't support "IN (?)" with a vector easily without creating a query string dynamically.
+    let placeholders = request
+        .block_ids
+        .iter()
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!(
+        "SELECT id, page_id, parent_id, content, order_weight,
+                is_collapsed, block_type, language, created_at, updated_at
+         FROM blocks WHERE id IN ({})",
+        placeholders
+    );
+
+    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+
+    let blocks = stmt
+        .query_map(rusqlite::params_from_iter(request.block_ids.iter()), |row| {
+            Ok(Block {
+                id: row.get(0)?,
+                page_id: row.get(1)?,
+                parent_id: row.get(2)?,
+                content: row.get(3)?,
+                order_weight: row.get(4)?,
+                is_collapsed: row.get::<_, i32>(5)? != 0,
+                block_type: parse_block_type(row.get::<_, String>(6)?),
+                language: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+                metadata: HashMap::new(),
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    // Load metadata for all blocks?
+    // If we need metadata, we can add it. For now, let's keep it simple as preview usually just needs content.
+    // If needed, we can do a second query or join.
+    // Let's stick to basic block data for performance.
+
+    Ok(blocks)
 }
 
 /// Get a block’s ancestor chain (zoom path) as block IDs (root -> ... -> self).

@@ -27,12 +27,12 @@
 import { Decoration, type EditorView, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { MantineProvider } from "@mantine/core";
-import { invoke } from "@tauri-apps/api/core";
 import React from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { EmbeddedBlockCard } from "../../../components/EmbeddedBlockCard";
 import { useWorkspaceStore } from "../../../stores/workspaceStore";
 import { ThemeProvider } from "../../../theme/ThemeProvider";
+import { blockBatcher } from "../../../utils/blockBatcher";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import { createHiddenMarker } from "../utils/decorationHelpers";
 import { BaseHandler, type RenderContext } from "./types";
@@ -223,33 +223,20 @@ class BlockRefPreviewWidget extends WidgetType {
 
     void (async () => {
       try {
-        const res = (await invoke("get_block", {
-          workspacePath,
-          request: { block_id: this.blockId },
-        })) as {
-          block?: { content: string };
-          Block?: { content: string };
-        } | null;
+        const block = await blockBatcher.fetchBlock(this.blockId);
 
         // Debug logging to understand response shape and load failures
-        console.debug("[BlockRefPreviewWidget] get_block response", {
+        console.debug("[BlockRefPreviewWidget] block loaded", {
           blockId: this.blockId,
-          hasRes: !!res,
-          resKeys:
-            res && typeof res === "object" ? Object.keys(res as object) : null,
-          sample: res,
+          hasBlock: !!block,
+          block,
         });
 
-        const block = res?.block ?? res?.Block ?? null;
         const content = (block?.content ?? "").toString().trim();
 
         if (!content) {
           console.debug("[BlockRefPreviewWidget] empty block content", {
             blockId: this.blockId,
-            resolvedBlockKeys:
-              block && typeof block === "object"
-                ? Object.keys(block as object)
-                : null,
             block,
           });
 
