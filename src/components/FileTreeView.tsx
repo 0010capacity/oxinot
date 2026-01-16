@@ -1,6 +1,6 @@
-import { IconEdit, IconTrash } from "@tabler/icons-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { type FileSystemItem, tauriAPI } from "../tauri-api";
 import { ContextMenu, type ContextMenuSection } from "./common/ContextMenu";
@@ -22,6 +22,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
   const [newName, setNewName] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
   const { deleteItem, renameItem } = useWorkspaceStore();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (isRenaming && renameInputRef.current) {
@@ -100,13 +101,11 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
     {
       items: [
         {
-          label: "Rename",
-          icon: <IconEdit size={16} />,
+          label: t("common.context_menu.rename"),
           onClick: handleRename,
         },
         {
-          label: "Delete",
-          icon: <IconTrash size={16} />,
+          label: t("common.context_menu.delete"),
           color: "red",
           onClick: () => {
             if (confirm(`Are you sure you want to delete ${item.name}?`)) {
@@ -114,6 +113,12 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
                 console.error("Error deleting item:", error);
               });
             }
+          },
+        },
+        {
+          label: t("common.context_menu.copy_path"),
+          onClick: () => {
+            navigator.clipboard.writeText(item.path);
           },
         },
       ],

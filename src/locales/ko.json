@@ -15,7 +15,15 @@
     "success": "성공",
     "confirm": "확인",
     "new_page": "새 페이지",
-    "home": "홈"
+    "home": "홈",
+    "context_menu": {
+      "rename": "이름 변경",
+      "delete": "삭제",
+      "copy_path": "경로 복사",
+      "copy_content": "내용 복사",
+      "copy_id": "ID 복사",
+      "edit_metadata": "메타데이터 편집"
+    }
   },
   "navigation": {
     "go_back": "뒤로가기",
