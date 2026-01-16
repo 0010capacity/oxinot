@@ -41,6 +41,7 @@
     "@tabler/icons-react": "^3.36.1",
     "@tauri-apps/api": "^2.9.1",
     "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-shell": "^2.3.0",
     "@tauri-apps/plugin-updater": "^2.9.0",
     "i18next": "^25.7.4",
     "i18next-browser-languagedetector": "^8.2.0",
