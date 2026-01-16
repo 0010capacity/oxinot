@@ -29,6 +29,25 @@
       "edit_metadata": "메타데이터 편집",
       "copy": "복사",
       "cut": "잘라내기"
+    },
+    "search_keywords": {
+      "typography": "타이포그래피",
+      "font": "글꼴",
+      "monospace": "고정폭",
+      "blocks": "블록",
+      "code_block": "코드 블록",
+      "indent": "들여쓰기",
+      "repository": "저장소",
+      "git": "Git",
+      "commit": "커밋",
+      "push": "푸시",
+      "pull": "풀",
+      "version": "버전",
+      "changelog": "변경 로그",
+      "hotkey": "단축키",
+      "locale": "로케일",
+      "english": "영어",
+      "korean": "한국어"
     }
   },
   "navigation": {
@@ -203,7 +222,19 @@
       "updates_title": "업데이트",
       "updates_desc": "Oxinot은 Tauri Updater를 사용하여 자동으로 최신 상태를 유지합니다.",
       "check_update_msg": "지금 업데이트를 확인합니다.",
-      "check_updates_btn": "업데이트 확인"
+      "check_updates_btn": "업데이트 확인",
+      "checking_status": "확인 중...",
+      "update_available": "업데이트 사용 가능",
+      "latest_version": "최신 버전",
+      "checking_for_updates": "업데이트를 확인 중입니다...",
+      "up_to_date": "Oxinot이 최신 상태입니다.",
+      "check_again": "다시 확인",
+      "new_version_available": "새 버전 {{version}}을 사용할 수 있습니다.",
+      "downloading_update": "업데이트를 다운로드 중입니다...",
+      "download_success": "업데이트를 성공적으로 다운로드했습니다.",
+      "auto_restart": "애플리케이션이 자동으로 다시 시작됩니다.",
+      "update_error": "업데이트 확인 중 오류 발생:",
+      "update_now": "지금 업데이트"
     },
     "language": {
       "title": "언어",

@@ -301,11 +301,11 @@ export function SettingsModal({
         t("settings.appearance.font_family").toLowerCase(),
         t("settings.appearance.editor_font_size").toLowerCase(),
         t("settings.appearance.editor_line_height").toLowerCase(),
-        "typography",
+        t("common.search_keywords.typography").toLowerCase(),
         "inter",
         "system",
         "roboto",
-        "monospace",
+        t("common.search_keywords.monospace").toLowerCase(),
         "preview",
       ],
       theme: [
@@ -356,25 +356,25 @@ export function SettingsModal({
         t("settings.outliner.block_count").toLowerCase(),
         t("settings.outliner.code_block_line_numbers").toLowerCase(),
         t("settings.outliner.indent_size").toLowerCase(),
-        "blocks",
-        "code block",
+        t("common.search_keywords.blocks").toLowerCase(),
+        t("common.search_keywords.code_block").toLowerCase(),
         "line numbers",
       ],
       git: [
         t("settings.git.title").toLowerCase(),
-        "git",
-        "repository",
-        "commit",
+        t("common.search_keywords.git").toLowerCase(),
+        t("common.search_keywords.repository").toLowerCase(),
+        t("common.search_keywords.commit").toLowerCase(),
         t("settings.git.auto_commit").toLowerCase(),
         t("settings.git.remote_repo").toLowerCase(),
-        "push",
-        "pull",
+        t("common.search_keywords.push").toLowerCase(),
+        t("common.search_keywords.pull").toLowerCase(),
         "interval",
         "status",
       ],
       shortcuts: [
         t("settings.shortcuts.title").toLowerCase(),
-        "hotkey",
+        t("common.search_keywords.hotkey").toLowerCase(),
         t("settings.shortcuts.command_palette").toLowerCase(),
         t("settings.shortcuts.search").toLowerCase(),
         t("settings.shortcuts.toggle_index").toLowerCase(),
@@ -390,8 +390,8 @@ export function SettingsModal({
         "danger",
       ],
       about: [
-        "version",
-        "changelog",
+        t("common.search_keywords.version").toLowerCase(),
+        t("common.search_keywords.changelog").toLowerCase(),
         "oxinot",
         "info",
         "update",
@@ -399,9 +399,9 @@ export function SettingsModal({
       ],
       language: [
         t("settings.language.title").toLowerCase(),
-        "english",
-        "korean",
-        "locale",
+        t("common.search_keywords.english").toLowerCase(),
+        t("common.search_keywords.korean").toLowerCase(),
+        t("common.search_keywords.locale").toLowerCase(),
       ],
     };
 
@@ -1633,17 +1633,17 @@ export function SettingsModal({
                       </Text>
                       {useUpdaterStore.getState().status === "checking" && (
                         <Badge color="blue" variant="light">
-                          Checking...
+                          {t("settings.about.checking_status")}
                         </Badge>
                       )}
                       {useUpdaterStore.getState().status === "available" && (
                         <Badge color="green" variant="light">
-                          Update Available
+                          {t("settings.about.update_available")}
                         </Badge>
                       )}
                       {useUpdaterStore.getState().status === "uptodate" && (
                         <Badge color="gray" variant="light">
-                          Latest Version
+                          {t("settings.about.latest_version")}
                         </Badge>
                       )}
                     </Group>
@@ -1666,7 +1666,7 @@ export function SettingsModal({
                       if (status === "checking") {
                         return (
                           <Text size="sm" c="dimmed">
-                            Checking for updates...
+                            {t("settings.about.checking_for_updates")}
                           </Text>
                         );
                       }
@@ -1675,7 +1675,7 @@ export function SettingsModal({
                         return (
                           <Stack gap="xs">
                             <Text size="sm" c="dimmed">
-                              Oxinot is up to date.
+                              {t("settings.about.up_to_date")}
                             </Text>
                             <Group>
                               <Button
@@ -1684,7 +1684,7 @@ export function SettingsModal({
                                 onClick={() => checkForUpdates(false)}
                                 leftSection={<IconDownload size={16} />}
                               >
-                                Check Again
+                                {t("settings.about.check_again")}
                               </Button>
                             </Group>
                           </Stack>
@@ -1695,11 +1695,9 @@ export function SettingsModal({
                         return (
                           <Stack gap="md">
                             <Text size="sm">
-                              A new version{" "}
-                              <Text span fw={700}>
-                                {version}
-                              </Text>{" "}
-                              is available.
+                              {t("settings.about.new_version_available", {
+                                version: version,
+                              })}
                             </Text>
                             {body && (
                               <div
@@ -1726,7 +1724,7 @@ export function SettingsModal({
                                 onClick={installUpdate}
                                 leftSection={<IconDownload size={16} />}
                               >
-                                Update Now
+                                {t("settings.about.update_now")}
                               </Button>
                             </Group>
                           </Stack>
@@ -1737,7 +1735,9 @@ export function SettingsModal({
                         return (
                           <Stack gap="xs">
                             <Group justify="space-between">
-                              <Text size="sm">Downloading update...</Text>
+                              <Text size="sm">
+                                {t("settings.about.downloading_update")}
+                              </Text>
                               <Text size="xs" c="dimmed">
                                 {Math.round(progress)}%
                               </Text>
@@ -1751,10 +1751,10 @@ export function SettingsModal({
                         return (
                           <Stack gap="xs">
                             <Text size="sm" c="green">
-                              Update downloaded successfully.
+                              {t("settings.about.download_success")}
                             </Text>
                             <Text size="xs" c="dimmed">
-                              The application will restart automatically.
+                              {t("settings.about.auto_restart")}
                             </Text>
                           </Stack>
                         );
@@ -1764,7 +1764,7 @@ export function SettingsModal({
                         return (
                           <Stack gap="xs">
                             <Text size="sm" c="red">
-                              Error checking for updates:
+                              {t("settings.about.update_error")}
                             </Text>
                             <Text size="xs" c="dimmed">
                               {error}
@@ -1775,7 +1775,7 @@ export function SettingsModal({
                               color="red"
                               onClick={() => checkForUpdates(false)}
                             >
-                              Try Again
+                              {t("settings.about.check_again")}
                             </Button>
                           </Stack>
                         );
