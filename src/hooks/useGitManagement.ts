@@ -44,7 +44,12 @@ const logger = {
 export const useGitManagement = (
   workspacePath: string
 ): GitManagementState & GitManagementActions => {
-  logger.info("useGitManagement hook called", { workspacePath });
+  logger.info("useGitManagement hook called", {
+    workspacePath,
+    workspacePathValue: `"${workspacePath}"`,
+    workspacePathType: typeof workspacePath,
+    workspacePathLength: workspacePath?.length,
+  });
 
   const hasGitChanges = useGitStore((state) => state.hasChanges);
   const isGitRepo = useGitStore((state) => state.isRepo);
@@ -91,6 +96,7 @@ export const useGitManagement = (
   useEffect(() => {
     logger.info("isGitRepo state changed", {
       isGitRepo,
+      isGitRepoValue: String(isGitRepo),
       workspacePath,
       timestamp: new Date().toISOString(),
     });
@@ -105,13 +111,17 @@ export const useGitManagement = (
     logger.info("Watch effect triggered", {
       workspacePath,
       isGitRepo,
+      isGitRepoValue: String(isGitRepo),
       hasWorkspacePath: !!workspacePath,
       hasIsGitRepo: !!isGitRepo,
     });
 
     if (!workspacePath || !isGitRepo) {
-      logger.info("Watch effect early return", {
-        reason: !workspacePath ? "no workspacePath" : "isGitRepo is false",
+      logger.info("Watch effect early return - WATCHER NOT STARTING", {
+        reason: !workspacePath
+          ? "no workspacePath"
+          : `isGitRepo is ${isGitRepo}`,
+        isGitRepoValue: String(isGitRepo),
       });
       return;
     }
