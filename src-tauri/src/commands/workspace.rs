@@ -1,5 +1,6 @@
 use crate::commands::block::block_type_to_string;
 use crate::config::{METADATA_DIR_NAME, SETTINGS_FILENAME, WORKSPACE_DB_FILENAME};
+use crate::error::OxinotError;
 use crate::services::markdown_to_blocks;
 use crate::services::page_path_service;
 // (removed) WorkspaceSyncService import: sync/reindex paths are unified on filesystem-driven `sync_workspace`
@@ -48,19 +49,31 @@ pub struct WorkspaceSettings {
 }
 
 /// Helper function to open workspace-specific DB connection
+///
+/// Opens or creates the workspace database at `.oxinot/workspace.db`.
+/// Enables foreign keys and initializes the schema.
+///
+/// # Errors
+/// Returns an error if:
+/// - The metadata directory cannot be created
+/// - The database file cannot be opened
+/// - The schema initialization fails
 pub fn open_workspace_db(workspace_path: &str) -> Result<Connection, String> {
     let db_path = get_workspace_db_path(workspace_path)?;
 
-    let conn = Connection::open(&db_path)
-        .map_err(|e| format!("Failed to open workspace database: {}", e))?;
+    let conn = Connection::open(&db_path).map_err(|e| {
+        OxinotError::database(format!("Failed to open workspace database: {}", e)).to_string()
+    })?;
 
     // Enable foreign keys
-    conn.execute("PRAGMA foreign_keys = ON", [])
-        .map_err(|e| format!("Failed to enable foreign keys: {}", e))?;
+    conn.execute("PRAGMA foreign_keys = ON", []).map_err(|e| {
+        OxinotError::database(format!("Failed to enable foreign keys: {}", e)).to_string()
+    })?;
 
     // Initialize schema
-    crate::db::schema::init_schema(&conn)
-        .map_err(|e| format!("Failed to initialize schema: {}", e))?;
+    crate::db::schema::init_schema(&conn).map_err(|e| {
+        OxinotError::database(format!("Failed to initialize schema: {}", e)).to_string()
+    })?;
 
     Ok(conn)
 }
@@ -91,15 +104,26 @@ fn get_workspace_settings_path(workspace_path: &str) -> Result<PathBuf, String> 
 }
 
 /// Initialize or load workspace settings
+///
+/// Loads existing settings from `.oxinot/settings.json` or creates new ones
+/// with default values. Always updates the `last_opened` timestamp.
+///
+/// # Errors
+/// Returns an error if:
+/// - Settings file cannot be read
+/// - Settings JSON is invalid
+/// - Settings file cannot be written
 fn init_workspace_settings(workspace_path: &str) -> Result<WorkspaceSettings, String> {
     let settings_path = get_workspace_settings_path(workspace_path)?;
 
     if settings_path.exists() {
         // Load existing settings
-        let content = fs::read_to_string(&settings_path)
-            .map_err(|e| format!("Failed to read settings: {}", e))?;
-        let mut settings: WorkspaceSettings = serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse settings: {}", e))?;
+        let content = fs::read_to_string(&settings_path).map_err(|e| {
+            OxinotError::settings(format!("Failed to read settings: {}", e)).to_string()
+        })?;
+        let mut settings: WorkspaceSettings = serde_json::from_str(&content).map_err(|e| {
+            OxinotError::settings(format!("Failed to parse settings: {}", e)).to_string()
+        })?;
 
         // Update last_opened
         settings.last_opened = Utc::now().to_rfc3339();
@@ -128,16 +152,24 @@ fn init_workspace_settings(workspace_path: &str) -> Result<WorkspaceSettings, St
     }
 }
 
-/// Save workspace settings
+/// Save workspace settings to `.oxinot/settings.json`
+///
+/// # Errors
+/// Returns an error if:
+/// - Settings cannot be serialized to JSON
+/// - Settings file cannot be written
 fn save_workspace_settings(
     workspace_path: &str,
     settings: &WorkspaceSettings,
 ) -> Result<(), String> {
     let settings_path = get_workspace_settings_path(workspace_path)?;
-    let json = serde_json::to_string_pretty(settings)
-        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    let json = serde_json::to_string_pretty(settings).map_err(|e| {
+        OxinotError::settings(format!("Failed to serialize settings: {}", e)).to_string()
+    })?;
 
-    fs::write(&settings_path, json).map_err(|e| format!("Failed to write settings: {}", e))?;
+    fs::write(&settings_path, json).map_err(|e| {
+        OxinotError::settings(format!("Failed to write settings: {}", e)).to_string()
+    })?;
 
     Ok(())
 }

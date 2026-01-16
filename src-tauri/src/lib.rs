@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 pub mod commands;
 pub mod config;
 pub mod db;
+pub mod error;
 pub mod models;
 pub mod services;
 pub mod utils;
