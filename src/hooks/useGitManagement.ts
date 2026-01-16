@@ -44,6 +44,8 @@ const logger = {
 export const useGitManagement = (
   workspacePath: string
 ): GitManagementState & GitManagementActions => {
+  logger.info("useGitManagement hook called", { workspacePath });
+
   const hasGitChanges = useGitStore((state) => state.hasChanges);
   const isGitRepo = useGitStore((state) => state.isRepo);
   const initGit = useGitStore((state) => state.initGit);
