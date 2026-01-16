@@ -5,6 +5,7 @@ import {
   Stack,
   Button,
   useMantineColorScheme,
+  useComputedColorScheme,
 } from "@mantine/core";
 import {
   IconAppWindow,
@@ -73,6 +74,7 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
+  const isDark = useComputedColorScheme("light") === "dark";
 
   // App version state
   const [appVersion, setAppVersion] = useState<string>("");
@@ -374,7 +376,11 @@ export function SettingsModal({
             height: "100%",
           },
           list: {
-            borderRight: "1px solid var(--mantine-color-gray-1)",
+            borderRight: `1px solid ${
+              isDark
+                ? "var(--mantine-color-dark-6)"
+                : "var(--mantine-color-gray-2)"
+            }`,
             minWidth: 200,
             padding: 16,
             height: "auto",
@@ -408,6 +414,7 @@ export function SettingsModal({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.currentTarget.value)}
               mb={16}
+              w="100%"
             />
 
             {searchQuery.trim() &&
