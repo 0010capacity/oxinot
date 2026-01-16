@@ -374,10 +374,10 @@ export function SettingsModal({
             height: "100%",
           },
           list: {
-            borderRight: "1px solid var(--mantine-color-gray-2)",
+            borderRight: "1px solid var(--mantine-color-gray-1)",
             minWidth: 200,
             padding: 16,
-            height: "100%",
+            height: "auto",
             overflowY: "auto",
           },
           panel: {
