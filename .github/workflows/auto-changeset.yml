@@ -91,10 +91,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Clean any local changes to allow branch switching
-          git clean -fd
-          git checkout -- .
-
           # Check if changeset PR already exists
           EXISTING_PR=$(gh pr list \
             --base main \
