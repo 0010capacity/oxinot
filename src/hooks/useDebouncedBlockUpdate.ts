@@ -23,7 +23,7 @@ export function useDebouncedBlockUpdate(blockId: string) {
         }
       }, DEBOUNCE_MS);
     },
-    [blockId, updateBlockContent],
+    [blockId, updateBlockContent]
   );
 
   const flushUpdate = useCallback(() => {
@@ -39,11 +39,9 @@ export function useDebouncedBlockUpdate(blockId: string) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      flushUpdate();
     };
-  }, []);
+  }, [flushUpdate]);
 
   return { debouncedUpdate, flushUpdate };
 }
