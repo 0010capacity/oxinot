@@ -213,21 +213,24 @@ pub async fn get_blocks(
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
 
     let blocks = stmt
-        .query_map(rusqlite::params_from_iter(request.block_ids.iter()), |row| {
-            Ok(Block {
-                id: row.get(0)?,
-                page_id: row.get(1)?,
-                parent_id: row.get(2)?,
-                content: row.get(3)?,
-                order_weight: row.get(4)?,
-                is_collapsed: row.get::<_, i32>(5)? != 0,
-                block_type: parse_block_type(row.get::<_, String>(6)?),
-                language: row.get(7)?,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
-                metadata: HashMap::new(),
-            })
-        })
+        .query_map(
+            rusqlite::params_from_iter(request.block_ids.iter()),
+            |row| {
+                Ok(Block {
+                    id: row.get(0)?,
+                    page_id: row.get(1)?,
+                    parent_id: row.get(2)?,
+                    content: row.get(3)?,
+                    order_weight: row.get(4)?,
+                    is_collapsed: row.get::<_, i32>(5)? != 0,
+                    block_type: parse_block_type(row.get::<_, String>(6)?),
+                    language: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                    metadata: HashMap::new(),
+                })
+            },
+        )
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
@@ -662,6 +665,9 @@ pub async fn delete_block(
         )
         .map_err(|e| e.to_string())?;
 
+    println!("[delete_block] Deleting block_id: {}", block_id);
+    println!("[delete_block] Block parent_id: {:?}", parent_id);
+
     // Get all direct children of the block to be deleted
     let mut stmt = conn
         .prepare("SELECT id FROM blocks WHERE parent_id = ? ORDER BY order_weight")
@@ -673,10 +679,20 @@ pub async fn delete_block(
         .collect::<Result<Vec<String>, _>>()
         .map_err(|e| e.to_string())?;
 
+    println!(
+        "[delete_block] Found {} children to promote: {:?}",
+        children.len(),
+        children
+    );
+
     let now = chrono::Utc::now().to_rfc3339();
 
     // Move children to the deleted block's parent (merge/promote children)
-    for child_id in children {
+    for child_id in &children {
+        println!(
+            "[delete_block] Promoting child {} from parent {} to parent {:?}",
+            child_id, block_id, parent_id
+        );
         conn.execute(
             "UPDATE blocks SET parent_id = ?, updated_at = ? WHERE id = ?",
             params![&parent_id, &now, &child_id],
@@ -684,9 +700,29 @@ pub async fn delete_block(
         .map_err(|e| e.to_string())?;
     }
 
+    // Verify children were actually updated
+    let mut verify_stmt = conn
+        .prepare("SELECT id, parent_id FROM blocks WHERE id IN (SELECT id FROM blocks WHERE parent_id = ?)")
+        .map_err(|e| e.to_string())?;
+
+    let updated_children: Vec<(String, Option<String>)> = verify_stmt
+        .query_map([&parent_id.as_deref().unwrap_or("root")], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<(String, Option<String>)>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    println!(
+        "[delete_block] Children after promotion: {:?}",
+        updated_children
+    );
+
     // Delete only the target block (children are now preserved and promoted)
     conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
         .map_err(|e| e.to_string())?;
+
+    println!("[delete_block] Successfully deleted block {}", block_id);
 
     // Sync to markdown file
     sync_page_to_markdown_after_delete(&conn, &workspace_path, &page_id, block_id.as_str())?;

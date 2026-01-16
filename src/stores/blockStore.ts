@@ -561,12 +561,22 @@ export const useBlockStore = create<BlockStore>()(
           deletedIds
         );
 
-        // Update only the affected blocks (remove deleted ones)
+        // Remove deleted blocks from state
         console.log(
           "[blockStore.deleteBlock] Updating partial blocks, deletedIds:",
           deletedIds
         );
         get().updatePartialBlocks([], deletedIds);
+
+        // Reload page to sync child block hierarchy changes
+        // (children that were promoted to parent level need their parent_id updated in UI)
+        console.log(
+          "[blockStore.deleteBlock] Reloading page to sync promoted child blocks"
+        );
+        const pageId = get().currentPageId;
+        if (pageId) {
+          await get().loadPage(pageId);
+        }
 
         // Cleanup UI state if needed
         const currentUI = useBlockUIStore.getState();

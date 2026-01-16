@@ -739,50 +739,49 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       ) : null;
 
     return (
-      <ContextMenu
-        sections={contextMenuSections}
-        textSelectionSections={textSelectionSections}
+      <div
+        ref={blockComponentRef}
+        className="block-component"
+        onMouseDown={(e) => {
+          // Prevent default text selection on right-click
+          if (e.button === 2) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Clear any existing selection to prevent browser from auto-selecting text
+            window.getSelection()?.removeAllRanges();
+          }
+        }}
+        onKeyDown={(e) => {
+          // Handle keyboard navigation for accessibility
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
       >
-        <div
-          ref={blockComponentRef}
-          className="block-component"
-          onMouseDown={(e) => {
-            // Prevent default text selection on right-click
-            if (e.button === 2) {
-              e.preventDefault();
-              e.stopPropagation();
-              // Clear any existing selection to prevent browser from auto-selecting text
-              window.getSelection()?.removeAllRanges();
-            }
-          }}
-          onContextMenu={() => {}}
-          onKeyDown={(e) => {
-            // Handle keyboard navigation for accessibility
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              e.stopPropagation();
-            }
-          }}
-        >
-          {indentGuide}
-          <div className="block-row" style={{ paddingLeft: `${depth * 24}px` }}>
-            {/* Collapse/Expand Toggle */}
-            {hasChildren ? (
-              <button
-                type="button"
-                className={`collapse-toggle ${
-                  block.isCollapsed ? "collapsed" : ""
-                }`}
-                onClick={() => toggleCollapse(blockId)}
-                aria-label={block.isCollapsed ? "Expand" : "Collapse"}
-              >
-                {block.isCollapsed ? "▶" : "▼"}
-              </button>
-            ) : (
-              <div className="collapse-toggle-placeholder" />
-            )}
+        {indentGuide}
+        <div className="block-row" style={{ paddingLeft: `${depth * 24}px` }}>
+          {/* Collapse/Expand Toggle */}
+          {hasChildren ? (
+            <button
+              type="button"
+              className={`collapse-toggle ${
+                block.isCollapsed ? "collapsed" : ""
+              }`}
+              onClick={() => toggleCollapse(blockId)}
+              aria-label={block.isCollapsed ? "Expand" : "Collapse"}
+            >
+              {block.isCollapsed ? "▶" : "▼"}
+            </button>
+          ) : (
+            <div className="collapse-toggle-placeholder" />
+          )}
 
-            {/* Bullet Point - clickable for zoom */}
+          {/* Bullet Point - clickable for zoom, with context menu */}
+          <ContextMenu
+            sections={contextMenuSections}
+            textSelectionSections={textSelectionSections}
+          >
             <button
               type="button"
               className="block-bullet-wrapper"
@@ -797,122 +796,122 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             >
               <div className="block-bullet" />
             </button>
+          </ContextMenu>
 
-            {/* Content Editor */}
-            <div
-              className="block-content-wrapper"
-              style={{ position: "relative" }}
+          {/* Content Editor */}
+          <div
+            className="block-content-wrapper"
+            style={{ position: "relative" }}
+          >
+            <Popover
+              opened={isMetadataOpen}
+              onClose={() => {
+                setIsMetadataOpen(false);
+              }}
+              position="bottom"
+              withArrow
+              shadow="md"
+              trapFocus={false}
+              closeOnEscape
+              closeOnClickOutside
+              withinPortal={true}
+              transitionProps={{ duration: 0 }}
             >
-              <Popover
-                opened={isMetadataOpen}
-                onClose={() => {
-                  setIsMetadataOpen(false);
-                }}
-                position="bottom"
-                withArrow
-                shadow="md"
-                trapFocus={false}
-                closeOnEscape
-                closeOnClickOutside
-                withinPortal={true}
-                transitionProps={{ duration: 0 }}
-              >
-                <Popover.Target>
-                  <Box style={{ width: "100%" }}>
-                    <Editor
-                      ref={editorRef}
-                      value={draft}
-                      onChange={handleContentChangeWithTrigger}
-                      onFocus={handleFocus}
-                      onBlur={handleBlur}
-                      lineNumbers={false}
-                      lineWrapping={true}
-                      theme={isDark ? "dark" : "light"}
-                      keybindings={keybindings}
-                      // FOCUS STATE PROP:
-                      // -----------------
-                      // This determines whether markdown markers are visible or hidden
-                      // focusedBlockId comes from useViewStore and is set when user clicks/focuses a block
-                      //
-                      // When true (block has focus):
-                      //   → shouldShowMarkers = true (via shouldShowMarkersForLine in hybridRendering.ts)
-                      //   → Markers are visible → Shows raw markdown (e.g., [[link]], # heading)
-                      //
-                      // When false (block unfocused):
-                      //   → shouldShowMarkers = false
-                      //   → Markers are hidden → Renders formatted content (e.g., link, styled heading)
-                      isFocused={focusedBlockId === blockId}
-                      className="block-editor"
-                      style={{
-                        minHeight: "24px",
-                        fontSize: "14px",
-                      }}
-                    />
-                  </Box>
-                </Popover.Target>
-                <Popover.Dropdown
-                  p={0}
-                  ref={popoverDropdownRef}
-                  style={{ minWidth: "300px" }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                >
-                  <MetadataEditor
-                    blockId={blockId}
-                    onClose={() => {
-                      setIsMetadataOpen(false);
-                      // Return focus to editor after metadata is saved
-                      setTimeout(() => {
-                        editorRef.current?.focus();
-                      }, 0);
+              <Popover.Target>
+                <Box style={{ width: "100%" }}>
+                  <Editor
+                    ref={editorRef}
+                    value={draft}
+                    onChange={handleContentChangeWithTrigger}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                    lineNumbers={false}
+                    lineWrapping={true}
+                    theme={isDark ? "dark" : "light"}
+                    keybindings={keybindings}
+                    // FOCUS STATE PROP:
+                    // -----------------
+                    // This determines whether markdown markers are visible or hidden
+                    // focusedBlockId comes from useViewStore and is set when user clicks/focuses a block
+                    //
+                    // When true (block has focus):
+                    //   → shouldShowMarkers = true (via shouldShowMarkersForLine in hybridRendering.ts)
+                    //   → Markers are visible → Shows raw markdown (e.g., [[link]], # heading)
+                    //
+                    // When false (block unfocused):
+                    //   → shouldShowMarkers = false
+                    //   → Markers are hidden → Renders formatted content (e.g., link, styled heading)
+                    isFocused={focusedBlockId === blockId}
+                    className="block-editor"
+                    style={{
+                      minHeight: "24px",
+                      fontSize: "14px",
                     }}
                   />
-                </Popover.Dropdown>
-              </Popover>
-
-              {/* Metadata Badge - small indicator with tooltip */}
-              {block.metadata && (
-                <Box
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                >
-                  <MetadataBadges
-                    metadata={block.metadata}
-                    onBadgeClick={() => setIsMetadataOpen(true)}
-                  />
                 </Box>
-              )}
-            </div>
-          </div>
-
-          {/* Render children recursively if not collapsed */}
-          {hasChildren && !block.isCollapsed && (
-            <div className="block-children">
-              {childIds.map((childId) => (
-                <BlockComponent
-                  key={childId}
-                  blockId={childId}
-                  depth={depth + 1}
+              </Popover.Target>
+              <Popover.Dropdown
+                p={0}
+                ref={popoverDropdownRef}
+                style={{ minWidth: "300px" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <MetadataEditor
+                  blockId={blockId}
+                  onClose={() => {
+                    setIsMetadataOpen(false);
+                    // Return focus to editor after metadata is saved
+                    setTimeout(() => {
+                      editorRef.current?.focus();
+                    }, 0);
+                  }}
                 />
-              ))}
-            </div>
-          )}
+              </Popover.Dropdown>
+            </Popover>
 
-          <style>
-            {`
-            .block-content-wrapper:hover .block-copy-id-toolbar {
-              opacity: 0.6 !important;
-            }
-            .block-copy-id-toolbar button:hover {
-              background: rgba(127, 127, 127, 0.1) !important;
-              color: var(--color-text-secondary, rgba(127,127,127,0.8)) !important;
-            }
-          `}
-          </style>
+            {/* Metadata Badge - small indicator with tooltip */}
+            {block.metadata && (
+              <Box
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <MetadataBadges
+                  metadata={block.metadata}
+                  onBadgeClick={() => setIsMetadataOpen(true)}
+                />
+              </Box>
+            )}
+          </div>
         </div>
-      </ContextMenu>
+
+        {/* Render children recursively if not collapsed */}
+        {hasChildren && !block.isCollapsed && (
+          <div className="block-children">
+            {childIds.map((childId) => (
+              <BlockComponent
+                key={childId}
+                blockId={childId}
+                depth={depth + 1}
+              />
+            ))}
+          </div>
+        )}
+
+        <style>
+          {`
+          .block-content-wrapper:hover .block-copy-id-toolbar {
+            opacity: 0.6 !important;
+          }
+          .block-copy-id-toolbar button:hover {
+            background: rgba(127, 127, 127, 0.1) !important;
+            color: var(--color-text-secondary, rgba(127,127,127,0.8)) !important;
+          }
+        `}
+        </style>
+      </div>
     );
   }
 );
