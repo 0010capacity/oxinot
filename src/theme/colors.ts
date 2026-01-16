@@ -24,20 +24,20 @@ export const COLOR_VARIANTS = {
   },
 } as const;
 
-// Helper function to convert hex to RGB
-function hexToRgb(hex: string): string {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result
-    ? `${Number.parseInt(result[1], 16)}, ${Number.parseInt(result[2], 16)}, ${Number.parseInt(result[3], 16)}`
-    : "0, 0, 0";
-}
-
 // Generate color palettes for dark and light schemes
 export function createColorPalette(
   scheme: "dark" | "light",
   variant: keyof typeof COLOR_VARIANTS,
 ): ColorPalette {
   const variantColors = COLOR_VARIANTS[variant];
+
+  // Helper function to convert hex to RGB
+  const hexToRgb = (hex: string): string => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? `${Number.parseInt(result[1], 16)}, ${Number.parseInt(result[2], 16)}, ${Number.parseInt(result[3], 16)}`
+      : "0, 0, 0";
+  };
 
   if (scheme === "dark") {
     return {
