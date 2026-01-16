@@ -410,6 +410,9 @@ function createEmbedNavigateEventHandler(): Extension {
 
 function createBlockRefClickHandler(): Extension {
   const handleClick = (event: MouseEvent, view: EditorView) => {
+    // Only handle left clicks
+    if (event.button !== 0) return false;
+
     const target = event.target as HTMLElement | null;
     if (!target) return false;
 
@@ -962,6 +965,9 @@ function createWikiLinkClickHandler(
   onOpenWikiLink?: (raw: string, noteTitle: string) => void
 ): Extension {
   const handleClick = (event: MouseEvent, view: EditorView) => {
+    // Only handle left clicks
+    if (event.button !== 0) return false;
+
     const target = event.target as HTMLElement | null;
     if (!target) return false;
 
@@ -1048,6 +1054,9 @@ function normalizeExternalUrl(rawUrl: string): string | null {
 
 function createExternalLinkClickHandler(): Extension {
   const handleClick = (event: MouseEvent, view: EditorView) => {
+    // Only handle left clicks
+    if (event.button !== 0) return false;
+
     const target = event.target as HTMLElement | null;
     if (!target) return false;
 
