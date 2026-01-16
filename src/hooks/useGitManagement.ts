@@ -83,7 +83,19 @@ export const useGitManagement = (
   const fileChangeCountRef = useRef(0);
 
   useEffect(() => {
-    if (!workspacePath || !isGitRepo) return;
+    logger.info("Watch effect triggered", {
+      workspacePath,
+      isGitRepo,
+      hasWorkspacePath: !!workspacePath,
+      hasIsGitRepo: !!isGitRepo,
+    });
+
+    if (!workspacePath || !isGitRepo) {
+      logger.info("Watch effect early return", {
+        reason: !workspacePath ? "no workspacePath" : "isGitRepo is false",
+      });
+      return;
+    }
 
     let unwatchPromise: Promise<() => void> | null = null;
     let debounceTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -91,20 +103,30 @@ export const useGitManagement = (
 
     const startWatcher = async () => {
       try {
-        logger.info("Starting file system watcher", { workspacePath });
+        logger.info("Starting file system watcher", {
+          workspacePath,
+          timestamp: new Date().toISOString(),
+        });
         watcherInitializedRef.current = true;
 
         // Watch workspace directory for changes with debounce
         // 'watch' provides debounced events, avoiding excessive git status checks
+        logger.info("Calling watch() function", {
+          path: ".",
+          recursive: true,
+          delayMs: 300,
+        });
+
         unwatchPromise = watch(
           ".",
           () => {
             fileChangeCountRef.current += 1;
             const changeCount = fileChangeCountRef.current;
 
-            logger.debug("File change detected", {
+            logger.info("File change detected", {
               changeNumber: changeCount,
               elapsedMs: Date.now() - watcherStartTime,
+              timestamp: new Date().toISOString(),
             });
 
             // Debounce: only check git status after changes settle
@@ -143,10 +165,13 @@ export const useGitManagement = (
           recursive: true,
           tauroDebounceMs: 300,
           appDebounceMs: GIT_WATCHER_DEBOUNCE_MS,
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         logger.error(
-          "Failed to start file watcher, using fallback polling",
+          `Failed to start file watcher, using fallback polling: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
           error
         );
         watcherInitializedRef.current = false;
@@ -171,6 +196,9 @@ export const useGitManagement = (
       }
     };
 
+    logger.info("About to call startWatcher()", {
+      timestamp: new Date().toISOString(),
+    });
     startWatcher();
 
     return () => {
