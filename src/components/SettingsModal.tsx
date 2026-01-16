@@ -159,6 +159,8 @@ export function SettingsModal({
   const setCustomHomepageId = useAppSettingsStore(
     (state) => state.setCustomHomepageId
   );
+  const language = useAppSettingsStore((state) => state.language);
+  const setLanguage = useAppSettingsStore((state) => state.setLanguage);
 
   // Outliner
   const showIndentGuides = useOutlinerSettingsStore(
@@ -660,8 +662,12 @@ export function SettingsModal({
                       {t("settings.language.select")}
                     </Text>
                     <Select
-                      value={i18n.language}
-                      onChange={(value) => i18n.changeLanguage(value || "en")}
+                      value={language || i18n.language}
+                      onChange={(value) => {
+                        const newLang = value || "en";
+                        setLanguage(newLang);
+                        i18n.changeLanguage(newLang);
+                      }}
                       data={[
                         { label: "English", value: "en" },
                         { label: "한국어", value: "ko" },

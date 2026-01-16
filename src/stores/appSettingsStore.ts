@@ -5,12 +5,14 @@ interface AppSettings {
   dailyNotesPath: string;
   homepageType: "daily-note" | "index" | "custom-page";
   customHomepageId: string | null;
+  language: string | null;
 }
 
 interface AppSettingsStore extends AppSettings {
   setDailyNotesPath: (path: string) => void;
   setHomepageType: (type: "daily-note" | "index" | "custom-page") => void;
   setCustomHomepageId: (id: string | null) => void;
+  setLanguage: (lang: string | null) => void;
   getDailyNotePath: (date: Date) => string;
 }
 
@@ -21,12 +23,14 @@ export const useAppSettingsStore = createWithEqualityFn<AppSettingsStore>()(
       dailyNotesPath: "Daily",
       homepageType: "daily-note",
       customHomepageId: null,
+      language: null,
 
       // Actions
       setDailyNotesPath: (path: string) => set({ dailyNotesPath: path }),
       setHomepageType: (type: "daily-note" | "index" | "custom-page") =>
         set({ homepageType: type }),
       setCustomHomepageId: (id: string | null) => set({ customHomepageId: id }),
+      setLanguage: (lang: string | null) => set({ language: lang }),
 
       getDailyNotePath: (date: Date) => {
         const year = date.getFullYear();
