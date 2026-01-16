@@ -16,6 +16,9 @@
     "confirm": "Confirm",
     "new_page": "New page",
     "home": "Home",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "untitled_block": "Untitled Block",
     "context_menu": {
       "add_child": "Add child page",
       "rename": "Rename",
@@ -63,7 +66,21 @@
       "editor_font_size": "Editor Font Size",
       "editor_font_size_desc": "Adjust the font size in the editor",
       "editor_line_height": "Editor Line Height",
-      "editor_line_height_desc": "Adjust spacing between lines"
+      "editor_line_height_desc": "Adjust spacing between lines",
+      "font_options": {
+        "system_default": "System Default",
+        "inter": "Inter",
+        "sf_pro": "SF Pro",
+        "roboto": "Roboto",
+        "open_sans": "Open Sans",
+        "lato": "Lato",
+        "source_sans": "Source Sans Pro",
+        "noto_sans": "Noto Sans",
+        "ibm_plex": "IBM Plex Sans",
+        "jetbrains_mono": "JetBrains Mono",
+        "fira_code": "Fira Code",
+        "cascadia": "Cascadia Code"
+      }
     },
     "theme": {
       "title": "Theme",

@@ -1,0 +1,27 @@
+/* Breadcrumb Component */
+.breadcrumb-button {
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.breadcrumb-button:hover {
+  opacity: 0.8;
+}
+
+.breadcrumb-button:focus-visible {
+  outline: 2px solid var(--color-interactive-hover);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.breadcrumb-item {
+  white-space: nowrap;
+}
