@@ -45,14 +45,32 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       const selection = window.getSelection();
       let hasSelection = false;
 
+      console.log("[ContextMenu] Right-click detected");
+      console.log("[ContextMenu] selection:", selection);
+      console.log("[ContextMenu] selection.rangeCount:", selection?.rangeCount);
+
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
+        console.log("[ContextMenu] range.collapsed:", range.collapsed);
+        console.log("[ContextMenu] selected text:", selection.toString());
         // collapsed means it's just a cursor, not a selection
         if (!range.collapsed) {
           const selectedText = selection.toString().trim();
           hasSelection = selectedText.length > 0;
+          console.log(
+            "[ContextMenu] hasSelection:",
+            hasSelection,
+            "text:",
+            selectedText
+          );
         }
       }
+
+      console.log("[ContextMenu] Final hasSelection:", hasSelection);
+      console.log(
+        "[ContextMenu] textSelectionSections available:",
+        !!textSelectionSections
+      );
 
       // If text is actually selected and we have textSelectionSections, use those
       if (
@@ -60,9 +78,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         textSelectionSections &&
         textSelectionSections.length > 0
       ) {
+        console.log("[ContextMenu] Using text selection menu");
         setActiveSections(textSelectionSections);
       } else {
         // Otherwise, use the default sections
+        console.log("[ContextMenu] Using default menu");
         setActiveSections(sections);
       }
 
