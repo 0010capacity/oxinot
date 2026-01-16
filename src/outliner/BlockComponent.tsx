@@ -1,7 +1,7 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { Box, Popover, useComputedColorScheme } from "@mantine/core";
-import { IconCopy } from "@tabler/icons-react";
+
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -412,35 +412,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       imeStateRef.current.lastInputWasComposition = false;
     }, [commitDraft, isMetadataOpen]);
 
-    const handleCopyBlockId = useCallback(
-      async (e: React.MouseEvent) => {
-        e.stopPropagation();
-
-        if (!blockId) return;
-
-        try {
-          await navigator.clipboard.writeText(blockId);
-        } catch {
-          // Fallback for environments where Clipboard API isn't available
-          try {
-            const textarea = document.createElement("textarea");
-            textarea.value = blockId;
-            textarea.style.position = "fixed";
-            textarea.style.left = "-9999px";
-            textarea.style.top = "-9999px";
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textarea);
-          } catch {
-            // no-op
-          }
-        }
-      },
-      [blockId]
-    );
-
     const handleBulletClick = useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -806,41 +777,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               className="block-content-wrapper"
               style={{ position: "relative" }}
             >
-              <div
-                style={{
-                  position: "absolute",
-                  right: 6,
-                  top: 4,
-                  display: "flex",
-                  gap: 6,
-                  opacity: 0.0,
-                  transition: "opacity 120ms ease",
-                  pointerEvents: "none",
-                }}
-                className="block-copy-id-toolbar"
-              >
-                <button
-                  type="button"
-                  onClick={handleCopyBlockId}
-                  title="Copy block ID"
-                  style={{
-                    pointerEvents: "auto",
-                    border: "none",
-                    background: "transparent",
-                    color: "var(--color-text-tertiary, rgba(127,127,127,0.5))",
-                    borderRadius: 4,
-                    padding: "2px",
-                    fontSize: 12,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <IconCopy size={14} stroke={1.5} />
-                </button>
-              </div>
-
               <Popover
                 opened={isMetadataOpen}
                 onClose={() => {
