@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# AI Code Review System (oxinot) - Improved Version
+# AI Code Review System (oxinot) - Improved Version (Bash 3.2 Compatible)
 # ==============================================================================
 
 # 1. 설정
@@ -12,7 +12,7 @@ OUTPUT_DIR="${BASE_OUTPUT_DIR}/${TIMESTAMP}"
 mkdir -p "$OUTPUT_DIR"
 
 # 컨텍스트 크기 제한 (대략 문자 수, Gemini 2.0 Flash 기준 약 1M 토큰)
-MAX_CONTEXT_CHARS=800000
+MAX_CONTEXT_CHARS=100000
 
 # API Rate Limit 방지: 동시 실행 수 제한
 MAX_PARALLEL=3
@@ -34,30 +34,33 @@ ROLES=(
 )
 
 # 역할별 타겟 디렉토리 및 확장자 정의
-declare -A TARGETS
-declare -A EXTS
+# Bash 3.2 compatibility: Use functions to simulate associative arrays
+get_target() {
+    case "$1" in
+        "Frontend_UI_UX") echo "src/components src/styles src/theme" ;;
+        "Frontend_Editor_Outliner") echo "src/outliner src/editor src/markdown" ;;
+        "Frontend_State_Logic") echo "src/stores src/hooks src/contexts" ;;
+        "Backend_Rust_Core") echo "src-tauri/src/services src-tauri/src/main.rs src-tauri/src/lib.rs" ;;
+        "Backend_DB_Commands") echo "src-tauri/src/db src-tauri/src/commands src-tauri/src/models" ;;
+        "Security_Infra") echo "src-tauri/tauri.conf.json src-tauri/capabilities src/tauri-api.ts" ;;
+    esac
+}
 
-TARGETS["Frontend_UI_UX"]="src/components src/styles src/theme"
-EXTS["Frontend_UI_UX"]="tsx css ts"
+get_ext() {
+    case "$1" in
+        "Frontend_UI_UX") echo "tsx css ts" ;;
+        "Frontend_Editor_Outliner") echo "tsx ts css" ;;
+        "Frontend_State_Logic") echo "ts tsx" ;;
+        "Backend_Rust_Core") echo "rs" ;;
+        "Backend_DB_Commands") echo "rs" ;;
+        "Security_Infra") echo "json ts" ;;
+    esac
+}
 
-TARGETS["Frontend_Editor_Outliner"]="src/outliner src/editor src/markdown"
-EXTS["Frontend_Editor_Outliner"]="tsx ts css"
-
-TARGETS["Frontend_State_Logic"]="src/stores src/hooks src/contexts"
-EXTS["Frontend_State_Logic"]="ts tsx"
-
-TARGETS["Backend_Rust_Core"]="src-tauri/src/services src-tauri/src/main.rs src-tauri/src/lib.rs"
-EXTS["Backend_Rust_Core"]="rs"
-
-TARGETS["Backend_DB_Commands"]="src-tauri/src/db src-tauri/src/commands src-tauri/src/models"
-EXTS["Backend_DB_Commands"]="rs"
-
-# Security_Infra: 구체적인 파일/폴더만 지정
-TARGETS["Security_Infra"]="src-tauri/tauri.conf.json src-tauri/capabilities src/tauri-api.ts"
-EXTS["Security_Infra"]="json ts"
-
-declare -A PROMPTS
-PROMPTS["Frontend_UI_UX"]="
+get_prompt() {
+    case "$1" in
+        "Frontend_UI_UX")
+            cat <<'EOF'
 당신은 'UI/UX & Design System Specialist'입니다.
 다음 코드를 분석하고 한국어로 리뷰 리포트를 작성해주세요.
 
@@ -101,9 +104,10 @@ PROMPTS["Frontend_UI_UX"]="
 - 구체적인 파일명과 라인 번호를 반드시 명시하세요
 - 확신이 없는 경우 '검토 필요' 또는 '확인 권장'으로 표시하세요
 - 여러 청크가 있는 경우, 이전 청크에서 지적한 것과 동일한 패턴은 '앞서 언급한 패턴과 동일'로 간략히 처리하세요
-"
-
-PROMPTS["Frontend_Editor_Outliner"]="
+EOF
+            ;;
+        "Frontend_Editor_Outliner")
+            cat <<'EOF'
 당신은 'Editor Engine Engineer'입니다.
 다음 코드를 분석하고 한국어로 리뷰 리포트를 작성해주세요.
 
@@ -147,9 +151,10 @@ PROMPTS["Frontend_Editor_Outliner"]="
 - 구체적인 파일명과 라인 번호를 반드시 명시하세요
 - 확신이 없는 경우 '검토 필요' 또는 '확인 권장'으로 표시하세요
 - 여러 청크가 있는 경우, 이전 청크에서 지적한 것과 동일한 패턴은 '앞서 언급한 패턴과 동일'로 간략히 처리하세요
-"
-
-PROMPTS["Frontend_State_Logic"]="
+EOF
+            ;;
+        "Frontend_State_Logic")
+            cat <<'EOF'
 당신은 'Frontend Architect'입니다.
 다음 코드를 분석하고 한국어로 리뷰 리포트를 작성해주세요.
 
@@ -193,9 +198,10 @@ PROMPTS["Frontend_State_Logic"]="
 - 구체적인 파일명과 라인 번호를 반드시 명시하세요
 - 확신이 없는 경우 '검토 필요' 또는 '확인 권장'으로 표시하세요
 - 여러 청크가 있는 경우, 이전 청크에서 지적한 것과 동일한 패턴은 '앞서 언급한 패턴과 동일'로 간략히 처리하세요
-"
-
-PROMPTS["Backend_Rust_Core"]="
+EOF
+            ;;
+        "Backend_Rust_Core")
+            cat <<'EOF'
 당신은 'Rust Systems Programmer'입니다.
 다음 코드를 분석하고 한국어로 리뷰 리포트를 작성해주세요.
 
@@ -239,9 +245,10 @@ PROMPTS["Backend_Rust_Core"]="
 - 구체적인 파일명과 라인 번호를 반드시 명시하세요
 - 확신이 없는 경우 '검토 필요' 또는 '확인 권장'으로 표시하세요
 - 여러 청크가 있는 경우, 이전 청크에서 지적한 것과 동일한 패턴은 '앞서 언급한 패턴과 동일'로 간략히 처리하세요
-"
-
-PROMPTS["Backend_DB_Commands"]="
+EOF
+            ;;
+        "Backend_DB_Commands")
+            cat <<'EOF'
 당신은 'Database & API Designer'입니다.
 다음 코드를 분석하고 한국어로 리뷰 리포트를 작성해주세요.
 
@@ -285,9 +292,10 @@ PROMPTS["Backend_DB_Commands"]="
 - 구체적인 파일명과 라인 번호를 반드시 명시하세요
 - 확신이 없는 경우 '검토 필요' 또는 '확인 권장'으로 표시하세요
 - 여러 청크가 있는 경우, 이전 청크에서 지적한 것과 동일한 패턴은 '앞서 언급한 패턴과 동일'로 간략히 처리하세요
-"
-
-PROMPTS["Security_Infra"]="
+EOF
+            ;;
+        "Security_Infra")
+            cat <<'EOF'
 당신은 'Security & Infrastructure Engineer'입니다.
 다음 코드를 분석하고 한국어로 리뷰 리포트를 작성해주세요.
 
@@ -331,7 +339,10 @@ PROMPTS["Security_Infra"]="
 - 구체적인 파일명과 라인 번호를 반드시 명시하세요
 - 확신이 없는 경우 '검토 필요' 또는 '확인 권장'으로 표시하세요
 - 여러 청크가 있는 경우, 이전 청크에서 지적한 것과 동일한 패턴은 '앞서 언급한 패턴과 동일'로 간략히 처리하세요
-"
+EOF
+            ;;
+    esac
+}
 
 # 3. 유틸리티 함수
 
@@ -347,8 +358,8 @@ check_gemini_cli() {
 # 파일 수집 함수
 collect_files() {
     local role=$1
-    local targets="${TARGETS[$role]}"
-    local exts="${EXTS[$role]}"
+    local targets=$(get_target "$role")
+    local exts=$(get_ext "$role")
     local files=()
 
     for dir in $targets; do
@@ -357,6 +368,7 @@ collect_files() {
         fi
 
         for ext in $exts; do
+            # find -print0 is compatible with macOS
             while IFS= read -r -d '' file; do
                 # Security_Infra 특수 케이스
                 if [ "$role" == "Security_Infra" ]; then
@@ -382,12 +394,13 @@ collect_files() {
 # 파일을 청크로 분할
 create_chunks() {
     local role=$1
-    local -n files_ref=$2
+    shift
+    local files_in=("$@")
     local chunks=()
     local current_chunk=()
     local current_size=0
 
-    for file in "${files_ref[@]}"; do
+    for file in "${files_in[@]}"; do
         if [ ! -f "$file" ]; then
             continue
         fi
@@ -403,7 +416,10 @@ create_chunks() {
         # 현재 청크에 추가했을 때 제한 초과 여부 확인
         if [ $((current_size + file_size)) -gt "$MAX_CONTEXT_CHARS" ] && [ ${#current_chunk[@]} -gt 0 ]; then
             # 현재 청크 저장
-            chunks+=("$(IFS=,; echo "${current_chunk[*]}")")
+            local IFS_BACKUP=$IFS
+            IFS=,
+            chunks+=("${current_chunk[*]}")
+            IFS=$IFS_BACKUP
             current_chunk=()
             current_size=0
         fi
@@ -414,7 +430,10 @@ create_chunks() {
 
     # 마지막 청크 저장
     if [ ${#current_chunk[@]} -gt 0 ]; then
-        chunks+=("$(IFS=,; echo "${current_chunk[*]}")")
+        local IFS_BACKUP=$IFS
+        IFS=,
+        chunks+=("${current_chunk[*]}")
+        IFS=$IFS_BACKUP
     fi
 
     printf '%s\n' "${chunks[@]}"
@@ -448,7 +467,7 @@ generate_project_structure() {
 
 # 컨텍스트 생성
 build_context() {
-    local -n chunk_files=$1
+    local chunk_files_str=$1
     local role=$2
     local chunk_num=$3
     local total_chunks=$4
@@ -456,49 +475,63 @@ build_context() {
 
     # 프로젝트 구조 추가 (첫 번째 청크에만)
     if [ "$chunk_num" -eq 0 ]; then
-        context+=$'\n'
-        context+="[프로젝트 전체 구조]"
-        context+=$'\n'
-        context+=$(generate_project_structure)
-        context+=$'\n\n'
+        context="$context"$'\n'"[프로젝트 전체 구조]"$'\n'
+        context="$context"$(generate_project_structure)$'\n\n'
     fi
 
     # 청크 정보
-    context+="[현재 청크 정보]"
-    context+=$'\n'
-    context+="청크 $((chunk_num + 1))/$total_chunks"
-    context+=$'\n'
-    context+="이 청크에 포함된 파일: ${#chunk_files[@]}개"
-    context+=$'\n\n'
+    context="$context""[현재 청크 정보]"$'\n'
+    context="$context""청크 $((chunk_num + 1))/$total_chunks"$'\n\n'
 
     # 파일 내용
-    context+="[소스 코드]"
-    context+=$'\n'
-    for file in "${chunk_files[@]}"; do
+    context="$context""[소스 코드]"$'\n'
+    IFS=',' read -ra files_to_read <<< "$chunk_files_str"
+    for file in "${files_to_read[@]}"; do
         if [ ! -f "$file" ]; then
             continue
         fi
 
-        context+=$'\n'
-        context+="--- FILE START: $file ---"
-        context+=$'\n'
-        context+=$(cat "$file" 2>/dev/null || echo "# 파일 읽기 실패")
-        context+=$'\n'
-        context+="--- FILE END: $file ---"
-        context+=$'\n'
+        context="$context"$'\n'"--- FILE START: $file ---"$'\n'
+        context="$context"$(cat "$file" 2>/dev/null || echo "# 파일 읽기 실패")$'\n'
+        context="$context""--- FILE END: $file ---"$'\n'
     done
 
     echo "$context"
 }
 
 # 4. 병렬 실행 관리
-declare -A PIDS
-declare -A STATUS
+# Bash 3.2 compatibility: Use dynamic variables for status and PIDs
+set_status() {
+    local role_safe=$(echo "$1" | tr ' ' '_')
+    printf -v "STATUS_${role_safe}" "%s" "$2"
+}
+
+get_status() {
+    local role_safe=$(echo "$1" | tr ' ' '_')
+    eval "echo \"\$STATUS_${role_safe}\""
+}
+
+set_pid() {
+    local key_safe=$(echo "$1" | tr ' |' '__')
+    printf -v "PID_${key_safe}" "%s" "$2"
+}
+
+get_pid() {
+    local key_safe=$(echo "$1" | tr ' |' '__')
+    eval "echo \"\$PID_${key_safe}\""
+}
+
+unset_pid() {
+    local key_safe=$(echo "$1" | tr ' |' '__')
+    eval "unset PID_${key_safe}"
+}
+
 running_jobs=0
+ACTIVE_KEYS=()
 
 # 초기 상태 설정
 for role in "${ROLES[@]}"; do
-    STATUS[$role]="$ICON_WAIT 대기 중..."
+    set_status "$role" "$ICON_WAIT 대기 중..."
 done
 
 # 화면 출력 함수
@@ -507,7 +540,7 @@ draw_status() {
     echo "🔄 진행 상황 (실행 중: $running_jobs/$MAX_PARALLEL)"
     for role in "${ROLES[@]}"; do
         tput el
-        printf "  %-30s : %s\n" "$role" "${STATUS[$role]}"
+        printf "  %-30s : %s\n" "$role" "$(get_status "$role")"
     done
 }
 
@@ -525,22 +558,33 @@ check_gemini_cli
 
 # 5. 작업 실행
 echo "🔍 파일 수집 중..."
-declare -A ALL_FILES
-declare -A ALL_CHUNKS
-
+# Bash 3.2 compatibility: Store files and chunks in dynamic variables
 for role in "${ROLES[@]}"; do
-    mapfile -t files < <(collect_files "$role")
-    ALL_FILES[$role]="${files[*]}"
+    # Collect files
+    role_files=()
+    while IFS= read -r line; do
+        role_files+=("$line")
+    done < <(collect_files "$role")
 
-    if [ ${#files[@]} -eq 0 ]; then
-        STATUS[$role]="⚠️  파일 없음"
+    if [ ${#role_files[@]} -eq 0 ]; then
+        set_status "$role" "⚠️  파일 없음"
         continue
     fi
 
-    mapfile -t chunks < <(create_chunks "$role" files)
-    ALL_CHUNKS[$role]="${#chunks[@]}"
+    # Create chunks
+    role_chunks=()
+    while IFS= read -r line; do
+        role_chunks+=("$line")
+    done < <(create_chunks "$role" "${role_files[@]}")
 
-    echo "  $role: ${#files[@]}개 파일, ${#chunks[@]}개 청크"
+    # Store in dynamic vars
+    role_safe=$(echo "$role" | tr ' ' '_')
+    printf -v "ALL_CHUNKS_${role_safe}_COUNT" "%s" "${#role_chunks[@]}"
+    for i in "${!role_chunks[@]}"; do
+        printf -v "ALL_CHUNKS_${role_safe}_${i}" "%s" "${role_chunks[$i]}"
+    done
+
+    echo "  $role: ${#role_files[@]}개 파일, ${#role_chunks[@]}개 청크"
 done
 
 echo ""
@@ -553,16 +597,13 @@ for role in "${ROLES[@]}"; do echo ""; done
 # 모든 작업 큐
 job_queue=()
 for role in "${ROLES[@]}"; do
-    files_str="${ALL_FILES[$role]}"
-    if [ -z "$files_str" ]; then
-        continue
-    fi
+    role_safe=$(echo "$role" | tr ' ' '_')
+    count_var="ALL_CHUNKS_${role_safe}_COUNT"
+    count=${!count_var:-0}
 
-    IFS=' ' read -ra files <<< "$files_str"
-    mapfile -t chunks < <(create_chunks "$role" files)
-
-    for i in "${!chunks[@]}"; do
-        job_queue+=("$role|$i|${chunks[$i]}")
+    for ((i=0; i<count; i++)); do
+        chunk_var="ALL_CHUNKS_${role_safe}_${i}"
+        job_queue+=("$role|$i|${!chunk_var}")
     done
 done
 
@@ -572,81 +613,91 @@ while [ $job_index -lt ${#job_queue[@]} ] || [ $running_jobs -gt 0 ]; do
     # 새 작업 시작
     while [ $running_jobs -lt $MAX_PARALLEL ] && [ $job_index -lt ${#job_queue[@]} ]; do
         job="${job_queue[$job_index]}"
-        IFS='|' read -r role chunk_num chunk_files_str <<< "$job"
+        role=$(echo "$job" | cut -d'|' -f1)
+        chunk_num=$(echo "$job" | cut -d'|' -f2)
+        chunk_files_str=$(echo "$job" | cut -d'|' -f3)
 
-        IFS=',' read -ra chunk_files <<< "$chunk_files_str"
-        total_chunks="${ALL_CHUNKS[$role]}"
+        role_safe=$(echo "$role" | tr ' ' '_')
+        total_chunks_var="ALL_CHUNKS_${role_safe}_COUNT"
+        total_chunks=${!total_chunks_var}
 
         if [ "$total_chunks" -gt 1 ]; then
             filename="${OUTPUT_DIR}/${role}_part$((chunk_num + 1))of${total_chunks}.md"
-            STATUS[$role]="$ICON_CHUNK 청크 $((chunk_num + 1))/$total_chunks 작성 중..."
+            set_status "$role" "$ICON_CHUNK 청크 $((chunk_num + 1))/$total_chunks 작성 중..."
         else
             filename="${OUTPUT_DIR}/${role}.md"
-            STATUS[$role]="$ICON_WAIT 작성 중..."
+            set_status "$role" "$ICON_WAIT 작성 중..."
         fi
 
         (
-            context=$(build_context chunk_files "$role" "$chunk_num" "$total_chunks")
-            prompt="${PROMPTS[$role]}"
-            final_prompt="$prompt"$'\n\n'"=== SOURCE CODE CONTEXT ===$context"
+            context=$(build_context "$chunk_files_str" "$role" "$chunk_num" "$total_chunks")
+            prompt=$(get_prompt "$role")
 
+            # Execute Gemini CLI
+            final_prompt="$prompt"$'\n\n'"=== SOURCE CODE CONTEXT ===$context"
             $GEMINI_CMD "$final_prompt" > "$filename" 2>&1
             exit_code=$?
 
             # 청크 정보 파일 저장
             if [ $exit_code -eq 0 ]; then
                 {
+                    echo ""
                     echo "# 청크 정보"
                     echo "청크 번호: $((chunk_num + 1))/$total_chunks"
                     echo "파일 목록:"
-                    printf '- %s\n' "${chunk_files[@]}"
+                    IFS=',' read -ra cf <<< "$chunk_files_str"
+                    for f in "${cf[@]}"; do echo "- $f"; done
                 } >> "$filename"
             fi
 
             exit $exit_code
         ) &
 
-        PIDS["${role}_${chunk_num}"]=$!
+        key="${role}_${chunk_num}"
+        set_pid "$key" "$!"
+        ACTIVE_KEYS+=("$key")
         running_jobs=$((running_jobs + 1))
         job_index=$((job_index + 1))
         draw_status
     done
 
     # 완료된 작업 확인
-    for key in "${!PIDS[@]}"; do
-        pid=${PIDS[$key]}
+    NEW_ACTIVE_KEYS=()
+    for key in "${ACTIVE_KEYS[@]}"; do
+        pid=$(get_pid "$key")
         if ! kill -0 "$pid" 2>/dev/null; then
             wait "$pid"
             exit_code=$?
 
-            IFS='_' read -r role chunk_num <<< "$key"
-            total_chunks="${ALL_CHUNKS[$role]}"
+            role=$(echo "$key" | cut -d'_' -f1)
+            chunk_num=$(echo "$key" | cut -d'_' -f2)
+
+            role_safe=$(echo "$role" | tr ' ' '_')
+            total_chunks_var="ALL_CHUNKS_${role_safe}_COUNT"
+            total_chunks=${!total_chunks_var}
 
             if [ $exit_code -eq 0 ]; then
                 if [ "$total_chunks" -gt 1 ]; then
-                    # 모든 청크 완료 확인
-                    all_done=true
-                    for ((i=0; i<total_chunks; i++)); do
-                        if kill -0 "${PIDS[${role}_${i}]}" 2>/dev/null; then
-                            all_done=false
-                            break
-                        fi
-                    done
-                    if [ "$all_done" = true ]; then
-                        STATUS[$role]="$ICON_DONE 완료 (${total_chunks}개 청크)"
+                    # 모든 청크 완료 확인은 실제로는 모든 작업 루프가 끝난 뒤 처리하거나
+                    # 마지막 청크가 끝났을 때를 기준으로 대략적으로 표시
+                    if [ $((chunk_num + 1)) -eq "$total_chunks" ]; then
+                        set_status "$role" "$ICON_DONE 완료 (${total_chunks}개 청크)"
                     fi
                 else
-                    STATUS[$role]="$ICON_DONE 완료"
+                    set_status "$role" "$ICON_DONE 완료"
                 fi
             else
-                STATUS[$role]="$ICON_FAIL 실패 (Code: $exit_code)"
+                set_status "$role" "$ICON_FAIL 실패 (Code: $exit_code)"
             fi
 
-            unset PIDS[$key]
+            unset_pid "$key"
             running_jobs=$((running_jobs - 1))
             draw_status
+        else
+            NEW_ACTIVE_KEYS+=("$key")
         fi
     done
+    ACTIVE_KEYS=("${NEW_ACTIVE_KEYS[@]}")
 
     sleep 0.5
 done
@@ -659,5 +710,5 @@ echo "📄 결과 확인: $OUTPUT_DIR"
 echo ""
 echo "📊 요약:"
 for role in "${ROLES[@]}"; do
-    echo "  - $role: ${STATUS[$role]}"
+    echo "  - $role: $(get_status "$role")"
 done
