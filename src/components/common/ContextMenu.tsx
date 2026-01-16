@@ -41,13 +41,22 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       e.preventDefault();
       e.stopPropagation();
 
-      // Check if there's selected text
+      // Check if there's selected text (not just cursor position)
       const selection = window.getSelection();
-      const selectedText = selection?.toString().trim();
+      let hasSelection = false;
 
-      // If text is selected and we have textSelectionSections, use those
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        // collapsed means it's just a cursor, not a selection
+        if (!range.collapsed) {
+          const selectedText = selection.toString().trim();
+          hasSelection = selectedText.length > 0;
+        }
+      }
+
+      // If text is actually selected and we have textSelectionSections, use those
       if (
-        selectedText &&
+        hasSelection &&
         textSelectionSections &&
         textSelectionSections.length > 0
       ) {
