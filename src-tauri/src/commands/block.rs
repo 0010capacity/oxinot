@@ -463,6 +463,7 @@ pub async fn resolve_block_path(
 /// Create a new block
 #[tauri::command]
 pub async fn create_block(
+    app: tauri::AppHandle,
     workspace_path: String,
     request: CreateBlockRequest,
 ) -> Result<Block, String> {
@@ -516,12 +517,16 @@ pub async fn create_block(
     )
     .map_err(|e| e.to_string())?;
 
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
     Ok(created_block)
 }
 
 /// Update a block
 #[tauri::command]
 pub async fn update_block(
+    app: tauri::AppHandle,
     workspace_path: String,
     request: UpdateBlockRequest,
 ) -> Result<Block, String> {
@@ -572,12 +577,19 @@ pub async fn update_block(
     )
     .map_err(|e| e.to_string())?;
 
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
     Ok(updated_block)
 }
 
 /// Delete a block (and all descendants)
 #[tauri::command]
-pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Vec<String>, String> {
+pub async fn delete_block(
+    app: tauri::AppHandle,
+    workspace_path: String,
+    block_id: String,
+) -> Result<Vec<String>, String> {
     let conn = open_workspace_db(&workspace_path)?;
 
     // Get page_id and parent_id before deletion
@@ -618,6 +630,9 @@ pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Ve
     // Sync to markdown file
     sync_page_to_markdown_after_delete(&conn, &workspace_path, &page_id, block_id.as_str())?;
 
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
     // Return only the deleted block ID (not descendants since they're preserved)
     Ok(vec![block_id])
 }
@@ -630,6 +645,7 @@ pub async fn delete_block(workspace_path: String, block_id: String) -> Result<Ve
 /// Move a block (change parent and/or position)
 #[tauri::command]
 pub async fn move_block(
+    app: tauri::AppHandle,
     workspace_path: String,
     request: MoveBlockRequest,
 ) -> Result<Block, String> {
@@ -663,12 +679,19 @@ pub async fn move_block(
         &moved_block.id,
     )?;
 
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
     Ok(moved_block)
 }
 
 /// Indent a block (make it a child of previous sibling)
 #[tauri::command]
-pub async fn indent_block(workspace_path: String, block_id: String) -> Result<Block, String> {
+pub async fn indent_block(
+    app: tauri::AppHandle,
+    workspace_path: String,
+    block_id: String,
+) -> Result<Block, String> {
     let conn = open_workspace_db(&workspace_path)?;
     let block = get_block_by_id(&conn, &block_id)?;
 
@@ -702,12 +725,19 @@ pub async fn indent_block(workspace_path: String, block_id: String) -> Result<Bl
         &updated_block.id,
     )?;
 
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
     Ok(updated_block)
 }
 
 /// Outdent a block (make it a sibling of its parent)
 #[tauri::command]
-pub async fn outdent_block(workspace_path: String, block_id: String) -> Result<Block, String> {
+pub async fn outdent_block(
+    app: tauri::AppHandle,
+    workspace_path: String,
+    block_id: String,
+) -> Result<Block, String> {
     let conn = open_workspace_db(&workspace_path)?;
     let block = get_block_by_id(&conn, &block_id)?;
 
@@ -744,12 +774,19 @@ pub async fn outdent_block(workspace_path: String, block_id: String) -> Result<B
         &updated_block.id,
     )?;
 
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
     Ok(updated_block)
 }
 
 /// Toggle collapse state of a block
 #[tauri::command]
-pub async fn toggle_collapse(workspace_path: String, block_id: String) -> Result<Block, String> {
+pub async fn toggle_collapse(
+    app: tauri::AppHandle,
+    workspace_path: String,
+    block_id: String,
+) -> Result<Block, String> {
     let conn = open_workspace_db(&workspace_path)?;
     let block = get_block_by_id(&conn, &block_id)?;
 
@@ -764,7 +801,11 @@ pub async fn toggle_collapse(workspace_path: String, block_id: String) -> Result
     let updated_block = get_block_by_id(&conn, &block_id)?;
 
     // Sync to markdown file
+    // Sync to markdown file (collapse state is not reflected in markdown)
     sync_page_to_markdown(&conn, &workspace_path, &updated_block.page_id)?;
+
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
     Ok(updated_block)
 }
@@ -773,6 +814,7 @@ pub async fn toggle_collapse(workspace_path: String, block_id: String) -> Result
 /// This is an atomic operation to prevent data loss.
 #[tauri::command]
 pub async fn merge_blocks(
+    app: tauri::AppHandle,
     workspace_path: String,
     block_id: String,
     target_id: Option<String>,
@@ -889,6 +931,9 @@ pub async fn merge_blocks(
         let child = get_block_by_id(&conn, &child_id)?;
         changed_blocks.push(child);
     }
+
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
     Ok(changed_blocks)
 }
@@ -1012,6 +1057,7 @@ fn get_block_by_id(conn: &Connection, id: &str) -> Result<Block, String> {
     Ok(block)
 }
 
+#[allow(dead_code)]
 fn collect_descendant_ids(conn: &Connection, block_id: &str) -> Result<Vec<String>, String> {
     // Recursive CTE to collect all descendants
     let mut stmt = conn

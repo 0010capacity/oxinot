@@ -3,6 +3,7 @@ import { immer } from "zustand/middleware/immer";
 import { shallow } from "zustand/shallow";
 import { createWithEqualityFn as create } from "zustand/traditional";
 import { useWorkspaceStore } from "./workspaceStore";
+import { useBlockUIStore } from "./blockUIStore";
 
 // ============ Types ============
 
@@ -29,17 +30,6 @@ interface BlockState {
   currentPageId: string | null;
   isLoading: boolean;
   error: string | null;
-
-  // 선택/포커스 상태
-  focusedBlockId: string | null;
-  selectedBlockIds: string[];
-
-  // 작업 상태
-  mergingBlockId: string | null;
-  mergingTargetBlockId: string | null;
-
-  // 커서 위치 추적 (블록 간 이동 시)
-  targetCursorPosition: number | null;
 }
 
 interface BlockActions {
@@ -48,13 +38,13 @@ interface BlockActions {
   clearPage: () => void;
   updatePartialBlocks: (
     blocks: BlockData[],
-    deletedBlockIds?: string[],
+    deletedBlockIds?: string[]
   ) => void;
 
   // 블록 CRUD
   createBlock: (
     afterBlockId: string | null,
-    content?: string,
+    content?: string
   ) => Promise<string>;
   updateBlock: (id: string, updates: Partial<BlockData>) => Promise<void>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
@@ -62,7 +52,7 @@ interface BlockActions {
   splitBlockAtCursor: (
     id: string,
     offset: number,
-    draftContent?: string,
+    draftContent?: string
   ) => Promise<void>;
 
   // 블록 조작
@@ -71,15 +61,10 @@ interface BlockActions {
   moveBlock: (
     id: string,
     newParentId: string | null,
-    afterBlockId: string | null,
+    afterBlockId: string | null
   ) => Promise<void>;
   mergeWithPrevious: (id: string, draftContent?: string) => Promise<void>;
   toggleCollapse: (id: string) => Promise<void>;
-
-  // 선택/포커스
-  setFocusedBlock: (id: string | null, cursorPos?: number) => void;
-  setSelectedBlocks: (ids: string[]) => void;
-  clearTargetCursorPosition: () => void;
 
   // 키보드 네비게이션
   getBlock: (id: string) => BlockData | undefined;
@@ -109,7 +94,7 @@ type BlockStore = BlockState & BlockActions;
 function getInsertBelowTarget(
   currentId: string,
   blocksById: Record<string, BlockData>,
-  childrenMap: Record<string, string[]>,
+  childrenMap: Record<string, string[]>
 ): { parentId: string | null; afterBlockId: string | null } {
   const currentBlock = blocksById[currentId];
   const hasChildren = (childrenMap[currentId] ?? []).length > 0;
@@ -139,11 +124,6 @@ export const useBlockStore = create<BlockStore>()(
     currentPageId: null,
     isLoading: false,
     error: null,
-    focusedBlockId: null,
-    selectedBlockIds: [],
-    mergingBlockId: null,
-    mergingTargetBlockId: null,
-    targetCursorPosition: null,
 
     // ============ Page Operations ============
 
@@ -228,8 +208,13 @@ export const useBlockStore = create<BlockStore>()(
         state.blocksById = {};
         state.childrenMap = { root: [] };
         state.currentPageId = null;
-        state.focusedBlockId = null;
-        state.selectedBlockIds = [];
+      });
+      useBlockUIStore.setState({
+        focusedBlockId: null,
+        selectedBlockIds: [],
+        mergingBlockId: null,
+        mergingTargetBlockId: null,
+        targetCursorPosition: null,
       });
     },
 
@@ -302,7 +287,7 @@ export const useBlockStore = create<BlockStore>()(
         const target = getInsertBelowTarget(
           afterBlockId,
           blocksById,
-          childrenMap,
+          childrenMap
         );
         parentId = target.parentId;
         afterBlockIdForBackend = target.afterBlockId;
@@ -338,8 +323,8 @@ export const useBlockStore = create<BlockStore>()(
             state.childrenMap[parentKey] = [];
           }
           state.childrenMap[parentKey].push(tempId);
-          state.focusedBlockId = tempId;
         });
+        useBlockUIStore.setState({ focusedBlockId: tempId });
 
         // Kick off the backend create after the optimistic state is committed.
         // Yield one tick to ensure React/Zustand subscribers can render the temp block.
@@ -371,9 +356,8 @@ export const useBlockStore = create<BlockStore>()(
             if (tempIndex !== -1) {
               state.childrenMap[parentKey][tempIndex] = newBlock.id;
             }
-
-            state.focusedBlockId = newBlock.id;
           });
+          useBlockUIStore.setState({ focusedBlockId: newBlock.id });
 
           return newBlock.id;
         } catch (error) {
@@ -382,7 +366,7 @@ export const useBlockStore = create<BlockStore>()(
             delete state.blocksById[tempId];
             const parentKey = parentId ?? "root";
             state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
-              (id) => id !== tempId,
+              (id) => id !== tempId
             );
           });
           throw error;
@@ -409,9 +393,9 @@ export const useBlockStore = create<BlockStore>()(
           get().updatePartialBlocks([newBlock]);
 
           // Set focus
-          set((state) => {
-            state.focusedBlockId = newBlock.id;
-            state.targetCursorPosition = 0;
+          useBlockUIStore.setState({
+            focusedBlockId: newBlock.id,
+            targetCursorPosition: 0,
           });
 
           return newBlock.id;
@@ -463,7 +447,9 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     updateBlockContent: async (id: string, content: string) => {
-      const { mergingBlockId, mergingTargetBlockId, blocksById } = get();
+      const { blocksById } = get();
+      const { mergingBlockId, mergingTargetBlockId } =
+        useBlockUIStore.getState();
 
       // Prevent UI from overwriting blocks involved in an active merge operation.
       if (id === mergingBlockId || id === mergingTargetBlockId) {
@@ -503,7 +489,7 @@ export const useBlockStore = create<BlockStore>()(
     splitBlockAtCursor: async (
       id: string,
       offset: number,
-      draftContent?: string,
+      draftContent?: string
     ) => {
       const { currentPageId, blocksById, childrenMap } = get();
       if (!currentPageId) throw new Error("No page loaded");
@@ -543,9 +529,9 @@ export const useBlockStore = create<BlockStore>()(
         get().updatePartialBlocks([newBlock]);
 
         // Set focus
-        set((state) => {
-          state.focusedBlockId = newBlock.id;
-          state.targetCursorPosition = 0;
+        useBlockUIStore.setState({
+          focusedBlockId: newBlock.id,
+          targetCursorPosition: 0,
         });
       } catch (error) {
         console.error("Failed to split block:", error);
@@ -659,7 +645,7 @@ export const useBlockStore = create<BlockStore>()(
     moveBlock: async (
       id: string,
       targetParentId: string | null,
-      afterBlockId: string | null,
+      afterBlockId: string | null
     ) => {
       const workspacePath = useWorkspaceStore.getState().workspacePath;
       if (!workspacePath) {
@@ -679,20 +665,17 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     mergeWithPrevious: async (id: string, draftContent?: string) => {
-      const {
-        blocksById,
-        getPreviousVisibleBlock,
-        deleteBlock,
-        mergingBlockId,
-      } = get();
+      const { blocksById, getPreviousVisibleBlock, deleteBlock } = get();
 
       // Prevent concurrent merges on the same block
+      const { mergingBlockId } = useBlockUIStore.getState();
       if (mergingBlockId === id) {
         return;
       }
 
-      set((state) => {
-        state.mergingBlockId = id;
+      useBlockUIStore.setState({
+        mergingBlockId: id,
+        mergingTargetBlockId: null,
       });
 
       try {
@@ -709,14 +692,12 @@ export const useBlockStore = create<BlockStore>()(
           if (prevBlockId) {
             const prevBlock = get().blocksById[prevBlockId];
             if (prevBlock) {
-              set((state) => {
-                state.focusedBlockId = prevBlockId;
-                state.targetCursorPosition = prevBlock.content.length;
+              useBlockUIStore.setState({
+                focusedBlockId: prevBlockId,
+                targetCursorPosition: prevBlock.content.length,
               });
             } else {
-              set((state) => {
-                state.focusedBlockId = prevBlockId;
-              });
+              useBlockUIStore.setState({ focusedBlockId: prevBlockId });
             }
           }
           return;
@@ -729,9 +710,7 @@ export const useBlockStore = create<BlockStore>()(
         }
 
         // Lock the target block to prevent stale UI updates from overwriting the merge result
-        set((state) => {
-          state.mergingTargetBlockId = prevBlockId;
-        });
+        useBlockUIStore.setState({ mergingTargetBlockId: prevBlockId });
 
         const prevBlock = blocksById[prevBlockId];
         if (!prevBlock) return;
@@ -779,37 +758,34 @@ export const useBlockStore = create<BlockStore>()(
         get().updatePartialBlocks(changedBlocks, [id]);
 
         // Set focus and cursor position
-        set((state) => {
-          state.focusedBlockId = prevBlockId;
-          state.targetCursorPosition = cursorPosition;
+        useBlockUIStore.setState({
+          focusedBlockId: prevBlockId,
+          targetCursorPosition: cursorPosition,
         });
       } catch (error) {
         console.error("Failed to merge blocks:", error);
 
         // Error recovery: Clear focus to ensure Editor components re-initialize with fresh data on reload
-        set((state) => {
-          state.focusedBlockId = null;
-        });
+        useBlockUIStore.setState({ focusedBlockId: null });
 
         const pageId = get().currentPageId;
         if (pageId) await get().loadPage(pageId);
 
         // Restore focus
-        set((state) => {
+        const state = get();
+        if (state.blocksById[id]) {
           // If the block still exists (merge failed), focus it so user can retry or see state
-          if (state.blocksById[id]) {
-            state.focusedBlockId = id;
-          } else {
-            // Block is gone (maybe deleted by race?), focus previous or root
-            const prev =
-              getPreviousVisibleBlock(id) ?? state.childrenMap.root?.[0];
-            state.focusedBlockId = prev ?? null;
-          }
-        });
+          useBlockUIStore.setState({ focusedBlockId: id });
+        } else {
+          // Block is gone (maybe deleted by race?), focus previous or root
+          const prev =
+            getPreviousVisibleBlock(id) ?? state.childrenMap.root?.[0];
+          useBlockUIStore.setState({ focusedBlockId: prev ?? null });
+        }
       } finally {
-        set((state) => {
-          state.mergingBlockId = null;
-          state.mergingTargetBlockId = null;
+        useBlockUIStore.setState({
+          mergingBlockId: null,
+          mergingTargetBlockId: null,
         });
       }
     },
@@ -838,27 +814,6 @@ export const useBlockStore = create<BlockStore>()(
         if (pageId) await get().loadPage(pageId);
         throw error;
       }
-    },
-
-    // ============ Focus/Selection ============
-
-    setFocusedBlock: (id: string | null, cursorPos?: number) => {
-      set((state) => {
-        state.focusedBlockId = id;
-        state.targetCursorPosition = cursorPos ?? null;
-      });
-    },
-
-    setSelectedBlocks: (ids: string[]) => {
-      set((state) => {
-        state.selectedBlockIds = ids;
-      });
-    },
-
-    clearTargetCursorPosition: () => {
-      set((state) => {
-        state.targetCursorPosition = null;
-      });
     },
 
     // ============ Selectors ============
@@ -954,7 +909,7 @@ export const useBlockStore = create<BlockStore>()(
 
       return null;
     },
-  })),
+  }))
 );
 
 // ============ Selector Hooks ============
@@ -965,10 +920,7 @@ export const useBlock = (id: string) =>
 export const useChildrenIds = (parentId: string | null) =>
   useBlockStore(
     (state) => state.childrenMap[parentId ?? "root"] ?? [],
-    shallow,
+    shallow
   );
-
-export const useFocusedBlockId = () =>
-  useBlockStore((state) => state.focusedBlockId);
 
 export const useBlocksLoading = () => useBlockStore((state) => state.isLoading);

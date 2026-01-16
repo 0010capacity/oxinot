@@ -6,7 +6,7 @@ import type { PageData } from "@/stores/pageStore";
  */
 export const buildPagePath = (
   pageId: string,
-  pagesById: Record<string, PageData>,
+  pagesById: Record<string, PageData>
 ): string => {
   const page = pagesById[pageId];
   if (!page) return "";
@@ -26,26 +26,9 @@ export const buildPagePath = (
 export const findPageByPath = (
   fullPath: string,
   pageIds: string[],
-  pagesById: Record<string, PageData>,
+  pagesById: Record<string, PageData>
 ): string | undefined => {
-  console.log(`[findPageByPath] Looking for path: "${fullPath}"`);
-  console.log(`[findPageByPath] Total pages: ${pageIds.length}`);
-
-  for (const id of pageIds) {
-    const builtPath = buildPagePath(id, pagesById);
-    console.log(
-      `[findPageByPath] Page ${id}: "${builtPath}" (title: ${pagesById[id]?.title})`,
-    );
-  }
-
-  const result = pageIds.find(
-    (id) => buildPagePath(id, pagesById) === fullPath,
-  );
-  console.log(
-    `[findPageByPath] Result: ${result ? `Found ${result}` : "Not found"}`,
-  );
-
-  return result;
+  return pageIds.find((id) => buildPagePath(id, pagesById) === fullPath);
 };
 
 /**
@@ -54,7 +37,7 @@ export const findPageByPath = (
  */
 export const buildPageBreadcrumb = (
   pageId: string,
-  pagesById: Record<string, PageData>,
+  pagesById: Record<string, PageData>
 ): { names: string[]; ids: string[] } => {
   const parentNames: string[] = [];
   const pagePathIds: string[] = [];
@@ -87,7 +70,7 @@ export const createPageHierarchy = async (
   fullPath: string,
   createPageFn: (title: string, parentId?: string) => Promise<string>,
   findPageFn: (path: string) => string | undefined,
-  convertToDirectoryFn?: (pageId: string) => Promise<void>,
+  convertToDirectoryFn?: (pageId: string) => Promise<void>
 ): Promise<string | null> => {
   const pathParts = fullPath.split("/");
   let parentId: string | undefined = undefined;
