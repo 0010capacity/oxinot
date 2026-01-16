@@ -63,8 +63,6 @@ export interface OutlinerSettingsProps extends SettingsComponentProps {
   setShowCodeBlockLineNumbers: (value: boolean) => void;
   indentSize: number;
   setIndentSize: (size: number) => void;
-  metadataDisplayStyle: string;
-  setMetadataDisplayStyle: (style: "property" | "box") => void;
 }
 
 export interface GitCommitResult {
