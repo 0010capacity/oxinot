@@ -484,7 +484,7 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     deleteBlock: async (id: string) => {
-      const { blocksById } = get();
+      const { blocksById, getPreviousVisibleBlock } = get();
       const block = blocksById[id];
       if (!block) return;
 
@@ -492,6 +492,15 @@ export const useBlockStore = create<BlockStore>()(
       const totalBlocks = Object.keys(blocksById).length;
       if (totalBlocks <= 1) {
         return;
+      }
+
+      // Check if we need to move focus BEFORE deletion (so we know where to go)
+      const { focusedBlockId } = useBlockUIStore.getState();
+      let nextFocusId: string | null = null;
+
+      if (focusedBlockId === id) {
+        // If deleting the focused block, move focus to previous visible block
+        nextFocusId = getPreviousVisibleBlock(id);
       }
 
       try {
@@ -508,6 +517,30 @@ export const useBlockStore = create<BlockStore>()(
 
         // Update only the affected blocks (remove deleted ones)
         get().updatePartialBlocks([], deletedIds);
+
+        // Cleanup UI state if needed
+        const currentUI = useBlockUIStore.getState();
+
+        // 1. Handle Focus
+        if (currentUI.focusedBlockId && deletedIds.includes(currentUI.focusedBlockId)) {
+          if (nextFocusId) {
+             useBlockUIStore.setState({ focusedBlockId: nextFocusId });
+          } else {
+             useBlockUIStore.setState({ focusedBlockId: null });
+          }
+        }
+
+        // 2. Handle Merge State
+        if (
+          (currentUI.mergingBlockId && deletedIds.includes(currentUI.mergingBlockId)) ||
+          (currentUI.mergingTargetBlockId && deletedIds.includes(currentUI.mergingTargetBlockId))
+        ) {
+          useBlockUIStore.setState({
+            mergingBlockId: null,
+            mergingTargetBlockId: null,
+          });
+        }
+
       } catch (error) {
         console.error("Failed to delete block:", error);
         // Reload to restore correct state
