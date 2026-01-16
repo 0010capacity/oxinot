@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::commands::workspace::open_workspace_db;
+use crate::error::Result;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResult {
@@ -18,6 +19,10 @@ pub fn search_content(workspace_path: String, query: String) -> Result<Vec<Searc
         return Ok(vec![]);
     }
 
+    search_content_internal(workspace_path, query).map_err(|e| e.to_string())
+}
+
+fn search_content_internal(workspace_path: String, query: String) -> Result<Vec<SearchResult>> {
     let conn = open_workspace_db(&workspace_path)?;
     let mut results = Vec::new();
 
@@ -25,33 +30,29 @@ pub fn search_content(workspace_path: String, query: String) -> Result<Vec<Searc
     let search_pattern = format!("%{}%", query);
 
     // 1. Search in page titles
-    let mut stmt = conn
-        .prepare(
-            "SELECT id, title, parent_id
-             FROM pages
-             WHERE title LIKE ?1
-             ORDER BY title COLLATE NOCASE",
-        )
-        .map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare(
+        "SELECT id, title, parent_id
+         FROM pages
+         WHERE title LIKE ?1 AND is_deleted = 0
+         ORDER BY title COLLATE NOCASE",
+    )?;
 
-    let page_results = stmt
-        .query_map([&search_pattern], |row| {
-            let id: String = row.get(0)?;
-            let title: String = row.get(1)?;
+    let page_results = stmt.query_map([&search_pattern], |row| {
+        let id: String = row.get(0)?;
+        let title: String = row.get(1)?;
 
-            // Create snippet with highlighted match
-            let snippet = highlight_match(&title, &query);
+        // Create snippet with highlighted match
+        let snippet = highlight_match(&title, &query);
 
-            Ok(SearchResult {
-                id: id.clone(),
-                page_id: id,
-                page_title: title.clone(),
-                result_type: "page".to_string(),
-                content: title,
-                snippet,
-            })
+        Ok(SearchResult {
+            id: id.clone(),
+            page_id: id,
+            page_title: title.clone(),
+            result_type: "page".to_string(),
+            content: title,
+            snippet,
         })
-        .map_err(|e| e.to_string())?;
+    })?;
 
     for result in page_results {
         if let Ok(r) = result {
@@ -60,36 +61,32 @@ pub fn search_content(workspace_path: String, query: String) -> Result<Vec<Searc
     }
 
     // 2. Search in block content
-    let mut stmt = conn
-        .prepare(
-            "SELECT b.id, b.page_id, b.content, p.title
-             FROM blocks b
-             JOIN pages p ON b.page_id = p.id
-             WHERE b.content LIKE ?1
-             ORDER BY p.title COLLATE NOCASE, b.order_weight",
-        )
-        .map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare(
+        "SELECT b.id, b.page_id, b.content, p.title
+         FROM blocks b
+         JOIN pages p ON b.page_id = p.id
+         WHERE b.content LIKE ?1 AND p.is_deleted = 0
+         ORDER BY p.title COLLATE NOCASE, b.order_weight",
+    )?;
 
-    let block_results = stmt
-        .query_map([&search_pattern], |row| {
-            let id: String = row.get(0)?;
-            let page_id: String = row.get(1)?;
-            let content: String = row.get(2)?;
-            let page_title: String = row.get(3)?;
+    let block_results = stmt.query_map([&search_pattern], |row| {
+        let id: String = row.get(0)?;
+        let page_id: String = row.get(1)?;
+        let content: String = row.get(2)?;
+        let page_title: String = row.get(3)?;
 
-            // Create snippet with highlighted match
-            let snippet = create_snippet(&content, &query);
+        // Create snippet with highlighted match
+        let snippet = create_snippet(&content, &query);
 
-            Ok(SearchResult {
-                id,
-                page_id,
-                page_title,
-                result_type: "block".to_string(),
-                content,
-                snippet,
-            })
+        Ok(SearchResult {
+            id,
+            page_id,
+            page_title,
+            result_type: "block".to_string(),
+            content,
+            snippet,
         })
-        .map_err(|e| e.to_string())?;
+    })?;
 
     for result in block_results {
         if let Ok(r) = result {
