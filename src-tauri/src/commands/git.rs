@@ -20,7 +20,7 @@ pub struct GitCommitResult {
 
 /// Initialize a git repository in the workspace
 #[command]
-pub async fn git_init(workspace_path: String) -> Result<bool, String> {
+pub fn git_init(workspace_path: String) -> Result<bool, String> {
     let path = Path::new(&workspace_path);
 
     if !path.exists() {
@@ -70,7 +70,7 @@ pub async fn git_init(workspace_path: String) -> Result<bool, String> {
 
 /// Check if workspace is a git repository
 #[command]
-pub async fn git_is_repo(workspace_path: String) -> Result<bool, String> {
+pub fn git_is_repo(workspace_path: String) -> Result<bool, String> {
     let path = Path::new(&workspace_path);
     let git_dir = path.join(".git");
     Ok(git_dir.exists() && git_dir.is_dir())
@@ -78,7 +78,7 @@ pub async fn git_is_repo(workspace_path: String) -> Result<bool, String> {
 
 /// Get git status of the workspace
 #[command]
-pub async fn git_status(workspace_path: String) -> Result<GitStatus, String> {
+pub fn git_status(workspace_path: String) -> Result<GitStatus, String> {
     let path = Path::new(&workspace_path);
 
     // Check if git repo
@@ -147,7 +147,7 @@ fn get_remote_url_internal(path: &Path) -> Option<String> {
 
 /// Get git remote URL
 #[command]
-pub async fn git_get_remote_url(workspace_path: String) -> Result<Option<String>, String> {
+pub fn git_get_remote_url(workspace_path: String) -> Result<Option<String>, String> {
     let path = Path::new(&workspace_path);
 
     if !path.join(".git").exists() {
@@ -159,7 +159,7 @@ pub async fn git_get_remote_url(workspace_path: String) -> Result<Option<String>
 
 /// Set git remote URL
 #[command]
-pub async fn git_set_remote_url(workspace_path: String, url: String) -> Result<String, String> {
+pub fn git_set_remote_url(workspace_path: String, url: String) -> Result<String, String> {
     let path = Path::new(&workspace_path);
 
     if !path.join(".git").exists() {
@@ -197,7 +197,7 @@ pub async fn git_set_remote_url(workspace_path: String, url: String) -> Result<S
 
 /// Remove git remote
 #[command]
-pub async fn git_remove_remote(workspace_path: String) -> Result<String, String> {
+pub fn git_remove_remote(workspace_path: String) -> Result<String, String> {
     let path = Path::new(&workspace_path);
 
     if !path.join(".git").exists() {
@@ -223,7 +223,7 @@ pub async fn git_remove_remote(workspace_path: String) -> Result<String, String>
 
 /// Commit changes with a message
 #[command]
-pub async fn git_commit(
+pub fn git_commit(
     workspace_path: String,
     message: String,
 ) -> Result<GitCommitResult, String> {
@@ -305,7 +305,7 @@ pub async fn git_commit(
 
 /// Push changes to remote
 #[command]
-pub async fn git_push(workspace_path: String) -> Result<String, String> {
+pub fn git_push(workspace_path: String) -> Result<String, String> {
     let path = Path::new(&workspace_path);
 
     if !path.join(".git").exists() {
@@ -330,7 +330,7 @@ pub async fn git_push(workspace_path: String) -> Result<String, String> {
 
 /// Pull changes from remote
 #[command]
-pub async fn git_pull(workspace_path: String) -> Result<String, String> {
+pub fn git_pull(workspace_path: String) -> Result<String, String> {
     let path = Path::new(&workspace_path);
 
     if !path.join(".git").exists() {
@@ -355,7 +355,7 @@ pub async fn git_pull(workspace_path: String) -> Result<String, String> {
 
 /// Get git log (recent commits)
 #[command]
-pub async fn git_log(workspace_path: String, limit: Option<usize>) -> Result<Vec<String>, String> {
+pub fn git_log(workspace_path: String, limit: Option<usize>) -> Result<Vec<String>, String> {
     let path = Path::new(&workspace_path);
 
     if !path.join(".git").exists() {
