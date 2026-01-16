@@ -44,7 +44,31 @@ fn write_page_lines(
     if had_trailing_newline || !new_text.is_empty() {
         new_text.push('\n');
     }
-    std::fs::write(full_path, new_text).map_err(|e| format!("Failed to write file: {}", e))?;
+
+    // Atomic write: write to temp file, sync, then rename
+    let parent = full_path
+        .parent()
+        .ok_or_else(|| "Invalid file path: no parent directory".to_string())?;
+    let file_name = full_path
+        .file_name()
+        .ok_or_else(|| "Invalid file path: no file name".to_string())?;
+    let temp_path = parent.join(format!(".{}.tmp", file_name.to_string_lossy()));
+
+    // Write to temporary file
+    std::fs::write(&temp_path, &new_text)
+        .map_err(|e| format!("Failed to write temporary file: {}", e))?;
+
+    // Sync to disk
+    let temp_file = std::fs::File::open(&temp_path)
+        .map_err(|e| format!("Failed to open temporary file for sync: {}", e))?;
+    temp_file
+        .sync_all()
+        .map_err(|e| format!("Failed to sync temporary file to disk: {}", e))?;
+
+    // Atomically rename to target path
+    std::fs::rename(&temp_path, full_path)
+        .map_err(|e| format!("Failed to rename temporary file to target: {}", e))?;
+
     Ok(())
 }
 
@@ -518,12 +542,12 @@ fn try_patch_bullet_block_content(
         let line = &lines[j];
         let trimmed = line.trim_start();
         let depth = indent_len(line);
-        
+
         // Metadata must be indented same as marker
         if depth == indent_len_val && crate::utils::markdown::is_metadata_line(trimmed) {
             return Ok(false);
         }
-        
+
         // If we hit something that is not metadata at the same level, stop checking
         if depth <= indent_len_val {
             break;
@@ -532,7 +556,7 @@ fn try_patch_bullet_block_content(
         // Actually, metadata must be contiguous after ID.
         // If we see a child block, metadata section is over.
         if depth > indent_len_val {
-             break;
+            break;
         }
         j += 1;
     }
