@@ -1,6 +1,6 @@
 import { Menu } from "@mantine/core";
 import type React from "react";
-import { forwardRef, useState } from "react";
+import { useState } from "react";
 
 export interface ContextMenuItem {
   label: string;
@@ -22,36 +22,6 @@ interface ContextMenuProps {
   style?: React.CSSProperties;
 }
 
-// Custom trigger to hijack the default click behavior
-// We want to open on context-menu (right click), not left click.
-// Mantine Menu passes 'onClick' to the target to toggle the menu.
-// We intercept that to prevent left-click opening, while preserving the ref for positioning.
-interface ContextMenuTriggerProps extends React.HTMLAttributes<HTMLDivElement> {
-  onTriggerClick?: () => void;
-}
-
-const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerProps>(
-  (
-    { onClick, onContextMenuCapture, onTriggerClick, children, ...other },
-    ref,
-  ) => {
-    return (
-      <div
-        ref={ref}
-        onContextMenuCapture={onContextMenuCapture}
-        onClick={() => {
-          // Close the menu if clicked (optional, ensures clean state)
-          onTriggerClick?.();
-          // We intentionally do NOT call the 'onClick' passed by Mantine (which would toggle the menu)
-        }}
-        {...other}
-      >
-        {children}
-      </div>
-    );
-  },
-);
-
 export const ContextMenu: React.FC<ContextMenuProps> = ({
   children,
   sections,
@@ -60,59 +30,79 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   style,
 }) => {
   const [opened, setOpened] = useState(false);
+  const [coords, setCoords] = useState({ x: 0, y: 0 });
 
   if (disabled) {
     return <>{children}</>;
   }
 
   return (
-    <Menu
-      opened={opened}
-      onChange={setOpened}
-      shadow="md"
-      width={200}
-      position="bottom-start"
-      withArrow
-      trigger="click" // We control the trigger manually via state
-      closeOnClickOutside={true}
-    >
-      <Menu.Target>
-        <ContextMenuTrigger
-          onContextMenuCapture={(e: React.MouseEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setOpened(true);
-          }}
-          onTriggerClick={() => setOpened(false)}
-          className={className}
-          style={style}
-        >
-          {children}
-        </ContextMenuTrigger>
-      </Menu.Target>
+    <>
+      <div
+        className={className}
+        style={style}
+        onContextMenuCapture={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setCoords({ x: e.clientX, y: e.clientY });
+          setOpened(true);
+        }}
+      >
+        {children}
+      </div>
 
-      <Menu.Dropdown>
-        {sections.map((section, sectionIndex) => (
-          <div key={section.items[0]?.label || sectionIndex}>
-            {section.items.map((item) => (
-              <Menu.Item
-                key={item.label}
-                leftSection={item.icon}
-                color={item.color}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  item.onClick();
-                  setOpened(false); // Close after action
-                }}
-                disabled={item.disabled}
-              >
-                {item.label}
-              </Menu.Item>
-            ))}
-            {sectionIndex < sections.length - 1 && <Menu.Divider />}
-          </div>
-        ))}
-      </Menu.Dropdown>
-    </Menu>
+      <Menu
+        opened={opened}
+        onChange={setOpened}
+        shadow="md"
+        width={200}
+        // Use a portal to ensure it renders at body level, avoiding z-index issues
+        withinPortal={true}
+        // We use a custom anchor, so position logic is handled by us (indirectly via the virtual target)
+        position="bottom-start"
+        // Close on any click outside
+        closeOnClickOutside={true}
+        // Trap focus to ensure keyboard navigation works within the menu
+        trapFocus={true}
+      >
+        <Menu.Target>
+          {/* Virtual Target: Positioned exactly at mouse coordinates */}
+          <div
+            style={{
+              position: "fixed",
+              top: coords.y,
+              left: coords.x,
+              width: 0,
+              height: 0,
+              visibility: "hidden",
+              pointerEvents: "none", // Ensure it doesn't block clicks
+            }}
+          />
+        </Menu.Target>
+
+        <Menu.Dropdown>
+          {sections.map((section, sectionIndex) => (
+            <div key={section.items[0]?.label || sectionIndex}>
+              {section.items.map((item) => (
+                <Menu.Item
+                  key={item.label}
+                  leftSection={item.icon}
+                  color={item.color}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    item.onClick();
+                    setOpened(false);
+                  }}
+                  disabled={item.disabled}
+                >
+                  {item.label}
+                </Menu.Item>
+              ))}
+              {sectionIndex < sections.length - 1 && <Menu.Divider />}
+            </div>
+          ))}
+        </Menu.Dropdown>
+      </Menu>
+    </>
   );
 };
