@@ -59,6 +59,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const { t } = useTranslation();
 
+    // Guard against undefined block (can happen during navigation between pages)
+    if (!block) {
+      return null;
+    }
+
     const blockComponentRef = useRef<HTMLDivElement>(null);
 
     const editorRef = useRef<EditorRef>(null);
@@ -71,9 +76,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       typeof setTimeout
     > | null>(null);
 
-    const contextMenuSections: ContextMenuSection[] = useMemo(() => {
-      if (!block) return [];
-      return [
+    const contextMenuSections: ContextMenuSection[] = useMemo(
+      () => [
         {
           items: [
             {
@@ -103,8 +107,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             },
           ],
         },
-      ];
-    }, [block, blockId, deleteBlock, t]);
+      ],
+      [block.content, blockId, deleteBlock, t]
+    );
 
     // Text selection context menu
     const textSelectionSections: ContextMenuSection[] = useMemo(
