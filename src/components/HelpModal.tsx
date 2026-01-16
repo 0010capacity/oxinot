@@ -1,5 +1,4 @@
 import { Box, Modal, ScrollArea } from "@mantine/core";
-import { useComputedColorScheme } from "@mantine/core";
 import MarkdownIt from "markdown-it";
 import { useMemo } from "react";
 
@@ -201,9 +200,6 @@ Blocks are stored as nested bullet lists in markdown:
 Thank you for using MD Outliner! Happy note-taking! 📝`;
 
 export function HelpModal({ opened, onClose }: HelpModalProps) {
-  const computedColorScheme = useComputedColorScheme("light");
-  const isDark = computedColorScheme === "dark";
-
   const md = useMemo(() => {
     return new MarkdownIt({
       html: false,
@@ -242,7 +238,7 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
             // biome-ignore lint/security/noDangerouslySetInnerHtml: The markdown content is static (HELP_CONTENT) and the HTML output is produced by markdown-it with HTML parsing disabled (html: false). This is safe for rendering the help documentation.
             dangerouslySetInnerHTML={{ __html: htmlContent }}
             style={{
-              color: isDark ? "#c1c2c5" : "#495057",
+              color: "var(--color-text-secondary)",
               lineHeight: 1.6,
               fontSize: "0.95rem",
             }}
@@ -258,7 +254,7 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
             font-weight: 700;
             margin-top: 0;
             margin-bottom: 1rem;
-            color: ${isDark ? "#f8f9fa" : "#212529"};
+            color: var(--color-text-primary);
           }
 
           .help-content h2 {
@@ -266,8 +262,8 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
             font-weight: 600;
             margin-top: 2rem;
             margin-bottom: 1rem;
-            color: ${isDark ? "#e9ecef" : "#343a40"};
-            border-bottom: 1px solid ${isDark ? "#373a40" : "#dee2e6"};
+            color: var(--color-text-primary);
+            border-bottom: 1px solid var(--color-border-secondary);
             padding-bottom: 0.5rem;
           }
 
@@ -276,7 +272,7 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
             font-weight: 600;
             margin-top: 1.5rem;
             margin-bottom: 0.75rem;
-            color: ${isDark ? "#dee2e6" : "#495057"};
+            color: var(--color-text-secondary);
           }
 
           .help-content p {
@@ -293,34 +289,32 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
           }
 
           .help-content code {
-            background-color: ${
-              isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)"
-            };
+            background-color: var(--color-bg-secondary);
             padding: 2px 6px;
             border-radius: 3px;
             font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
             font-size: 0.9em;
-            color: ${isDark ? "#ff6b6b" : "#c92a2a"};
+            color: var(--color-error);
           }
 
           .help-content pre {
-            background-color: ${isDark ? "#1a1b1e" : "#f8f9fa"};
+            background-color: var(--color-bg-secondary);
             padding: 1rem;
             border-radius: 6px;
             overflow-x: auto;
             margin-bottom: 1rem;
-            border: 1px solid ${isDark ? "#373a40" : "#dee2e6"};
+            border: 1px solid var(--color-border-secondary);
           }
 
           .help-content pre code {
             background-color: transparent;
             padding: 0;
-            color: ${isDark ? "#c1c2c5" : "#495057"};
+            color: var(--color-text-secondary);
           }
 
           .help-content strong {
             font-weight: 600;
-            color: ${isDark ? "#f8f9fa" : "#212529"};
+            color: var(--color-text-primary);
           }
 
           .help-content em {
@@ -329,12 +323,12 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
 
           .help-content hr {
             border: none;
-            border-top: 1px solid ${isDark ? "#373a40" : "#dee2e6"};
+            border-top: 1px solid var(--color-border-secondary);
             margin: 2rem 0;
           }
 
           .help-content a {
-            color: ${isDark ? "#4dabf7" : "#228be6"};
+            color: var(--color-text-link);
             text-decoration: none;
           }
 

@@ -35,7 +35,7 @@ body {
   height: 100%;
   overflow: hidden;
   /* Use a non-transparent backdrop so the rounded app corners are visible */
-  background: #0b0c0f;
+  background: var(--color-bg-tertiary);
 }
 
 body {

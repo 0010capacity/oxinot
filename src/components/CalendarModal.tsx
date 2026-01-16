@@ -1,4 +1,4 @@
-import { Box, Button, Group, Modal, Stack, Text, useComputedColorScheme } from "@mantine/core";
+import { Box, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { useState } from "react";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
@@ -9,8 +9,6 @@ interface CalendarModalProps {
 }
 
 export function CalendarModal({ opened, onClose }: CalendarModalProps) {
-  const computedColorScheme = useComputedColorScheme("light");
-  const isDark = computedColorScheme === "dark";
   const [currentDate, setCurrentDate] = useState(new Date());
   const pagesById = usePageStore((state) => state.pagesById);
   const pageIds = usePageStore((state) => state.pageIds);
@@ -149,27 +147,21 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
             cursor: "pointer",
             borderRadius: "6px",
             border: isToday
-              ? `2px solid ${isDark ? "#4dabf7" : "#228be6"}`
+              ? "2px solid var(--color-accent)"
               : "2px solid transparent",
             backgroundColor: hasNote
-              ? isDark
-                ? "rgba(74, 171, 247, 0.15)"
-                : "rgba(34, 139, 230, 0.1)"
+              ? "var(--color-interactive-selected)"
               : "transparent",
             transition: "all 0.15s ease",
             fontWeight: hasNote ? 600 : 400,
-            color: isDark ? "#c1c2c5" : "#495057",
+            color: "var(--color-text-secondary)",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = isDark
-              ? "rgba(255, 255, 255, 0.08)"
-              : "rgba(0, 0, 0, 0.05)";
+            e.currentTarget.style.backgroundColor = "var(--color-interactive-hover)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = hasNote
-              ? isDark
-                ? "rgba(74, 171, 247, 0.15)"
-                : "rgba(34, 139, 230, 0.1)"
+              ? "var(--color-interactive-selected)"
               : "transparent";
           }}
         >
@@ -253,9 +245,7 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
             marginTop: "8px",
             padding: "12px",
             borderRadius: "6px",
-            backgroundColor: isDark
-              ? "rgba(255, 255, 255, 0.03)"
-              : "rgba(0, 0, 0, 0.02)",
+            backgroundColor: "var(--color-bg-secondary)",
           }}
         >
           <Stack gap="xs">
@@ -265,7 +255,7 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
                   width: "16px",
                   height: "16px",
                   borderRadius: "4px",
-                  border: `2px solid ${isDark ? "#4dabf7" : "#228be6"}`,
+                  border: "2px solid var(--color-accent)",
                 }}
               />
               <Text size="xs" c="dimmed">
@@ -278,9 +268,7 @@ export function CalendarModal({ opened, onClose }: CalendarModalProps) {
                   width: "16px",
                   height: "16px",
                   borderRadius: "4px",
-                  backgroundColor: isDark
-                    ? "rgba(74, 171, 247, 0.15)"
-                    : "rgba(34, 139, 230, 0.1)",
+                  backgroundColor: "var(--color-interactive-selected)",
                 }}
               />
               <Text size="xs" c="dimmed">

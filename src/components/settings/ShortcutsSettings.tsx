@@ -3,14 +3,12 @@ import {
   Group,
   Stack,
   Text,
-  useComputedColorScheme,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { ShortcutsSettingsProps } from "./types";
 
 export function ShortcutsSettings({ matchesSearch }: ShortcutsSettingsProps) {
   const { t } = useTranslation();
-  const isDark = useComputedColorScheme("light") === "dark";
 
   return (
     <Stack gap="xl">
@@ -28,7 +26,7 @@ export function ShortcutsSettings({ matchesSearch }: ShortcutsSettingsProps) {
               style={{
                 padding: 16,
                 borderRadius: 6,
-                backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                backgroundColor: "var(--color-bg-tertiary)",
               }}
             >
               <Group justify="space-between" mb={8}>

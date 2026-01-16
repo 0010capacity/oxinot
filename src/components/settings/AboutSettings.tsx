@@ -5,7 +5,6 @@ import {
   Progress,
   Stack,
   Text,
-  useComputedColorScheme,
 } from "@mantine/core";
 import { IconDownload } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -14,7 +13,6 @@ import type { AboutSettingsProps } from "./types";
 
 export function AboutSettings({ appVersion }: AboutSettingsProps) {
   const { t } = useTranslation();
-  const isDark = useComputedColorScheme("light") === "dark";
 
   return (
     <Stack gap="xl">
@@ -41,8 +39,8 @@ export function AboutSettings({ appVersion }: AboutSettingsProps) {
             style={{
               padding: 16,
               borderRadius: 8,
-              backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-              border: `1px solid ${isDark ? "#373A40" : "#E9ECEF"}`,
+              backgroundColor: "var(--color-bg-tertiary)",
+              border: "1px solid var(--color-border-primary)",
             }}
           >
             <Group justify="space-between" mb={8} align="flex-start">
@@ -121,7 +119,7 @@ export function AboutSettings({ appVersion }: AboutSettingsProps) {
                           maxHeight: 150,
                           overflowY: "auto",
                           padding: 8,
-                          backgroundColor: isDark ? "#25262B" : "#fff",
+                          backgroundColor: "var(--color-bg-elevated)",
                           borderRadius: 4,
                           fontSize: 12,
                         }}

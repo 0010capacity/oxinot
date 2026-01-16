@@ -1207,41 +1207,39 @@ function createEditorTheme(theme: "light" | "dark" = "light"): Extension {
       "&": {
         height: "100%",
         fontSize: "14px",
-        backgroundColor: isDark ? "#1e1e1e" : "#ffffff",
-        color: isDark ? "#d4d4d4" : "#000000",
+        backgroundColor: "var(--color-bg-primary)",
+        color: "var(--color-text-primary)",
       },
       ".cm-content": {
         padding: "20px 0",
         fontFamily:
           "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        caretColor: isDark ? "#ffffff" : "#000000",
+        caretColor: "var(--color-text-primary)",
       },
       ".cm-line": {
         padding: "0 20px",
         lineHeight: "1.6",
       },
       ".cm-gutters": {
-        backgroundColor: isDark ? "#252526" : "#f5f5f5",
-        color: isDark ? "#858585" : "#858585",
+        backgroundColor: "var(--color-bg-elevated)",
+        color: "var(--color-text-tertiary)",
         border: "none",
         paddingLeft: "8px",
       },
       ".cm-activeLineGutter": {
-        backgroundColor: isDark ? "#2c2c2d" : "#e8e8e8",
+        backgroundColor: "var(--color-interactive-hover)",
       },
       ".cm-activeLine": {
-        backgroundColor: isDark
-          ? "rgba(255, 255, 255, 0.05)"
-          : "rgba(0, 0, 0, 0.03)",
+        backgroundColor: "var(--color-interactive-hover)",
       },
       ".cm-selectionBackground, ::selection": {
-        backgroundColor: isDark ? "#264f78" : "#b3d4fc",
+        backgroundColor: "var(--color-interactive-selected)",
       },
       ".cm-focused .cm-selectionBackground, .cm-focused ::selection": {
-        backgroundColor: isDark ? "#264f78" : "#b3d4fc",
+        backgroundColor: "var(--color-interactive-selected)",
       },
       ".cm-cursor": {
-        borderLeftColor: isDark ? "#ffffff" : "#000000",
+        borderLeftColor: "var(--color-text-primary)",
       },
       "&.cm-focused": {
         outline: "none",

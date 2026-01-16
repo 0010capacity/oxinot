@@ -53,10 +53,10 @@ export class CommentHandler extends BaseHandler {
             class: "cm-comment",
             attributes: {
               style: `
-                color: #888;
+                color: var(--color-text-tertiary);
                 opacity: 0.6;
                 font-style: italic;
-                background: rgba(128, 128, 128, 0.1);
+                background: var(--color-bg-secondary);
                 padding: 0.1em 0.3em;
                 border-radius: 3px;
               `,

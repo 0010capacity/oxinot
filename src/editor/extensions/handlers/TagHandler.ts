@@ -61,8 +61,8 @@ export class TagHandler extends BaseHandler {
           createStyledText(start, end, {
             className: "cm-tag",
             style: `
-              color: #10b981;
-              background: rgba(16, 185, 129, 0.1);
+              color: var(--color-success);
+              background: color-mix(in srgb, var(--color-success), transparent 90%);
               padding: 0.1em 0.3em;
               border-radius: 3px;
               cursor: pointer;

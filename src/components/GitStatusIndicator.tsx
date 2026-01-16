@@ -1,5 +1,5 @@
 import { useGitManagement } from "@/hooks/useGitManagement";
-import { Button, Stack, Text, useComputedColorScheme } from "@mantine/core";
+import { Button, Stack, Text } from "@mantine/core";
 
 interface GitStatusIndicatorProps {
   workspacePath: string;
@@ -16,9 +16,6 @@ interface GitStatusIndicatorProps {
  * - Status tooltips
  */
 export function GitStatusIndicator({ workspacePath }: GitStatusIndicatorProps) {
-  const computedColorScheme = useComputedColorScheme("light");
-  const isDark = computedColorScheme === "dark";
-
   const {
     hasChanges,
     isRepo,
@@ -55,12 +52,8 @@ export function GitStatusIndicator({ workspacePath }: GitStatusIndicatorProps) {
           height: "8px",
           borderRadius: "50%",
           backgroundColor: hasChanges
-            ? isDark
-              ? "#ffd43b"
-              : "#fab005"
-            : isDark
-              ? "#5c5f66"
-              : "#adb5bd",
+            ? "var(--color-warning)"
+            : "var(--color-text-tertiary)",
           cursor: "pointer",
           opacity: hasChanges ? 1 : 0.4,
           transition: "opacity 0.2s ease, background-color 0.2s ease",
@@ -78,8 +71,8 @@ export function GitStatusIndicator({ workspacePath }: GitStatusIndicatorProps) {
             position: "absolute",
             bottom: "20px",
             right: "0",
-            backgroundColor: isDark ? "#25262b" : "#ffffff",
-            border: `1px solid ${isDark ? "#373A40" : "#DEE2E6"}`,
+            backgroundColor: "var(--color-bg-elevated)",
+            border: "1px solid var(--color-border-secondary)",
             borderRadius: "6px",
             padding: "8px",
             minWidth: "140px",

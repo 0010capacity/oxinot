@@ -15,18 +15,14 @@ export function showToast({
   type = "info",
   duration = 1500,
 }: ToastOptions) {
-  const isDark =
-    document.documentElement.getAttribute("data-mantine-color-scheme") ===
-    "dark";
-
   const getColor = () => {
     switch (type) {
       case "success":
-        return isDark ? "#51cf66" : "#37b24d";
+        return "var(--color-success)";
       case "error":
-        return isDark ? "#fa5252" : "#c92a2a";
+        return "var(--color-error)";
       default:
-        return isDark ? "#909296" : "#868e96";
+        return "var(--color-text-tertiary)";
     }
   };
 
@@ -38,9 +34,7 @@ export function showToast({
     withBorder: false,
     styles: {
       root: {
-        backgroundColor: isDark
-          ? "rgba(44, 46, 51, 0.95)"
-          : "rgba(241, 243, 245, 0.95)",
+        backgroundColor: "var(--color-bg-tertiary)",
         backdropFilter: "blur(8px)",
         border: "none",
         boxShadow: "none",

@@ -3,7 +3,6 @@ import {
   Stack,
   Switch,
   Text,
-  useComputedColorScheme,
 } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -17,7 +16,6 @@ export function AdvancedSettings({
   clearCache,
 }: AdvancedSettingsProps) {
   const { t } = useTranslation();
-  const isDark = useComputedColorScheme("light") === "dark";
 
   return (
     <Stack gap="xl">
@@ -56,8 +54,8 @@ export function AdvancedSettings({
               style={{
                 padding: 16,
                 borderRadius: 6,
-                backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
+                backgroundColor: "var(--color-bg-tertiary)",
+                borderLeft: "3px solid var(--color-accent)",
               }}
             >
               <Text size="sm" fw={500} mb={12}>
@@ -81,8 +79,8 @@ export function AdvancedSettings({
               style={{
                 padding: 16,
                 borderRadius: 6,
-                backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                borderLeft: `3px solid ${isDark ? "#FA5252" : "#FF6B6B"}`,
+                backgroundColor: "var(--color-bg-tertiary)",
+                borderLeft: "3px solid var(--color-error)",
               }}
             >
               <Text size="sm" fw={500} mb={12} c="red">

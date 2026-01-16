@@ -6,7 +6,6 @@ import {
   Switch,
   Text,
   Tooltip,
-  useComputedColorScheme,
 } from "@mantine/core";
 import { IconBrandGit, IconPlus, IconX } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -29,7 +28,6 @@ export function GitSettings({
   workspacePath,
 }: GitSettingsProps) {
   const { t } = useTranslation();
-  const isDark = useComputedColorScheme("light") === "dark";
 
   const handleGitCommit = async () => {
     if (!workspacePath || !hasGitChanges) return;
@@ -81,7 +79,7 @@ export function GitSettings({
                   style={{
                     padding: 16,
                     borderRadius: 6,
-                    backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                    backgroundColor: "var(--color-bg-tertiary)",
                   }}
                 >
                   <Text size="sm" fw={500} mb={8}>
@@ -105,7 +103,7 @@ export function GitSettings({
                     c="dimmed"
                     style={{
                       fontFamily: "monospace",
-                      backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
+                      backgroundColor: "var(--color-bg-tertiary)",
                       padding: "8px 12px",
                       borderRadius: "4px",
                       wordBreak: "break-all",
@@ -156,8 +154,8 @@ export function GitSettings({
                   style={{
                     padding: 16,
                     borderRadius: 6,
-                    backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                    borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
+                    backgroundColor: "var(--color-bg-tertiary)",
+                    borderLeft: "3px solid var(--color-accent)",
                   }}
                 >
                   <Text size="sm" fw={500} mb={8}>
@@ -205,8 +203,8 @@ export function GitSettings({
                   style={{
                     padding: 16,
                     borderRadius: 6,
-                    backgroundColor: isDark ? "#2C2E33" : "#F1F3F5",
-                    borderLeft: `3px solid ${isDark ? "#4C6EF5" : "#5C7CFA"}`,
+                    backgroundColor: "var(--color-bg-tertiary)",
+                    borderLeft: "3px solid var(--color-accent)",
                   }}
                 >
                   <Text size="sm" fw={500} mb={8}>

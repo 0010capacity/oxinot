@@ -40,26 +40,46 @@ export class CalloutHandler extends BaseHandler {
     string,
     { color: string; bgColor: string; icon: string }
   > = {
-    note: { color: "#3b82f6", bgColor: "rgba(59, 130, 246, 0.1)", icon: "ℹ️" },
-    info: { color: "#3b82f6", bgColor: "rgba(59, 130, 246, 0.1)", icon: "ℹ️" },
-    tip: { color: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)", icon: "💡" },
+    note: {
+      color: "var(--color-text-link)",
+      bgColor: "color-mix(in srgb, var(--color-text-link), transparent 90%)",
+      icon: "ℹ️",
+    },
+    info: {
+      color: "var(--color-text-link)",
+      bgColor: "color-mix(in srgb, var(--color-text-link), transparent 90%)",
+      icon: "ℹ️",
+    },
+    tip: {
+      color: "var(--color-success)",
+      bgColor: "color-mix(in srgb, var(--color-success), transparent 90%)",
+      icon: "💡",
+    },
     success: {
-      color: "#10b981",
-      bgColor: "rgba(16, 185, 129, 0.1)",
+      color: "var(--color-success)",
+      bgColor: "color-mix(in srgb, var(--color-success), transparent 90%)",
       icon: "✅",
     },
     question: {
-      color: "#8b5cf6",
-      bgColor: "rgba(139, 92, 246, 0.1)",
+      color: "var(--color-accent)",
+      bgColor: "color-mix(in srgb, var(--color-accent), transparent 90%)",
       icon: "❓",
     },
     warning: {
-      color: "#f59e0b",
-      bgColor: "rgba(245, 158, 11, 0.1)",
+      color: "var(--color-warning)",
+      bgColor: "color-mix(in srgb, var(--color-warning), transparent 90%)",
       icon: "⚠️",
     },
-    error: { color: "#ef4444", bgColor: "rgba(239, 68, 68, 0.1)", icon: "❌" },
-    danger: { color: "#ef4444", bgColor: "rgba(239, 68, 68, 0.1)", icon: "🔥" },
+    error: {
+      color: "var(--color-error)",
+      bgColor: "color-mix(in srgb, var(--color-error), transparent 90%)",
+      icon: "❌",
+    },
+    danger: {
+      color: "var(--color-error)",
+      bgColor: "color-mix(in srgb, var(--color-error), transparent 90%)",
+      icon: "🔥",
+    },
     abstract: {
       color: "#06b6d4",
       bgColor: "rgba(6, 182, 212, 0.1)",
@@ -70,18 +90,26 @@ export class CalloutHandler extends BaseHandler {
       bgColor: "rgba(6, 182, 212, 0.1)",
       icon: "📋",
     },
-    todo: { color: "#8b5cf6", bgColor: "rgba(139, 92, 246, 0.1)", icon: "✏️" },
+    todo: {
+      color: "var(--color-accent)",
+      bgColor: "color-mix(in srgb, var(--color-accent), transparent 90%)",
+      icon: "✏️",
+    },
     example: {
-      color: "#a855f7",
-      bgColor: "rgba(168, 85, 247, 0.1)",
+      color: "var(--color-accent)",
+      bgColor: "color-mix(in srgb, var(--color-accent), transparent 90%)",
       icon: "📖",
     },
     quote: {
-      color: "#64748b",
-      bgColor: "rgba(100, 116, 139, 0.1)",
+      color: "var(--color-text-secondary)",
+      bgColor: "color-mix(in srgb, var(--color-text-secondary), transparent 90%)",
       icon: "💬",
     },
-    bug: { color: "#ef4444", bgColor: "rgba(239, 68, 68, 0.1)", icon: "🐛" },
+    bug: {
+      color: "var(--color-error)",
+      bgColor: "color-mix(in srgb, var(--color-error), transparent 90%)",
+      icon: "🐛",
+    },
   };
 
   /**

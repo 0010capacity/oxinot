@@ -313,7 +313,7 @@ export function PageTreeItem({
                   }}
                   style={{
                     flex: 1,
-                    color: "#8b5cf6",
+                    color: "var(--color-accent)",
                     userSelect: "none",
                     fontSize: "var(--font-size-sm)",
                     lineHeight: "24px",

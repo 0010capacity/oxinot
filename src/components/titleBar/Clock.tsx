@@ -1,11 +1,9 @@
-import { Box, Popover, Text, useComputedColorScheme } from "@mantine/core";
+import { Box, Popover, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useClockFormatStore } from "../../stores/clockFormatStore";
 import { CalendarDropdown } from "../CalendarDropdown";
 
 export function Clock() {
-  const computedColorScheme = useComputedColorScheme("light");
-  const isDark = computedColorScheme === "dark";
   const [time, setTime] = useState<string>("");
   const [date, setDate] = useState<string>("");
   const [opened, setOpened] = useState(false);
@@ -52,21 +50,15 @@ export function Clock() {
             borderRadius: "4px",
             transition: "background-color 0.2s ease",
             backgroundColor: opened
-              ? isDark
-                ? "rgba(255, 255, 255, 0.1)"
-                : "rgba(0, 0, 0, 0.05)"
+              ? "var(--color-interactive-active)"
               : "transparent",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = isDark
-              ? "rgba(255, 255, 255, 0.08)"
-              : "rgba(0, 0, 0, 0.03)";
+            e.currentTarget.style.backgroundColor = "var(--color-interactive-hover)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = opened
-              ? isDark
-                ? "rgba(255, 255, 255, 0.1)"
-                : "rgba(0, 0, 0, 0.05)"
+              ? "var(--color-interactive-active)"
               : "transparent";
           }}
         >
@@ -106,11 +98,9 @@ export function Clock() {
         style={{
           padding: "16px",
           borderRadius: "12px",
-          backgroundColor: isDark ? "#1a1b1e" : "#ffffff",
-          border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
-          boxShadow: isDark
-            ? "0 8px 24px rgba(0, 0, 0, 0.4)"
-            : "0 8px 24px rgba(0, 0, 0, 0.12)",
+          backgroundColor: "var(--color-bg-elevated)",
+          border: "1px solid var(--color-border-primary)",
+          boxShadow: "var(--shadow-lg)", // Assuming shadow variable or use generic
         }}
       >
         <CalendarDropdown onClose={handleClose} />
