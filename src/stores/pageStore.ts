@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { immer } from "zustand/middleware/immer";
 import { createWithEqualityFn } from "zustand/traditional";
 import { tauriAPI } from "../tauri-api";
+import { createPageHierarchy, findPageByPath } from "../utils/pageUtils";
 import { useWorkspaceStore } from "./workspaceStore";
 
 // ============ Types ============
@@ -45,6 +46,10 @@ interface PageActions {
   selectPage: (id: string) => void;
   setCurrentPageId: (id: string | null) => void;
   clearPages: () => void;
+
+  // 경로 기반 페이지 네비게이션
+  openPageByPath: (fullPath: string) => Promise<string>;
+  openPageById: (pageId: string) => Promise<void>;
 
   // 셀렉터
   getPage: (id: string) => PageData | undefined;
@@ -310,6 +315,84 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
           state.pagesById[id] = { ...page, isDirectory: true };
         }
       });
+    },
+
+    // ============ Path-based Navigation ============
+
+    openPageByPath: async (fullPath: string): Promise<string> => {
+      const state = get();
+      let freshPageIds = state.pageIds;
+      let freshPagesById = state.pagesById;
+
+      // Ensure pages are loaded before trying to find
+      if (freshPageIds.length === 0) {
+        console.log("[pageStore] Pages not loaded yet, loading now...");
+        const loadedData = await state.loadPages();
+        freshPageIds = loadedData.pageIds;
+        freshPagesById = loadedData.pagesById;
+      }
+
+      let pageId = findPageByPath(fullPath, freshPageIds, freshPagesById);
+
+      if (!pageId) {
+        try {
+          const createdPageId = await createPageHierarchy(
+            fullPath,
+            state.createPage,
+            (path: string) => {
+              const currentState = get();
+              return findPageByPath(
+                path,
+                currentState.pageIds,
+                currentState.pagesById
+              );
+            },
+            async (id: string) => {
+              await get().convertToDirectory(id);
+            }
+          );
+
+          if (!createdPageId) {
+            throw new Error("Failed to create page hierarchy");
+          }
+
+          pageId = createdPageId;
+
+          const loadedData = await get().loadPages();
+          freshPageIds = loadedData.pageIds;
+          freshPagesById = loadedData.pagesById;
+
+          // Refresh file tree after creating new page hierarchy
+          const workspacePath = useWorkspaceStore.getState().workspacePath;
+          if (workspacePath) {
+            const { loadDirectory } = useWorkspaceStore.getState();
+            await loadDirectory(workspacePath);
+          }
+
+          pageId = findPageByPath(fullPath, freshPageIds, freshPagesById);
+          if (!pageId) {
+            throw new Error("Page not found after creation");
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error occurred";
+          console.error("[pageStore] Failed to create page hierarchy:", error);
+          throw new Error(`Failed to create page hierarchy: ${errorMessage}`);
+        }
+      }
+
+      return pageId;
+    },
+
+    openPageById: async (pageId: string): Promise<void> => {
+      const state = get();
+      const page = state.pagesById[pageId];
+
+      if (!page) {
+        throw new Error("Page not found");
+      }
+
+      state.setCurrentPageId(pageId);
     },
 
     // ============ Selectors ============
