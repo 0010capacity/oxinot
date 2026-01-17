@@ -492,37 +492,53 @@ pub async fn rewrite_wiki_links_for_page_path_change(
     let mut conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
 
-    // Find candidate blocks (targeted query).
-    // We look for occurrences that imply the from_path is used as a wiki-link target.
-    let patterns = vec![
-        format!("%[[{}]]%", from_path),
-        format!("%[[{}|%", from_path),
-        format!("%[[{}#%", from_path),
-        format!("%![[{}]]%", from_path),
-        format!("%![[{}|%", from_path),
-        format!("%![[{}#%", from_path),
-    ];
-
-    let mut candidate_ids: Vec<String> = Vec::new();
-
-    for pat in patterns {
+    // Optimize: Use wiki_links index to find blocks that reference the from_path.
+    // This avoids multiple LIKE queries on the blocks table.
+    // Wiki links index (idx_wiki_links_target_path) provides O(log n) lookup.
+    let mut candidate_ids: Vec<String> = {
         let mut stmt = conn
-            .prepare("SELECT id FROM blocks WHERE content LIKE ?")
+            .prepare("SELECT DISTINCT from_block_id FROM wiki_links WHERE target_path = ?")
             .map_err(|e| e.to_string())?;
 
         let rows = stmt
-            .query_map(params![pat], |row| row.get::<_, String>(0))
+            .query_map(params![&from_path], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+
+        let mut ids = Vec::new();
+        for id in rows {
+            ids.push(id.map_err(|e| e.to_string())?);
+        }
+        ids
+    };
+
+    // Also check for blocks with wiki links in content that might not be indexed yet.
+    // Use a single LIKE query instead of multiple patterns.
+    let content_pattern = format!("%[[{}%", from_path);
+    {
+        let mut stmt2 = conn
+            .prepare("SELECT id FROM blocks WHERE content LIKE ? AND id NOT IN (SELECT from_block_id FROM wiki_links WHERE target_path = ?)")
+            .map_err(|e| e.to_string())?;
+
+        let rows = stmt2
+            .query_map(params![&content_pattern, &from_path], |row| {
+                row.get::<_, String>(0)
+            })
             .map_err(|e| e.to_string())?;
 
         for id in rows {
             let id = id.map_err(|e| e.to_string())?;
-            if !candidate_ids.iter().any(|x| x == &id) {
+            if !candidate_ids.contains(&id) {
                 candidate_ids.push(id);
             }
         }
     }
 
-    if candidate_ids.is_empty() {
+    // Sort and deduplicate results
+    candidate_ids.sort();
+    candidate_ids.dedup();
+    let all_candidate_ids = candidate_ids;
+
+    if all_candidate_ids.is_empty() {
         return Ok(0);
     }
 
@@ -533,7 +549,7 @@ pub async fn rewrite_wiki_links_for_page_path_change(
 
     let mut updated_count: i64 = 0;
 
-    for block_id in candidate_ids {
+    for block_id in all_candidate_ids {
         let (page_id, content): (String, String) = tx
             .query_row(
                 "SELECT page_id, content FROM blocks WHERE id = ?",
