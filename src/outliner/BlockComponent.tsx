@@ -811,7 +811,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
               backgroundColor: isSelected
                 ? isDark
-                  ? "var(--mantine-color-blue-9)"
+                  ? "rgba(59, 130, 246, 0.15)"
                   : "var(--mantine-color-blue-0)"
                 : undefined,
               borderLeft: isSelected
