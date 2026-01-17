@@ -313,9 +313,11 @@ FROM descendants
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // Load metadata for all blocks
+    // Load metadata for all blocks in a single query
+    let block_ids: Vec<String> = blocks.iter().map(|b| b.id.clone()).collect();
+    let metadata_map = load_blocks_metadata(&conn, &block_ids)?;
     for block in &mut blocks {
-        block.metadata = load_block_metadata(&conn, &block.id)?;
+        block.metadata = metadata_map.get(&block.id).cloned().unwrap_or_default();
     }
 
     Ok(blocks)
@@ -359,9 +361,11 @@ pub async fn get_page_blocks(
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // Load metadata for all blocks
+    // Load metadata for all blocks in a single query
+    let block_ids: Vec<String> = blocks.iter().map(|b| b.id.clone()).collect();
+    let metadata_map = load_blocks_metadata(&conn, &block_ids)?;
     for block in &mut blocks {
-        block.metadata = load_block_metadata(&conn, &block.id)?;
+        block.metadata = metadata_map.get(&block.id).cloned().unwrap_or_default();
     }
 
     Ok(blocks)
@@ -1074,6 +1078,48 @@ fn load_block_metadata(
         .map_err(|e| e.to_string())?;
 
     Ok(metadata)
+}
+
+/// Load metadata for multiple blocks in a single query
+fn load_blocks_metadata(
+    conn: &Connection,
+    block_ids: &[String],
+) -> Result<HashMap<String, HashMap<String, String>>, String> {
+    if block_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    // Build placeholders: ?1, ?2, ?3, ...
+    let placeholders = (1..=block_ids.len())
+        .map(|i| format!("?{}", i))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let sql = format!(
+        "SELECT block_id, key, value FROM block_metadata WHERE block_id IN ({}) ORDER BY block_id, key",
+        placeholders
+    );
+
+    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+
+    let mut metadata_map: HashMap<String, HashMap<String, String>> = HashMap::new();
+
+    let mut rows = stmt
+        .query(rusqlite::params_from_iter(block_ids.iter()))
+        .map_err(|e| e.to_string())?;
+
+    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+        let block_id: String = row.get(0).map_err(|e| e.to_string())?;
+        let key: String = row.get(1).map_err(|e| e.to_string())?;
+        let value: String = row.get(2).map_err(|e| e.to_string())?;
+
+        metadata_map
+            .entry(block_id)
+            .or_insert_with(HashMap::new)
+            .insert(key, value);
+    }
+
+    Ok(metadata_map)
 }
 
 /// Save metadata for a block to the database
