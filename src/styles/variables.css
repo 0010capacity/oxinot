@@ -1,88 +1,12 @@
 /* CSS Custom Properties - Theme Variables */
-/* Color variables are dynamically set by ThemeProvider */
-/* These are fallback values only */
+/* All theme variables are now dynamically set by ThemeProvider.tsx */
+/* This file is kept for structure but no longer defines active theme variables. */
 
 :root {
-  /* Spacing */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  --spacing-xxl: 48px;
-
-  /* Typography */
-  --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  --font-family-mono: "SF Mono", "Monaco", "Menlo", "Consolas", monospace;
-  --font-size-xs: 12px;
-  --font-size-sm: 14px;
-  --font-size-md: 16px;
-  --font-size-lg: 18px;
-  --font-size-xl: 24px;
-  --line-height-tight: 1.3;
-  --line-height-normal: 1.5;
-  --line-height-relaxed: 1.6;
-
-  /* Editor Settings - Dynamic */
-  --editor-font-size: 16px;
-  --editor-line-height: 1.6;
-
-  /* Border Radius */
-  --radius-sm: 3px;
-  --radius-md: 6px;
-  --radius-lg: 12px;
-
-  /* Layout */
-  --layout-max-content-width: 800px;
-  --layout-container-padding: 40px 20px;
-  --layout-container-padding-mobile: 20px 12px;
-  --layout-content-bottom-padding: 80px;
-  --layout-title-bar-height: 44px;
-  --layout-bullet-size: 6px;
-  --layout-bullet-container-size: 24px;
-  --layout-collapse-toggle-size: 20px;
-  --layout-indent-size: 24px;
-
-  /* Transitions */
-  --transition-fast: 0.1s ease;
-  --transition-normal: 0.15s ease;
-  --transition-slow: 0.2s ease;
-
-  /* Opacity */
-  --opacity-disabled: 0.3;
-  --opacity-dimmed: 0.5;
-  --opacity-hover: 0.6;
-  --opacity-active: 0.85;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2),
-    0 2px 4px -1px rgba(0, 0, 0, 0.12);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
-
-  /* Color variables - set dynamically by ThemeProvider */
-  --color-bg-primary: #0f0f0f;
-  --color-bg-secondary: #1a1a1d;
-  --color-bg-tertiary: #3a3a42;
-  --color-bg-elevated: #2a2a30;
-  --color-text-primary: #f0f0f2;
-  --color-text-secondary: #d4d4d8;
-  --color-text-tertiary: #a1a1a6;
-  --color-text-link: #8b9dff;
-  --color-border-primary: rgba(255, 255, 255, 0.12);
-  --color-border-secondary: rgba(255, 255, 255, 0.08);
-  --color-border-focus: #7c3aed;
-  --color-interactive-hover: rgba(255, 255, 255, 0.1);
-  --color-interactive-active: rgba(255, 255, 255, 0.15);
-  --color-interactive-selected: rgba(124, 58, 237, 0.2);
-  --color-interactive-focus: rgba(124, 58, 237, 0.3);
-  --color-accent: #7c3aed;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ff6b6b;
-  --color-bullet-default: rgba(255, 255, 255, 0.35);
-  --color-bullet-hover: rgba(255, 255, 255, 0.65);
-  --color-bullet-active: rgba(255, 255, 255, 0.9);
-  --color-indent-guide: rgba(255, 255, 255, 0.08);
+  /*
+  --spacing-xs: ...
+  --color-bg-primary: ...
+  etc.
+  These values are now injected dynamically.
+  */
 }

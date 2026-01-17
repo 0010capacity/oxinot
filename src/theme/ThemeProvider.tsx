@@ -1,19 +1,11 @@
 import { useComputedColorScheme, MantineProvider } from "@mantine/core";
 import { type ReactNode, createContext, useEffect, useMemo } from "react";
 import { useThemeStore } from "../stores/themeStore";
-import { createColorPalette } from "./colors";
-import {
-  LAYOUT,
-  OPACITY,
-  RADIUS,
-  SPACING,
-  TRANSITIONS,
-  TYPOGRAPHY,
-} from "./tokens";
-import type { ColorScheme, Theme } from "./types";
+import type { AppTheme } from "./schema"; // Import AppTheme
+import { themeRegistry } from "./themes"; // Import themeRegistry
 import type { MantineThemeOverride } from "@mantine/core";
 
-export const ThemeContext = createContext<Theme | null>(null);
+export const ThemeContext = createContext<AppTheme | null>(null);
 
 interface ThemeProviderProps {
   children: ReactNode;
@@ -24,24 +16,16 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
   const computedColorScheme = useComputedColorScheme("light");
   const colorVariant = useThemeStore((state) => state.colorVariant);
 
-  const theme: Theme = useMemo(
-    () => ({
-      scheme: computedColorScheme as ColorScheme,
-      variant: colorVariant,
-      colors: createColorPalette(
-        computedColorScheme as ColorScheme,
-        colorVariant
-      ),
-      spacing: SPACING,
-      typography: TYPOGRAPHY,
-      radius: RADIUS,
-    }),
-    [computedColorScheme, colorVariant]
-  );
+  const theme: AppTheme = useMemo(() => {
+    // For now, we'll just pick 'light' or 'dark' from the registry.
+    // Future work: map colorVariant to specific named themes in the registry.
+    const selectedThemeName = computedColorScheme === "dark" ? "dark" : "light";
+    return themeRegistry[selectedThemeName] || themeRegistry.light; // Fallback to light
+  }, [computedColorScheme]); // Removed colorVariant from dependencies
 
   const mantineTheme: MantineThemeOverride = useMemo(
     () => ({
-      primaryColor: "indigo",
+      primaryColor: "indigo", // Mantine's primaryColor usually refers to a palette name
       colors: {
         indigo: [
           theme.colors.accent,
@@ -56,101 +40,71 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
           theme.colors.accent,
         ],
       },
-      fontFamily: TYPOGRAPHY.fontFamily,
+      fontFamily: theme.typography.fontFamily,
     }),
-    [theme.colors.accent]
+    [theme.colors.accent, theme.typography.fontFamily]
   );
+
+  const camelToKebab = useCallback((str: string): string => {
+    return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+  }, []);
 
   // Apply ALL CSS variables dynamically on every theme change
   useEffect(() => {
     const root = document.documentElement;
-    const { colors } = theme;
 
-    // Background colors
-    root.style.setProperty("--color-bg-primary", colors.bg.primary);
-    root.style.setProperty("--color-bg-secondary", colors.bg.secondary);
-    root.style.setProperty("--color-bg-tertiary", colors.bg.tertiary);
-    root.style.setProperty("--color-bg-elevated", colors.bg.elevated);
+    // Helper to recursively set CSS variables
+    const setCssVariables = (
+      element: HTMLElement,
+      prefix: string,
+      obj: Record<string, unknown>, // Changed 'any' to 'unknown'
+    ) => {
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const value = obj[key];
+          const cssVarName = `--${prefix}-${camelToKebab(key)}`;
 
-    // Text colors
-    root.style.setProperty("--color-text-primary", colors.text.primary);
-    root.style.setProperty("--color-text-secondary", colors.text.secondary);
-    root.style.setProperty("--color-text-tertiary", colors.text.tertiary);
-    root.style.setProperty("--color-text-link", colors.text.link);
+          if (typeof value === "object" && value !== null) {
+            setCssVariables(element, cssVarName, value);
+          } else {
+            // Handle specific cases where units might be missing (e.g., indentSize from layout)
+            let cssValue = value;
+            if (key === 'indentSize' && typeof value === 'number') {
+              cssValue = `${value}px`;
+            }
+            element.style.setProperty(cssVarName, cssValue);
+          }
+        }
+      }
+    };
 
-    // Border colors
-    root.style.setProperty("--color-border-primary", colors.border.primary);
-    root.style.setProperty("--color-border-secondary", colors.border.secondary);
-    root.style.setProperty("--color-border-focus", colors.border.focus);
+    // Apply colors
+    setCssVariables(root, "color", theme.colors);
 
-    // Interactive colors
-    root.style.setProperty(
-      "--color-interactive-hover",
-      colors.interactive.hover
-    );
-    root.style.setProperty(
-      "--color-interactive-active",
-      colors.interactive.active
-    );
-    root.style.setProperty(
-      "--color-interactive-selected",
-      colors.interactive.selected
-    );
-    root.style.setProperty(
-      "--color-interactive-focus",
-      colors.interactive.focus
-    );
+    // Apply spacing
+    setCssVariables(root, "spacing", theme.spacing);
 
-    // Semantic colors
-    root.style.setProperty("--color-accent", colors.accent);
-    root.style.setProperty("--color-success", colors.success);
-    root.style.setProperty("--color-warning", colors.warning);
-    root.style.setProperty("--color-error", colors.error);
+    // Apply typography
+    root.style.setProperty("--font-family", theme.typography.fontFamily);
+    root.style.setProperty("--font-family-mono", theme.typography.monoFontFamily);
+    setCssVariables(root, "font-size", theme.typography.fontSize);
+    setCssVariables(root, "line-height", theme.typography.lineHeight);
 
-    // Component-specific
-    root.style.setProperty("--color-bullet-default", colors.bullet.default);
-    root.style.setProperty("--color-bullet-hover", colors.bullet.hover);
-    root.style.setProperty("--color-bullet-active", colors.bullet.active);
-    root.style.setProperty("--color-indent-guide", colors.indentGuide);
+    // Apply radius
+    setCssVariables(root, "radius", theme.radius);
 
-    // Spacing
-    for (const [key, value] of Object.entries(SPACING)) {
-      root.style.setProperty(`--spacing-${key}`, value);
-    }
+    // Apply layout
+    setCssVariables(root, "layout", theme.layout);
 
-    // Typography
-    root.style.setProperty("--font-family", TYPOGRAPHY.fontFamily);
-    root.style.setProperty("--font-family-mono", TYPOGRAPHY.monoFontFamily);
-    for (const [key, value] of Object.entries(TYPOGRAPHY.fontSize)) {
-      root.style.setProperty(`--font-size-${key}`, value);
-    }
-    for (const [key, value] of Object.entries(TYPOGRAPHY.lineHeight)) {
-      root.style.setProperty(`--line-height-${key}`, value);
-    }
+    // Apply transitions
+    setCssVariables(root, "transition", theme.transitions);
 
-    // Radius
-    for (const [key, value] of Object.entries(RADIUS)) {
-      root.style.setProperty(`--radius-${key}`, value);
-    }
+    // Apply opacity
+    setCssVariables(root, "opacity", theme.opacity);
 
-    // Layout
-    for (const [key, value] of Object.entries(LAYOUT)) {
-      root.style.setProperty(
-        `--layout-${camelToKebab(key)}`,
-        typeof value === "number" ? `${value}px` : value
-      );
-    }
+    // TODO: Apply shadows if they are part of AppTheme
+  }, [theme, camelToKebab]); // Added camelToKebab to dependencies
 
-    // Transitions
-    for (const [key, value] of Object.entries(TRANSITIONS)) {
-      root.style.setProperty(`--transition-${key}`, value);
-    }
-
-    // Opacity
-    for (const [key, value] of Object.entries(OPACITY)) {
-      root.style.setProperty(`--opacity-${key}`, value);
-    }
-  }, [theme]);
 
   return (
     <MantineProvider theme={mantineTheme} defaultColorScheme="auto">
@@ -166,8 +120,4 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       <ThemeProviderInner>{children}</ThemeProviderInner>
     </MantineProvider>
   );
-}
-
-function camelToKebab(str: string): string {
-  return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
 }
