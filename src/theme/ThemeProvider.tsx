@@ -1,5 +1,11 @@
-import { useComputedColorScheme } from "@mantine/core";
-import { type ReactNode, createContext, useEffect, useMemo } from "react";
+import { useComputedColorScheme, MantineProvider } from "@mantine/core";
+import {
+  type ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+} from "react";
 import { useThemeStore } from "../stores/themeStore";
 import { createColorPalette } from "./colors";
 import {
@@ -11,8 +17,12 @@ import {
   TYPOGRAPHY,
 } from "./tokens";
 import type { ColorScheme, Theme } from "./types";
+import type { MantineThemeOverride } from "@mantine/core";
 
 export const ThemeContext = createContext<Theme | null>(null);
+export const MantineThemeContext = createContext<MantineThemeOverride | null>(
+  null
+);
 
 interface ThemeProviderProps {
   children: ReactNode;
@@ -22,14 +32,42 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const computedColorScheme = useComputedColorScheme("light");
   const colorVariant = useThemeStore((state) => state.colorVariant);
 
-  const theme: Theme = useMemo(() => ({
-    scheme: computedColorScheme as ColorScheme,
-    variant: colorVariant,
-    colors: createColorPalette(computedColorScheme as ColorScheme, colorVariant),
-    spacing: SPACING,
-    typography: TYPOGRAPHY,
-    radius: RADIUS,
-  }), [computedColorScheme, colorVariant]);
+  const theme: Theme = useMemo(
+    () => ({
+      scheme: computedColorScheme as ColorScheme,
+      variant: colorVariant,
+      colors: createColorPalette(
+        computedColorScheme as ColorScheme,
+        colorVariant
+      ),
+      spacing: SPACING,
+      typography: TYPOGRAPHY,
+      radius: RADIUS,
+    }),
+    [computedColorScheme, colorVariant]
+  );
+
+  const mantineTheme: MantineThemeOverride = useMemo(
+    () => ({
+      primaryColor: "indigo",
+      colors: {
+        indigo: [
+          theme.colors.accent,
+          theme.colors.accent,
+          theme.colors.accent,
+          theme.colors.accent,
+          theme.colors.accent,
+          theme.colors.accent,
+          theme.colors.accent,
+          theme.colors.accent,
+          theme.colors.accent,
+          theme.colors.accent,
+        ],
+      },
+      fontFamily: TYPOGRAPHY.fontFamily,
+    }),
+    [theme.colors.accent]
+  );
 
   // Apply CSS variables to root
   useEffect(() => {
@@ -56,19 +94,19 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     // Interactive colors
     root.style.setProperty(
       "--color-interactive-hover",
-      colors.interactive.hover,
+      colors.interactive.hover
     );
     root.style.setProperty(
       "--color-interactive-active",
-      colors.interactive.active,
+      colors.interactive.active
     );
     root.style.setProperty(
       "--color-interactive-selected",
-      colors.interactive.selected,
+      colors.interactive.selected
     );
     root.style.setProperty(
       "--color-interactive-focus",
-      colors.interactive.focus,
+      colors.interactive.focus
     );
 
     // Semantic colors
@@ -107,7 +145,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     for (const [key, value] of Object.entries(LAYOUT)) {
       root.style.setProperty(
         `--layout-${camelToKebab(key)}`,
-        typeof value === "number" ? `${value}px` : value,
+        typeof value === "number" ? `${value}px` : value
       );
     }
 
@@ -123,8 +161,22 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   }, [theme]);
 
   return (
-    <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>
+    <MantineProvider theme={mantineTheme} defaultColorScheme="auto">
+      <ThemeContext.Provider value={theme}>
+        <MantineThemeContext.Provider value={mantineTheme}>
+          {children}
+        </MantineThemeContext.Provider>
+      </ThemeContext.Provider>
+    </MantineProvider>
   );
+}
+
+export function useMantineTheme(): MantineThemeOverride {
+  const theme = useContext(MantineThemeContext);
+  if (!theme) {
+    throw new Error("useMantineTheme must be used within ThemeProvider");
+  }
+  return theme;
 }
 
 function camelToKebab(str: string): string {

@@ -1,11 +1,4 @@
-import {
-  AppShell,
-  Container,
-  MantineProvider,
-  Stack,
-  Text,
-  createTheme,
-} from "@mantine/core";
+import { AppShell, Container, Stack, Text } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
 import "@mantine/notifications/styles.css";
@@ -46,11 +39,6 @@ import { useHomepage } from "./hooks/useHomepage";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useWorkspaceInitializer } from "./hooks/useWorkspaceInitializer";
 import { ThemeProvider } from "./theme/ThemeProvider";
-
-const theme = createTheme({
-  fontFamily:
-    "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-});
 
 function WorkspaceSelector() {
   const { selectWorkspace, openWorkspace, getWorkspaces } = useWorkspaceStore();
@@ -253,50 +241,50 @@ function AppContent({ workspacePath }: AppContentProps) {
       <HelpModal opened={helpOpened} onClose={() => setHelpOpened(false)} />
 
       {/* Settings Modal */}
-            <SettingsModal
-              opened={settingsOpened}
-              onClose={() => setSettingsOpened(false)}
-              workspacePath={workspacePath}
-              pagesById={pagesById}
-              pageIds={pageIds}
-              vacuumDatabase={async () => {
-                if (workspacePath) {
-                  try {
-                    await invoke("vacuum_db", { workspacePath });
-                    showToast({
-                      message: t("settings.advanced.vacuum_db_success"),
-                      type: "success",
-                    });
-                  } catch (error) {
-                    showToast({
-                      message: t("settings.advanced.vacuum_db_error", {
-                        error: String(error),
-                      }),
-                      type: "error",
-                    });
-                  }
-                }
-              }}
-              optimizeDatabase={async () => {
-                if (workspacePath) {
-                  try {
-                    await invoke("optimize_db", { workspacePath });
-                    showToast({
-                      message: t("settings.advanced.optimize_db_success"),
-                      type: "success",
-                    });
-                  } catch (error) {
-                    showToast({
-                      message: t("settings.advanced.optimize_db_error", {
-                        error: String(error),
-                      }),
-                      type: "error",
-                    });
-                  }
-                }
-              }}
-              t={t}
-            />
+      <SettingsModal
+        opened={settingsOpened}
+        onClose={() => setSettingsOpened(false)}
+        workspacePath={workspacePath}
+        pagesById={pagesById}
+        pageIds={pageIds}
+        vacuumDatabase={async () => {
+          if (workspacePath) {
+            try {
+              await invoke("vacuum_db", { workspacePath });
+              showToast({
+                message: t("settings.advanced.vacuum_db_success"),
+                type: "success",
+              });
+            } catch (error) {
+              showToast({
+                message: t("settings.advanced.vacuum_db_error", {
+                  error: String(error),
+                }),
+                type: "error",
+              });
+            }
+          }
+        }}
+        optimizeDatabase={async () => {
+          if (workspacePath) {
+            try {
+              await invoke("optimize_db", { workspacePath });
+              showToast({
+                message: t("settings.advanced.optimize_db_success"),
+                type: "success",
+              });
+            } catch (error) {
+              showToast({
+                message: t("settings.advanced.optimize_db_error", {
+                  error: String(error),
+                }),
+                type: "error",
+              });
+            }
+          }
+        }}
+        t={t}
+      />
 
       <Notifications />
       <ErrorNotifications />
@@ -327,24 +315,20 @@ function App() {
 
   if (!workspacePath) {
     return (
-      <MantineProvider theme={theme} defaultColorScheme="auto">
+      <ThemeProvider>
         <Notifications />
-        <ThemeProvider>
-          <WorkspaceSelector />
-          <Updater />
-        </ThemeProvider>
-      </MantineProvider>
+        <WorkspaceSelector />
+        <Updater />
+      </ThemeProvider>
     );
   }
 
   return (
-    <MantineProvider theme={theme} defaultColorScheme="auto">
-      <ThemeProvider>
-        <AppContent workspacePath={workspacePath} />
-        <SyncProgress />
-        <Updater />
-      </ThemeProvider>
-    </MantineProvider>
+    <ThemeProvider>
+      <AppContent workspacePath={workspacePath} />
+      <SyncProgress />
+      <Updater />
+    </ThemeProvider>
   );
 }
 
