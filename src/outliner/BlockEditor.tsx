@@ -34,6 +34,7 @@ export function BlockEditor({
   const isLoading = useBlockStore((state) => state.isLoading);
   const error = useBlockStore((state) => state.error);
   const childrenMap = useBlockStore((state) => state.childrenMap);
+  const blocksById = useBlockStore((state) => state.blocksById);
 
   const focusedBlockId = useViewStore((state) => state.focusedBlockId);
 
@@ -73,8 +74,23 @@ export function BlockEditor({
     ? [focusedBlockId]
     : childrenMap.root || [];
 
-  // Get ordered block IDs for range selection
-  const blockOrder = useMemo(() => blocksToShow, [blocksToShow]);
+  // Get all visible block IDs in tree order (including nested children) for range selection
+  const blockOrder = useMemo(() => {
+    const getAllVisibleBlocks = (blockIds: string[]): string[] => {
+      const result: string[] = [];
+      for (const blockId of blockIds) {
+        result.push(blockId);
+        const block = blocksById[blockId];
+        const children = childrenMap[blockId];
+        // Include children only if block exists, has children, and is not collapsed
+        if (block && children && children.length > 0 && !block.isCollapsed) {
+          result.push(...getAllVisibleBlocks(children));
+        }
+      }
+      return result;
+    };
+    return getAllVisibleBlocks(blocksToShow);
+  }, [blocksToShow, blocksById, childrenMap]);
 
   if (isLoading) {
     return (
