@@ -25,9 +25,12 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
     (state) => state.colorVariant ?? "blue"
   );
 
+  console.log("[ThemeProvider] State:", { computedColorScheme, colorVariant });
+
   const theme: AppTheme = useMemo(() => {
     const resolvedColorScheme: "dark" | "light" =
       computedColorScheme || "light";
+    console.log("[ThemeProvider] Resolved Scheme:", resolvedColorScheme);
     return createTheme(resolvedColorScheme, colorVariant);
   }, [computedColorScheme, colorVariant]);
 
@@ -58,6 +61,7 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
   }, []);
 
   useEffect(() => {
+    console.log("[ThemeProvider] Effect running for:", theme.name);
     const root = document.documentElement;
 
     const setCssVariables = (
