@@ -3,36 +3,33 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::models::page::Page;
+use crate::services::path_validator::PathValidator;
 
 pub struct FileSyncService {
     workspace_path: PathBuf,
+    path_validator: PathValidator,
 }
 
 impl FileSyncService {
     pub fn new(workspace_path: impl Into<PathBuf>) -> Self {
+        let workspace = workspace_path.into();
+        let path_validator = PathValidator::new(workspace.clone());
         Self {
-            workspace_path: workspace_path.into(),
+            workspace_path: workspace,
+            path_validator,
         }
     }
 
     /// Compute workspace-relative path from absolute path.
     ///
-    /// Uses `Path::strip_prefix()` for safe, cross-platform relative path computation.
+    /// Uses PathValidator for safe path handling with sandboxing checks.
     /// Converts path separators to forward slashes (/) for consistent storage.
     ///
     /// # Returns
     /// Workspace-relative path with forward slash separators, or error if path is outside workspace.
     fn compute_rel_path(&self, abs_path: &Path) -> Result<String, String> {
-        // Use strip_prefix for safe cross-platform path handling
-        let rel_path = abs_path
-            .strip_prefix(&self.workspace_path)
-            .map_err(|_| format!("Path {:?} is not under workspace root", abs_path))?;
-
-        // Convert path to string with forward slashes (consistent across all platforms)
-        rel_path
-            .to_str()
-            .ok_or_else(|| "Path contains invalid UTF-8".to_string())
-            .map(|s| s.replace('\\', "/"))
+        // Use PathValidator to ensure path is within workspace
+        self.path_validator.to_relative_path(abs_path)
     }
 
     /// Get the file path for a page based on its hierarchy
@@ -41,8 +38,9 @@ impl FileSyncService {
         let page = self.get_page_from_db(conn, page_id)?;
 
         if let Some(file_path) = page.file_path {
-            // file_path in DB is now workspace-relative; convert to absolute for filesystem ops
-            return Ok(self.workspace_path.join(&file_path));
+            // file_path in DB is workspace-relative; validate and convert to absolute
+            let abs_path = self.path_validator.validate_relative_path(&file_path)?;
+            return Ok(abs_path);
         }
 
         // Build path from hierarchy
@@ -199,6 +197,10 @@ impl FileSyncService {
             self.workspace_path.clone()
         };
 
+        // Validate target directory is within workspace
+        self.path_validator
+            .validate_absolute_path(&new_parent_dir)?;
+
         // Ensure target directory exists
         fs::create_dir_all(&new_parent_dir)
             .map_err(|e| format!("Failed to create target directory: {}", e))?;
@@ -206,7 +208,7 @@ impl FileSyncService {
         if page.is_directory {
             // Moving a directory note - move the entire folder structure
             let old_abs_path = if let Some(fp) = &page.file_path {
-                self.workspace_path.join(fp)
+                self.path_validator.validate_relative_path(fp)?
             } else {
                 self.get_page_file_path(conn, page_id)?
             };
@@ -225,6 +227,9 @@ impl FileSyncService {
             let dir_name = old_dir.file_name().ok_or("Invalid directory name")?;
             let new_dir = new_parent_dir.join(dir_name);
 
+            // Validate new directory path
+            self.path_validator.validate_absolute_path(&new_dir)?;
+
             fs::rename(&old_dir, &new_dir)
                 .map_err(|e| format!("Failed to move directory: {}", e))?;
 
@@ -234,7 +239,7 @@ impl FileSyncService {
         } else {
             // Moving a regular file
             let old_abs_path = if let Some(fp) = &page.file_path {
-                self.workspace_path.join(fp)
+                self.path_validator.validate_relative_path(fp)?
             } else {
                 self.get_page_file_path(conn, page_id)?
             };
@@ -252,6 +257,9 @@ impl FileSyncService {
 
             let file_name = old_abs_path.file_name().ok_or("Invalid file name")?;
             let new_path = new_parent_dir.join(file_name);
+
+            // Validate new file path
+            self.path_validator.validate_absolute_path(&new_path)?;
 
             fs::rename(&old_abs_path, &new_path)
                 .map_err(|e| format!("Failed to move file: {}", e))?;
