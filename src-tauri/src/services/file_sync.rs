@@ -213,11 +213,14 @@ impl FileSyncService {
                 self.get_page_file_path(conn, page_id)?
             };
 
-            // The directory is named after the file stem
+            // For directory pages, the structure is:
+            // Page A/Page A.md (file)
+            // Page A/ (directory containing children)
+            // So the directory is the parent of the .md file
             let old_dir = old_abs_path
                 .parent()
                 .ok_or("Cannot get parent directory")?
-                .join(old_abs_path.file_stem().ok_or("Invalid file name")?);
+                .to_path_buf();
 
             if !old_dir.exists() {
                 return Err(format!("Directory does not exist: {:?}", old_dir));
