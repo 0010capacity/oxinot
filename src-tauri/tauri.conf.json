@@ -25,7 +25,9 @@
     }
   },
   "plugins": {
-    "fs": {},
+    "fs": {
+      "scope": ["$APPDATA/**", "$DOCUMENTS/**"]
+    },
     "updater": {
       "active": true,
       "endpoints": [
