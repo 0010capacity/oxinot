@@ -1,4 +1,11 @@
-import { Group, Badge, ActionIcon, Menu, Tooltip } from "@mantine/core";
+import {
+  Group,
+  Badge,
+  ActionIcon,
+  Menu,
+  Tooltip,
+  useComputedColorScheme,
+} from "@mantine/core";
 import type React from "react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,6 +33,8 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
   onOutdent,
 }) => {
   const { t } = useTranslation();
+  const computedColorScheme = useComputedColorScheme();
+  const isDark = computedColorScheme === "dark";
   const selectedBlockIds = useBlockUIStore((state) => state.selectedBlockIds);
   const clearSelectedBlocks = useBlockUIStore(
     (state) => state.clearSelectedBlocks
@@ -67,7 +76,9 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
   return (
     <Group
       p="md"
-      bg="var(--mantine-color-blue-0)"
+      bg={
+        isDark ? "var(--mantine-color-blue-9)" : "var(--mantine-color-blue-0)"
+      }
       style={{
         borderTop: "1px solid var(--mantine-color-gray-3)",
         borderBottom: "1px solid var(--mantine-color-gray-3)",
