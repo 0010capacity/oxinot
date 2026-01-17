@@ -29,6 +29,20 @@ export interface Opacity {
   active: string;
 }
 
+export interface ZIndex {
+  [key: string]: unknown;
+  base: number;
+  low: number;
+  elevated: number;
+  dropdown: number;
+  sticky: number;
+  backdrop: number;
+  modal: number;
+  popover: number;
+  tooltip: number;
+  toast: number;
+}
+
 export interface AppTheme {
   name: string;
   scheme: ColorScheme;
@@ -40,5 +54,6 @@ export interface AppTheme {
   layout: Layout;
   transitions: Transitions;
   opacity: Opacity;
+  zIndex: ZIndex;
   // TODO: Add shadows if they need to be theme-specific
 }

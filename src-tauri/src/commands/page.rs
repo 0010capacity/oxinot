@@ -1,5 +1,5 @@
 use chrono::Utc;
-use rusqlite::{params, Connection};
+use rusqlite::{named_params, Connection};
 
 use crate::commands::workspace::open_workspace_db;
 use uuid::Uuid;
@@ -75,15 +75,15 @@ pub async fn create_page(
 
     tx.execute(
         "INSERT INTO pages (id, title, parent_id, file_path, is_directory, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 0, ?, ?)",
-        params![
-            &id,
-            &request.title,
-            &request.parent_id,
-            &request.file_path,
-            &now,
-            &now
-        ],
+         VALUES (:id, :title, :parent_id, :file_path, 0, :created_at, :updated_at)",
+        named_params! {
+            ":id": &id,
+            ":title": &request.title,
+            ":parent_id": &request.parent_id,
+            ":file_path": &request.file_path,
+            ":created_at": &now,
+            ":updated_at": &now,
+        },
     )
     .map_err(|e| format!("Failed to insert page: {}", e))?;
 
@@ -102,15 +102,14 @@ pub async fn create_page(
     };
 
     // Update file_path in database
-    if let Err(e) = tx.execute(
-        "UPDATE pages SET file_path = ? WHERE id = ?",
-        params![&file_path, &id],
-    ) {
-        // Compensating transaction: Delete the created file
-        println!("[create_page] DB Update failed, deleting created file...");
-        let _ = file_sync.delete_page_file(&tx, &id);
-        return Err(e.to_string());
-    }
+    conn.execute(
+        "UPDATE pages SET file_path = :file_path WHERE id = :id",
+        named_params! {
+            ":file_path": &file_path,
+            ":id": &id,
+        },
+    )
+    .map_err(|e| e.to_string())?;
 
     println!("[create_page] File created at: {}", file_path);
     println!("[create_page] Updated file_path in DB");
@@ -174,8 +173,13 @@ pub async fn update_page(
 
             // Persist the page metadata changes
             conn.execute(
-                "UPDATE pages SET title = ?, file_path = ?, updated_at = ? WHERE id = ?",
-                params![&new_title, &new_path, &now, &request.id],
+                "UPDATE pages SET title = :title, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
+                named_params! {
+                    ":title": &new_title,
+                    ":file_path": &new_path,
+                    ":updated_at": &now,
+                    ":id": &request.id,
+                },
             )
             .map_err(|e| e.to_string())?;
 
@@ -202,14 +206,14 @@ pub async fn update_page(
     }
 
     conn.execute(
-        "UPDATE pages SET title = ?, parent_id = ?, file_path = ?, updated_at = ? WHERE id = ?",
-        params![
-            &new_title,
-            &new_parent_id,
-            &new_file_path,
-            &now,
-            &request.id
-        ],
+        "UPDATE pages SET title = :title, parent_id = :parent_id, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
+        named_params! {
+            ":title": &new_title,
+            ":parent_id": &new_parent_id,
+            ":file_path": &new_file_path,
+            ":updated_at": &now,
+            ":id": &request.id
+        },
     )
     .map_err(|e| e.to_string())?;
 
@@ -270,9 +274,9 @@ pub async fn delete_page(
 
     // Get children that will be deleted by CASCADE
     let children: Vec<(String, String)> = conn
-        .prepare("SELECT id, title FROM pages WHERE parent_id = ?")
+        .prepare("SELECT id, title FROM pages WHERE parent_id = :parent_id")
         .map_err(|e| e.to_string())?
-        .query_map([&page_id], |row| {
+        .query_map(named_params! { ":parent_id": &page_id }, |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })
         .map_err(|e| e.to_string())?
@@ -300,9 +304,12 @@ pub async fn delete_page(
     println!("[delete_page] Page file deleted successfully");
 
     // CASCADE will automatically delete all blocks and child pages
-    println!("[delete_page] Executing DELETE FROM pages WHERE id = ?...");
+    println!("[delete_page] Executing DELETE FROM pages WHERE id = :id...");
     let deleted_count = conn
-        .execute("DELETE FROM pages WHERE id = ?", [&page_id])
+        .execute(
+            "DELETE FROM pages WHERE id = :id",
+            named_params! { ":id": &page_id },
+        )
         .map_err(|e| e.to_string())?;
     println!(
         "[delete_page] Deleted {} page(s) from database (CASCADE may delete more)",
@@ -356,8 +363,8 @@ pub async fn delete_page(
 fn get_page_by_id(conn: &Connection, id: &str) -> Result<Page, String> {
     conn.query_row(
         "SELECT id, title, parent_id, file_path, is_directory, file_mtime, file_size, created_at, updated_at
-         FROM pages WHERE id = ?",
-        [id],
+         FROM pages WHERE id = :id",
+        named_params! { ":id": id },
         |row| {
             Ok(Page {
                 id: row.get(0)?,
@@ -438,8 +445,12 @@ pub async fn move_page(
                 .map_err(|e| format!("Failed to convert parent to directory: {}", e))?;
 
             conn.execute(
-                "UPDATE pages SET is_directory = 1, file_path = ?, updated_at = ? WHERE id = ?",
-                params![&new_path, &now, parent_id],
+                "UPDATE pages SET is_directory = 1, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
+                named_params! {
+                    ":file_path": &new_path,
+                    ":updated_at": &now,
+                    ":id": parent_id,
+                },
             )
             .map_err(|e| e.to_string())?;
             println!(
@@ -473,8 +484,13 @@ pub async fn move_page(
     // Update database
     println!("[move_page] Updating database...");
     conn.execute(
-        "UPDATE pages SET parent_id = ?, file_path = ?, updated_at = ? WHERE id = ?",
-        params![&request.new_parent_id, &new_path, &now, &request.id],
+        "UPDATE pages SET parent_id = :parent_id, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
+        named_params! {
+            ":parent_id": &request.new_parent_id,
+            ":file_path": &new_path,
+            ":updated_at": &now,
+            ":id": &request.id,
+        },
     )
     .map_err(|e| e.to_string())?;
     println!("[move_page] Database updated successfully");
@@ -557,8 +573,8 @@ fn check_and_convert_to_file(
     // Count children (exclude soft-deleted)
     let child_count: i32 = conn
         .query_row(
-            "SELECT COUNT(*) FROM pages WHERE parent_id = ? AND is_deleted = 0",
-            [page_id],
+            "SELECT COUNT(*) FROM pages WHERE parent_id = :parent_id AND is_deleted = 0",
+            named_params! { ":parent_id": page_id },
             |row| row.get(0),
         )
         .map_err(|e| format!("Failed to count children: {}", e))?;
@@ -572,8 +588,12 @@ fn check_and_convert_to_file(
 
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
-            "UPDATE pages SET is_directory = 0, file_path = ?, updated_at = ? WHERE id = ?",
-            params![&new_path, &now, page_id],
+            "UPDATE pages SET is_directory = 0, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
+            named_params! {
+                ":file_path": &new_path,
+                ":updated_at": &now,
+                ":id": page_id,
+            },
         )
         .map_err(|e| e.to_string())?;
     }
@@ -599,8 +619,12 @@ pub async fn convert_page_to_directory(
 
     // Update database
     conn.execute(
-        "UPDATE pages SET is_directory = 1, file_path = ?, updated_at = ? WHERE id = ?",
-        params![&new_path, &now, &page_id],
+        "UPDATE pages SET is_directory = 1, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
+        named_params! {
+            ":file_path": &new_path,
+            ":updated_at": &now,
+            ":id": &page_id,
+        },
     )
     .map_err(|e| e.to_string())?;
 
@@ -684,11 +708,11 @@ pub async fn rewrite_wiki_links_for_page_path_change(
     // Wiki links index (idx_wiki_links_target_path) provides O(log n) lookup.
     let mut candidate_ids: Vec<String> = {
         let mut stmt = conn
-            .prepare("SELECT DISTINCT from_block_id FROM wiki_links WHERE target_path = ?")
+            .prepare("SELECT DISTINCT from_block_id FROM wiki_links WHERE target_path = :target_path")
             .map_err(|e| e.to_string())?;
 
         let rows = stmt
-            .query_map(params![&from_path], |row| row.get::<_, String>(0))
+            .query_map(named_params! { ":target_path": &from_path }, |row| row.get::<_, String>(0))
             .map_err(|e| e.to_string())?;
 
         let mut ids = Vec::new();
@@ -703,11 +727,11 @@ pub async fn rewrite_wiki_links_for_page_path_change(
     let content_pattern = format!("%[[{}%", from_path);
     {
         let mut stmt2 = conn
-            .prepare("SELECT id FROM blocks WHERE content LIKE ? AND id NOT IN (SELECT from_block_id FROM wiki_links WHERE target_path = ?)")
+            .prepare("SELECT id FROM blocks WHERE content LIKE :content_pattern AND id NOT IN (SELECT from_block_id FROM wiki_links WHERE target_path = :target_path)")
             .map_err(|e| e.to_string())?;
 
         let rows = stmt2
-            .query_map(params![&content_pattern, &from_path], |row| {
+            .query_map(named_params! { ":content_pattern": &content_pattern, ":target_path": &from_path }, |row| {
                 row.get::<_, String>(0)
             })
             .map_err(|e| e.to_string())?;
@@ -739,8 +763,8 @@ pub async fn rewrite_wiki_links_for_page_path_change(
     for block_id in all_candidate_ids {
         let (page_id, content): (String, String) = tx
             .query_row(
-                "SELECT page_id, content FROM blocks WHERE id = ?",
-                params![&block_id],
+                "SELECT page_id, content FROM blocks WHERE id = :id",
+                named_params! { ":id": &block_id },
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .map_err(|e| e.to_string())?;
@@ -751,8 +775,12 @@ pub async fn rewrite_wiki_links_for_page_path_change(
         }
 
         tx.execute(
-            "UPDATE blocks SET content = ?, updated_at = ? WHERE id = ?",
-            params![updated, &now, &block_id],
+            "UPDATE blocks SET content = :content, updated_at = :updated_at WHERE id = :id",
+            named_params! {
+                ":content": updated,
+                ":updated_at": &now,
+                ":id": &block_id,
+            },
         )
         .map_err(|e| e.to_string())?;
 

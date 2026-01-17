@@ -5,7 +5,7 @@ use crate::services::markdown_to_blocks;
 use crate::services::page_path_service;
 // (removed) WorkspaceSyncService import: sync/reindex paths are unified on filesystem-driven `sync_workspace`
 use chrono::Utc;
-use rusqlite::{params, Connection};
+use rusqlite::{named_params, Connection};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -294,8 +294,11 @@ pub fn sync_workspace(workspace_path: String) -> Result<MigrationResult, String>
                 "[sync_workspace] DELETING orphaned page from DB: id={}, path={}",
                 page_id, file_path
             );
-            conn.execute("DELETE FROM pages WHERE id = ?", [page_id])
-                .map_err(|e| e.to_string())?;
+            conn.execute(
+                "DELETE FROM pages WHERE id = :id",
+                named_params! { ":id": page_id },
+            )
+            .map_err(|e| e.to_string())?;
             deleted_count += 1;
         }
     }
@@ -515,15 +518,15 @@ fn sync_or_create_file(
 
         // Always keep hierarchy metadata in sync
         conn.execute(
-            "UPDATE pages SET parent_id = ?, is_directory = ?, file_mtime = ?, file_size = ?, updated_at = ? WHERE id = ?",
-            params![
-                parent_page_id,
-                if is_directory { 1 } else { 0 },
-                mtime,
-                size,
-                Utc::now().to_rfc3339(),
-                page_id
-            ],
+            "UPDATE pages SET parent_id = :parent_id, is_directory = :is_directory, file_mtime = :file_mtime, file_size = :file_size, updated_at = :updated_at WHERE id = :id",
+            named_params! {
+                ":parent_id": parent_page_id,
+                ":is_directory": if is_directory { 1 } else { 0 },
+                ":file_mtime": mtime,
+                ":file_size": size,
+                ":updated_at": Utc::now().to_rfc3339(),
+                ":id": page_id
+            },
         )
         .map_err(|e| e.to_string())?;
 
@@ -535,8 +538,11 @@ fn sync_or_create_file(
             // Reindex blocks
             let content = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
 
-            conn.execute("DELETE FROM blocks WHERE page_id = ?", [page_id])
-                .map_err(|e| e.to_string())?;
+            conn.execute(
+                "DELETE FROM blocks WHERE page_id = :page_id",
+                named_params! { ":page_id": page_id },
+            )
+            .map_err(|e| e.to_string())?;
 
             let blocks = markdown_to_blocks(&content, page_id);
 
@@ -544,17 +550,17 @@ fn sync_or_create_file(
                 conn.execute(
                     "INSERT INTO blocks (id, page_id, parent_id, content, order_weight,
                                         block_type, created_at, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    params![
-                        &block.id,
-                        &block.page_id,
-                        &block.parent_id,
-                        &block.content,
-                        block.order_weight,
-                        block_type_to_string(&block.block_type),
-                        &block.created_at,
-                        &block.updated_at
-                    ],
+                     VALUES (:id, :page_id, :parent_id, :content, :order_weight, :block_type, :created_at, :updated_at)",
+                    named_params! {
+                        ":id": &block.id,
+                        ":page_id": &block.page_id,
+                        ":parent_id": &block.parent_id,
+                        ":content": &block.content,
+                        ":order_weight": block.order_weight,
+                        ":block_type": block_type_to_string(&block.block_type),
+                        ":created_at": &block.created_at,
+                        ":updated_at": &block.updated_at
+                    },
                 )
                 .map_err(|e| e.to_string())?;
 
@@ -578,18 +584,18 @@ fn sync_or_create_file(
     // Store relative path in DB (P0 requirement)
     conn.execute(
         "INSERT INTO pages (id, title, parent_id, file_path, is_directory, file_mtime, file_size, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        params![
-            &page_id,
-            file_name,
-            parent_page_id,
-            &rel_path,
-            if is_directory { 1 } else { 0 },
-            mtime,
-            size,
-            &now,
-            &now
-        ],
+         VALUES (:id, :title, :parent_id, :file_path, :is_directory, :file_mtime, :file_size, :created_at, :updated_at)",
+        named_params! {
+            ":id": &page_id,
+            ":title": file_name,
+            ":parent_id": parent_page_id,
+            ":file_path": &rel_path,
+            ":is_directory": if is_directory { 1 } else { 0 },
+            ":file_mtime": mtime,
+            ":file_size": size,
+            ":created_at": &now,
+            ":updated_at": &now
+        },
     )
     .map_err(|e| e.to_string())?;
 
@@ -604,17 +610,17 @@ fn sync_or_create_file(
         conn.execute(
             "INSERT INTO blocks (id, page_id, parent_id, content, order_weight,
                                 block_type, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            params![
-                &block.id,
-                &block.page_id,
-                &block.parent_id,
-                &block.content,
-                &block.order_weight,
-                block_type_to_string(&block.block_type),
-                &block.created_at,
-                &block.updated_at
-            ],
+             VALUES (:id, :page_id, :parent_id, :content, :order_weight, :block_type, :created_at, :updated_at)",
+            named_params! {
+                ":id": &block.id,
+                ":page_id": &block.page_id,
+                ":parent_id": &block.parent_id,
+                ":content": &block.content,
+                ":order_weight": &block.order_weight,
+                ":block_type": block_type_to_string(&block.block_type),
+                ":created_at": &block.created_at,
+                ":updated_at": &block.updated_at
+            },
         )
         .map_err(|e| e.to_string())?;
 
