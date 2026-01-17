@@ -22,7 +22,7 @@ interface ThemeProviderProps {
 function ThemeProviderInner({ children }: ThemeProviderProps) {
   const computedColorScheme = useComputedColorScheme("light");
   const colorVariant: ColorVariant = useThemeStore(
-    (state) => state.colorVariant ?? "indigo"
+    (state) => state.colorVariant ?? "blue"
   );
 
   const theme: AppTheme = useMemo(() => {
@@ -33,9 +33,9 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
 
   const mantineTheme: MantineThemeOverride = useMemo(
     () => ({
-      primaryColor: "indigo",
+      primaryColor: "cyan",
       colors: {
-        indigo: [
+        cyan: [
           theme.colors.accent,
           theme.colors.accent,
           theme.colors.accent,
@@ -50,7 +50,7 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
       },
       fontFamily: theme.typography.fontFamily,
     }),
-    [theme.colors.accent, theme.typography.fontFamily]
+    [theme]
   );
 
   const camelToKebab = useCallback((str: string): string => {

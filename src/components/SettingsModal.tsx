@@ -260,7 +260,6 @@ export function SettingsModal({
         t("settings.theme.modes.auto").toLowerCase(),
         t("settings.theme.color_variant").toLowerCase(),
         "accent",
-        t("settings.theme.variants.default").toLowerCase(),
         t("settings.theme.variants.blue").toLowerCase(),
         t("settings.theme.variants.purple").toLowerCase(),
         t("settings.theme.variants.green").toLowerCase(),
