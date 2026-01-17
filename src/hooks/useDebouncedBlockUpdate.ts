@@ -24,13 +24,22 @@ export function useDebouncedBlockUpdate(blockId: string) {
 
       timerRef.current = setTimeout(() => {
         if (pendingContentRef.current !== undefined) {
+          // Get current state to handle tempId -> realId mapping
+          const state = useBlockStore.getState();
+          let currentBlockId = blockIdRef.current;
+
+          // Check if the block has been mapped from tempId to realId
+          if (currentBlockId.startsWith("temp-")) {
+            const realId = state.tempIdMap[currentBlockId];
+            if (realId) {
+              currentBlockId = realId;
+            }
+          }
+
           // Access the current version of updateBlockContent
           const currentUpdateBlockContent =
             useBlockStore.getState().updateBlockContent;
-          currentUpdateBlockContent(
-            blockIdRef.current,
-            pendingContentRef.current
-          );
+          currentUpdateBlockContent(currentBlockId, pendingContentRef.current);
           pendingContentRef.current = undefined;
         }
       }, DEBOUNCE_MS);
@@ -44,9 +53,21 @@ export function useDebouncedBlockUpdate(blockId: string) {
       clearTimeout(timerRef.current);
     }
     if (pendingContentRef.current !== undefined) {
+      // Get current state to handle tempId -> realId mapping
+      const state = useBlockStore.getState();
+      let currentBlockId = blockIdRef.current;
+
+      // Check if the block has been mapped from tempId to realId
+      if (currentBlockId.startsWith("temp-")) {
+        const realId = state.tempIdMap[currentBlockId];
+        if (realId) {
+          currentBlockId = realId;
+        }
+      }
+
       const currentUpdateBlockContent =
         useBlockStore.getState().updateBlockContent;
-      currentUpdateBlockContent(blockIdRef.current, pendingContentRef.current);
+      currentUpdateBlockContent(currentBlockId, pendingContentRef.current);
       pendingContentRef.current = undefined;
     }
   }, []);
