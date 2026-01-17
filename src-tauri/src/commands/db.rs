@@ -1,5 +1,7 @@
 use crate::commands::workspace::open_workspace_db;
 use crate::error::OxinotError;
+use crate::services::FtsService;
+use serde::{Deserialize, Serialize};
 
 /// Vacuum the database to reclaim unused space.
 /// This rebuilds the database file, repacking it into a minimal amount of disk space.
@@ -233,6 +235,27 @@ pub fn repair_db(workspace_path: String) -> Result<String, String> {
         .map_err(|e| e.to_string())?;
     }
 
+    // 9. Clean up orphaned FTS5 index entries
+    let orphaned_fts: i32 = tx
+        .query_row(
+            "SELECT COUNT(*) FROM blocks_fts WHERE block_id NOT IN (SELECT id FROM blocks)",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    if orphaned_fts > 0 {
+        report.push_str(&format!(
+            "Found {} orphaned FTS5 index entries\n",
+            orphaned_fts
+        ));
+        tx.execute(
+            "DELETE FROM blocks_fts WHERE block_id NOT IN (SELECT id FROM blocks)",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
     tx.commit()
         .map_err(|e| format!("Failed to commit transaction: {}", e))?;
 
@@ -244,4 +267,102 @@ pub fn repair_db(workspace_path: String) -> Result<String, String> {
 
     println!("[repair_db] {}", report);
     Ok(report)
+}
+
+/// FTS5 index statistics
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FtsIndexStats {
+    pub total_indexed: usize,
+    pub total_blocks: usize,
+    pub missing_from_index: usize,
+    pub index_coverage: f64,
+    pub is_healthy: bool,
+}
+
+/// Get FTS5 index statistics and health status
+#[tauri::command]
+pub fn get_fts_stats(workspace_path: String) -> Result<FtsIndexStats, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+    let stats = FtsService::get_index_stats(&conn)?;
+
+    Ok(FtsIndexStats {
+        total_indexed: stats.total_indexed,
+        total_blocks: stats.total_blocks,
+        missing_from_index: stats.missing_from_index,
+        index_coverage: stats.index_coverage,
+        is_healthy: stats.is_healthy(),
+    })
+}
+
+/// Rebuild the entire FTS5 index from scratch
+/// This is useful after database corruption or for maintenance
+#[tauri::command]
+pub fn rebuild_fts_index(workspace_path: String) -> Result<String, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    let count = FtsService::rebuild_index(&conn)?;
+
+    Ok(format!(
+        "FTS5 index rebuilt successfully. {} blocks indexed.",
+        count
+    ))
+}
+
+/// Verify and repair FTS5 index consistency
+/// Returns statistics about blocks that were reindexed and removed
+#[tauri::command]
+pub fn verify_fts_index(workspace_path: String) -> Result<String, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    let (reindexed, removed) = FtsService::verify_and_repair_index(&conn)?;
+
+    let mut report = String::new();
+
+    if reindexed > 0 {
+        report.push_str(&format!(
+            "Reindexed {} blocks that were missing from index\n",
+            reindexed
+        ));
+    }
+
+    if removed > 0 {
+        report.push_str(&format!("Removed {} orphaned index entries\n", removed));
+    }
+
+    if reindexed == 0 && removed == 0 {
+        report = "FTS5 index is consistent.".to_string();
+    } else {
+        report.insert_str(0, "FTS5 index verification completed:\n");
+    }
+
+    Ok(report)
+}
+
+/// Optimize FTS5 index for better query performance
+/// This reduces index size and improves search speed
+#[tauri::command]
+pub fn optimize_fts_index(workspace_path: String) -> Result<String, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    conn.execute(
+        "INSERT INTO blocks_fts(blocks_fts, rank) VALUES('optimize', 0)",
+        [],
+    )
+    .map_err(|e| format!("Failed to optimize FTS5 index: {}", e))?;
+
+    Ok("FTS5 index optimized successfully.".to_string())
+}
+
+/// Rebuild FTS5 index for a specific page
+/// Useful when a page has many block updates
+#[tauri::command]
+pub fn rebuild_page_fts_index(workspace_path: String, page_id: String) -> Result<String, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    let count = FtsService::rebuild_page_index(&conn, &page_id)?;
+
+    Ok(format!(
+        "FTS5 index for page rebuilt successfully. {} blocks indexed.",
+        count
+    ))
 }
