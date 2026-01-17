@@ -1,4 +1,4 @@
-use crate::commands::block::block_type_to_string;
+use crate::commands::block::{block_type_to_string, index_block_fts};
 use crate::config::{METADATA_DIR_NAME, SETTINGS_FILENAME, WORKSPACE_DB_FILENAME};
 use crate::error::OxinotError;
 use crate::services::markdown_to_blocks;
@@ -535,6 +535,9 @@ fn sync_or_create_file(
                     ],
                 )
                 .map_err(|e| e.to_string())?;
+
+                // Update FTS5 index
+                index_block_fts(&conn, &block.id, page_id, &block.content)?;
             }
 
             *synced_pages += 1;
@@ -592,6 +595,9 @@ fn sync_or_create_file(
             ],
         )
         .map_err(|e| e.to_string())?;
+
+        // Update FTS5 index
+        index_block_fts(&conn, &block.id, &page_id, &block.content)?;
     }
 
     *synced_pages += 1;
