@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
-import { Box, Group, Stack, Text, Loader, Alert, Button } from "@mantine/core";
+import {
+  Box,
+  Group,
+  Stack,
+  Text,
+  Loader,
+  Alert,
+  Button,
+  ActionIcon,
+  Tooltip,
+} from "@mantine/core";
+import { IconEdit } from "@tabler/icons-react";
 import { tauriAPI, QueryResultBlock } from "../tauri-api";
 import { parseQueryMacro, QueryParseError } from "../utils/queryParser";
 
@@ -106,10 +117,17 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
     return (
       <Box
         p="md"
-        style={{ border: "1px solid var(--mantine-color-gray-3)" }}
+        style={{
+          border: "2px solid var(--mantine-color-blue-5)",
+          backgroundColor: "var(--mantine-color-blue-0)",
+          borderRadius: "6px",
+        }}
         mb="md"
       >
         <Stack gap="sm">
+          <Text size="sm" fw={500} c="blue">
+            Edit Query
+          </Text>
           <textarea
             value={state.editValue}
             onChange={(e) =>
@@ -119,12 +137,15 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
               width: "100%",
               minHeight: "100px",
               fontFamily: "monospace",
-              padding: "8px",
+              padding: "12px",
+              fontSize: "13px",
               border: "1px solid var(--mantine-color-gray-4)",
               borderRadius: "4px",
+              resize: "vertical",
+              boxSizing: "border-box",
             }}
           />
-          <Group>
+          <Group gap="sm">
             <Button size="xs" onClick={handleSave}>
               Save
             </Button>
@@ -140,7 +161,15 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
   // Show loading state
   if (state.isLoading) {
     return (
-      <Box p="md" ta="center">
+      <Box
+        p="md"
+        ta="center"
+        mb="md"
+        style={{
+          border: "1px solid var(--mantine-color-gray-3)",
+          borderRadius: "4px",
+        }}
+      >
         <Loader size="sm" />
       </Box>
     );
@@ -153,8 +182,23 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
         title="Query Error"
         color="red"
         mb="md"
+        style={{ cursor: "pointer", borderRadius: "4px" }}
         onClick={handleEdit}
-        style={{ cursor: "pointer" }}
+        icon={
+          <Tooltip label="Click to edit">
+            <ActionIcon
+              size="sm"
+              color="red"
+              variant="subtle"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit();
+              }}
+            >
+              <IconEdit size={14} />
+            </ActionIcon>
+          </Tooltip>
+        }
       >
         {state.error}
       </Alert>
@@ -167,18 +211,36 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
       p="md"
       mb="md"
       style={{
-        border: "1px solid var(--mantine-color-blue-1)",
+        border: "1px solid var(--mantine-color-blue-2)",
         backgroundColor: "var(--mantine-color-blue-0)",
-        borderRadius: "4px",
+        borderRadius: "6px",
         cursor: "pointer",
       }}
       onClick={handleEdit}
     >
       <Stack gap="sm">
-        <Group justify="space-between">
-          <Text size="sm" fw={500} c="dimmed">
-            Query Results ({state.results.length})
-          </Text>
+        <Group justify="space-between" mb="xs">
+          <Group gap="xs">
+            <Text size="sm" fw={500} c="blue">
+              Query Results
+            </Text>
+            <Text size="xs" c="dimmed">
+              ({state.results.length})
+            </Text>
+          </Group>
+          <Tooltip label="Edit query">
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="blue"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit();
+              }}
+            >
+              <IconEdit size={16} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
 
         {state.results.length === 0 ? (
@@ -194,20 +256,26 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
                 style={{
                   backgroundColor: "white",
                   borderLeft: "3px solid var(--mantine-color-blue-4)",
-                  borderRadius: "2px",
+                  borderRadius: "3px",
                 }}
               >
-                <Text size="xs" c="dimmed">
+                <Text size="xs" c="dimmed" fw={500}>
                   {block.pagePath}
                 </Text>
-                <Text size="sm">{block.content}</Text>
+                <Text size="sm" style={{ wordBreak: "break-word" }}>
+                  {block.content}
+                </Text>
               </Box>
             ))}
           </Stack>
         )}
 
-        <Text size="xs" c="dimmed" style={{ fontStyle: "italic" }}>
-          Click to edit query
+        <Text
+          size="xs"
+          c="dimmed"
+          style={{ fontStyle: "italic", marginTop: "4px" }}
+        >
+          Click or press Edit to modify query
         </Text>
       </Stack>
     </Box>
