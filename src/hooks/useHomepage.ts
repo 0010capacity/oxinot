@@ -10,7 +10,7 @@ export interface UseHomepageReturn {
 }
 
 export const useHomepage = (): UseHomepageReturn => {
-  const { openPageByPath, openPageById, pagesById } = usePageStore();
+  const { openPageByPath, openPageById } = usePageStore();
   const { showIndex, openNote } = useViewStore();
   const homepageType = useAppSettingsStore((state) => state.homepageType);
   const customHomepageId = useAppSettingsStore(
@@ -31,14 +31,17 @@ export const useHomepage = (): UseHomepageReturn => {
           const today = new Date();
           const fullPath = getDailyNotePath(today);
           const pageId = await openPageByPath(fullPath);
-          const page = pagesById[pageId];
 
-          if (!page) {
+          // Get fresh page data from store after opening
+          const freshPageData = usePageStore.getState().pagesById[pageId];
+
+          if (!freshPageData) {
             throw new Error("Page not found after opening");
           }
 
-          const { names, ids } = buildPageBreadcrumb(pageId, pagesById);
-          openNote(pageId, page.title, names, ids);
+          const freshPagesById = usePageStore.getState().pagesById;
+          const { names, ids } = buildPageBreadcrumb(pageId, freshPagesById);
+          openNote(pageId, freshPageData.title, names, ids);
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error occurred";
@@ -56,17 +59,21 @@ export const useHomepage = (): UseHomepageReturn => {
       ) {
         try {
           await openPageById(customHomepageId);
-          const page = pagesById[customHomepageId];
 
-          if (!page) {
+          // Get fresh page data from store after opening
+          const freshPageData =
+            usePageStore.getState().pagesById[customHomepageId];
+
+          if (!freshPageData) {
             throw new Error("Custom page not found");
           }
 
+          const freshPagesById = usePageStore.getState().pagesById;
           const { names, ids } = buildPageBreadcrumb(
             customHomepageId,
-            pagesById
+            freshPagesById
           );
-          openNote(customHomepageId, page.title, names, ids);
+          openNote(customHomepageId, freshPageData.title, names, ids);
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error occurred";
@@ -97,7 +104,6 @@ export const useHomepage = (): UseHomepageReturn => {
     showIndex,
     openPageByPath,
     openPageById,
-    pagesById,
     openNote,
     addError,
   ]);

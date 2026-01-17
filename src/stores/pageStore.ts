@@ -381,6 +381,17 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         }
       }
 
+      // Ensure store state is updated before returning
+      // This handles the case where page was already in the system
+      if (get().pagesById[pageId] === undefined) {
+        console.log(
+          "[pageStore] Refreshing pages to ensure pageId is in store..."
+        );
+        const loadedData = await get().loadPages();
+        freshPageIds = loadedData.pageIds;
+        freshPagesById = loadedData.pagesById;
+      }
+
       return pageId;
     },
 
