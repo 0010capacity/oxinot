@@ -102,6 +102,36 @@
   transform: scale(1.2);
 }
 
+/* Dark mode explicit styles to ensure visibility */
+@media (prefers-color-scheme: dark) {
+  .block-bullet {
+    background-color: rgba(255, 255, 255, 0.4);
+  }
+
+  .block-bullet.active {
+    background-color: rgba(255, 255, 255, 1);
+  }
+
+  .block-bullet-container:hover .block-bullet {
+    background-color: rgba(255, 255, 255, 0.7);
+  }
+}
+
+/* Light mode explicit styles */
+@media (prefers-color-scheme: light) {
+  .block-bullet {
+    background-color: rgba(0, 0, 0, 0.25);
+  }
+
+  .block-bullet.active {
+    background-color: rgba(0, 0, 0, 0.8);
+  }
+
+  .block-bullet-container:hover .block-bullet {
+    background-color: rgba(0, 0, 0, 0.55);
+  }
+}
+
 /* Fence blocks */
 .block-bullet.fence {
   width: 8px;
