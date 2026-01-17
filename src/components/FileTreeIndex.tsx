@@ -484,6 +484,34 @@ export function FileTreeIndex() {
 
   const rootPages = useMemo(() => buildTree(null), [buildTree]);
 
+  // Calculate children that will be CASCADE deleted
+  const childrenToDelete = useMemo(() => {
+    if (!pageToDelete) return [];
+
+    const findAllDescendants = (parentId: string): PageData[] => {
+      const directChildren = pages.filter((p) => p.parentId === parentId);
+      const allDescendants = [...directChildren];
+
+      for (const child of directChildren) {
+        allDescendants.push(...findAllDescendants(child.id));
+      }
+
+      return allDescendants;
+    };
+
+    const descendants = findAllDescendants(pageToDelete.id);
+
+    console.log(
+      "[FileTreeIndex] Children that will be CASCADE deleted:",
+      descendants.map((p) => ({
+        id: p.id,
+        title: p.title,
+      }))
+    );
+
+    return descendants;
+  }, [pageToDelete, pages]);
+
   if (isLoading) {
     return (
       <Stack align="center" justify="center" h="100%" p="xl">
@@ -665,12 +693,50 @@ export function FileTreeIndex() {
         }}
         title="Delete Page"
         centered
-        size="sm"
+        size="md"
       >
         <Stack gap="lg">
-          <Text size="sm">
-            Delete <strong>{pageToDelete?.title}</strong>?
-          </Text>
+          <div>
+            <Text size="sm" mb="xs">
+              Delete <strong>{pageToDelete?.title}</strong>?
+            </Text>
+
+            {childrenToDelete.length > 0 && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  padding: "12px",
+                  backgroundColor: "var(--mantine-color-yellow-light)",
+                  border: "1px solid var(--mantine-color-yellow-outline)",
+                  borderRadius: "var(--mantine-radius-sm)",
+                }}
+              >
+                <Text size="sm" fw={500} c="yellow.9" mb="xs">
+                  ⚠️ Warning: This page has {childrenToDelete.length} child page
+                  {childrenToDelete.length > 1 ? "s" : ""} that will also be
+                  deleted:
+                </Text>
+                <Stack gap={4}>
+                  {childrenToDelete.slice(0, 5).map((child) => (
+                    <Text
+                      key={child.id}
+                      size="xs"
+                      c="yellow.9"
+                      style={{ paddingLeft: "8px" }}
+                    >
+                      • {child.title}
+                    </Text>
+                  ))}
+                  {childrenToDelete.length > 5 && (
+                    <Text size="xs" c="yellow.9" style={{ paddingLeft: "8px" }}>
+                      ... and {childrenToDelete.length - 5} more
+                    </Text>
+                  )}
+                </Stack>
+              </div>
+            )}
+          </div>
+
           <Group justify="flex-end" gap="sm">
             <Button
               variant="default"
@@ -682,7 +748,9 @@ export function FileTreeIndex() {
               Cancel
             </Button>
             <Button color="red" onClick={confirmDeletePage}>
-              Delete
+              {childrenToDelete.length > 0
+                ? `Delete All (${childrenToDelete.length + 1})`
+                : "Delete"}
             </Button>
           </Group>
         </Stack>
