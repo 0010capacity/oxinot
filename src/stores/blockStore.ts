@@ -125,10 +125,14 @@ export const useBlockStore = create<BlockStore>()(
           throw new Error("No workspace selected");
         }
 
+        console.log(`[blockStore] Loading blocks for page ${pageId}...`);
         const blocks: BlockData[] = await invoke("get_page_blocks", {
           workspacePath,
           pageId,
         });
+        console.log(
+          `[blockStore] Loaded ${blocks.length} blocks for page ${pageId}`
+        );
 
         // Normalize
         const { blocksById, childrenMap } = normalizeBlocks(blocks);
@@ -147,8 +151,28 @@ export const useBlockStore = create<BlockStore>()(
         });
 
         if (isRootEmpty) {
-          // Create initial block optimistically
-          await get().createBlock(null, "");
+          console.log(
+            `[blockStore] Creating initial block for page ${pageId}...`
+          );
+          try {
+            // Create initial block optimistically
+            await get().createBlock(null, "");
+            console.log(
+              `[blockStore] Initial block created successfully for page ${pageId}`
+            );
+          } catch (blockError) {
+            console.error(
+              `[blockStore] Failed to create initial block for page ${pageId}:`,
+              blockError
+            );
+            throw new Error(
+              `Failed to create initial block: ${
+                blockError instanceof Error
+                  ? blockError.message
+                  : String(blockError)
+              }`
+            );
+          }
 
           set((state) => {
             state.isLoading = false;
