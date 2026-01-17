@@ -214,13 +214,20 @@ fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bo
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // Step 1: Mark pages as deleting (soft delete)
+    // Start database transaction for atomicity
+    conn.execute("BEGIN TRANSACTION", [])
+        .map_err(|e| e.to_string())?;
+
+    // Step 1: Mark pages as deleting (soft delete) to indicate deletion is in progress
     for page_id in page_ids.iter() {
         conn.execute(
             "UPDATE pages SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             [page_id],
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            let _ = conn.execute("ROLLBACK", []);
+            e.to_string()
+        })?;
     }
 
     // Step 2: Delete from filesystem
@@ -240,23 +247,26 @@ fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bo
     // Step 3: Handle result
     match delete_result {
         Ok(()) => {
-            // Filesystem deletion succeeded, now delete from DB
+            // Filesystem deletion succeeded, now permanently delete from DB within transaction
             for page_id in page_ids {
                 conn.execute("DELETE FROM pages WHERE id = ?", [&page_id])
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| {
+                        let _ = conn.execute("ROLLBACK", []);
+                        e.to_string()
+                    })?;
             }
+
+            // Commit the transaction
+            conn.execute("COMMIT", []).map_err(|e| e.to_string())?;
+
             Ok(true)
         }
         Err(e) => {
-            // Filesystem deletion failed, revert soft delete flag
-            for page_id in page_ids.iter() {
-                let _ = conn.execute(
-                    "UPDATE pages SET is_deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                    [page_id],
-                );
-            }
+            // Filesystem deletion failed, rollback all DB changes
+            let _ = conn.execute("ROLLBACK", []);
+
             Err(format!(
-                "Failed to delete from filesystem, reverted DB changes: {}",
+                "Failed to delete from filesystem, all changes rolled back: {}",
                 e
             ))
         }
