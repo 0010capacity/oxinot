@@ -213,21 +213,24 @@ pub async fn get_blocks(
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
 
     let blocks = stmt
-        .query_map(rusqlite::params_from_iter(request.block_ids.iter()), |row| {
-            Ok(Block {
-                id: row.get(0)?,
-                page_id: row.get(1)?,
-                parent_id: row.get(2)?,
-                content: row.get(3)?,
-                order_weight: row.get(4)?,
-                is_collapsed: row.get::<_, i32>(5)? != 0,
-                block_type: parse_block_type(row.get::<_, String>(6)?),
-                language: row.get(7)?,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
-                metadata: HashMap::new(),
-            })
-        })
+        .query_map(
+            rusqlite::params_from_iter(request.block_ids.iter()),
+            |row| {
+                Ok(Block {
+                    id: row.get(0)?,
+                    page_id: row.get(1)?,
+                    parent_id: row.get(2)?,
+                    content: row.get(3)?,
+                    order_weight: row.get(4)?,
+                    is_collapsed: row.get::<_, i32>(5)? != 0,
+                    block_type: parse_block_type(row.get::<_, String>(6)?),
+                    language: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                    metadata: HashMap::new(),
+                })
+            },
+        )
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
@@ -559,6 +562,9 @@ pub async fn create_block(
     )
     .map_err(|e| e.to_string())?;
 
+    // Index block in FTS5
+    index_block_fts(&conn, &id, &request.page_id, &content)?;
+
     let created_block = get_block_by_id(&conn, &id)?;
 
     // Sync to markdown file (allow targeted patching for this create)
@@ -613,6 +619,9 @@ pub async fn update_block(
         ],
     )
     .map_err(|e| e.to_string())?;
+
+    // Update FTS5 index with new content
+    index_block_fts(&conn, &request.id, &block.page_id, &new_content)?;
 
     // Update metadata if provided
     if let Some(metadata) = &request.metadata {
@@ -687,6 +696,9 @@ pub async fn delete_block(
     // Delete only the target block (children are now preserved and promoted)
     conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
         .map_err(|e| e.to_string())?;
+
+    // Remove block from FTS5 index
+    deindex_block_fts(&conn, &block_id)?;
 
     // Sync to markdown file
     sync_page_to_markdown_after_delete(&conn, &workspace_path, &page_id, block_id.as_str())?;
@@ -1189,6 +1201,27 @@ pub fn block_type_to_string(bt: &BlockType) -> String {
         BlockType::Code => "code".to_string(),
         BlockType::Fence => "fence".to_string(),
     }
+}
+
+/// Add or update a block in the FTS5 index
+pub fn index_block_fts(
+    conn: &Connection,
+    block_id: &str,
+    page_id: &str,
+    content: &str,
+) -> Result<(), String> {
+    conn.execute(
+        "INSERT OR REPLACE INTO blocks_fts (block_id, page_id, content, anchor_id, path_text)
+         VALUES (?, ?, ?, ?, ?)",
+        params![block_id, page_id, content, block_id, ""],
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// Remove a block from the FTS5 index
+pub fn deindex_block_fts(conn: &Connection, block_id: &str) -> Result<(), String> {
+    conn.execute("DELETE FROM blocks_fts WHERE block_id = ?", [block_id])
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
