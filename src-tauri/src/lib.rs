@@ -467,6 +467,8 @@ pub fn run() {
             commands::wiki_link::get_page_backlinks,
             commands::wiki_link::get_broken_links,
             commands::wiki_link::reindex_wiki_links,
+            // Query commands
+            commands::query::execute_query_macro,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

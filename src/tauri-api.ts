@@ -88,6 +88,27 @@ export interface WikiLink {
   is_embed: boolean;
 }
 
+export interface QueryResultBlock {
+  id: string;
+  pageId: string;
+  parentId: string | null;
+  content: string;
+  orderWeight: number;
+  isCollapsed: boolean;
+  blockType: "bullet" | "code" | "fence";
+  language?: string;
+  createdAt: string;
+  updatedAt: string;
+  metadata: Record<string, string>;
+  pagePath: string;
+}
+
+export interface QueryResult {
+  blocks: QueryResultBlock[];
+  totalCount: number;
+  error?: string;
+}
+
 export const tauriAPI = {
   // Workspace operations
   selectWorkspace: async (): Promise<string | null> => {
@@ -237,6 +258,21 @@ export const tauriAPI = {
   repairDb: async (workspacePath: string): Promise<string> => {
     validatePath(workspacePath, "workspacePath");
     return await invoke<string>("repair_db", { workspacePath });
+  },
+
+  // Query operations
+  executeQueryMacro: async (
+    workspacePath: string,
+    queryString: string
+  ): Promise<QueryResult> => {
+    validatePath(workspacePath, "workspacePath");
+    if (!queryString || typeof queryString !== "string") {
+      throw new Error("queryString must be a non-empty string");
+    }
+    return await invoke<QueryResult>("execute_query_macro", {
+      workspacePath,
+      queryString,
+    });
   },
 };
 
