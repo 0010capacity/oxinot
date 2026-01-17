@@ -1,7 +1,7 @@
 import { IconChevronRight } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { CSSProperties } from "react";
-import "./common.css";
+import styles from "./CollapseToggle.module.css";
 
 interface CollapseToggleProps {
   isCollapsed: boolean;
@@ -25,8 +25,8 @@ export function CollapseToggle({
   return (
     <button
       type="button"
-      className={`collapse-toggle ${
-        isCollapsed ? "collapsed" : "expanded"
+      className={`${styles.toggle} ${
+        isCollapsed ? styles.collapsed : styles.expanded
       } ${className}`}
       onClick={onClick}
       style={style}

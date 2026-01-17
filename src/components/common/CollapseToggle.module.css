@@ -1,5 +1,4 @@
-/* CollapseToggle Component */
-.collapse-toggle {
+.toggle {
   flex-shrink: 0;
   width: var(--layout-collapse-toggle-size);
   height: var(--layout-collapse-toggle-size);
@@ -19,27 +18,27 @@
   z-index: 1;
 }
 
-.collapse-toggle.collapsed {
+.collapsed {
   opacity: var(--opacity-disabled);
 }
 
-.collapse-toggle.expanded {
+.expanded {
   opacity: 0;
 }
 
-.collapse-toggle:hover {
+.toggle:hover {
   opacity: 1;
   background-color: var(--color-interactive-hover);
 }
 
-.collapse-toggle svg {
+.toggle svg {
   transition: transform var(--transition-normal);
 }
 
-.collapse-toggle.collapsed svg {
+.collapsed svg {
   transform: rotate(0deg);
 }
 
-.collapse-toggle.expanded svg {
+.expanded svg {
   transform: rotate(90deg);
 }
