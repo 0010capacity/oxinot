@@ -66,7 +66,8 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
     const root = document.documentElement;
     const { colors } = theme;
 
-    // Background colors
+    // Remove media query overrides by setting CSS variables directly on root
+    // This ensures our dynamic theme takes precedence over prefers-color-scheme
     root.style.setProperty("--color-bg-primary", colors.bg.primary);
     root.style.setProperty("--color-bg-secondary", colors.bg.secondary);
     root.style.setProperty("--color-bg-tertiary", colors.bg.tertiary);
