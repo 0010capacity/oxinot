@@ -10,6 +10,7 @@
     "delete": "삭제",
     "edit": "편집",
     "create": "생성",
+    "clear": "지우기",
     "back": "뒤로",
     "loading": "로딩 중...",
     "error": "오류",
@@ -17,6 +18,11 @@
     "confirm": "확인",
     "new_page": "새 페이지",
     "home": "홈",
+    "delete_page": "페이지 삭제",
+    "delete_page_question": "<strong>{{title}}</strong>을(를) 삭제하시겠습니까?",
+    "delete_all": "모두 삭제 ({{count}}개)",
+    "cascade_warning": "⚠️ 경고: 이 페이지에는 {{count}}개의 하위 페이지가 있으며 함께 삭제됩니다:",
+    "and_more": "... 외 {{count}}개 더",
     "expand": "펼치기",
     "collapse": "접기",
     "untitled_block": "제목 없는 블록",
@@ -134,7 +140,10 @@
       "description": "자동 데일리 노트 생성을 설정합니다",
       "path": "데일리 노트 경로",
       "path_desc": "데일리 노트가 생성될 경로 (예: 'Daily' 또는 'Notes/Daily')",
-      "path_placeholder": "Daily"
+      "path_placeholder": "Daily",
+      "template": "템플릿 노트",
+      "template_placeholder": "템플릿 노트 선택",
+      "template_desc": "이 노트의 내용이 새 데일리 노트의 템플릿으로 사용됩니다"
     },
     "homepage": {
       "title": "홈페이지",

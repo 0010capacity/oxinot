@@ -41,6 +41,10 @@ export interface DatetimeSettingsProps extends SettingsComponentProps {
 export interface DailyNotesSettingsProps extends SettingsComponentProps {
   dailyNotesPath: string;
   setDailyNotesPath: (path: string) => void;
+  dailyNoteTemplateId: string | null;
+  setDailyNoteTemplateId: (id: string | null) => void;
+  pagesById: Record<string, { id: string; title: string; parentId?: string }>;
+  pageIds: string[];
 }
 
 export interface HomepageSettingsProps extends SettingsComponentProps {

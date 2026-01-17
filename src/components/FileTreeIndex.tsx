@@ -8,6 +8,7 @@ import React, {
   useMemo,
   memo,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import { type PageData, usePageStore } from "../stores/pageStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
@@ -59,6 +60,7 @@ const MemoizedPageTreeItem = memo(PageTreeItem, (prev, next) => {
 MemoizedPageTreeItem.displayName = "MemoizedPageTreeItem";
 
 export function FileTreeIndex() {
+  const { t } = useTranslation();
   const { loadPages, createPage, updatePageTitle, deletePage, movePage } =
     usePageStore();
   const isLoading = usePageStore((state) => state.isLoading);
@@ -151,6 +153,12 @@ export function FileTreeIndex() {
     const handleMouseUp = async () => {
       const { draggedPageId, dragOverPageId, isDragging } = dragState;
 
+      console.log("[FileTreeIndex.handleMouseUp] Called with:", {
+        draggedPageId,
+        dragOverPageId,
+        isDragging,
+      });
+
       // Reset drag state
       setDragState({
         isDragging: false,
@@ -163,38 +171,148 @@ export function FileTreeIndex() {
       });
 
       // If we never started dragging (just a click), do nothing
-      if (!isDragging) return;
+      if (!isDragging) {
+        console.log("[FileTreeIndex.handleMouseUp] No drag detected, exiting");
+        return;
+      }
 
       // Perform drop if valid
       if (draggedPageId) {
+        const draggedPage = pages.find((p) => p.id === draggedPageId);
+        const targetPage = pages.find((p) => p.id === dragOverPageId);
+
+        console.log("[FileTreeIndex.handleMouseUp] Dragged page:", {
+          id: draggedPage?.id,
+          title: draggedPage?.title,
+          currentParentId: draggedPage?.parentId,
+        });
+
         if (dragOverPageId === "root") {
           // Move to root level
-          console.log(`[FileTreeIndex] Moving ${draggedPageId} to root`);
+          console.log(
+            `[FileTreeIndex.handleMouseUp] Moving ${draggedPageId} to root`
+          );
+          console.log(
+            "[FileTreeIndex.handleMouseUp] Pages state BEFORE movePage:",
+            pages.map((p) => ({
+              id: p.id,
+              title: p.title,
+              parentId: p.parentId,
+            }))
+          );
+
           try {
             await movePage(draggedPageId, null);
+            console.log(
+              "[FileTreeIndex.handleMouseUp] movePage completed, now calling loadPages..."
+            );
             await loadPages();
-            console.log("[FileTreeIndex] Page moved to root successfully");
+            console.log(
+              "[FileTreeIndex.handleMouseUp] loadPages completed, checking final state..."
+            );
+
+            const finalPage = usePageStore.getState().pagesById[draggedPageId];
+            console.log("[FileTreeIndex.handleMouseUp] Final page state:", {
+              id: finalPage?.id,
+              title: finalPage?.title,
+              parentId: finalPage?.parentId,
+            });
+
+            console.log(
+              "[FileTreeIndex.handleMouseUp] Page moved to root successfully"
+            );
           } catch (error) {
-            console.error("Failed to move page:", error);
+            const errorMessage = String(error);
+            console.error(
+              "[FileTreeIndex.handleMouseUp] Failed to move page:",
+              error
+            );
+
+            // Silently ignore validation errors (invalid move operations)
+            if (
+              errorMessage.includes("Cannot move page to itself") ||
+              errorMessage.includes("Cannot move page to its own descendant")
+            ) {
+              console.log(
+                "[FileTreeIndex.handleMouseUp] Invalid move operation ignored"
+              );
+              return;
+            }
+
+            // Show alert for actual errors
             alert(`Failed to move page: ${error}`);
           }
         } else if (dragOverPageId && draggedPageId !== dragOverPageId) {
           console.log(
-            `[FileTreeIndex] Dropping ${draggedPageId} on ${dragOverPageId}`
+            `[FileTreeIndex.handleMouseUp] Dropping ${draggedPageId} on ${dragOverPageId}`
           );
+          console.log("[FileTreeIndex.handleMouseUp] Target page:", {
+            id: targetPage?.id,
+            title: targetPage?.title,
+          });
+          console.log(
+            "[FileTreeIndex.handleMouseUp] Pages state BEFORE movePage:",
+            pages.map((p) => ({
+              id: p.id,
+              title: p.title,
+              parentId: p.parentId,
+            }))
+          );
+
           try {
             await movePage(draggedPageId, dragOverPageId);
+            console.log(
+              "[FileTreeIndex.handleMouseUp] movePage completed, now calling loadPages..."
+            );
             await loadPages();
+            console.log(
+              "[FileTreeIndex.handleMouseUp] loadPages completed, checking final state..."
+            );
+
+            const finalPage = usePageStore.getState().pagesById[draggedPageId];
+            console.log("[FileTreeIndex.handleMouseUp] Final page state:", {
+              id: finalPage?.id,
+              title: finalPage?.title,
+              parentId: finalPage?.parentId,
+            });
+
             setCollapsed((prev) => ({
               ...prev,
               [dragOverPageId]: false,
             }));
-            console.log("[FileTreeIndex] Page moved successfully");
+            console.log(
+              "[FileTreeIndex.handleMouseUp] Page moved successfully"
+            );
           } catch (error) {
-            console.error("Failed to move page:", error);
+            const errorMessage = String(error);
+            console.error(
+              "[FileTreeIndex.handleMouseUp] Failed to move page:",
+              error
+            );
+
+            // Silently ignore validation errors (invalid move operations)
+            if (
+              errorMessage.includes("Cannot move page to itself") ||
+              errorMessage.includes("Cannot move page to its own descendant")
+            ) {
+              console.log(
+                "[FileTreeIndex.handleMouseUp] Invalid move operation ignored"
+              );
+              return;
+            }
+
+            // Show alert for actual errors
             alert(`Failed to move page: ${error}`);
           }
+        } else {
+          console.log(
+            "[FileTreeIndex.handleMouseUp] Invalid drop target, no action taken"
+          );
         }
+      } else {
+        console.log(
+          "[FileTreeIndex.handleMouseUp] No draggedPageId, no action taken"
+        );
       }
     };
 
@@ -293,8 +411,31 @@ export function FileTreeIndex() {
 
   const handleDeletePage = useCallback(
     (pageId: string) => {
+      console.log(
+        "[FileTreeIndex] handleDeletePage called with pageId:",
+        pageId
+      );
       const page = pages.find((p) => p.id === pageId);
-      if (!page) return;
+      if (!page) {
+        console.error("[FileTreeIndex] Page not found:", pageId);
+        return;
+      }
+
+      console.log("[FileTreeIndex] Found page to delete:", {
+        id: page.id,
+        title: page.title,
+        parentId: page.parentId,
+      });
+
+      // Log all pages to see the current state
+      console.log(
+        "[FileTreeIndex] Current pages in store:",
+        pages.map((p) => ({
+          id: p.id,
+          title: p.title,
+          parentId: p.parentId,
+        }))
+      );
 
       setPageToDelete(page);
       setDeleteModalOpened(true);
@@ -303,15 +444,30 @@ export function FileTreeIndex() {
   );
 
   const confirmDeletePage = useCallback(async () => {
-    if (!pageToDelete) return;
+    if (!pageToDelete) {
+      console.log("[FileTreeIndex] confirmDeletePage: No page to delete");
+      return;
+    }
+
+    console.log("[FileTreeIndex] confirmDeletePage: Deleting page:", {
+      id: pageToDelete.id,
+      title: pageToDelete.title,
+      parentId: pageToDelete.parentId,
+    });
 
     try {
+      console.log(
+        "[FileTreeIndex] Calling deletePage with id:",
+        pageToDelete.id
+      );
       await deletePage(pageToDelete.id);
+      console.log("[FileTreeIndex] deletePage completed, reloading pages...");
       await loadPages();
+      console.log("[FileTreeIndex] Pages reloaded successfully");
       setDeleteModalOpened(false);
       setPageToDelete(null);
     } catch (error) {
-      console.error("Failed to delete page:", error);
+      console.error("[FileTreeIndex] Failed to delete page:", error);
       alert(`Failed to delete page: ${error}`);
     }
   }, [pageToDelete, deletePage, loadPages]);
@@ -445,6 +601,34 @@ export function FileTreeIndex() {
   );
 
   const rootPages = useMemo(() => buildTree(null), [buildTree]);
+
+  // Calculate children that will be CASCADE deleted
+  const childrenToDelete = useMemo(() => {
+    if (!pageToDelete) return [];
+
+    const findAllDescendants = (parentId: string): PageData[] => {
+      const directChildren = pages.filter((p) => p.parentId === parentId);
+      const allDescendants = [...directChildren];
+
+      for (const child of directChildren) {
+        allDescendants.push(...findAllDescendants(child.id));
+      }
+
+      return allDescendants;
+    };
+
+    const descendants = findAllDescendants(pageToDelete.id);
+
+    console.log(
+      "[FileTreeIndex] Children that will be CASCADE deleted:",
+      descendants.map((p) => ({
+        id: p.id,
+        title: p.title,
+      }))
+    );
+
+    return descendants;
+  }, [pageToDelete, pages]);
 
   if (isLoading) {
     return (
@@ -625,14 +809,61 @@ export function FileTreeIndex() {
           setDeleteModalOpened(false);
           setPageToDelete(null);
         }}
-        title="Delete Page"
+        title={t("common.delete_page")}
         centered
-        size="sm"
+        size="md"
       >
         <Stack gap="lg">
-          <Text size="sm">
-            Delete <strong>{pageToDelete?.title}</strong>?
-          </Text>
+          <div>
+            <Text
+              size="sm"
+              mb="xs"
+              dangerouslySetInnerHTML={{
+                __html: t("common.delete_page_question", {
+                  title: pageToDelete?.title || "",
+                }),
+              }}
+            />
+
+            {childrenToDelete.length > 0 && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  padding: "12px",
+                  backgroundColor: "var(--mantine-color-yellow-light)",
+                  border: "1px solid var(--mantine-color-yellow-outline)",
+                  borderRadius: "var(--mantine-radius-sm)",
+                }}
+              >
+                <Text size="sm" fw={500} c="yellow.9" mb="xs">
+                  {t("common.cascade_warning", {
+                    count: childrenToDelete.length,
+                    plural: childrenToDelete.length > 1 ? "s" : "",
+                  })}
+                </Text>
+                <Stack gap={4}>
+                  {childrenToDelete.slice(0, 5).map((child) => (
+                    <Text
+                      key={child.id}
+                      size="xs"
+                      c="yellow.9"
+                      style={{ paddingLeft: "8px" }}
+                    >
+                      • {child.title}
+                    </Text>
+                  ))}
+                  {childrenToDelete.length > 5 && (
+                    <Text size="xs" c="yellow.9" style={{ paddingLeft: "8px" }}>
+                      {t("common.and_more", {
+                        count: childrenToDelete.length - 5,
+                      })}
+                    </Text>
+                  )}
+                </Stack>
+              </div>
+            )}
+          </div>
+
           <Group justify="flex-end" gap="sm">
             <Button
               variant="default"
@@ -641,10 +872,14 @@ export function FileTreeIndex() {
                 setPageToDelete(null);
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button color="red" onClick={confirmDeletePage}>
-              Delete
+              {childrenToDelete.length > 0
+                ? t("common.delete_all", {
+                    count: childrenToDelete.length + 1,
+                  })
+                : t("common.delete")}
             </Button>
           </Group>
         </Stack>

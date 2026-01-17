@@ -92,6 +92,15 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
           pageIds.push(page.id);
         }
 
+        console.log(
+          "[pageStore.loadPages] Loaded pages from backend:",
+          pages.map((p) => ({
+            id: p.id,
+            title: p.title,
+            parentId: p.parentId,
+          }))
+        );
+
         set((state) => {
           state.pagesById = pagesById;
           state.pageIds = pageIds;
@@ -102,6 +111,8 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
             state.currentPageId = pageIds[0];
           }
         });
+
+        console.log("[pageStore.loadPages] Store updated with loaded pages");
 
         // Return the loaded data so callers can use it immediately
         return { pageIds, pagesById };
@@ -165,8 +176,27 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
     },
 
     deletePage: async (id: string) => {
+      console.log("[pageStore] deletePage called with id:", id);
+
       const page = get().pagesById[id];
-      if (!page) return;
+      if (!page) {
+        console.error("[pageStore] Page not found:", id);
+        return;
+      }
+
+      console.log("[pageStore] Deleting page:", {
+        id: page.id,
+        title: page.title,
+        parentId: page.parentId,
+      });
+
+      // Log all pages before deletion
+      const allPages = get().pageIds.map((pid) => ({
+        id: pid,
+        title: get().pagesById[pid]?.title,
+        parentId: get().pagesById[pid]?.parentId,
+      }));
+      console.log("[pageStore] All pages before deletion:", allPages);
 
       const backup = { ...page };
       const backupIndex = get().pageIds.indexOf(id);
@@ -179,14 +209,32 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         }
       });
 
+      console.log("[pageStore] Optimistically removed page from store");
+
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
           throw new Error("No workspace selected");
         }
 
+        console.log("[pageStore] Invoking Tauri delete_page command...");
         await invoke("delete_page", { workspacePath, pageId: id });
+        console.log(
+          "[pageStore] Tauri delete_page command completed successfully"
+        );
+
+        // Log all pages after deletion
+        const remainingPages = get().pageIds.map((pid) => ({
+          id: pid,
+          title: get().pagesById[pid]?.title,
+          parentId: get().pagesById[pid]?.parentId,
+        }));
+        console.log(
+          "[pageStore] Remaining pages after deletion:",
+          remainingPages
+        );
       } catch (error) {
+        console.error("[pageStore] Error deleting page, rolling back:", error);
         set((state) => {
           state.pagesById[backup.id] = backup;
           state.pageIds.splice(backupIndex, 0, backup.id);
@@ -216,18 +264,40 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
     },
 
     movePage: async (id: string, newParentId: string | null) => {
+      console.log("[pageStore.movePage] Called with:", {
+        id,
+        newParentId,
+      });
+
       const page = get().pagesById[id];
-      if (!page) return;
+      if (!page) {
+        console.error("[pageStore.movePage] Page not found:", id);
+        return;
+      }
+
+      console.log("[pageStore.movePage] Moving page:", {
+        id: page.id,
+        title: page.title,
+        currentParentId: page.parentId,
+        newParentId,
+        filePath: page.filePath,
+      });
 
       const previousParentId = page.parentId;
       const fromPath = page.filePath;
 
+      // Optimistic update
+      console.log("[pageStore.movePage] Applying optimistic update...");
       set((state) => {
         if (state.pagesById[id]) {
           state.pagesById[id].parentId = newParentId || undefined;
           state.pagesById[id].updatedAt = new Date().toISOString();
         }
       });
+      console.log(
+        "[pageStore.movePage] Optimistic update applied. New parentId:",
+        get().pagesById[id]?.parentId
+      );
 
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
@@ -235,12 +305,26 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
           throw new Error("No workspace selected");
         }
 
+        console.log("[pageStore.movePage] Invoking Tauri move_page command...");
         const updatedPage = await invoke<PageData>("move_page", {
           workspacePath,
           request: { id, newParentId },
         });
+        console.log(
+          "[pageStore.movePage] Tauri command completed. Backend returned:",
+          {
+            id: updatedPage.id,
+            title: updatedPage.title,
+            parentId: updatedPage.parentId,
+            filePath: updatedPage.filePath,
+            updatedAt: updatedPage.updatedAt,
+          }
+        );
 
         // Keep page store in sync with backend-returned filePath/updatedAt
+        console.log(
+          "[pageStore.movePage] Syncing store with backend response..."
+        );
         set((state) => {
           const current = state.pagesById[id];
           if (current) {
@@ -252,6 +336,10 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
             };
           }
         });
+        console.log(
+          "[pageStore.movePage] Store synced. Final state:",
+          get().pagesById[id]
+        );
 
         const toPath = updatedPage.filePath;
 
@@ -278,12 +366,23 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
             await ws.openFile(ws.currentFile);
           }
         }
+
+        console.log("[pageStore.movePage] Move completed successfully");
       } catch (error) {
+        console.error("[pageStore.movePage] Error during move:", error);
+        console.log(
+          "[pageStore.movePage] Rolling back to previous parentId:",
+          previousParentId
+        );
         set((state) => {
           if (state.pagesById[id]) {
             state.pagesById[id].parentId = previousParentId;
           }
         });
+        console.log(
+          "[pageStore.movePage] Rollback complete. Current parentId:",
+          get().pagesById[id]?.parentId
+        );
         throw error;
       }
     },

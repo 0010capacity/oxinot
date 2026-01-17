@@ -3,6 +3,7 @@ import { createWithEqualityFn } from "zustand/traditional";
 
 interface AppSettings {
   dailyNotesPath: string;
+  dailyNoteTemplateId: string | null;
   homepageType: "daily-note" | "index" | "custom-page";
   customHomepageId: string | null;
   language: string | null;
@@ -10,6 +11,7 @@ interface AppSettings {
 
 interface AppSettingsStore extends AppSettings {
   setDailyNotesPath: (path: string) => void;
+  setDailyNoteTemplateId: (id: string | null) => void;
   setHomepageType: (type: "daily-note" | "index" | "custom-page") => void;
   setCustomHomepageId: (id: string | null) => void;
   setLanguage: (lang: string | null) => void;
@@ -21,12 +23,15 @@ export const useAppSettingsStore = createWithEqualityFn<AppSettingsStore>()(
     (set, get) => ({
       // Default settings
       dailyNotesPath: "Daily",
+      dailyNoteTemplateId: null,
       homepageType: "daily-note",
       customHomepageId: null,
       language: null,
 
       // Actions
       setDailyNotesPath: (path: string) => set({ dailyNotesPath: path }),
+      setDailyNoteTemplateId: (id: string | null) =>
+        set({ dailyNoteTemplateId: id }),
       setHomepageType: (type: "daily-note" | "index" | "custom-page") =>
         set({ homepageType: type }),
       setCustomHomepageId: (id: string | null) => set({ customHomepageId: id }),
@@ -45,6 +50,6 @@ export const useAppSettingsStore = createWithEqualityFn<AppSettingsStore>()(
     }),
     {
       name: "app-settings",
-    },
-  ),
+    }
+  )
 );

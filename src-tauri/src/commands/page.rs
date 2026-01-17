@@ -213,30 +213,120 @@ pub async fn delete_page(
     workspace_path: String,
     page_id: String,
 ) -> Result<bool, String> {
+    println!("[delete_page] Called with page_id: {}", page_id);
+
     let conn = open_workspace_db(&workspace_path)?;
 
     // Get parent before deletion
     let page = get_page_by_id(&conn, &page_id)?;
     let parent_id = page.parent_id.clone();
 
+    println!("[delete_page] Found page to delete:");
+    println!("  - id: {}", page.id);
+    println!("  - title: {}", page.title);
+    println!("  - parent_id: {:?}", page.parent_id);
+    println!("  - file_path: {:?}", page.file_path);
+
+    // Log all pages before deletion
+    let all_pages_before: Vec<(String, String, Option<String>)> = conn
+        .prepare("SELECT id, title, parent_id FROM pages ORDER BY title")
+        .map_err(|e| e.to_string())?
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    println!("[delete_page] All pages before deletion:");
+    for (id, title, parent_id) in &all_pages_before {
+        println!("  - {} (title: {}, parent: {:?})", id, title, parent_id);
+    }
+
+    // Get children that will be deleted by CASCADE
+    let children: Vec<(String, String)> = conn
+        .prepare("SELECT id, title FROM pages WHERE parent_id = ?")
+        .map_err(|e| e.to_string())?
+        .query_map([&page_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    if !children.is_empty() {
+        println!(
+            "[delete_page] WARNING: This page has {} children that will be CASCADE deleted:",
+            children.len()
+        );
+        for (child_id, child_title) in &children {
+            println!("  - {} (title: {})", child_id, child_title);
+        }
+    } else {
+        println!("[delete_page] This page has no children");
+    }
+
     // Delete file from file system
+    println!("[delete_page] Deleting page file from filesystem...");
     let file_sync = FileSyncService::new(workspace_path.clone());
     file_sync
         .delete_page_file(&conn, &page_id)
         .map_err(|e| format!("Failed to delete page file: {}", e))?;
+    println!("[delete_page] Page file deleted successfully");
 
-    // CASCADE will automatically delete all blocks
-    conn.execute("DELETE FROM pages WHERE id = ?", [&page_id])
+    // CASCADE will automatically delete all blocks and child pages
+    println!("[delete_page] Executing DELETE FROM pages WHERE id = ?...");
+    let deleted_count = conn
+        .execute("DELETE FROM pages WHERE id = ?", [&page_id])
         .map_err(|e| e.to_string())?;
+    println!(
+        "[delete_page] Deleted {} page(s) from database (CASCADE may delete more)",
+        deleted_count
+    );
+
+    // Log all pages after deletion
+    let all_pages_after: Vec<(String, String, Option<String>)> = conn
+        .prepare("SELECT id, title, parent_id FROM pages ORDER BY title")
+        .map_err(|e| e.to_string())?
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    println!("[delete_page] All pages after deletion:");
+    for (id, title, parent_id) in &all_pages_after {
+        println!("  - {} (title: {}, parent: {:?})", id, title, parent_id);
+    }
+
+    let deleted_count_total = all_pages_before.len() - all_pages_after.len();
+    println!(
+        "[delete_page] Total pages deleted (including CASCADE): {}",
+        deleted_count_total
+    );
 
     // Check if parent should be converted back to regular file
     if let Some(pid) = parent_id {
+        println!(
+            "[delete_page] Checking if parent {} should be converted to file...",
+            pid
+        );
         check_and_convert_to_file(&conn, &workspace_path, &pid)?;
     }
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
+    println!("[delete_page] Completed successfully");
     Ok(true)
 }
 
@@ -271,23 +361,56 @@ pub async fn move_page(
     workspace_path: String,
     request: MovePageRequest,
 ) -> Result<Page, String> {
+    println!("[move_page] Called with request:");
+    println!("  - id: {}", request.id);
+    println!("  - new_parent_id: {:?}", request.new_parent_id);
+
     let conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
 
+    // Log all pages before move
+    let all_pages_before: Vec<(String, String, Option<String>)> = conn
+        .prepare("SELECT id, title, parent_id FROM pages ORDER BY title")
+        .map_err(|e| e.to_string())?
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    println!("[move_page] All pages before move:");
+    for (id, title, parent_id) in &all_pages_before {
+        println!("  - {} (title: {}, parent: {:?})", id, title, parent_id);
+    }
+
     // Validate: cannot move to itself
     if let Some(parent_id) = &request.new_parent_id {
+        println!("[move_page] Validating move to parent: {}", parent_id);
+
         if parent_id == &request.id {
+            println!("[move_page] ERROR: Cannot move page to itself");
             return Err("Cannot move page to itself".to_string());
         }
 
         // Validate: cannot move to its own descendant
         if is_descendant(&conn, parent_id, &request.id)? {
+            println!("[move_page] ERROR: Cannot move page to its own descendant");
             return Err("Cannot move page to its own descendant".to_string());
         }
 
         let parent = get_page_by_id(&conn, parent_id)?;
+        println!(
+            "[move_page] Parent page: {} (is_directory: {})",
+            parent.title, parent.is_directory
+        );
         if !parent.is_directory {
             // Convert parent to directory first
+            println!("[move_page] Converting parent to directory...");
             let file_sync = FileSyncService::new(workspace_path.clone());
             let new_path = file_sync
                 .convert_page_to_directory(&conn, parent_id)
@@ -298,10 +421,15 @@ pub async fn move_page(
                 params![&new_path, &now, parent_id],
             )
             .map_err(|e| e.to_string())?;
+            println!(
+                "[move_page] Parent converted to directory with path: {}",
+                new_path
+            );
         }
     }
 
     // Move file in file system
+    println!("[move_page] Moving file in filesystem...");
     let file_sync = FileSyncService::new(workspace_path.clone());
     let new_path = file_sync
         .move_page_file(
@@ -310,28 +438,66 @@ pub async fn move_page(
             request.new_parent_id.as_ref().map(|s| s.as_str()),
         )
         .map_err(|e| format!("Failed to move page file: {}", e))?;
+    println!("[move_page] File moved to: {}", new_path);
 
     // Get old parent before update
     let page = get_page_by_id(&conn, &request.id)?;
     let old_parent_id = page.parent_id.clone();
+    println!("[move_page] Current page state:");
+    println!("  - id: {}", page.id);
+    println!("  - title: {}", page.title);
+    println!("  - old parent_id: {:?}", old_parent_id);
+    println!("  - old file_path: {:?}", page.file_path);
 
     // Update database
+    println!("[move_page] Updating database...");
     conn.execute(
         "UPDATE pages SET parent_id = ?, file_path = ?, updated_at = ? WHERE id = ?",
         params![&request.new_parent_id, &new_path, &now, &request.id],
     )
     .map_err(|e| e.to_string())?;
+    println!("[move_page] Database updated successfully");
 
     // Check if old parent should be converted back to regular file
     if let Some(old_pid) = old_parent_id {
+        println!(
+            "[move_page] Checking if old parent {} should be converted back to file...",
+            old_pid
+        );
         check_and_convert_to_file(&conn, &workspace_path, &old_pid)?;
     }
 
     let page = get_page_by_id(&conn, &request.id)?;
+    println!("[move_page] Final page state:");
+    println!("  - id: {}", page.id);
+    println!("  - title: {}", page.title);
+    println!("  - parent_id: {:?}", page.parent_id);
+    println!("  - file_path: {:?}", page.file_path);
+
+    // Log all pages after move
+    let all_pages_after: Vec<(String, String, Option<String>)> = conn
+        .prepare("SELECT id, title, parent_id FROM pages ORDER BY title")
+        .map_err(|e| e.to_string())?
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    println!("[move_page] All pages after move:");
+    for (id, title, parent_id) in &all_pages_after {
+        println!("  - {} (title: {}, parent: {:?})", id, title, parent_id);
+    }
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
+    println!("[move_page] Move completed successfully");
     Ok(page)
 }
 
