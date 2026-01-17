@@ -422,13 +422,15 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
                   </Menu.Item>
                   <Menu.Item
                     leftSection={<IconList size={14} />}
-                    onClick={() => {
-                      const newItems = [...items];
-                      newItems[index].type = "list";
-                      setItems(newItems);
-                    }}
+                    onClick={() => updateItem(index, "type", "list")}
                   >
                     List
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconBraces size={14} />}
+                    onClick={() => updateItem(index, "type", "map")}
+                  >
+                    Map
                   </Menu.Item>
                   <Menu.Item
                     leftSection={<IconBraces size={14} />}
