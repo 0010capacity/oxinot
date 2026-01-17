@@ -199,17 +199,17 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
       </Box>
 
       {/* Results */}
-      <Box style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <Box style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
         {state.results.map((block) => (
           <Box
             key={block.id}
             onClick={() => handleNavigateToBlock(block)}
             style={{
               display: "flex",
-              gap: "8px",
+              gap: "6px",
               alignItems: "flex-start",
               cursor: "pointer",
-              padding: "8px",
+              padding: "4px 6px",
               borderRadius: "4px",
               transition: "background-color 120ms ease",
               backgroundColor: isDark
@@ -255,8 +255,8 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
             <Box style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
               <Box
                 style={{
-                  fontSize: "14px",
-                  lineHeight: "1.5",
+                  fontSize: "13px",
+                  lineHeight: "1.4",
                 }}
               >
                 <Editor
@@ -268,12 +268,14 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
                   lineNumbers={false}
                   theme={isDark ? "dark" : "light"}
                   style={{
-                    fontSize: "14px",
-                    lineHeight: "1.5",
+                    fontSize: "13px",
+                    lineHeight: "1.4",
+                    minHeight: "auto",
+                    maxHeight: "100px",
                   }}
                 />
               </Box>
-              <Text size="xs" c="dimmed" style={{ marginTop: "4px" }}>
+              <Text size="xs" c="dimmed" style={{ marginTop: "2px" }}>
                 {block.pagePath}
               </Text>
             </Box>
