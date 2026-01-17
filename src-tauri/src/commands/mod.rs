@@ -2,6 +2,7 @@ pub mod block;
 pub mod db;
 pub mod git;
 pub mod page;
+pub mod query;
 pub mod search;
 pub mod wiki_link;
 pub mod workspace;

@@ -1,0 +1,396 @@
+import { Badge, Box, Text, useComputedColorScheme } from "@mantine/core";
+import { IconEdit } from "@tabler/icons-react";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { useBlockStore } from "../stores/blockStore";
+import { useBlockUIStore } from "../stores/blockUIStore";
+import { tauriAPI, type QueryResultBlock } from "../tauri-api";
+import { parseQueryMacro, QueryParseError } from "../utils/queryParser";
+import { renderMarkdownToHtml } from "../outliner/markdownRenderer";
+
+interface QueryBlockProps {
+  macroString: string;
+  workspacePath: string;
+  onEdit?: () => void;
+}
+
+interface QueryBlockState {
+  results: QueryResultBlock[];
+  isLoading: boolean;
+  error: string | null;
+}
+
+const QueryBlock: React.FC<QueryBlockProps> = ({
+  macroString,
+  workspacePath,
+  onEdit,
+}) => {
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
+
+  const [state, setState] = useState<QueryBlockState>({
+    results: [],
+    isLoading: true,
+    error: null,
+  });
+
+  const [isHovered, setIsHovered] = useState(false);
+
+  const openPage = useBlockStore((state) => state.openPage);
+  const setFocusedBlock = useBlockUIStore((state) => state.setFocusedBlock);
+
+  // Execute query on mount or when macro changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: props are intentionally used
+  useEffect(() => {
+    executeQuery();
+  }, [macroString, workspacePath]);
+
+  const executeQuery = async () => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      // Parse the query macro to validate syntax
+      parseQueryMacro(macroString);
+
+      // Execute query via Tauri
+      const result = await tauriAPI.executeQueryMacro(
+        workspacePath,
+        macroString
+      );
+
+      if (result.error) {
+        setState((prev) => ({
+          ...prev,
+          error: result.error || "Unknown error",
+          isLoading: false,
+        }));
+      } else {
+        setState((prev) => ({
+          ...prev,
+          results: result.blocks,
+          isLoading: false,
+        }));
+      }
+    } catch (err) {
+      const message =
+        err instanceof QueryParseError
+          ? `Parse error: ${err.message}`
+          : err instanceof Error
+          ? err.message
+          : "Unknown error";
+
+      setState((prev) => ({
+        ...prev,
+        error: message,
+        isLoading: false,
+      }));
+    }
+  };
+
+  const handleNavigateToBlock = async (block: QueryResultBlock) => {
+    try {
+      // Open the page containing the block
+      await openPage(block.pageId);
+      // Focus the block
+      setFocusedBlock(block.id);
+    } catch (err) {
+      console.error("Failed to navigate to block:", err);
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit?.();
+  };
+
+  // Show loading state
+  if (state.isLoading) {
+    return (
+      <Box
+        style={{
+          margin: "6px 0",
+          opacity: 0.6,
+        }}
+      >
+        <Text size="sm" c="dimmed">
+          Loading…
+        </Text>
+      </Box>
+    );
+  }
+
+  // Show error state
+  if (state.error) {
+    return (
+      <Box style={{ margin: "6px 0" }}>
+        <Text size="sm" c="red">
+          {state.error}
+        </Text>
+      </Box>
+    );
+  }
+
+  // No results
+  if (state.results.length === 0) {
+    return (
+      <Box style={{ margin: "6px 0" }}>
+        <Text size="sm" c="dimmed" style={{ fontStyle: "italic" }}>
+          No results found
+        </Text>
+      </Box>
+    );
+  }
+
+  // Render results in embed style
+  return (
+    <Box
+      style={{
+        margin: "0",
+        position: "relative",
+        border: `1px solid ${
+          isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"
+        }`,
+        borderRadius: "8px",
+        padding: "12px",
+        backgroundColor: isDark
+          ? "rgba(255, 255, 255, 0.02)"
+          : "rgba(0, 0, 0, 0.01)",
+        width: "100%",
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Hover action buttons */}
+      <Box
+        style={{
+          position: "absolute",
+          top: "8px",
+          right: "8px",
+          display: "flex",
+          gap: "6px",
+          opacity: isHovered ? 1 : 0,
+          transition: "opacity 120ms ease",
+          pointerEvents: "auto",
+          zIndex: 10,
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleEdit}
+          title="Edit query"
+          style={{
+            border: "none",
+            background: isDark
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.05)",
+            color: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
+            borderRadius: "4px",
+            padding: "4px",
+            fontSize: "12px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "auto",
+            position: "relative",
+            zIndex: 11,
+          }}
+        >
+          <IconEdit size={16} />
+        </button>
+      </Box>
+
+      {/* Results */}
+      <Box style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        {state.results.map((block) => (
+          <Box
+            key={block.id}
+            onClick={() => handleNavigateToBlock(block)}
+            style={{
+              display: "flex",
+              gap: "6px",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              cursor: "pointer",
+              padding: "4px 6px",
+              borderRadius: "4px",
+              transition: "background-color 120ms ease",
+              backgroundColor: isDark
+                ? "rgba(255, 255, 255, 0.04)"
+                : "rgba(0, 0, 0, 0.02)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = isDark
+                ? "rgba(255, 255, 255, 0.08)"
+                : "rgba(0, 0, 0, 0.04)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = isDark
+                ? "rgba(255, 255, 255, 0.04)"
+                : "rgba(0, 0, 0, 0.02)";
+            }}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleNavigateToBlock(block);
+              }}
+              style={{
+                opacity: 0.55,
+                userSelect: "none",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                padding: 0,
+                margin: 0,
+                fontSize: "14px",
+                lineHeight: "1.5",
+                minWidth: "12px",
+                textAlign: "center",
+              }}
+              title="Navigate to this block"
+            >
+              •
+            </button>
+
+            <Box style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+              <Box
+                style={{
+                  fontSize: "14px",
+                  lineHeight: "1.5",
+                }}
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: content is sanitized markdown
+                dangerouslySetInnerHTML={{
+                  __html: renderMarkdownToHtml(block.content, {
+                    allowBlocks: true,
+                  }),
+                }}
+                className="markdown-rendered"
+              />
+              <Text size="xs" c="dimmed" style={{ marginTop: "2px" }}>
+                {block.pagePath}
+              </Text>
+            </Box>
+
+            {/* Metadata Badges */}
+            {Object.keys(block.metadata).length > 0 && (
+              <Box
+                style={{
+                  display: "flex",
+                  gap: "6px",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  minWidth: "100px",
+                  alignSelf: "center",
+                }}
+              >
+                {Object.entries(block.metadata).map(([key, value]) => (
+                  <Badge
+                    key={`${block.id}-${key}`}
+                    size="sm"
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 500,
+                      padding: "4px 8px",
+                      backgroundColor: isDark
+                        ? "rgba(255, 255, 255, 0.08)"
+                        : "rgba(0, 0, 0, 0.05)",
+                      color: isDark
+                        ? "rgba(255, 255, 255, 0.8)"
+                        : "rgba(0, 0, 0, 0.75)",
+                      border: `1px solid ${
+                        isDark
+                          ? "rgba(255, 255, 255, 0.12)"
+                          : "rgba(0, 0, 0, 0.08)"
+                      }`,
+                      borderRadius: "4px",
+                    }}
+                  >
+                    <span style={{ fontSize: "10px", opacity: 0.7 }}>
+                      {key}
+                    </span>
+                    <span style={{ marginLeft: "3px", fontWeight: 600 }}>
+                      {value}
+                    </span>
+                  </Badge>
+                ))}
+              </Box>
+            )}
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+};
+
+export default QueryBlock;
+
+const markdownStyles = `
+  .markdown-rendered {
+    color: inherit;
+  }
+
+  .markdown-rendered p {
+    margin: 0;
+    display: inline;
+  }
+
+  .markdown-rendered blockquote {
+    border-left: 3px solid currentColor;
+    margin: 0;
+    padding-left: 12px;
+    opacity: 0.7;
+  }
+
+  .markdown-rendered strong {
+    font-weight: 600;
+  }
+
+  .markdown-rendered em {
+    font-style: italic;
+  }
+
+  .markdown-rendered code {
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-family: monospace;
+    font-size: 0.9em;
+  }
+
+  .markdown-rendered a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  .markdown-rendered h1,
+  .markdown-rendered h2,
+  .markdown-rendered h3,
+  .markdown-rendered h4,
+  .markdown-rendered h5,
+  .markdown-rendered h6 {
+    margin: 0;
+    font-weight: 600;
+    display: inline;
+  }
+
+  .markdown-rendered ul,
+  .markdown-rendered ol {
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  .markdown-rendered li {
+    margin: 0;
+  }
+`;
+
+// Inject styles
+if (typeof document !== "undefined") {
+  const style = document.createElement("style");
+  style.textContent = markdownStyles;
+  document.head.appendChild(style);
+}
