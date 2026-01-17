@@ -1,5 +1,112 @@
 # oxinot
 
+## 0.15.0
+
+### Minor Changes
+
+- db1a673: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+  - implement fractional index rebalancing
+  - optimize wiki link reindexing with batch resolution
+  - add keyboard navigation to file tree items
+  - correct WAL mode PRAGMA execution
+  - correct WAL mode PRAGMA execution in open_workspace_db
+  - implement advanced FTS5 full-text search with ranking (#436)
+  - implement multi-block selection and batch operations
+  - implement Shift+Arrow key selection at document level
+  - revert block-row to div to fix nested button issue
+  - improve keyboard selection and click behavior
+  - remove draftRef usage to prevent hook errors
+  - remove useMemo call inside commitDraft function
+  - enhance multi-block selection UX
+  - enable Shift+Click without prior Ctrl selection
+  - support cross-depth range selection
+  - use fixed anchor for Shift+Arrow keyboard selection
+  - enable cross-depth keyboard navigation with Shift+Arrow
+  - propagate blockOrder to all child components
+  - clear selection on arrow key navigation without Shift
+  - implement multi-block copy with markdown formatting
+  - fix text selection copy in context menu
+- b8320ef: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+  - implement fractional index rebalancing
+  - optimize wiki link reindexing with batch resolution
+  - add keyboard navigation to file tree items
+  - correct WAL mode PRAGMA execution
+  - correct WAL mode PRAGMA execution in open_workspace_db
+  - implement advanced FTS5 full-text search with ranking (#436)
+- b8320ef: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+  - implement fractional index rebalancing
+  - optimize wiki link reindexing with batch resolution
+  - add keyboard navigation to file tree items
+  - correct WAL mode PRAGMA execution
+  - correct WAL mode PRAGMA execution in open_workspace_db
+  - implement advanced FTS5 full-text search with ranking (#436)
+  - implement multi-block selection and batch operations
+  - implement Shift+Arrow key selection at document level
+  - revert block-row to div to fix nested button issue
+  - improve keyboard selection and click behavior
+  - remove draftRef usage to prevent hook errors
+  - remove useMemo call inside commitDraft function
+  - enhance multi-block selection UX
+  - enable Shift+Click without prior Ctrl selection
+  - support cross-depth range selection
+  - use fixed anchor for Shift+Arrow keyboard selection
+  - enable cross-depth keyboard navigation with Shift+Arrow
+  - propagate blockOrder to all child components
+  - clear selection on arrow key navigation without Shift
+  - implement multi-block copy with markdown formatting
+  - fix text selection copy in context menu
+- ba11149: - fix indentation alignment and add deletion logging
+  - fix context menu triggering parent menu on child click
+  - add CASCADE deletion warning in delete modal
+  - add CASCADE deletion warning in delete modal
+  - add comprehensive logging for drag-drop move debugging
+  - handle non-existent files in path validation
+  - fix directory move and silently ignore invalid moves
+  - shortcuts manager
+  - transaction support for create_page
+  - implement CommandRegistry/Provider pattern for Command Palette
+  - optimize CalendarDropdown with O(1) path lookup
+  - fix borrow checker error in create_page
+
+### Patch Changes
+
+- b8320ef: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+  - implement fractional index rebalancing
+  - optimize wiki link reindexing with batch resolution
+  - add keyboard navigation to file tree items
+  - correct WAL mode PRAGMA execution
+  - correct WAL mode PRAGMA execution in open_workspace_db
+- b8320ef: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+  - implement fractional index rebalancing
+  - optimize wiki link reindexing with batch resolution
+- b8320ef: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+  - implement fractional index rebalancing
+  - optimize wiki link reindexing with batch resolution
+  - add keyboard navigation to file tree items
+  - correct WAL mode PRAGMA execution
+  - correct WAL mode PRAGMA execution in open_workspace_db
+- ba11149: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+  - implement fractional index rebalancing
+- ba11149: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+  - implement fractional index rebalancing
+- b8320ef: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+  - implement fractional index rebalancing
+  - optimize wiki link reindexing with batch resolution
+- ba11149: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+  - implement fractional index rebalancing
+- ba11149: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+
 ## 0.14.0
 
 ### Minor Changes
