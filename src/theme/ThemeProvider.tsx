@@ -61,58 +61,65 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
     [theme.colors.accent]
   );
 
-  // Apply CSS variables to root
+  // Apply CSS variables to root only in dark mode
+  // Light mode uses media query in variables.css with !important
   useEffect(() => {
     const root = document.documentElement;
     const { colors } = theme;
 
-    // Remove media query overrides by setting CSS variables directly on root
-    // This ensures our dynamic theme takes precedence over prefers-color-scheme
-    root.style.setProperty("--color-bg-primary", colors.bg.primary);
-    root.style.setProperty("--color-bg-secondary", colors.bg.secondary);
-    root.style.setProperty("--color-bg-tertiary", colors.bg.tertiary);
-    root.style.setProperty("--color-bg-elevated", colors.bg.elevated);
+    // Only set inline styles for dark mode
+    // Light mode variables from media query will take precedence with !important
+    if (theme.scheme === "dark") {
+      // Background colors
+      root.style.setProperty("--color-bg-primary", colors.bg.primary);
+      root.style.setProperty("--color-bg-secondary", colors.bg.secondary);
+      root.style.setProperty("--color-bg-tertiary", colors.bg.tertiary);
+      root.style.setProperty("--color-bg-elevated", colors.bg.elevated);
 
-    // Text colors
-    root.style.setProperty("--color-text-primary", colors.text.primary);
-    root.style.setProperty("--color-text-secondary", colors.text.secondary);
-    root.style.setProperty("--color-text-tertiary", colors.text.tertiary);
-    root.style.setProperty("--color-text-link", colors.text.link);
+      // Text colors
+      root.style.setProperty("--color-text-primary", colors.text.primary);
+      root.style.setProperty("--color-text-secondary", colors.text.secondary);
+      root.style.setProperty("--color-text-tertiary", colors.text.tertiary);
+      root.style.setProperty("--color-text-link", colors.text.link);
 
-    // Border colors
-    root.style.setProperty("--color-border-primary", colors.border.primary);
-    root.style.setProperty("--color-border-secondary", colors.border.secondary);
-    root.style.setProperty("--color-border-focus", colors.border.focus);
+      // Border colors
+      root.style.setProperty("--color-border-primary", colors.border.primary);
+      root.style.setProperty(
+        "--color-border-secondary",
+        colors.border.secondary
+      );
+      root.style.setProperty("--color-border-focus", colors.border.focus);
 
-    // Interactive colors
-    root.style.setProperty(
-      "--color-interactive-hover",
-      colors.interactive.hover
-    );
-    root.style.setProperty(
-      "--color-interactive-active",
-      colors.interactive.active
-    );
-    root.style.setProperty(
-      "--color-interactive-selected",
-      colors.interactive.selected
-    );
-    root.style.setProperty(
-      "--color-interactive-focus",
-      colors.interactive.focus
-    );
+      // Interactive colors
+      root.style.setProperty(
+        "--color-interactive-hover",
+        colors.interactive.hover
+      );
+      root.style.setProperty(
+        "--color-interactive-active",
+        colors.interactive.active
+      );
+      root.style.setProperty(
+        "--color-interactive-selected",
+        colors.interactive.selected
+      );
+      root.style.setProperty(
+        "--color-interactive-focus",
+        colors.interactive.focus
+      );
 
-    // Semantic colors
-    root.style.setProperty("--color-accent", colors.accent);
-    root.style.setProperty("--color-success", colors.success);
-    root.style.setProperty("--color-warning", colors.warning);
-    root.style.setProperty("--color-error", colors.error);
+      // Semantic colors
+      root.style.setProperty("--color-accent", colors.accent);
+      root.style.setProperty("--color-success", colors.success);
+      root.style.setProperty("--color-warning", colors.warning);
+      root.style.setProperty("--color-error", colors.error);
 
-    // Component-specific
-    root.style.setProperty("--color-bullet-default", colors.bullet.default);
-    root.style.setProperty("--color-bullet-hover", colors.bullet.hover);
-    root.style.setProperty("--color-bullet-active", colors.bullet.active);
-    root.style.setProperty("--color-indent-guide", colors.indentGuide);
+      // Component-specific
+      root.style.setProperty("--color-bullet-default", colors.bullet.default);
+      root.style.setProperty("--color-bullet-hover", colors.bullet.hover);
+      root.style.setProperty("--color-bullet-active", colors.bullet.active);
+      root.style.setProperty("--color-indent-guide", colors.indentGuide);
+    }
 
     // Spacing
     for (const [key, value] of Object.entries(SPACING)) {
