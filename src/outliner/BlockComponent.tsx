@@ -95,39 +95,76 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       typeof setTimeout
     > | null>(null);
 
-    const contextMenuSections: ContextMenuSection[] = useMemo(
-      () => [
+    const contextMenuSections: ContextMenuSection[] = useMemo(() => {
+      // Determine which blocks to operate on
+      const targetBlocks =
+        isSelected && selectedBlockIds.length > 0
+          ? selectedBlockIds
+          : [blockId];
+      const isBatchOperation = targetBlocks.length > 1;
+
+      return [
         {
           items: [
             {
-              label: t("common.indent") || "Indent",
+              label: isBatchOperation
+                ? `${t("common.indent") || "Indent"} (${targetBlocks.length})`
+                : t("common.indent") || "Indent",
               icon: <IconIndentIncrease size={16} />,
               onClick: async () => {
-                await indentBlock(blockId);
+                for (const id of targetBlocks) {
+                  await indentBlock(id);
+                }
+                if (isBatchOperation) {
+                  useBlockUIStore.getState().clearSelectedBlocks();
+                }
               },
-              disabled: !batchOps.canIndentBlocks([blockId]),
+              disabled: !batchOps.canIndentBlocks(targetBlocks),
             },
             {
-              label: t("common.outdent") || "Outdent",
+              label: isBatchOperation
+                ? `${t("common.outdent") || "Outdent"} (${targetBlocks.length})`
+                : t("common.outdent") || "Outdent",
               icon: <IconIndentDecrease size={16} />,
               onClick: async () => {
-                await outdentBlock(blockId);
+                for (const id of targetBlocks) {
+                  await outdentBlock(id);
+                }
+                if (isBatchOperation) {
+                  useBlockUIStore.getState().clearSelectedBlocks();
+                }
               },
-              disabled: !batchOps.canOutdentBlocks([blockId]),
+              disabled: !batchOps.canOutdentBlocks(targetBlocks),
             },
             {
-              label: t("common.duplicate") || "Duplicate",
+              label: isBatchOperation
+                ? `${t("common.duplicate") || "Duplicate"} (${
+                    targetBlocks.length
+                  })`
+                : t("common.duplicate") || "Duplicate",
               icon: <IconCopy size={16} />,
               onClick: async () => {
-                createBlock(blockId);
+                for (const id of targetBlocks) {
+                  await createBlock(id);
+                }
+                if (isBatchOperation) {
+                  useBlockUIStore.getState().clearSelectedBlocks();
+                }
               },
             },
             {
-              label: t("common.delete") || "Delete",
+              label: isBatchOperation
+                ? `${t("common.delete") || "Delete"} (${targetBlocks.length})`
+                : t("common.delete") || "Delete",
               icon: <IconTrash size={16} />,
               color: "red",
-              onClick: () => {
-                deleteBlock(blockId);
+              onClick: async () => {
+                for (const id of targetBlocks) {
+                  await deleteBlock(id);
+                }
+                if (isBatchOperation) {
+                  useBlockUIStore.getState().clearSelectedBlocks();
+                }
               },
             },
           ],
@@ -154,17 +191,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             },
           ],
         },
-      ],
-      [
-        t,
-        blockId,
-        block.content,
-        indentBlock,
-        outdentBlock,
-        createBlock,
-        deleteBlock,
-      ]
-    );
+      ];
+    }, [
+      t,
+      blockId,
+      block.content,
+      indentBlock,
+      outdentBlock,
+      createBlock,
+      deleteBlock,
+      isSelected,
+      selectedBlockIds,
+    ]);
 
     // Text selection context menu
     const textSelectionSections: ContextMenuSection[] = useMemo(
@@ -257,6 +295,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           if (prevBlockId && blockOrder.length > 0) {
             // Extend selection from the original selection start to the new block
             selectBlockRange(selectionStart, prevBlockId, blockOrder);
+            // Update focus to the new block so further arrow keys continue from there
+            setFocusedBlock(prevBlockId);
           }
         } else if (event.key === "ArrowDown") {
           event.preventDefault();
@@ -265,6 +305,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           if (nextBlockId && blockOrder.length > 0) {
             // Extend selection from the original selection start to the new block
             selectBlockRange(selectionStart, nextBlockId, blockOrder);
+            // Update focus to the new block so further arrow keys continue from there
+            setFocusedBlock(nextBlockId);
           }
         }
       };
@@ -273,7 +315,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       return () => {
         document.removeEventListener("keydown", handleKeyDown, true);
       };
-    }, [focusedBlockId, blockId, blockOrder, selectBlockRange]);
+    }, [
+      focusedBlockId,
+      blockId,
+      blockOrder,
+      selectBlockRange,
+      setFocusedBlock,
+    ]);
 
     // Consolidated IME state
     const imeStateRef = useRef({
@@ -822,6 +870,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               e.stopPropagation();
               // Clear any existing selection to prevent browser from auto-selecting text
               window.getSelection()?.removeAllRanges();
+
+              // If this block is not selected, select it
+              if (!isSelected) {
+                useBlockUIStore.getState().setSelectedBlocks([blockId]);
+              }
             }
           }}
           onContextMenu={() => {}}
