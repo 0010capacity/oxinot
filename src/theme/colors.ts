@@ -2,7 +2,7 @@ import type { ColorPalette } from "./types";
 
 // Define base color palettes for each variant
 export const COLOR_VARIANTS = {
-  default: {
+  indigo: {
     accent: "#7c3aed",
     accentHover: "#8b9dff",
   },

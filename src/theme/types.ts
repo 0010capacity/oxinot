@@ -1,5 +1,5 @@
 export type ColorScheme = "dark" | "light";
-export type ColorVariant = "default" | "blue" | "purple" | "green" | "amber";
+export type ColorVariant = "indigo" | "blue" | "purple" | "green" | "amber";
 
 export interface Theme {
   scheme: ColorScheme;

@@ -5,7 +5,7 @@ import { createColorPalette } from './colors'; // Assuming this helps generate C
 // Helper to create a complete AppTheme from a color scheme
 export const createTheme = (
   scheme: 'light' | 'dark',
-  variant: 'default' | 'blue' | 'purple' | 'green' | 'amber' = 'default',
+  variant: 'indigo' | 'blue' | 'purple' | 'green' | 'amber' = 'indigo',
 ): AppTheme => {
   const colors = createColorPalette(scheme, variant);
   return {

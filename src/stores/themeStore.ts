@@ -47,7 +47,7 @@ const fontStacks: Record<FontFamily, string> = {
 export const useThemeStore = createWithEqualityFn<ThemeState>()(
   persist(
     (set, get) => ({
-      colorVariant: "default",
+      colorVariant: "indigo",
       setColorVariant: (variant) => set({ colorVariant: variant }),
       fontFamily: "system",
       setFontFamily: (font) => set({ fontFamily: font }),

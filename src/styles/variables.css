@@ -1,12 +1,17 @@
 /* CSS Custom Properties - Theme Variables */
-/* All theme variables are now dynamically set by ThemeProvider.tsx */
-/* This file is kept for structure but no longer defines active theme variables. */
+/* All active theme variables are dynamically set by ThemeProvider.tsx. */
+/* These are placeholder/fallback definitions to ensure variables are recognized. */
 
 :root {
+  /* Bullet related variables */
+  --layout-bullet-size: 6px; /* Placeholder */
+  --layout-bullet-container-size: 24px; /* Placeholder */
+  --color-bullet-default: rgba(0, 0, 0, 0.25); /* Placeholder, will be overridden */
+  --color-bullet-hover: rgba(0, 0, 0, 0.55); /* Placeholder, will be overridden */
+  --color-bullet-active: rgba(0, 0, 0, 0.8); /* Placeholder, will be overridden */
+
   /*
-  --spacing-xs: ...
-  --color-bg-primary: ...
-  etc.
-  These values are now injected dynamically.
+  Other variables (spacing, typography, colors, etc.) are injected dynamically.
+  This file should primarily contain default/fallback values or variable declarations.
   */
 }
