@@ -8,6 +8,7 @@ import React, {
   useMemo,
   memo,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import { type PageData, usePageStore } from "../stores/pageStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
@@ -59,6 +60,7 @@ const MemoizedPageTreeItem = memo(PageTreeItem, (prev, next) => {
 MemoizedPageTreeItem.displayName = "MemoizedPageTreeItem";
 
 export function FileTreeIndex() {
+  const { t } = useTranslation();
   const { loadPages, createPage, updatePageTitle, deletePage, movePage } =
     usePageStore();
   const isLoading = usePageStore((state) => state.isLoading);
@@ -151,6 +153,12 @@ export function FileTreeIndex() {
     const handleMouseUp = async () => {
       const { draggedPageId, dragOverPageId, isDragging } = dragState;
 
+      console.log("[FileTreeIndex.handleMouseUp] Called with:", {
+        draggedPageId,
+        dragOverPageId,
+        isDragging,
+      });
+
       // Reset drag state
       setDragState({
         isDragging: false,
@@ -163,38 +171,120 @@ export function FileTreeIndex() {
       });
 
       // If we never started dragging (just a click), do nothing
-      if (!isDragging) return;
+      if (!isDragging) {
+        console.log("[FileTreeIndex.handleMouseUp] No drag detected, exiting");
+        return;
+      }
 
       // Perform drop if valid
       if (draggedPageId) {
+        const draggedPage = pages.find((p) => p.id === draggedPageId);
+        const targetPage = pages.find((p) => p.id === dragOverPageId);
+
+        console.log("[FileTreeIndex.handleMouseUp] Dragged page:", {
+          id: draggedPage?.id,
+          title: draggedPage?.title,
+          currentParentId: draggedPage?.parentId,
+        });
+
         if (dragOverPageId === "root") {
           // Move to root level
-          console.log(`[FileTreeIndex] Moving ${draggedPageId} to root`);
+          console.log(
+            `[FileTreeIndex.handleMouseUp] Moving ${draggedPageId} to root`
+          );
+          console.log(
+            "[FileTreeIndex.handleMouseUp] Pages state BEFORE movePage:",
+            pages.map((p) => ({
+              id: p.id,
+              title: p.title,
+              parentId: p.parentId,
+            }))
+          );
+
           try {
             await movePage(draggedPageId, null);
+            console.log(
+              "[FileTreeIndex.handleMouseUp] movePage completed, now calling loadPages..."
+            );
             await loadPages();
-            console.log("[FileTreeIndex] Page moved to root successfully");
+            console.log(
+              "[FileTreeIndex.handleMouseUp] loadPages completed, checking final state..."
+            );
+
+            const finalPage = usePageStore.getState().pagesById[draggedPageId];
+            console.log("[FileTreeIndex.handleMouseUp] Final page state:", {
+              id: finalPage?.id,
+              title: finalPage?.title,
+              parentId: finalPage?.parentId,
+            });
+
+            console.log(
+              "[FileTreeIndex.handleMouseUp] Page moved to root successfully"
+            );
           } catch (error) {
-            console.error("Failed to move page:", error);
+            console.error(
+              "[FileTreeIndex.handleMouseUp] Failed to move page:",
+              error
+            );
             alert(`Failed to move page: ${error}`);
           }
         } else if (dragOverPageId && draggedPageId !== dragOverPageId) {
           console.log(
-            `[FileTreeIndex] Dropping ${draggedPageId} on ${dragOverPageId}`
+            `[FileTreeIndex.handleMouseUp] Dropping ${draggedPageId} on ${dragOverPageId}`
           );
+          console.log("[FileTreeIndex.handleMouseUp] Target page:", {
+            id: targetPage?.id,
+            title: targetPage?.title,
+          });
+          console.log(
+            "[FileTreeIndex.handleMouseUp] Pages state BEFORE movePage:",
+            pages.map((p) => ({
+              id: p.id,
+              title: p.title,
+              parentId: p.parentId,
+            }))
+          );
+
           try {
             await movePage(draggedPageId, dragOverPageId);
+            console.log(
+              "[FileTreeIndex.handleMouseUp] movePage completed, now calling loadPages..."
+            );
             await loadPages();
+            console.log(
+              "[FileTreeIndex.handleMouseUp] loadPages completed, checking final state..."
+            );
+
+            const finalPage = usePageStore.getState().pagesById[draggedPageId];
+            console.log("[FileTreeIndex.handleMouseUp] Final page state:", {
+              id: finalPage?.id,
+              title: finalPage?.title,
+              parentId: finalPage?.parentId,
+            });
+
             setCollapsed((prev) => ({
               ...prev,
               [dragOverPageId]: false,
             }));
-            console.log("[FileTreeIndex] Page moved successfully");
+            console.log(
+              "[FileTreeIndex.handleMouseUp] Page moved successfully"
+            );
           } catch (error) {
-            console.error("Failed to move page:", error);
+            console.error(
+              "[FileTreeIndex.handleMouseUp] Failed to move page:",
+              error
+            );
             alert(`Failed to move page: ${error}`);
           }
+        } else {
+          console.log(
+            "[FileTreeIndex.handleMouseUp] Invalid drop target, no action taken"
+          );
         }
+      } else {
+        console.log(
+          "[FileTreeIndex.handleMouseUp] No draggedPageId, no action taken"
+        );
       }
     };
 
@@ -691,15 +781,21 @@ export function FileTreeIndex() {
           setDeleteModalOpened(false);
           setPageToDelete(null);
         }}
-        title="Delete Page"
+        title={t("common.delete_page")}
         centered
         size="md"
       >
         <Stack gap="lg">
           <div>
-            <Text size="sm" mb="xs">
-              Delete <strong>{pageToDelete?.title}</strong>?
-            </Text>
+            <Text
+              size="sm"
+              mb="xs"
+              dangerouslySetInnerHTML={{
+                __html: t("common.delete_page_question", {
+                  title: pageToDelete?.title || "",
+                }),
+              }}
+            />
 
             {childrenToDelete.length > 0 && (
               <div
@@ -712,9 +808,10 @@ export function FileTreeIndex() {
                 }}
               >
                 <Text size="sm" fw={500} c="yellow.9" mb="xs">
-                  ⚠️ Warning: This page has {childrenToDelete.length} child page
-                  {childrenToDelete.length > 1 ? "s" : ""} that will also be
-                  deleted:
+                  {t("common.cascade_warning", {
+                    count: childrenToDelete.length,
+                    plural: childrenToDelete.length > 1 ? "s" : "",
+                  })}
                 </Text>
                 <Stack gap={4}>
                   {childrenToDelete.slice(0, 5).map((child) => (
@@ -729,7 +826,9 @@ export function FileTreeIndex() {
                   ))}
                   {childrenToDelete.length > 5 && (
                     <Text size="xs" c="yellow.9" style={{ paddingLeft: "8px" }}>
-                      ... and {childrenToDelete.length - 5} more
+                      {t("common.and_more", {
+                        count: childrenToDelete.length - 5,
+                      })}
                     </Text>
                   )}
                 </Stack>
@@ -745,12 +844,14 @@ export function FileTreeIndex() {
                 setPageToDelete(null);
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button color="red" onClick={confirmDeletePage}>
               {childrenToDelete.length > 0
-                ? `Delete All (${childrenToDelete.length + 1})`
-                : "Delete"}
+                ? t("common.delete_all", {
+                    count: childrenToDelete.length + 1,
+                  })
+                : t("common.delete")}
             </Button>
           </Group>
         </Stack>
