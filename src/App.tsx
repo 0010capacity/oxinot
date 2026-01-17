@@ -110,6 +110,8 @@ function AppContent({ workspacePath }: AppContentProps) {
     onCommandPalette: () => setCommandPaletteOpened(true),
     onSettings: () => setSettingsOpened(true),
     onHelp: () => setHelpOpened(true),
+    onSearch: () => setSearchOpened(true),
+    onToggleIndex: () => showIndex(),
   });
 
   // Apply saved font, size, and line height settings on mount and when they change
