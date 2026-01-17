@@ -2,11 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { immer } from "zustand/middleware/immer";
 import { createWithEqualityFn } from "zustand/traditional";
 import { tauriAPI } from "../tauri-api";
-import {
-  buildPageBreadcrumb,
-  createPageHierarchy,
-  findPageByPath,
-} from "../utils/pageUtils";
+import { createPageHierarchy, findPageByPath } from "../utils/pageUtils";
 import { useWorkspaceStore } from "./workspaceStore";
 
 // ============ Types ============
