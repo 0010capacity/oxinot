@@ -9,6 +9,7 @@ import {
   Button,
   ActionIcon,
   Tooltip,
+  useComputedColorScheme,
 } from "@mantine/core";
 import { IconEdit } from "@tabler/icons-react";
 import { tauriAPI, QueryResultBlock } from "../tauri-api";
@@ -31,6 +32,9 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
   macroString,
   workspacePath,
 }) => {
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
+
   const [state, setState] = useState<QueryBlockState>({
     results: [],
     isLoading: true,
@@ -118,8 +122,14 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
       <Box
         p="md"
         style={{
-          border: "2px solid var(--mantine-color-blue-5)",
-          backgroundColor: "var(--mantine-color-blue-0)",
+          border: `2px solid ${
+            isDark
+              ? "var(--mantine-color-blue-7)"
+              : "var(--mantine-color-blue-5)"
+          }`,
+          backgroundColor: isDark
+            ? "rgba(63, 81, 181, 0.1)"
+            : "var(--mantine-color-blue-0)",
           borderRadius: "6px",
         }}
         mb="md"
@@ -139,10 +149,16 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
               fontFamily: "monospace",
               padding: "12px",
               fontSize: "13px",
-              border: "1px solid var(--mantine-color-gray-4)",
+              border: `1px solid ${
+                isDark
+                  ? "var(--mantine-color-gray-6)"
+                  : "var(--mantine-color-gray-4)"
+              }`,
               borderRadius: "4px",
               resize: "vertical",
               boxSizing: "border-box",
+              backgroundColor: isDark ? "var(--mantine-color-gray-8)" : "white",
+              color: isDark ? "var(--mantine-color-gray-0)" : "inherit",
             }}
           />
           <Group gap="sm">
@@ -166,8 +182,15 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
         ta="center"
         mb="md"
         style={{
-          border: "1px solid var(--mantine-color-gray-3)",
+          border: `1px solid ${
+            isDark
+              ? "var(--mantine-color-gray-6)"
+              : "var(--mantine-color-gray-3)"
+          }`,
           borderRadius: "4px",
+          backgroundColor: isDark
+            ? "var(--mantine-color-gray-9)"
+            : "transparent",
         }}
       >
         <Loader size="sm" />
@@ -211,8 +234,12 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
       p="md"
       mb="md"
       style={{
-        border: "1px solid var(--mantine-color-blue-2)",
-        backgroundColor: "var(--mantine-color-blue-0)",
+        border: `1px solid ${
+          isDark ? "var(--mantine-color-blue-7)" : "var(--mantine-color-blue-2)"
+        }`,
+        backgroundColor: isDark
+          ? "rgba(63, 81, 181, 0.08)"
+          : "var(--mantine-color-blue-0)",
         borderRadius: "6px",
         cursor: "pointer",
       }}
@@ -254,15 +281,27 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
                 key={block.id}
                 p="xs"
                 style={{
-                  backgroundColor: "white",
-                  borderLeft: "3px solid var(--mantine-color-blue-4)",
+                  backgroundColor: isDark
+                    ? "var(--mantine-color-gray-8)"
+                    : "white",
+                  borderLeft: `3px solid ${
+                    isDark
+                      ? "var(--mantine-color-blue-5)"
+                      : "var(--mantine-color-blue-4)"
+                  }`,
                   borderRadius: "3px",
                 }}
               >
                 <Text size="xs" c="dimmed" fw={500}>
                   {block.pagePath}
                 </Text>
-                <Text size="sm" style={{ wordBreak: "break-word" }}>
+                <Text
+                  size="sm"
+                  style={{
+                    wordBreak: "break-word",
+                    color: isDark ? "var(--mantine-color-gray-1)" : "inherit",
+                  }}
+                >
                   {block.content}
                 </Text>
               </Box>
