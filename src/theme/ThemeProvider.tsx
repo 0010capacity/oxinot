@@ -20,15 +20,13 @@ import type { ColorScheme, Theme } from "./types";
 import type { MantineThemeOverride } from "@mantine/core";
 
 export const ThemeContext = createContext<Theme | null>(null);
-export const MantineThemeContext = createContext<MantineThemeOverride | null>(
-  null
-);
 
 interface ThemeProviderProps {
   children: ReactNode;
 }
 
-export function ThemeProvider({ children }: ThemeProviderProps) {
+// Inner provider that uses Mantine hooks
+function ThemeProviderInner({ children }: ThemeProviderProps) {
   const computedColorScheme = useComputedColorScheme("light");
   const colorVariant = useThemeStore((state) => state.colorVariant);
 
@@ -162,21 +160,18 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   return (
     <MantineProvider theme={mantineTheme} defaultColorScheme="auto">
-      <ThemeContext.Provider value={theme}>
-        <MantineThemeContext.Provider value={mantineTheme}>
-          {children}
-        </MantineThemeContext.Provider>
-      </ThemeContext.Provider>
+      <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>
     </MantineProvider>
   );
 }
 
-export function useMantineTheme(): MantineThemeOverride {
-  const theme = useContext(MantineThemeContext);
-  if (!theme) {
-    throw new Error("useMantineTheme must be used within ThemeProvider");
-  }
-  return theme;
+// Outer provider that wraps MantineProvider
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  return (
+    <MantineProvider defaultColorScheme="auto">
+      <ThemeProviderInner>{children}</ThemeProviderInner>
+    </MantineProvider>
+  );
 }
 
 function camelToKebab(str: string): string {
