@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { useComputedColorScheme } from "@mantine/core";
 import { useEffect, useRef } from "react";
 import { useSnowStore } from "../stores/snowStore";
 
@@ -16,6 +17,8 @@ interface Snowflake {
 export const SnowEffect: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isSnowEnabled = useSnowStore((state) => state.isSnowEnabled);
+  const computedColorScheme = useComputedColorScheme("light");
+  const isDark = computedColorScheme === "dark";
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -73,7 +76,9 @@ export const SnowEffect: React.FC = () => {
         for (const flake of snowflakes) {
           ctx.beginPath();
           ctx.arc(flake.x, flake.y, flake.radius, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255, 255, 255, ${flake.opacity})`;
+          ctx.fillStyle = isDark
+            ? `rgba(255, 255, 255, ${flake.opacity})`
+            : `rgba(0, 0, 0, ${flake.opacity * 0.4})`;
           ctx.fill();
 
           flake.y += flake.speed;
@@ -116,7 +121,7 @@ export const SnowEffect: React.FC = () => {
       window.removeEventListener("resize", handleResize);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [isSnowEnabled]);
+  }, [isSnowEnabled, isDark]);
 
   return <canvas ref={canvasRef} />;
 };
