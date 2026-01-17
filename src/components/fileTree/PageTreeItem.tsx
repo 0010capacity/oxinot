@@ -15,6 +15,7 @@ import { CollapseToggle } from "../common/CollapseToggle";
 import { IndentGuide } from "../common/IndentGuide";
 import { ContextMenu, type ContextMenuSection } from "../common/ContextMenu";
 import { useTranslation } from "react-i18next";
+import { INDENT_PER_LEVEL } from "../../constants/layout";
 
 // Extract basename from path (e.g., "A/B/C" -> "C")
 function getPageBasename(title: string): string {
@@ -201,7 +202,7 @@ export function PageTreeItem({
             <div
               style={{
                 position: "absolute",
-                left: `${depth * 24}px`,
+                left: `${depth * INDENT_PER_LEVEL}px`,
                 right: 0,
                 top: 0,
                 bottom: 0,
@@ -226,7 +227,7 @@ export function PageTreeItem({
               transition: "background-color var(--transition-normal)",
               userSelect: "none",
               zIndex: 2,
-              marginLeft: `${depth * 24}px`,
+              marginLeft: `${depth * INDENT_PER_LEVEL}px`,
             }}
           >
             {/* Collapse/Expand Toggle */}

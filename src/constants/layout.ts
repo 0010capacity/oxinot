@@ -48,9 +48,11 @@ export const BLOCK_LAYOUT = {
 /**
  * File tree layout values
  */
+export const INDENT_PER_LEVEL = 24;
+
 export const FILE_TREE_LAYOUT = {
   /** Indent per nesting level */
-  indentSize: "24px",
+  indentSize: `${INDENT_PER_LEVEL}px`,
   /** Item height */
   itemHeight: "28px",
   /** Icon size */

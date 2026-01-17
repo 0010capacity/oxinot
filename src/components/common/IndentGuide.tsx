@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { INDENT_PER_LEVEL } from "../../constants/layout";
 
 interface IndentGuideProps {
   depth: number;
@@ -13,7 +14,7 @@ interface IndentGuideProps {
  * Displays a single vertical line for the current indentation level.
  *
  * Calculation:
- * - Each item has: paddingLeft = depth * 24px
+ * - Each item has: paddingLeft = depth * INDENT_PER_LEVEL
  * - Inside padding: collapse-toggle (20px) + gap (8px) + bullet-container (24px, center at 12px)
  * - Bullet center for depth 0: 0 + 20 + 8 + 12 = 40px
  * - Bullet center for depth 1: 24 + 20 + 8 + 12 = 64px
@@ -23,7 +24,7 @@ interface IndentGuideProps {
  */
 export function IndentGuide({
   depth,
-  indentSize = 24,
+  indentSize = INDENT_PER_LEVEL,
   show = true,
   className = "",
   style,

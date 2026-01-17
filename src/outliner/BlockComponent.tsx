@@ -24,6 +24,7 @@ import { useBlockUIStore } from "../stores/blockUIStore";
 import { useViewStore } from "../stores/viewStore";
 import { MacroContentWrapper } from "./MacroContentWrapper";
 import "./BlockComponent.css";
+import { INDENT_PER_LEVEL } from "../constants/layout";
 
 interface BlockComponentProps {
   blockId: string;
@@ -708,7 +709,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         <div
           className="indent-guide"
           style={{
-            left: `${depth * 24 + 18}px`, // Align with collapse toggle center (20px width / 2 + 4px margin)
+            left: `${depth * INDENT_PER_LEVEL + 18}px`, // Align with collapse toggle center (20px width / 2 + 4px margin)
           }}
         />
       ) : null;
@@ -740,7 +741,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }}
         >
           {indentGuide}
-          <div className="block-row" style={{ paddingLeft: `${depth * 24}px` }}>
+          <div className="block-row" style={{ paddingLeft: `${depth * INDENT_PER_LEVEL}px` }}>
             {/* Collapse/Expand Toggle */}
             {hasChildren ? (
               <button

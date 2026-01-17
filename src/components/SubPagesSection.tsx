@@ -5,6 +5,7 @@ import { useViewStore } from "../stores/viewStore";
 import { BulletPoint } from "./common/BulletPoint";
 import { CollapseToggle } from "./common/CollapseToggle";
 import "./SubPagesSection.css";
+import { INDENT_PER_LEVEL } from "../constants/layout";
 
 interface SubPagesSectionProps {
   currentPageId: string;
@@ -95,7 +96,7 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
           <div
             className="page-tree-item"
             style={{
-              paddingLeft: `${depth * 24}px`,
+              paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
             }}
           >
             {/* Collapse toggle */}
