@@ -1,42 +1,8 @@
 /* CSS Custom Properties - Theme Variables */
-/* These are fallback values, overridden by ThemeProvider */
+/* Color variables are dynamically set by ThemeProvider */
+/* These are fallback values only */
 
 :root {
-  /* Background Colors - Improved dark mode with better contrast */
-  --color-bg-primary: #0f0f0f;
-  --color-bg-secondary: #1a1a1d;
-  --color-bg-tertiary: #3a3a42;
-  --color-bg-elevated: #2a2a30;
-
-  /* Text Colors - Enhanced contrast for readability */
-  --color-text-primary: #f0f0f2;
-  --color-text-secondary: #d4d4d8;
-  --color-text-tertiary: #a1a1a6;
-  --color-text-link: #8b9dff;
-
-  /* Border Colors - Better visibility */
-  --color-border-primary: rgba(255, 255, 255, 0.12);
-  --color-border-secondary: rgba(255, 255, 255, 0.08);
-  --color-border-focus: #7c3aed;
-
-  /* Interactive Colors - Refined for consistency */
-  --color-interactive-hover: rgba(255, 255, 255, 0.1);
-  --color-interactive-active: rgba(255, 255, 255, 0.15);
-  --color-interactive-selected: rgba(124, 58, 237, 0.2);
-  --color-interactive-focus: rgba(124, 58, 237, 0.3);
-
-  /* Semantic Colors - Adjusted for dark mode visibility */
-  --color-accent: #7c3aed;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ff6b6b;
-
-  /* Component-Specific Colors - Better visual hierarchy */
-  --color-bullet-default: rgba(255, 255, 255, 0.35);
-  --color-bullet-hover: rgba(255, 255, 255, 0.65);
-  --color-bullet-active: rgba(255, 255, 255, 0.9);
-  --color-indent-guide: rgba(255, 255, 255, 0.08);
-
   /* Spacing */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -71,10 +37,7 @@
   --layout-max-content-width: 800px;
   --layout-container-padding: 40px 20px;
   --layout-container-padding-mobile: 20px 12px;
-
-  /* Reduce excessive bottom padding so short notes don't "overscroll" into empty space */
   --layout-content-bottom-padding: 80px;
-
   --layout-title-bar-height: 44px;
   --layout-bullet-size: 6px;
   --layout-bullet-container-size: 24px;
@@ -97,50 +60,29 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2),
     0 2px 4px -1px rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
 
-/* Light mode color overrides */
-@media (prefers-color-scheme: light) {
-  :root {
-    /* Background Colors - Light mode */
-    --color-bg-primary: #ffffff !important;
-    --color-bg-secondary: #f9f9fb !important;
-    --color-bg-tertiary: #f5f5f8 !important;
-    --color-bg-elevated: #efefef !important;
-
-    /* Text Colors - Light mode */
-    --color-text-primary: #1a1a1a !important;
-    --color-text-secondary: #3a3a3a !important;
-    --color-text-tertiary: #7a7a7e !important;
-    --color-text-link: #5b63f5 !important;
-
-    /* Border Colors - Light mode */
-    --color-border-primary: rgba(0, 0, 0, 0.08) !important;
-    --color-border-secondary: rgba(0, 0, 0, 0.05) !important;
-    --color-border-focus: #6366f1 !important;
-
-    /* Interactive Colors - Light mode */
-    --color-interactive-hover: rgba(0, 0, 0, 0.04) !important;
-    --color-interactive-active: rgba(0, 0, 0, 0.08) !important;
-    --color-interactive-selected: rgba(99, 102, 241, 0.12) !important;
-    --color-interactive-focus: rgba(99, 102, 241, 0.2) !important;
-
-    /* Semantic Colors - Light mode */
-    --color-accent: #6366f1 !important;
-    --color-success: #059669 !important;
-    --color-warning: #d97706 !important;
-    --color-error: #dc2626 !important;
-
-    /* Component-Specific Colors - Light mode */
-    --color-bullet-default: rgba(0, 0, 0, 0.25) !important;
-    --color-bullet-hover: rgba(0, 0, 0, 0.55) !important;
-    --color-bullet-active: rgba(0, 0, 0, 0.8) !important;
-    --color-indent-guide: rgba(0, 0, 0, 0.06) !important;
-
-    /* Shadows - Light mode */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07),
-      0 2px 4px -1px rgba(0, 0, 0, 0.04) !important;
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
-  }
+  /* Color variables - set dynamically by ThemeProvider */
+  --color-bg-primary: #0f0f0f;
+  --color-bg-secondary: #1a1a1d;
+  --color-bg-tertiary: #3a3a42;
+  --color-bg-elevated: #2a2a30;
+  --color-text-primary: #f0f0f2;
+  --color-text-secondary: #d4d4d8;
+  --color-text-tertiary: #a1a1a6;
+  --color-text-link: #8b9dff;
+  --color-border-primary: rgba(255, 255, 255, 0.12);
+  --color-border-secondary: rgba(255, 255, 255, 0.08);
+  --color-border-focus: #7c3aed;
+  --color-interactive-hover: rgba(255, 255, 255, 0.1);
+  --color-interactive-active: rgba(255, 255, 255, 0.15);
+  --color-interactive-selected: rgba(124, 58, 237, 0.2);
+  --color-interactive-focus: rgba(124, 58, 237, 0.3);
+  --color-accent: #7c3aed;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ff6b6b;
+  --color-bullet-default: rgba(255, 255, 255, 0.35);
+  --color-bullet-hover: rgba(255, 255, 255, 0.65);
+  --color-bullet-active: rgba(255, 255, 255, 0.9);
+  --color-indent-guide: rgba(255, 255, 255, 0.08);
 }
