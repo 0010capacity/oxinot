@@ -173,13 +173,13 @@ export function PageTreeItem({
   }, [isEditing]);
 
   return (
-    <ContextMenu sections={contextMenuSections}>
-      <div style={{ position: "relative" }}>
-        {/* Indent guides */}
-        {showIndentGuides && depth > 0 && (
-          <IndentGuide depth={depth} show={true} />
-        )}
+    <div style={{ position: "relative" }}>
+      {/* Indent guides */}
+      {showIndentGuides && depth > 0 && (
+        <IndentGuide depth={depth} show={true} />
+      )}
 
+      <ContextMenu sections={contextMenuSections}>
         <div
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -389,10 +389,10 @@ export function PageTreeItem({
             )}
           </div>
         </div>
+      </ContextMenu>
 
-        {/* Children */}
-        {!isCollapsed && children}
-      </div>
-    </ContextMenu>
+      {/* Children */}
+      {!isCollapsed && children}
+    </div>
   );
 }
