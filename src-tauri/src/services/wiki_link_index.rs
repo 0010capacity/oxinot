@@ -1,5 +1,5 @@
 use crate::services::wiki_link_parser::parse_wiki_links;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{named_params, Connection, OptionalExtension};
 use uuid::Uuid;
 
 fn resolve_link_target(
@@ -12,18 +12,22 @@ fn resolve_link_target(
     // Single query with priority: exact match > pattern match > basename match
     let mut stmt = conn.prepare(
         "SELECT page_id FROM page_paths
-         WHERE path_text = ?
+         WHERE path_text = :target_path
          UNION
          SELECT page_id FROM page_paths
-         WHERE path_text LIKE ? AND path_text != ?
+         WHERE path_text LIKE :pattern AND path_text != :target_path
          UNION
          SELECT page_id FROM page_paths
-         WHERE path_text = ?
+         WHERE path_text = :target_basename
          LIMIT 1",
     )?;
 
     stmt.query_row(
-        params![target_path, pattern, target_path, target_basename],
+        named_params! {
+            ":target_path": target_path,
+            ":pattern": pattern,
+            ":target_basename": target_basename
+        },
         |row| row.get(0),
     )
     .optional()
@@ -37,8 +41,8 @@ pub fn index_block_links(
 ) -> Result<(), rusqlite::Error> {
     // 1. Delete existing links for this block
     conn.execute(
-        "DELETE FROM wiki_links WHERE from_block_id = ?",
-        params![block_id],
+        "DELETE FROM wiki_links WHERE from_block_id = :block_id",
+        named_params! { ":block_id": block_id },
     )?;
 
     // 2. Parse new links
@@ -54,7 +58,8 @@ pub fn index_block_links(
         INSERT INTO wiki_links (
             id, from_page_id, from_block_id, to_page_id, link_type,
             target_path, raw_target, alias, heading, block_ref, is_embed
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (:id, :from_page_id, :from_block_id, :to_page_id, :link_type,
+            :target_path, :raw_target, :alias, :heading, :block_ref, :is_embed)
     "#,
     )?;
 
@@ -70,19 +75,19 @@ pub fn index_block_links(
 
         let id = Uuid::new_v4().to_string();
 
-        stmt_insert.execute(params![
-            id,
-            page_id,
-            block_id,
-            to_page_id,
-            link.link_type,
-            link.target_path,
-            link.raw_target,
-            link.alias,
-            link.heading,
-            link.block_ref,
-            link.is_embed
-        ])?;
+        stmt_insert.execute(named_params! {
+            ":id": id,
+            ":from_page_id": page_id,
+            ":from_block_id": block_id,
+            ":to_page_id": to_page_id,
+            ":link_type": link.link_type,
+            ":target_path": link.target_path,
+            ":raw_target": link.raw_target,
+            ":alias": link.alias,
+            ":heading": link.heading,
+            ":block_ref": link.block_ref,
+            ":is_embed": link.is_embed
+        })?;
     }
 
     Ok(())
@@ -101,17 +106,20 @@ pub fn reindex_all_links(conn: &mut Connection) -> Result<(), rusqlite::Error> {
         // Fetch blocks in batches to avoid OOM with large datasets
         let mut stmt = tx.prepare(
             "SELECT id, page_id, content FROM blocks WHERE content LIKE '%[[%'
-             ORDER BY id LIMIT ? OFFSET ?",
+             ORDER BY id LIMIT :limit OFFSET :offset",
         )?;
 
         let blocks: Vec<(String, String, String)> = {
-            let block_iter = stmt.query_map(params![batch_size, offset], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                ))
-            })?;
+            let block_iter = stmt.query_map(
+                named_params! { ":limit": batch_size, ":offset": offset },
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                },
+            )?;
 
             block_iter.collect::<Result<_, _>>()?
         };
@@ -126,7 +134,8 @@ pub fn reindex_all_links(conn: &mut Connection) -> Result<(), rusqlite::Error> {
                 INSERT INTO wiki_links (
                     id, from_page_id, from_block_id, to_page_id, link_type,
                     target_path, raw_target, alias, heading, block_ref, is_embed
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (:id, :from_page_id, :from_block_id, :to_page_id, :link_type,
+                    :target_path, :raw_target, :alias, :heading, :block_ref, :is_embed)
             "#,
             )?;
 
@@ -143,19 +152,19 @@ pub fn reindex_all_links(conn: &mut Connection) -> Result<(), rusqlite::Error> {
                     }
 
                     let id = Uuid::new_v4().to_string();
-                    stmt_insert.execute(params![
-                        id,
-                        page_id,
-                        block_id,
-                        to_page_id,
-                        link.link_type,
-                        link.target_path,
-                        link.raw_target,
-                        link.alias,
-                        link.heading,
-                        link.block_ref,
-                        link.is_embed
-                    ])?;
+                    stmt_insert.execute(named_params! {
+                        ":id": id,
+                        ":from_page_id": page_id,
+                        ":from_block_id": block_id,
+                        ":to_page_id": to_page_id,
+                        ":link_type": link.link_type,
+                        ":target_path": link.target_path,
+                        ":raw_target": link.raw_target,
+                        ":alias": link.alias,
+                        ":heading": link.heading,
+                        ":block_ref": link.block_ref,
+                        ":is_embed": link.is_embed
+                    })?;
                 }
             }
         }
