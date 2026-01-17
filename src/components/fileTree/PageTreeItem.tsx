@@ -106,13 +106,18 @@ export function PageTreeItem({
             label: t("common.context_menu.delete"),
             color: "red",
             onClick: () => {
+              console.log("[PageTreeItem] Delete clicked for page:", {
+                id: page.id,
+                title: page.title,
+                parentId: page.parentId,
+              });
               onDelete(page.id);
             },
           },
         ],
       },
     ],
-    [page.id, onAddChild, onEdit, onDelete, t]
+    [page.id, page.title, page.parentId, onAddChild, onEdit, onDelete, t]
   );
 
   const handlePageClick = async (e: React.MouseEvent) => {
@@ -214,7 +219,6 @@ export function PageTreeItem({
               display: "flex",
               alignItems: "center",
               gap: "var(--spacing-sm)",
-              paddingLeft: `${depth * 24}px`,
               paddingTop: "2px",
               paddingBottom: "2px",
               position: "relative",
@@ -222,33 +226,27 @@ export function PageTreeItem({
               transition: "background-color var(--transition-normal)",
               userSelect: "none",
               zIndex: 2,
+              marginLeft: `${depth * 24}px`,
             }}
           >
             {/* Collapse/Expand Toggle */}
-            {hasChildren ? (
-              <CollapseToggle
-                isCollapsed={isCollapsed}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleCollapse(page.id);
-                }}
-                style={{
-                  opacity: isCollapsed
+            <CollapseToggle
+              isCollapsed={isCollapsed}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCollapse(page.id);
+              }}
+              style={{
+                opacity: hasChildren
+                  ? isCollapsed
                     ? "var(--opacity-disabled)"
                     : isHovered
                     ? "var(--opacity-dimmed)"
-                    : 0,
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  flexShrink: 0,
-                  width: "var(--layout-collapse-toggle-size)",
-                  height: "var(--layout-collapse-toggle-size)",
-                }}
-              />
-            )}
+                    : 0
+                  : 0,
+                visibility: hasChildren ? "visible" : "hidden",
+              }}
+            />
 
             {/* Bullet Point */}
             <BulletPoint onClick={handleBulletClick} />
@@ -371,6 +369,14 @@ export function PageTreeItem({
                       color="red"
                       onClick={(e) => {
                         e.stopPropagation();
+                        console.log(
+                          "[PageTreeItem] Delete button clicked for page:",
+                          {
+                            id: page.id,
+                            title: page.title,
+                            parentId: page.parentId,
+                          }
+                        );
                         onDelete(page.id);
                       }}
                       title="Delete"
