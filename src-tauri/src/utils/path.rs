@@ -46,9 +46,10 @@ pub fn normalize_page_path(path: &str) -> String {
     }
 }
 
-/// Validates that a path does not contain path traversal sequences or absolute paths.
+/// Validates that a path does not contain path traversal sequences.
 ///
-/// Blocks attempts to escape directories using `..` components and prevents absolute paths.
+/// Blocks attempts to escape directories using `..` components.
+/// Absolute paths ARE allowed.
 ///
 /// # Arguments
 /// * `path` - The path string to validate
@@ -60,20 +61,12 @@ pub fn normalize_page_path(path: &str) -> String {
 /// # Examples
 /// ```
 /// assert!(validate_no_path_traversal("folder/file.md", "path").is_ok());
+/// assert!(validate_no_path_traversal("/etc/passwd", "path").is_ok());
 /// assert!(validate_no_path_traversal("../etc/passwd", "path").is_err());
-/// assert!(validate_no_path_traversal("/etc/passwd", "path").is_err());
 /// ```
 pub fn validate_no_path_traversal(path: &str, param_name: &str) -> Result<(), String> {
     if path.is_empty() {
         return Err(format!("{} must not be empty", param_name));
-    }
-
-    // Check for absolute paths (both Unix and Windows)
-    if path.starts_with('/') || path.starts_with('\\') || PathBuf::from(path).is_absolute() {
-        return Err(format!(
-            "{} must be a relative path, not an absolute path",
-            param_name
-        ));
     }
 
     // Check for explicit .. components
@@ -289,15 +282,17 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_no_path_traversal_absolute_unix() {
-        assert!(validate_no_path_traversal("/etc/passwd", "path").is_err());
-        assert!(validate_no_path_traversal("/home/user/file.md", "path").is_err());
+    fn test_validate_no_path_traversal_absolute_valid() {
+        assert!(validate_no_path_traversal("/etc/passwd", "path").is_ok());
+        assert!(validate_no_path_traversal("/home/user/file.md", "path").is_ok());
     }
 
     #[test]
-    fn test_validate_no_path_traversal_absolute_windows() {
-        assert!(validate_no_path_traversal("\\etc\\passwd", "path").is_err());
-        assert!(validate_no_path_traversal("C:\\Users\\file.md", "path").is_err());
+    fn test_validate_no_path_traversal_absolute_windows_valid() {
+        // Simple string checks since we can't reliably test pathbuf behavior cross-platform for valid abs paths
+        // but the function logic only checks for ".." now.
+        assert!(validate_no_path_traversal("\\etc\\passwd", "path").is_ok());
+        assert!(validate_no_path_traversal("C:\\Users\\file.md", "path").is_ok());
     }
 
     #[test]
