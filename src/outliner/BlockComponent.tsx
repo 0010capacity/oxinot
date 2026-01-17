@@ -197,6 +197,55 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       };
     }, [isMetadataOpen]);
 
+    // Handle Shift+Arrow key selection when this block is focused
+    useEffect(() => {
+      if (focusedBlockId !== blockId) return;
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (!event.shiftKey) return;
+
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          event.stopPropagation();
+          const prevBlockId = useBlockStore
+            .getState()
+            .getPreviousBlock(blockId);
+          if (prevBlockId && blockOrder.length > 0) {
+            if (isSelected) {
+              selectBlockRange(prevBlockId, blockId, blockOrder);
+            } else {
+              selectBlockRange(blockId, blockId, blockOrder);
+              addBlockToSelection(prevBlockId);
+            }
+          }
+        } else if (event.key === "ArrowDown") {
+          event.preventDefault();
+          event.stopPropagation();
+          const nextBlockId = useBlockStore.getState().getNextBlock(blockId);
+          if (nextBlockId && blockOrder.length > 0) {
+            if (isSelected) {
+              selectBlockRange(blockId, nextBlockId, blockOrder);
+            } else {
+              selectBlockRange(blockId, blockId, blockOrder);
+              addBlockToSelection(nextBlockId);
+            }
+          }
+        }
+      };
+
+      document.addEventListener("keydown", handleKeyDown, true);
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown, true);
+      };
+    }, [
+      focusedBlockId,
+      blockId,
+      isSelected,
+      blockOrder,
+      selectBlockRange,
+      addBlockToSelection,
+    ]);
+
     // Consolidated IME state
     const imeStateRef = useRef({
       isComposing: false,
@@ -704,46 +753,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             return true;
           },
         },
-        {
-          key: "Shift-ArrowUp",
-          preventDefault: true,
-          run: () => {
-            // Select from current block upward
-            const prevBlockId = useBlockStore
-              .getState()
-              .getPreviousBlock(blockId);
-            if (prevBlockId && blockOrder.length > 0) {
-              if (isSelected) {
-                // If already selected, extend selection upward
-                selectBlockRange(prevBlockId, blockId, blockOrder);
-              } else {
-                // Start new selection
-                selectBlockRange(blockId, blockId, blockOrder);
-                addBlockToSelection(prevBlockId);
-              }
-            }
-            return true;
-          },
-        },
-        {
-          key: "Shift-ArrowDown",
-          preventDefault: true,
-          run: () => {
-            // Select from current block downward
-            const nextBlockId = useBlockStore.getState().getNextBlock(blockId);
-            if (nextBlockId && blockOrder.length > 0) {
-              if (isSelected) {
-                // If already selected, extend selection downward
-                selectBlockRange(blockId, nextBlockId, blockOrder);
-              } else {
-                // Start new selection
-                selectBlockRange(blockId, blockId, blockOrder);
-                addBlockToSelection(nextBlockId);
-              }
-            }
-            return true;
-          },
-        },
       ];
     }, [
       blockId,
@@ -754,10 +763,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       commitDraft,
       mergeWithPrevious,
       splitBlockAtCursor,
-      isSelected,
-      selectBlockRange,
-      addBlockToSelection,
-      blockOrder,
     ]);
 
     if (!block) return null;
