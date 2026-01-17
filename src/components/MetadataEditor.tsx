@@ -10,6 +10,7 @@ import {
 import {
   IconBraces,
   IconHash,
+  IconList,
   IconPlus,
   IconTextCaption,
   IconToggleLeft,
@@ -21,7 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import type { BlockData } from "../stores/blockStore";
 import { useBlockStore } from "../stores/blockStore";
 
-type MetadataType = "text" | "number" | "boolean" | "json";
+type MetadataType = "text" | "number" | "boolean" | "json" | "list" | "map";
 
 interface MetadataItem {
   id: string;
@@ -34,11 +35,24 @@ const guessType = (value: string): MetadataType => {
   const trimmed = value.trim();
   if (trimmed === "true" || trimmed === "false") return "boolean";
   if (!Number.isNaN(Number(trimmed)) && trimmed !== "") return "number";
-  if (
-    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("[") && trimmed.endsWith("]"))
-  )
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return "list";
+    } catch {
+      // Fall through to check if it's a simple list format
+      if (trimmed.split(",").length > 1) return "list";
+    }
+  }
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (!Array.isArray(parsed) && typeof parsed === "object") return "map";
+    } catch {
+      // Fall through
+    }
     return "json";
+  }
   return "text";
 };
 
@@ -50,6 +64,10 @@ const getTypeLabel = (type: MetadataType): string => {
       return "boolean";
     case "json":
       return "json";
+    case "list":
+      return "list";
+    case "map":
+      return "map";
     default:
       return "text";
   }
@@ -62,6 +80,10 @@ const getTypeIcon = (type: MetadataType) => {
     case "boolean":
       return <IconToggleLeft size={14} />;
     case "json":
+      return <IconBraces size={14} />;
+    case "list":
+      return <IconList size={14} />;
+    case "map":
       return <IconBraces size={14} />;
     default:
       return <IconTextCaption size={14} />;
@@ -79,7 +101,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
 }) => {
   const updateBlock = useBlockStore((state) => state.updateBlock);
   const getBlock = useBlockStore((state) => state.getBlock) as (
-    id: string
+    id: string,
   ) => BlockData | undefined;
 
   const [items, setItems] = useState<MetadataItem[]>([]);
@@ -158,6 +180,8 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
 
   const addItem = () => {
     const newId = `${blockUuid}-${items.length}`;
+    // New items always start with "text" type
+    // Type auto-detection only happens on user input
     setItems([...items, { id: newId, key: "", value: "", type: "text" }]);
     setTimeout(() => {
       keyRefs.current[items.length]?.focus({ preventScroll: true });
@@ -185,26 +209,28 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   const updateItem = (
     index: number,
     field: keyof MetadataItem,
-    value: string
+    value: string,
   ) => {
     const newItems = [...items];
-    let type = newItems[index].type;
+    const currentItem = newItems[index];
 
-    if (field === "value") {
+    // Only auto-detect type when:
+    // 1. Field is "value" (not key)
+    // 2. Current type is "text" (user hasn't explicitly selected a type)
+    // Do NOT override user's explicit type selection
+    if (field === "value" && currentItem.type === "text") {
       const guessed = guessType(value);
-      if (guessed !== "text" && type === "text") {
-        type = guessed;
-      }
+      currentItem.type = guessed;
     }
 
-    newItems[index] = { ...newItems[index], [field]: value, type };
+    newItems[index] = { ...currentItem, [field]: value };
     setItems(newItems);
   };
 
   const handleInputKeyDown = (
     e: React.KeyboardEvent,
     index: number,
-    field: "key" | "value"
+    field: "key" | "value",
   ) => {
     if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
       e.preventDefault();
@@ -236,6 +262,26 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
         e.preventDefault();
         (field === "key" ? keyRefs : valueRefs).current[index + 1]?.focus();
       }
+    }
+  };
+
+  const isValidMetadataValue = (item: MetadataItem): boolean => {
+    if (!item.value) return true;
+
+    switch (item.type) {
+      case "number":
+        return !Number.isNaN(Number(item.value));
+      case "json":
+      case "list":
+      case "map":
+        try {
+          JSON.parse(item.value);
+          return true;
+        } catch {
+          return false;
+        }
+      default:
+        return true;
     }
   };
 
@@ -346,25 +392,63 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
                 <Menu.Dropdown>
                   <Menu.Item
                     leftSection={<IconTextCaption size={14} />}
-                    onClick={() => updateItem(index, "type", "text")}
+                    onClick={() => {
+                      const newItems = [...items];
+                      newItems[index].type = "text";
+                      setItems(newItems);
+                    }}
                   >
                     Text
                   </Menu.Item>
                   <Menu.Item
                     leftSection={<IconHash size={14} />}
-                    onClick={() => updateItem(index, "type", "number")}
+                    onClick={() => {
+                      const newItems = [...items];
+                      newItems[index].type = "number";
+                      setItems(newItems);
+                    }}
                   >
                     Number
                   </Menu.Item>
                   <Menu.Item
                     leftSection={<IconToggleLeft size={14} />}
-                    onClick={() => updateItem(index, "type", "boolean")}
+                    onClick={() => {
+                      const newItems = [...items];
+                      newItems[index].type = "boolean";
+                      setItems(newItems);
+                    }}
                   >
                     Boolean
                   </Menu.Item>
                   <Menu.Item
+                    leftSection={<IconList size={14} />}
+                    onClick={() => updateItem(index, "type", "list")}
+                  >
+                    List
+                  </Menu.Item>
+                  <Menu.Item
                     leftSection={<IconBraces size={14} />}
-                    onClick={() => updateItem(index, "type", "json")}
+                    onClick={() => updateItem(index, "type", "map")}
+                  >
+                    Map
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconBraces size={14} />}
+                    onClick={() => {
+                      const newItems = [...items];
+                      newItems[index].type = "map";
+                      setItems(newItems);
+                    }}
+                  >
+                    Map
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconBraces size={14} />}
+                    onClick={() => {
+                      const newItems = [...items];
+                      newItems[index].type = "json";
+                      setItems(newItems);
+                    }}
                   >
                     JSON
                   </Menu.Item>
@@ -395,22 +479,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
                       : "rgba(0,0,0,0.02)",
                   },
                 }}
-                error={
-                  item.type === "number" &&
-                  item.value &&
-                  Number.isNaN(Number(item.value))
-                    ? true
-                    : item.type === "json" && item.value
-                    ? (() => {
-                        try {
-                          JSON.parse(item.value);
-                          return false;
-                        } catch {
-                          return true;
-                        }
-                      })()
-                    : false
-                }
+                error={!isValidMetadataValue(item)}
               />
 
               {/* Delete Button */}

@@ -213,21 +213,24 @@ pub async fn get_blocks(
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
 
     let blocks = stmt
-        .query_map(rusqlite::params_from_iter(request.block_ids.iter()), |row| {
-            Ok(Block {
-                id: row.get(0)?,
-                page_id: row.get(1)?,
-                parent_id: row.get(2)?,
-                content: row.get(3)?,
-                order_weight: row.get(4)?,
-                is_collapsed: row.get::<_, i32>(5)? != 0,
-                block_type: parse_block_type(row.get::<_, String>(6)?),
-                language: row.get(7)?,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
-                metadata: HashMap::new(),
-            })
-        })
+        .query_map(
+            rusqlite::params_from_iter(request.block_ids.iter()),
+            |row| {
+                Ok(Block {
+                    id: row.get(0)?,
+                    page_id: row.get(1)?,
+                    parent_id: row.get(2)?,
+                    content: row.get(3)?,
+                    order_weight: row.get(4)?,
+                    is_collapsed: row.get::<_, i32>(5)? != 0,
+                    block_type: parse_block_type(row.get::<_, String>(6)?),
+                    language: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                    metadata: HashMap::new(),
+                })
+            },
+        )
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
@@ -310,9 +313,11 @@ FROM descendants
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // Load metadata for all blocks
+    // Load metadata for all blocks in a single query
+    let block_ids: Vec<String> = blocks.iter().map(|b| b.id.clone()).collect();
+    let metadata_map = load_blocks_metadata(&conn, &block_ids)?;
     for block in &mut blocks {
-        block.metadata = load_block_metadata(&conn, &block.id)?;
+        block.metadata = metadata_map.get(&block.id).cloned().unwrap_or_default();
     }
 
     Ok(blocks)
@@ -356,9 +361,11 @@ pub async fn get_page_blocks(
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // Load metadata for all blocks
+    // Load metadata for all blocks in a single query
+    let block_ids: Vec<String> = blocks.iter().map(|b| b.id.clone()).collect();
+    let metadata_map = load_blocks_metadata(&conn, &block_ids)?;
     for block in &mut blocks {
-        block.metadata = load_block_metadata(&conn, &block.id)?;
+        block.metadata = metadata_map.get(&block.id).cloned().unwrap_or_default();
     }
 
     Ok(blocks)
@@ -559,6 +566,9 @@ pub async fn create_block(
     )
     .map_err(|e| e.to_string())?;
 
+    // Index block in FTS5
+    index_block_fts(&conn, &id, &request.page_id, &content)?;
+
     let created_block = get_block_by_id(&conn, &id)?;
 
     // Sync to markdown file (allow targeted patching for this create)
@@ -613,6 +623,9 @@ pub async fn update_block(
         ],
     )
     .map_err(|e| e.to_string())?;
+
+    // Update FTS5 index with new content
+    index_block_fts(&conn, &request.id, &block.page_id, &new_content)?;
 
     // Update metadata if provided
     if let Some(metadata) = &request.metadata {
@@ -687,6 +700,9 @@ pub async fn delete_block(
     // Delete only the target block (children are now preserved and promoted)
     conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
         .map_err(|e| e.to_string())?;
+
+    // Remove block from FTS5 index
+    deindex_block_fts(&conn, &block_id)?;
 
     // Sync to markdown file
     sync_page_to_markdown_after_delete(&conn, &workspace_path, &page_id, block_id.as_str())?;
@@ -1064,6 +1080,48 @@ fn load_block_metadata(
     Ok(metadata)
 }
 
+/// Load metadata for multiple blocks in a single query
+fn load_blocks_metadata(
+    conn: &Connection,
+    block_ids: &[String],
+) -> Result<HashMap<String, HashMap<String, String>>, String> {
+    if block_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    // Build placeholders: ?1, ?2, ?3, ...
+    let placeholders = (1..=block_ids.len())
+        .map(|i| format!("?{}", i))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let sql = format!(
+        "SELECT block_id, key, value FROM block_metadata WHERE block_id IN ({}) ORDER BY block_id, key",
+        placeholders
+    );
+
+    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+
+    let mut metadata_map: HashMap<String, HashMap<String, String>> = HashMap::new();
+
+    let mut rows = stmt
+        .query(rusqlite::params_from_iter(block_ids.iter()))
+        .map_err(|e| e.to_string())?;
+
+    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+        let block_id: String = row.get(0).map_err(|e| e.to_string())?;
+        let key: String = row.get(1).map_err(|e| e.to_string())?;
+        let value: String = row.get(2).map_err(|e| e.to_string())?;
+
+        metadata_map
+            .entry(block_id)
+            .or_insert_with(HashMap::new)
+            .insert(key, value);
+    }
+
+    Ok(metadata_map)
+}
+
 /// Save metadata for a block to the database
 fn save_block_metadata(
     conn: &Connection,
@@ -1189,6 +1247,29 @@ pub fn block_type_to_string(bt: &BlockType) -> String {
         BlockType::Code => "code".to_string(),
         BlockType::Fence => "fence".to_string(),
     }
+}
+
+/// Add or update a block in the FTS5 index
+pub fn index_block_fts(
+    conn: &Connection,
+    block_id: &str,
+    page_id: &str,
+    content: &str,
+) -> Result<(), String> {
+    conn.execute(
+        "INSERT OR REPLACE INTO blocks_fts (block_id, page_id, content, anchor_id, path_text)
+         VALUES (?, ?, ?, ?, ?)",
+        params![block_id, page_id, content, block_id, ""],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Remove a block from the FTS5 index
+pub fn deindex_block_fts(conn: &Connection, block_id: &str) -> Result<(), String> {
+    conn.execute("DELETE FROM blocks_fts WHERE block_id = ?", [block_id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[cfg(test)]

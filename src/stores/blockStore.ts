@@ -35,6 +35,13 @@ interface BlockState {
   currentPageId: string | null;
   isLoading: boolean;
   error: string | null;
+
+  // tempId 추적 및 pending updates 큐
+  tempIdMap: Record<string, string>; // tempId -> realId 매핑
+  pendingUpdates: Array<{
+    tempId: string;
+    content: string;
+  }>;
 }
 
 interface BlockActions {
@@ -98,6 +105,8 @@ export const useBlockStore = create<BlockStore>()(
     currentPageId: null,
     isLoading: false,
     error: null,
+    tempIdMap: {},
+    pendingUpdates: [],
 
     // ============ Page Operations ============
 
@@ -283,8 +292,51 @@ export const useBlockStore = create<BlockStore>()(
             if (tempIndex !== -1) {
               state.childrenMap[parentKey][tempIndex] = newBlock.id;
             }
+
+            // tempIdMap에 매핑 기록
+            state.tempIdMap[tempId] = newBlock.id;
+
+            // 해당 tempId의 pending updates를 처리
+            const pendingList = state.pendingUpdates.filter(
+              (u) => u.tempId === tempId
+            );
+            if (pendingList.length > 0) {
+              // 가장 최신의 content만 적용 (마지막 pending update)
+              const latestContent = pendingList[pendingList.length - 1].content;
+              if (state.blocksById[newBlock.id]) {
+                state.blocksById[newBlock.id].content = latestContent;
+                state.blocksById[newBlock.id].updatedAt =
+                  new Date().toISOString();
+              }
+              // pending updates 제거
+              state.pendingUpdates = state.pendingUpdates.filter(
+                (u) => u.tempId !== tempId
+              );
+            }
           });
           useBlockUIStore.setState({ focusedBlockId: newBlock.id });
+
+          // 백엔드에 pending updates 동기화
+          const pendingList = get().pendingUpdates.filter(
+            (u) => u.tempId === tempId
+          );
+          if (pendingList.length > 0) {
+            const latestContent = pendingList[pendingList.length - 1].content;
+            try {
+              const workspacePath = useWorkspaceStore.getState().workspacePath;
+              if (workspacePath) {
+                await invoke("update_block", {
+                  workspacePath,
+                  request: { id: newBlock.id, content: latestContent },
+                });
+              }
+            } catch (error) {
+              console.error(
+                "Failed to sync pending updates for new block:",
+                error
+              );
+            }
+          }
 
           return newBlock.id;
         } catch (error) {
@@ -386,6 +438,22 @@ export const useBlockStore = create<BlockStore>()(
       const block = blocksById[id];
       if (!block) return;
 
+      // Check if this is a tempId (block creation still in progress)
+      const isTempId = id.startsWith("temp-");
+      if (isTempId) {
+        // 큐에 추가하고 실제 ID로 교체될 때까지 대기
+        set((state) => {
+          state.pendingUpdates.push({ tempId: id, content });
+          // 블록 UI는 즉시 업데이트
+          if (state.blocksById[id]) {
+            state.blocksById[id].content = content;
+            state.blocksById[id].updatedAt = new Date().toISOString();
+          }
+        });
+        return;
+      }
+
+      // 실제 ID인 경우 일반 업데이트 진행
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
@@ -508,25 +576,29 @@ export const useBlockStore = create<BlockStore>()(
         const currentUI = useBlockUIStore.getState();
 
         // 1. Handle Focus
-        if (currentUI.focusedBlockId && deletedIds.includes(currentUI.focusedBlockId)) {
+        if (
+          currentUI.focusedBlockId &&
+          deletedIds.includes(currentUI.focusedBlockId)
+        ) {
           if (nextFocusId) {
-             useBlockUIStore.setState({ focusedBlockId: nextFocusId });
+            useBlockUIStore.setState({ focusedBlockId: nextFocusId });
           } else {
-             useBlockUIStore.setState({ focusedBlockId: null });
+            useBlockUIStore.setState({ focusedBlockId: null });
           }
         }
 
         // 2. Handle Merge State
         if (
-          (currentUI.mergingBlockId && deletedIds.includes(currentUI.mergingBlockId)) ||
-          (currentUI.mergingTargetBlockId && deletedIds.includes(currentUI.mergingTargetBlockId))
+          (currentUI.mergingBlockId &&
+            deletedIds.includes(currentUI.mergingBlockId)) ||
+          (currentUI.mergingTargetBlockId &&
+            deletedIds.includes(currentUI.mergingTargetBlockId))
         ) {
           useBlockUIStore.setState({
             mergingBlockId: null,
             mergingTargetBlockId: null,
           });
         }
-
       } catch (error) {
         console.error("Failed to delete block:", error);
         // Reload to restore correct state

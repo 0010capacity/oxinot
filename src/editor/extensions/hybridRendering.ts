@@ -36,6 +36,7 @@
  */
 
 import { syntaxTree } from "@codemirror/language";
+import type { Tree } from "@lezer/common";
 import { Compartment, Facet, RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
@@ -385,7 +386,9 @@ function buildDecorations(view: EditorView): DecorationSet {
             to: line.from + i + 1,
             decoration: Decoration.mark({
               class: "cm-table-pipe",
-              attributes: { style: "opacity: 0.3; color: var(--color-text-tertiary);" },
+              attributes: {
+                style: "opacity: 0.3; color: var(--color-text-tertiary);",
+              },
             }),
           });
         }
@@ -484,10 +487,11 @@ function buildDecorations(view: EditorView): DecorationSet {
           to: refEnd,
           decoration: Decoration.mark({
             class: "cm-footnote-ref",
-                          attributes: {
-                            style:
-                              "color: var(--color-text-link); font-size: 0.85em; vertical-align: super; cursor: pointer;",
-                          },          }),
+            attributes: {
+              style:
+                "color: var(--color-text-link); font-size: 0.85em; vertical-align: super; cursor: pointer;",
+            },
+          }),
         });
         match = footnoteRefRegex.exec(lineText);
       }
@@ -523,12 +527,14 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
   class HybridRenderingViewPlugin {
     decorations: DecorationSet;
     private isComposing = false;
+    private lastSyntaxTree: Tree | null = null;
 
     // CM will attach the view to plugin instances; declare for TS.
     view!: EditorView;
 
     constructor(view: EditorView) {
       this.decorations = buildDecorations(view);
+      this.lastSyntaxTree = syntaxTree(view.state);
 
       // Track IME composition state. Using DOM listeners is reliable across platforms.
       view.dom.addEventListener("compositionstart", this.onCompositionStart, {
@@ -550,6 +556,7 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
       requestAnimationFrame(() => {
         try {
           this.decorations = buildDecorations(this.view);
+          this.lastSyntaxTree = syntaxTree(this.view.state);
         } catch {
           // Ignore errors if view was destroyed mid-frame
         }
@@ -569,13 +576,19 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
       const newFocused = update.state.facet(isFocusedFacet);
       const facetChanged = oldFocused !== newFocused;
 
+      const newTree = syntaxTree(update.state);
+      const treeChanged = newTree !== this.lastSyntaxTree;
+
+      // Only rebuild decorations if content, viewport, selection, facet, or syntax tree changed
       if (
         update.docChanged ||
         update.viewportChanged ||
         update.selectionSet ||
-        facetChanged
+        facetChanged ||
+        treeChanged
       ) {
         this.decorations = buildDecorations(update.view);
+        this.lastSyntaxTree = newTree;
       }
     }
 
@@ -855,7 +868,8 @@ export const hybridRenderingTheme = EditorView.theme({
     padding: "0 2px",
     borderRadius: "4px",
     background: "color-mix(in srgb, var(--color-accent), transparent 82%)",
-    boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-accent), transparent 65%)",
+    boxShadow:
+      "inset 0 0 0 1px color-mix(in srgb, var(--color-accent), transparent 65%)",
   },
 
   // Embed subtree widget container (read-only)

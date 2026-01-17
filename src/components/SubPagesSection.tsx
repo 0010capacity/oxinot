@@ -1,10 +1,10 @@
-import { useComputedColorScheme } from "@mantine/core";
 import { useMemo, useState } from "react";
 import { useBlockStore } from "../stores/blockStore";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { BulletPoint } from "./common/BulletPoint";
 import { CollapseToggle } from "./common/CollapseToggle";
+import "./SubPagesSection.css";
 
 interface SubPagesSectionProps {
   currentPageId: string;
@@ -18,9 +18,6 @@ interface PageTreeNode {
 }
 
 export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
-  const computedColorScheme = useComputedColorScheme("light");
-  const isDark = computedColorScheme === "dark";
-
   const pagesById = usePageStore((state) => state.pagesById);
   const pageIds = usePageStore((state) => state.pageIds);
   const { openNote } = useViewStore();
@@ -96,24 +93,9 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
       return (
         <div key={node.id}>
           <div
+            className="page-tree-item"
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
               paddingLeft: `${depth * 24}px`,
-              paddingTop: "4px",
-              paddingBottom: "4px",
-              cursor: "pointer",
-              borderRadius: "4px",
-              transition: "background-color 0.15s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = isDark
-                ? "rgba(255, 255, 255, 0.05)"
-                : "rgba(0, 0, 0, 0.03)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
             }}
           >
             {/* Collapse toggle */}
@@ -126,7 +108,7 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
                 }}
               />
             ) : (
-              <div style={{ width: "16px", flexShrink: 0 }} />
+              <div className="page-tree-item-toggle" />
             )}
 
             {/* Bullet point */}
@@ -136,18 +118,9 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
             <button
               type="button"
               onClick={() => handlePageClick(node.id)}
-              style={{
-                fontSize: "15px",
-                color: isDark
-                  ? "rgba(255, 255, 255, 0.85)"
-                  : "rgba(0, 0, 0, 0.85)",
-                fontWeight: node.isDirectory ? 500 : 400,
-                userSelect: "none",
-                cursor: "pointer",
-                border: "none",
-                background: "none",
-                padding: "0",
-              }}
+              className={`page-tree-item-title ${
+                node.isDirectory ? "directory" : ""
+              }`}
             >
               {node.title}
             </button>
@@ -155,7 +128,9 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
 
           {/* Render children recursively */}
           {hasChildren && !isCollapsed && (
-            <div>{renderPageTree(node.children, depth + 1)}</div>
+            <div className="page-tree-children">
+              {renderPageTree(node.children, depth + 1)}
+            </div>
           )}
         </div>
       );
@@ -167,35 +142,10 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
   }
 
   return (
-    <div
-      style={{
-        marginTop: "48px",
-        paddingTop: "24px",
-        borderTop: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
-      }}
-    >
-      <div
-        style={{
-          fontSize: "13px",
-          fontWeight: 600,
-          color: isDark ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)",
-          marginBottom: "12px",
-          textTransform: "uppercase",
-          letterSpacing: "0.5px",
-        }}
-      >
-        Subpages
-      </div>
+    <div className="subpages-container">
+      <div className="subpages-header">Subpages</div>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "2px",
-        }}
-      >
-        {renderPageTree(childPages)}
-      </div>
+      <div className="subpages-list">{renderPageTree(childPages)}</div>
     </div>
   );
 }

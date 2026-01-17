@@ -47,7 +47,7 @@ const fontStacks: Record<FontFamily, string> = {
 export const useThemeStore = createWithEqualityFn<ThemeState>()(
   persist(
     (set, get) => ({
-      colorVariant: "indigo",
+      colorVariant: "blue",
       setColorVariant: (variant) => set({ colorVariant: variant }),
       fontFamily: "system",
       setFontFamily: (font) => set({ fontFamily: font }),
@@ -59,18 +59,33 @@ export const useThemeStore = createWithEqualityFn<ThemeState>()(
     }),
     {
       name: "theme-settings",
-      version: 1, // Increment version when schema changes
-      migrate: (persistedState: any, version) => {
-        if (version === 0) {
-          // If the old state had 'colorVariant: "default"', update it to 'indigo'
-          if (persistedState && persistedState.colorVariant === "default") {
-            persistedState.colorVariant = "indigo";
-          }
+      version: 1,
+      migrate: (persistedState: unknown) => {
+        // Handle old "default" variant and convert to "blue" (new default)
+        const validVariants = ["indigo", "blue", "purple", "green", "amber"];
+        const state = persistedState as
+          | Record<string, unknown>
+          | null
+          | undefined;
+
+        if (!state || typeof state !== "object") {
+          return persistedState;
         }
+
+        // Fix invalid or deprecated colorVariant
+        const colorVariant = state.colorVariant;
+        if (
+          colorVariant === "default" ||
+          typeof colorVariant !== "string" ||
+          !validVariants.includes(colorVariant)
+        ) {
+          state.colorVariant = "blue";
+        }
+
         return persistedState;
       },
-    },
-  ),
+    }
+  )
 );
 
 export type { ColorVariant };

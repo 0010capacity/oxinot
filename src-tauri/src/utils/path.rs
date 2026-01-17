@@ -46,9 +46,9 @@ pub fn normalize_page_path(path: &str) -> String {
     }
 }
 
-/// Validates that a path does not contain path traversal sequences.
+/// Validates that a path does not contain path traversal sequences or absolute paths.
 ///
-/// Blocks attempts to escape directories using `..` components.
+/// Blocks attempts to escape directories using `..` components and prevents absolute paths.
 ///
 /// # Arguments
 /// * `path` - The path string to validate
@@ -61,10 +61,19 @@ pub fn normalize_page_path(path: &str) -> String {
 /// ```
 /// assert!(validate_no_path_traversal("folder/file.md", "path").is_ok());
 /// assert!(validate_no_path_traversal("../etc/passwd", "path").is_err());
+/// assert!(validate_no_path_traversal("/etc/passwd", "path").is_err());
 /// ```
 pub fn validate_no_path_traversal(path: &str, param_name: &str) -> Result<(), String> {
     if path.is_empty() {
         return Err(format!("{} must not be empty", param_name));
+    }
+
+    // Check for absolute paths (both Unix and Windows)
+    if path.starts_with('/') || path.starts_with('\\') || PathBuf::from(path).is_absolute() {
+        return Err(format!(
+            "{} must be a relative path, not an absolute path",
+            param_name
+        ));
     }
 
     // Check for explicit .. components
@@ -80,28 +89,49 @@ pub fn validate_no_path_traversal(path: &str, param_name: &str) -> Result<(), St
 
 /// Validates that a path is contained within a workspace directory.
 ///
-/// Ensures the resolved absolute path stays within the workspace boundaries.
+/// Ensures the resolved absolute path stays within the workspace boundaries
+/// using canonicalization to prevent symlink and path traversal attacks.
 ///
 /// # Arguments
-/// * `workspace_path` - The workspace root directory
-/// * `target_path` - The path to validate
+/// * `workspace_path` - The workspace root directory (must exist)
+/// * `target_path` - The path to validate (can be relative to workspace)
 ///
 /// # Returns
 /// `Ok(())` if the path is contained within workspace, `Err(String)` otherwise.
+///
+/// # Security
+/// This function uses `canonicalize()` to resolve all symlinks and `..` sequences,
+/// providing defense against:
+/// - Path traversal attacks using `..` sequences
+/// - Symlink-based escape attempts
+/// - Relative path manipulation
 pub fn validate_workspace_containment(
     workspace_path: &str,
     target_path: &str,
 ) -> Result<(), String> {
+    // Reject absolute paths immediately
+    if target_path.starts_with('/')
+        || target_path.starts_with('\\')
+        || PathBuf::from(target_path).is_absolute()
+    {
+        return Err("Target path must be relative to workspace, not absolute".to_string());
+    }
+
     let workspace = PathBuf::from(workspace_path)
         .canonicalize()
-        .map_err(|e| format!("Invalid workspace path: {}", e))?;
+        .map_err(|e| format!("Workspace path does not exist or cannot be accessed: {}", e))?;
 
-    let target = PathBuf::from(target_path)
+    // For target path, first try to resolve it relative to the workspace
+    let full_target_path = workspace.join(target_path);
+
+    // Canonicalize the full path to resolve symlinks and .. sequences
+    let target = full_target_path
         .canonicalize()
-        .map_err(|e| format!("Invalid target path: {}", e))?;
+        .map_err(|e| format!("Target path does not exist or cannot be accessed: {}", e))?;
 
+    // Verify the canonicalized target is within the workspace
     if !target.starts_with(&workspace) {
-        return Err("Path is outside workspace boundaries".to_string());
+        return Err("Resolved path is outside workspace boundaries".to_string());
     }
 
     Ok(())
@@ -256,5 +286,24 @@ mod tests {
     #[test]
     fn test_validate_filename_empty() {
         assert!(validate_filename("").is_err());
+    }
+
+    #[test]
+    fn test_validate_no_path_traversal_absolute_unix() {
+        assert!(validate_no_path_traversal("/etc/passwd", "path").is_err());
+        assert!(validate_no_path_traversal("/home/user/file.md", "path").is_err());
+    }
+
+    #[test]
+    fn test_validate_no_path_traversal_absolute_windows() {
+        assert!(validate_no_path_traversal("\\etc\\passwd", "path").is_err());
+        assert!(validate_no_path_traversal("C:\\Users\\file.md", "path").is_err());
+    }
+
+    #[test]
+    fn test_validate_no_path_traversal_relative_valid() {
+        assert!(validate_no_path_traversal("folder/file.md", "path").is_ok());
+        assert!(validate_no_path_traversal("a/b/c/file.md", "path").is_ok());
+        assert!(validate_no_path_traversal("file.md", "path").is_ok());
     }
 }

@@ -25,7 +25,6 @@
     }
   },
   "plugins": {
-    "fs": {},
     "updater": {
       "active": true,
       "endpoints": [
@@ -56,7 +55,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://github.com; font-src 'self' data:;"
+      "csp": "default-src 'self'; img-src 'self' asset: https: data:; style-src 'self'; script-src 'self'; connect-src 'self' https://github.com; font-src 'self' data:;"
     },
     "withGlobalTauri": false
   }

@@ -40,7 +40,17 @@ export function createColorPalette(
   scheme: "dark" | "light",
   variant: keyof typeof COLOR_VARIANTS
 ): ColorPalette {
-  const variantColors = COLOR_VARIANTS[variant];
+  // Fallback to blue if invalid variant
+  const validVariant = variant in COLOR_VARIANTS ? variant : ("blue" as const);
+  const variantColors = COLOR_VARIANTS[validVariant];
+
+  if (!variantColors) {
+    throw new Error(
+      `Invalid color variant: ${String(variant)}. Must be one of: ${Object.keys(
+        COLOR_VARIANTS
+      ).join(", ")}`
+    );
+  }
 
   if (scheme === "dark") {
     return {

@@ -10,7 +10,7 @@ pub mod models;
 pub mod services;
 pub mod utils;
 
-use utils::path::{validate_filename, validate_no_path_traversal};
+use utils::path::{validate_filename, validate_no_path_traversal, validate_workspace_containment};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileSystemItem {
@@ -61,7 +61,7 @@ fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, String> {
 
 #[tauri::command]
 fn read_directory(dir_path: String) -> Result<Vec<FileSystemItem>, String> {
-    // Validate input
+    // Validate input - reject absolute paths and path traversal
     validate_no_path_traversal(&dir_path, "dir_path")?;
 
     let entries = fs::read_dir(&dir_path).map_err(|e| format!("Error reading directory: {}", e))?;
@@ -107,7 +107,7 @@ fn read_directory(dir_path: String) -> Result<Vec<FileSystemItem>, String> {
 
 #[tauri::command]
 fn read_file(file_path: String) -> Result<String, String> {
-    // Validate input
+    // Validate input - reject absolute paths and path traversal
     validate_no_path_traversal(&file_path, "file_path")?;
 
     fs::read_to_string(&file_path).map_err(|e| format!("Error reading file: {}", e))
@@ -115,7 +115,7 @@ fn read_file(file_path: String) -> Result<String, String> {
 
 #[tauri::command]
 fn write_file(file_path: String, content: String) -> Result<bool, String> {
-    // Validate input
+    // Validate input - reject absolute paths and path traversal
     validate_no_path_traversal(&file_path, "file_path")?;
 
     fs::write(&file_path, content).map_err(|e| format!("Error writing file: {}", e))?;
@@ -124,7 +124,7 @@ fn write_file(file_path: String, content: String) -> Result<bool, String> {
 
 #[tauri::command]
 fn create_file(dir_path: String, file_name: String) -> Result<String, String> {
-    // Validate inputs
+    // Validate inputs - reject absolute paths and path traversal
     validate_no_path_traversal(&dir_path, "dir_path")?;
     validate_filename(&file_name)?;
 
@@ -144,7 +144,7 @@ fn create_file(dir_path: String, file_name: String) -> Result<String, String> {
 
 #[tauri::command]
 fn create_directory(parent_path: String, dir_name: String) -> Result<String, String> {
-    // Validate inputs
+    // Validate inputs - reject absolute paths and path traversal
     validate_no_path_traversal(&parent_path, "parent_path")?;
     validate_filename(&dir_name)?;
 
@@ -167,7 +167,7 @@ fn create_directory(parent_path: String, dir_name: String) -> Result<String, Str
 
 #[tauri::command]
 fn delete_path(target_path: String) -> Result<bool, String> {
-    // Validate input
+    // Validate input - reject absolute paths
     validate_no_path_traversal(&target_path, "target_path")?;
 
     let path = Path::new(&target_path);
@@ -184,9 +184,11 @@ fn delete_path(target_path: String) -> Result<bool, String> {
 
 #[tauri::command]
 fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bool, String> {
-    // Validate inputs
+    // Validate workspace path exists
     validate_no_path_traversal(&workspace_path, "workspace_path")?;
-    validate_no_path_traversal(&target_path, "target_path")?;
+
+    // Validate target path is within workspace boundaries using canonicalization
+    validate_workspace_containment(&workspace_path, &target_path)?;
 
     let conn = commands::workspace::open_workspace_db(&workspace_path)
         .map_err(|e| format!("Failed to open workspace database: {}", e))?;
@@ -214,13 +216,20 @@ fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bo
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // Step 1: Mark pages as deleting (soft delete)
+    // Start database transaction for atomicity
+    conn.execute("BEGIN TRANSACTION", [])
+        .map_err(|e| e.to_string())?;
+
+    // Step 1: Mark pages as deleting (soft delete) to indicate deletion is in progress
     for page_id in page_ids.iter() {
         conn.execute(
             "UPDATE pages SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             [page_id],
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            let _ = conn.execute("ROLLBACK", []);
+            e.to_string()
+        })?;
     }
 
     // Step 2: Delete from filesystem
@@ -240,23 +249,26 @@ fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bo
     // Step 3: Handle result
     match delete_result {
         Ok(()) => {
-            // Filesystem deletion succeeded, now delete from DB
+            // Filesystem deletion succeeded, now permanently delete from DB within transaction
             for page_id in page_ids {
                 conn.execute("DELETE FROM pages WHERE id = ?", [&page_id])
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| {
+                        let _ = conn.execute("ROLLBACK", []);
+                        e.to_string()
+                    })?;
             }
+
+            // Commit the transaction
+            conn.execute("COMMIT", []).map_err(|e| e.to_string())?;
+
             Ok(true)
         }
         Err(e) => {
-            // Filesystem deletion failed, revert soft delete flag
-            for page_id in page_ids.iter() {
-                let _ = conn.execute(
-                    "UPDATE pages SET is_deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                    [page_id],
-                );
-            }
+            // Filesystem deletion failed, rollback all DB changes
+            let _ = conn.execute("ROLLBACK", []);
+
             Err(format!(
-                "Failed to delete from filesystem, reverted DB changes: {}",
+                "Failed to delete from filesystem, all changes rolled back: {}",
                 e
             ))
         }
@@ -265,7 +277,7 @@ fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bo
 
 #[tauri::command]
 fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
-    // Validate inputs
+    // Validate inputs - reject absolute paths and path traversal
     validate_no_path_traversal(&old_path, "old_path")?;
     validate_filename(&new_name)?;
 
@@ -282,7 +294,7 @@ fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
 
 #[tauri::command]
 fn move_path(source_path: String, target_parent_path: String) -> Result<String, String> {
-    // Validate inputs
+    // Validate inputs - reject absolute paths and path traversal
     validate_no_path_traversal(&source_path, "source_path")?;
     validate_no_path_traversal(&target_parent_path, "target_parent_path")?;
 
@@ -305,7 +317,7 @@ fn move_path(source_path: String, target_parent_path: String) -> Result<String, 
 
 #[tauri::command]
 fn convert_file_to_directory(file_path: String) -> Result<String, String> {
-    // Validate input
+    // Validate input - reject absolute paths and path traversal
     validate_no_path_traversal(&file_path, "file_path")?;
 
     let file = Path::new(&file_path);
@@ -339,7 +351,7 @@ fn convert_file_to_directory(file_path: String) -> Result<String, String> {
 
 #[tauri::command]
 fn get_path_info(target_path: String) -> Result<PathInfo, String> {
-    // Validate input
+    // Validate input - reject absolute paths and path traversal
     validate_no_path_traversal(&target_path, "target_path")?;
 
     let metadata =

@@ -65,10 +65,6 @@ export function ThemeSettings({
                 onChange={(value) => setColorVariant(value as ColorVariant)}
                 data={[
                   {
-                    label: t("settings.theme.variants.default"),
-                    value: "default",
-                  },
-                  {
                     label: t("settings.theme.variants.blue"),
                     value: "blue",
                   },

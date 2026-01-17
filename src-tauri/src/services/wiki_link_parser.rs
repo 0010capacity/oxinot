@@ -82,8 +82,7 @@ pub fn parse_wiki_links(content: &str) -> Vec<ParsedLink> {
 }
 
 fn mask_code_blocks(content: &str) -> String {
-    let chars: Vec<char> = content.chars().collect();
-    let mut result_chars = chars.clone();
+    let mut chars: Vec<char> = content.chars().collect();
 
     let mut i = 0;
     while i < chars.len() {
@@ -97,13 +96,13 @@ fn mask_code_blocks(content: &str) -> String {
                     i += 3; // Skip closing
                     break;
                 }
-                result_chars[i] = ' ';
+                chars[i] = ' ';
                 i += 1;
             }
             // Mask everything including delimiters to avoid false matches
             for j in start..i {
-                if j < result_chars.len() {
-                    result_chars[j] = ' ';
+                if j < chars.len() {
+                    chars[j] = ' ';
                 }
             }
         } else if chars[i] == '`' {
@@ -115,12 +114,12 @@ fn mask_code_blocks(content: &str) -> String {
                     i += 1;
                     break;
                 }
-                result_chars[i] = ' ';
+                chars[i] = ' ';
                 i += 1;
             }
             for j in start..i {
-                if j < result_chars.len() {
-                    result_chars[j] = ' ';
+                if j < chars.len() {
+                    chars[j] = ' ';
                 }
             }
         } else {
@@ -128,7 +127,7 @@ fn mask_code_blocks(content: &str) -> String {
         }
     }
 
-    result_chars.into_iter().collect()
+    chars.into_iter().collect()
 }
 
 fn normalize_target_path(raw: &str) -> String {
