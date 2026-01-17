@@ -113,6 +113,36 @@
   background-color: var(--color-bullet-active);
 }
 
+/* Dark mode explicit styles to ensure visibility */
+@media (prefers-color-scheme: dark) {
+  .block-bullet {
+    background-color: rgba(255, 255, 255, 0.4);
+  }
+
+  .block-bullet-wrapper:hover .block-bullet {
+    background-color: rgba(255, 255, 255, 0.7);
+  }
+
+  .block-row:has(.block-editor .cm-focused) .block-bullet {
+    background-color: rgba(255, 255, 255, 1);
+  }
+}
+
+/* Light mode explicit styles */
+@media (prefers-color-scheme: light) {
+  .block-bullet {
+    background-color: rgba(0, 0, 0, 0.25);
+  }
+
+  .block-bullet-wrapper:hover .block-bullet {
+    background-color: rgba(0, 0, 0, 0.55);
+  }
+
+  .block-row:has(.block-editor .cm-focused) .block-bullet {
+    background-color: rgba(0, 0, 0, 0.8);
+  }
+}
+
 /* Content Wrapper */
 .block-content-wrapper {
   flex: 1;

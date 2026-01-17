@@ -1,5 +1,5 @@
 export type ColorScheme = "dark" | "light";
-export type ColorVariant = "default" | "blue" | "purple" | "green" | "amber";
+export type ColorVariant = "indigo" | "blue" | "purple" | "green" | "amber";
 
 export interface Theme {
   scheme: ColorScheme;
@@ -11,6 +11,7 @@ export interface Theme {
 }
 
 export interface ColorPalette {
+  [key: string]: unknown; // Changed from any to unknown
   // Background colors
   bg: {
     primary: string;
@@ -59,6 +60,7 @@ export interface ColorPalette {
 }
 
 export interface Spacing {
+  [key: string]: unknown; // Changed from any to unknown
   xs: string;
   sm: string;
   md: string;
@@ -68,6 +70,7 @@ export interface Spacing {
 }
 
 export interface Typography {
+  [key: string]: unknown; // Changed from any to unknown
   fontFamily: string;
   monoFontFamily: string;
   fontSize: {
@@ -85,6 +88,7 @@ export interface Typography {
 }
 
 export interface Radius {
+  [key: string]: unknown; // Changed from any to unknown
   sm: string;
   md: string;
   lg: string;

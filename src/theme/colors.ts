@@ -2,7 +2,7 @@ import type { ColorPalette } from "./types";
 
 // Define base color palettes for each variant
 export const COLOR_VARIANTS = {
-  default: {
+  indigo: {
     accent: "#7c3aed",
     accentHover: "#8b9dff",
   },
@@ -54,27 +54,27 @@ export function createColorPalette(
         primary: "#f0f0f2",
         secondary: "#d4d4d8",
         tertiary: "#a1a1a6",
-        link: "#8b9dff",
+        link: variantColors.accentHover,
       },
       border: {
         primary: "rgba(255, 255, 255, 0.12)",
         secondary: "rgba(255, 255, 255, 0.08)",
-        focus: "#7c3aed",
+        focus: variantColors.accent,
       },
       interactive: {
         hover: "rgba(255, 255, 255, 0.1)",
         active: "rgba(255, 255, 255, 0.15)",
-        selected: "rgba(124, 58, 237, 0.2)",
-        focus: "rgba(124, 58, 237, 0.3)",
+        selected: `rgba(${hexToRgb(variantColors.accent)}, 0.2)`,
+        focus: `rgba(${hexToRgb(variantColors.accent)}, 0.3)`,
       },
-      accent: "#7c3aed",
+      accent: variantColors.accent,
       success: "#10b981",
       warning: "#f59e0b",
       error: "#ff6b6b",
       bullet: {
-        default: "rgba(255, 255, 255, 0.35)",
-        hover: "rgba(255, 255, 255, 0.65)",
-        active: "rgba(255, 255, 255, 0.9)",
+        default: "rgba(255, 255, 255, 0.4)",
+        hover: "rgba(255, 255, 255, 0.7)",
+        active: "rgba(255, 255, 255, 1)",
       },
       indentGuide: "rgba(255, 255, 255, 0.08)",
     };
@@ -91,20 +91,20 @@ export function createColorPalette(
       primary: "#1a1a1a",
       secondary: "#3a3a3a",
       tertiary: "#7a7a7e",
-      link: "#5b63f5",
+      link: variantColors.accent,
     },
     border: {
       primary: "rgba(0, 0, 0, 0.08)",
       secondary: "rgba(0, 0, 0, 0.05)",
-      focus: "#6366f1",
+      focus: variantColors.accent,
     },
     interactive: {
       hover: "rgba(0, 0, 0, 0.04)",
       active: "rgba(0, 0, 0, 0.08)",
-      selected: "rgba(99, 102, 241, 0.12)",
-      focus: "rgba(99, 102, 241, 0.2)",
+      selected: `rgba(${hexToRgb(variantColors.accent)}, 0.12)`,
+      focus: `rgba(${hexToRgb(variantColors.accent)}, 0.2)`,
     },
-    accent: "#6366f1",
+    accent: variantColors.accent,
     success: "#059669",
     warning: "#d97706",
     error: "#dc2626",
