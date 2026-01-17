@@ -222,10 +222,24 @@ export function FileTreeIndex() {
               "[FileTreeIndex.handleMouseUp] Page moved to root successfully"
             );
           } catch (error) {
+            const errorMessage = String(error);
             console.error(
               "[FileTreeIndex.handleMouseUp] Failed to move page:",
               error
             );
+
+            // Silently ignore validation errors (invalid move operations)
+            if (
+              errorMessage.includes("Cannot move page to itself") ||
+              errorMessage.includes("Cannot move page to its own descendant")
+            ) {
+              console.log(
+                "[FileTreeIndex.handleMouseUp] Invalid move operation ignored"
+              );
+              return;
+            }
+
+            // Show alert for actual errors
             alert(`Failed to move page: ${error}`);
           }
         } else if (dragOverPageId && draggedPageId !== dragOverPageId) {
@@ -270,10 +284,24 @@ export function FileTreeIndex() {
               "[FileTreeIndex.handleMouseUp] Page moved successfully"
             );
           } catch (error) {
+            const errorMessage = String(error);
             console.error(
               "[FileTreeIndex.handleMouseUp] Failed to move page:",
               error
             );
+
+            // Silently ignore validation errors (invalid move operations)
+            if (
+              errorMessage.includes("Cannot move page to itself") ||
+              errorMessage.includes("Cannot move page to its own descendant")
+            ) {
+              console.log(
+                "[FileTreeIndex.handleMouseUp] Invalid move operation ignored"
+              );
+              return;
+            }
+
+            // Show alert for actual errors
             alert(`Failed to move page: ${error}`);
           }
         } else {
