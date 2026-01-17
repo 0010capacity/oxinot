@@ -102,7 +102,7 @@ pub async fn create_page(
     };
 
     // Update file_path in database
-    conn.execute(
+    tx.execute(
         "UPDATE pages SET file_path = :file_path WHERE id = :id",
         named_params! {
             ":file_path": &file_path,
