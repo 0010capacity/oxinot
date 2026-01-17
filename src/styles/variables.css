@@ -1,100 +1,17 @@
 /* CSS Custom Properties - Theme Variables */
-/* These are fallback values, overridden by ThemeProvider */
+/* All active theme variables are dynamically set by ThemeProvider.tsx. */
+/* These are placeholder/fallback definitions to ensure variables are recognized. */
 
 :root {
-  /* Background Colors - Improved dark mode with better contrast */
-  --color-bg-primary: #0f0f0f;
-  --color-bg-secondary: #1a1a1d;
-  --color-bg-tertiary: #3a3a42;
-  --color-bg-elevated: #2a2a30;
+  /* Bullet related variables */
+  --layout-bullet-size: 6px; /* Placeholder */
+  --layout-bullet-container-size: 24px; /* Placeholder */
+  --color-bullet-default: rgba(0, 0, 0, 0.25); /* Placeholder, will be overridden */
+  --color-bullet-hover: rgba(0, 0, 0, 0.55); /* Placeholder, will be overridden */
+  --color-bullet-active: rgba(0, 0, 0, 0.8); /* Placeholder, will be overridden */
 
-  /* Text Colors - Enhanced contrast for readability */
-  --color-text-primary: #f0f0f2;
-  --color-text-secondary: #d4d4d8;
-  --color-text-tertiary: #a1a1a6;
-  --color-text-link: #8b9dff;
-
-  /* Border Colors - Better visibility */
-  --color-border-primary: rgba(255, 255, 255, 0.12);
-  --color-border-secondary: rgba(255, 255, 255, 0.08);
-  --color-border-focus: #7c3aed;
-
-  /* Interactive Colors - Refined for consistency */
-  --color-interactive-hover: rgba(255, 255, 255, 0.1);
-  --color-interactive-active: rgba(255, 255, 255, 0.15);
-  --color-interactive-selected: rgba(124, 58, 237, 0.2);
-  --color-interactive-focus: rgba(124, 58, 237, 0.3);
-
-  /* Semantic Colors - Adjusted for dark mode visibility */
-  --color-accent: #7c3aed;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ff6b6b;
-
-  /* Component-Specific Colors - Better visual hierarchy */
-  --color-bullet-default: rgba(255, 255, 255, 0.35);
-  --color-bullet-hover: rgba(255, 255, 255, 0.65);
-  --color-bullet-active: rgba(255, 255, 255, 0.9);
-  --color-indent-guide: rgba(255, 255, 255, 0.08);
-
-  /* Spacing */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  --spacing-xxl: 48px;
-
-  /* Typography */
-  --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  --font-family-mono: "SF Mono", "Monaco", "Menlo", "Consolas", monospace;
-  --font-size-xs: 12px;
-  --font-size-sm: 14px;
-  --font-size-md: 16px;
-  --font-size-lg: 18px;
-  --font-size-xl: 24px;
-  --line-height-tight: 1.3;
-  --line-height-normal: 1.5;
-  --line-height-relaxed: 1.6;
-
-  /* Editor Settings - Dynamic */
-  --editor-font-size: 16px;
-  --editor-line-height: 1.6;
-
-  /* Border Radius */
-  --radius-sm: 3px;
-  --radius-md: 6px;
-  --radius-lg: 12px;
-
-  /* Layout */
-  --layout-max-content-width: 800px;
-  --layout-container-padding: 40px 20px;
-  --layout-container-padding-mobile: 20px 12px;
-
-  /* Reduce excessive bottom padding so short notes don't "overscroll" into empty space */
-  --layout-content-bottom-padding: 80px;
-
-  --layout-title-bar-height: 44px;
-  --layout-bullet-size: 6px;
-  --layout-bullet-container-size: 24px;
-  --layout-collapse-toggle-size: 20px;
-  --layout-indent-size: 24px;
-
-  /* Transitions */
-  --transition-fast: 0.1s ease;
-  --transition-normal: 0.15s ease;
-  --transition-slow: 0.2s ease;
-
-  /* Opacity */
-  --opacity-disabled: 0.3;
-  --opacity-dimmed: 0.5;
-  --opacity-hover: 0.6;
-  --opacity-active: 0.85;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2),
-    0 2px 4px -1px rgba(0, 0, 0, 0.12);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+  /*
+  Other variables (spacing, typography, colors, etc.) are injected dynamically.
+  This file should primarily contain default/fallback values or variable declarations.
+  */
 }
