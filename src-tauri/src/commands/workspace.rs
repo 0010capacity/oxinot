@@ -80,9 +80,10 @@ pub fn open_workspace_db(workspace_path: &str) -> Result<Connection, String> {
     })?;
 
     // Enable WAL mode for better concurrency
-    conn.execute("PRAGMA journal_mode = WAL", []).map_err(|e| {
-        OxinotError::database(format!("Failed to enable WAL mode: {}", e)).to_string()
-    })?;
+    conn.execute_batch("PRAGMA journal_mode = WAL")
+        .map_err(|e| {
+            OxinotError::database(format!("Failed to enable WAL mode: {}", e)).to_string()
+        })?;
 
     // Initialize schema
     crate::db::schema::init_schema(&conn).map_err(|e| {
@@ -367,13 +368,13 @@ fn sync_directory(
         let metadata = entry
             .metadata()
             .map_err(|e| format!("Error reading metadata: {}", e))?;
-        
+
         // Also check for symlinks explicitly if we want to skip them
         let symlink_metadata = entry
-             .path()
-             .symlink_metadata()
-             .map_err(|e| format!("Error reading symlink metadata: {}", e))?;
-        
+            .path()
+            .symlink_metadata()
+            .map_err(|e| format!("Error reading symlink metadata: {}", e))?;
+
         if symlink_metadata.is_symlink() {
             println!("[sync_directory] Skipping symlink: {:?}", path);
             continue;
