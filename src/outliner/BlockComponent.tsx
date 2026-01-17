@@ -903,13 +903,16 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 toggleBlockSelection(blockId);
               }
               // Handle range select with Shift + Click
-              else if (
-                e.shiftKey &&
-                lastSelectedBlockId &&
-                blockOrder.length > 0
-              ) {
+              else if (e.shiftKey && blockOrder.length > 0) {
                 e.stopPropagation();
-                selectBlockRange(lastSelectedBlockId, blockId, blockOrder);
+                // Use lastSelectedBlockId or focusedBlockId as anchor
+                const anchorBlockId = lastSelectedBlockId || focusedBlockId;
+                if (anchorBlockId && anchorBlockId !== blockId) {
+                  selectBlockRange(anchorBlockId, blockId, blockOrder);
+                } else {
+                  // No anchor or same block, just select this block
+                  useBlockUIStore.getState().setSelectedBlocks([blockId]);
+                }
               }
               // Clear selection on regular click without modifiers
               else if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
