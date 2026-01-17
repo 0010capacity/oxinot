@@ -63,7 +63,9 @@ export const useGitManagement = (
   useEffect(() => {
     if (!workspacePath || !isGitRepo) return;
 
-    const unlistenPromise = listen<string>("workspace-changed", (event) => {
+    let unlisten: (() => void) | null = null;
+
+    listen<string>("workspace-changed", (event) => {
       // Only check status if the changed workspace matches our current workspace
       if (event.payload === workspacePath) {
         checkGitStatus(workspacePath).catch((error) => {
@@ -73,10 +75,21 @@ export const useGitManagement = (
           );
         });
       }
-    });
+    })
+      .then((unlistenFn) => {
+        unlisten = unlistenFn;
+      })
+      .catch((error) => {
+        console.error(
+          "[useGitManagement] Failed to setup workspace-changed listener:",
+          error
+        );
+      });
 
     return () => {
-      unlistenPromise.then((unlisten) => unlisten());
+      if (unlisten) {
+        unlisten();
+      }
     };
   }, [workspacePath, isGitRepo, checkGitStatus]);
 

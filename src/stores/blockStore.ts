@@ -155,9 +155,19 @@ export const useBlockStore = create<BlockStore>()(
           });
         }
       } catch (error) {
+        console.error(
+          `[blockStore] Failed to load page ${pageId}:`,
+          error,
+          "Workspace:",
+          useWorkspaceStore.getState().workspacePath
+        );
         set((state) => {
           state.error =
-            error instanceof Error ? error.message : "Failed to load page";
+            typeof error === "string"
+              ? error
+              : error instanceof Error
+              ? error.message
+              : "Failed to load page";
           state.isLoading = false;
         });
       }
