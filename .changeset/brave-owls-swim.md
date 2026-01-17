@@ -1,0 +1,27 @@
+---
+"oxinot": minor
+---
+
+- replace native confirm with Mantine Modal for workspace deletion
+- optimize query execution to solve N+1 problem
+- implement fractional index rebalancing
+- optimize wiki link reindexing with batch resolution
+- add keyboard navigation to file tree items
+- correct WAL mode PRAGMA execution
+- correct WAL mode PRAGMA execution in open_workspace_db
+- implement advanced FTS5 full-text search with ranking (#436)
+- implement multi-block selection and batch operations
+- implement Shift+Arrow key selection at document level
+- revert block-row to div to fix nested button issue
+- improve keyboard selection and click behavior
+- remove draftRef usage to prevent hook errors
+- remove useMemo call inside commitDraft function
+- enhance multi-block selection UX
+- enable Shift+Click without prior Ctrl selection
+- support cross-depth range selection
+- use fixed anchor for Shift+Arrow keyboard selection
+- enable cross-depth keyboard navigation with Shift+Arrow
+- propagate blockOrder to all child components
+- clear selection on arrow key navigation without Shift
+- implement multi-block copy with markdown formatting
+- fix text selection copy in context menu
