@@ -329,8 +329,57 @@ pub async fn get_page_blocks(
     workspace_path: String,
     page_id: String,
 ) -> Result<Vec<Block>, String> {
-    let conn = open_workspace_db(&workspace_path)?;
+    let mut conn = open_workspace_db(&workspace_path)?;
 
+    // Check if page exists first
+    let page_exists: bool = conn
+        .query_row("SELECT 1 FROM pages WHERE id = ?", [&page_id], |_| Ok(true))
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or(false);
+
+    if !page_exists {
+        // Return empty blocks for non-existent page instead of error
+        return Ok(Vec::new());
+    }
+
+    // Try to query blocks, and repair if constraint violation occurs
+    loop {
+        // Collect blocks in a separate scope to drop statement before retry
+        let query_result = query_blocks_for_page(&conn, &page_id);
+
+        match query_result {
+            Ok(mut blocks) => {
+                // Load metadata for all blocks in a single query
+                let block_ids: Vec<String> = blocks.iter().map(|b| b.id.clone()).collect();
+                let metadata_map = load_blocks_metadata(&conn, &block_ids)?;
+                for block in &mut blocks {
+                    block.metadata = metadata_map.get(&block.id).cloned().unwrap_or_default();
+                }
+
+                return Ok(blocks);
+            }
+            Err(e) => {
+                if e.contains("FOREIGN KEY constraint") {
+                    eprintln!(
+                        "[get_page_blocks] FOREIGN KEY constraint failed for page {}: {}",
+                        page_id, e
+                    );
+                    // Perform inline database repair
+                    perform_db_repair(&mut conn)?;
+                    eprintln!("[get_page_blocks] Database repair completed, retrying query");
+                    // Retry the loop
+                    continue;
+                } else {
+                    return Err(e);
+                }
+            }
+        }
+    }
+}
+
+/// Helper function to query blocks for a page (avoids lifetime issues)
+fn query_blocks_for_page(conn: &Connection, page_id: &str) -> Result<Vec<Block>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT id, page_id, parent_id, content, order_weight,
@@ -341,8 +390,8 @@ pub async fn get_page_blocks(
         )
         .map_err(|e| e.to_string())?;
 
-    let mut blocks = stmt
-        .query_map([&page_id], |row| {
+    let rows = stmt
+        .query_map([page_id], |row| {
             Ok(Block {
                 id: row.get(0)?,
                 page_id: row.get(1)?,
@@ -357,18 +406,89 @@ pub async fn get_page_blocks(
                 metadata: HashMap::new(),
             })
         })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
-    // Load metadata for all blocks in a single query
-    let block_ids: Vec<String> = blocks.iter().map(|b| b.id.clone()).collect();
-    let metadata_map = load_blocks_metadata(&conn, &block_ids)?;
-    for block in &mut blocks {
-        block.metadata = metadata_map.get(&block.id).cloned().unwrap_or_default();
-    }
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
 
-    Ok(blocks)
+/// Helper function to repair database integrity
+fn perform_db_repair(conn: &mut Connection) -> Result<(), String> {
+    let tx = conn
+        .transaction()
+        .map_err(|e| format!("Failed to start repair transaction: {}", e))?;
+
+    // 1. Delete blocks with non-existent page_id
+    tx.execute(
+        "DELETE FROM blocks WHERE page_id NOT IN (SELECT id FROM pages)",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // 2. Delete blocks with parent_id that references non-existent block
+    tx.execute(
+        "DELETE FROM blocks WHERE parent_id IS NOT NULL AND parent_id NOT IN (SELECT id FROM blocks)",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // 3. Fix blocks with parent_id in different page (set to NULL)
+    tx.execute(
+        "UPDATE blocks SET parent_id = NULL
+         WHERE parent_id IS NOT NULL
+         AND EXISTS (
+            SELECT 1 FROM blocks b2
+            WHERE parent_id = b2.id AND blocks.page_id != b2.page_id
+         )",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // 4. Clean up orphaned metadata
+    tx.execute(
+        "DELETE FROM block_metadata WHERE block_id NOT IN (SELECT id FROM blocks)",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // 5. Clean up orphaned block_refs
+    tx.execute(
+        "DELETE FROM block_refs
+         WHERE from_block_id NOT IN (SELECT id FROM blocks)
+         OR to_block_id NOT IN (SELECT id FROM blocks)",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // 6. Clean up orphaned wiki_links
+    tx.execute(
+        "DELETE FROM wiki_links
+         WHERE from_page_id NOT IN (SELECT id FROM pages)
+         OR from_block_id NOT IN (SELECT id FROM blocks)",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // 7. Clean up orphaned block_paths
+    tx.execute(
+        "DELETE FROM block_paths
+         WHERE block_id NOT IN (SELECT id FROM blocks)
+         OR page_id NOT IN (SELECT id FROM pages)",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // 8. Clean up orphaned page_paths
+    tx.execute(
+        "DELETE FROM page_paths WHERE page_id NOT IN (SELECT id FROM pages)",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    tx.commit()
+        .map_err(|e| format!("Failed to commit repair transaction: {}", e))?;
+
+    Ok(())
 }
 
 /// Search blocks across the whole workspace DB by content substring.

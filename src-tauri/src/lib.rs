@@ -31,7 +31,7 @@ pub struct PathInfo {
 }
 
 #[tauri::command]
-fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, String> {
+async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
 
     let folder = app
@@ -448,6 +448,7 @@ pub fn run() {
             // DB maintenance commands
             commands::db::vacuum_db,
             commands::db::optimize_db,
+            commands::db::repair_db,
             // Search commands
             commands::search::search_content,
             // Git commands

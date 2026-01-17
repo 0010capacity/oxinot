@@ -233,6 +233,11 @@ export const tauriAPI = {
     validatePath(workspacePath, "workspacePath");
     return await invoke<void>("optimize_db", { workspacePath });
   },
+
+  repairDb: async (workspacePath: string): Promise<string> => {
+    validatePath(workspacePath, "workspacePath");
+    return await invoke<string>("repair_db", { workspacePath });
+  },
 };
 
 // Export validation utilities for use in other modules
