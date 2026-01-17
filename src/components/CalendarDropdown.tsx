@@ -1,4 +1,4 @@
-import { ActionIcon, Box, Button, Stack, Text } from "@mantine/core";
+import { ActionIcon, Box, Stack, Text } from "@mantine/core";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
