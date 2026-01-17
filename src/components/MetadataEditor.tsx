@@ -180,6 +180,8 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
 
   const addItem = () => {
     const newId = `${blockUuid}-${items.length}`;
+    // New items always start with "text" type
+    // Type auto-detection only happens on user input
     setItems([...items, { id: newId, key: "", value: "", type: "text" }]);
     setTimeout(() => {
       keyRefs.current[items.length]?.focus({ preventScroll: true });
@@ -210,16 +212,18 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
     value: string,
   ) => {
     const newItems = [...items];
-    let type = newItems[index].type;
+    const currentItem = newItems[index];
 
-    if (field === "value") {
+    // Only auto-detect type when:
+    // 1. Field is "value" (not key)
+    // 2. Current type is "text" (user hasn't explicitly selected a type)
+    // Do NOT override user's explicit type selection
+    if (field === "value" && currentItem.type === "text") {
       const guessed = guessType(value);
-      if (guessed !== "text" && type === "text") {
-        type = guessed;
-      }
+      currentItem.type = guessed;
     }
 
-    newItems[index] = { ...newItems[index], [field]: value, type };
+    newItems[index] = { ...currentItem, [field]: value };
     setItems(newItems);
   };
 
@@ -388,19 +392,31 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
                 <Menu.Dropdown>
                   <Menu.Item
                     leftSection={<IconTextCaption size={14} />}
-                    onClick={() => updateItem(index, "type", "text")}
+                    onClick={() => {
+                      const newItems = [...items];
+                      newItems[index].type = "text";
+                      setItems(newItems);
+                    }}
                   >
                     Text
                   </Menu.Item>
                   <Menu.Item
                     leftSection={<IconHash size={14} />}
-                    onClick={() => updateItem(index, "type", "number")}
+                    onClick={() => {
+                      const newItems = [...items];
+                      newItems[index].type = "number";
+                      setItems(newItems);
+                    }}
                   >
                     Number
                   </Menu.Item>
                   <Menu.Item
                     leftSection={<IconToggleLeft size={14} />}
-                    onClick={() => updateItem(index, "type", "boolean")}
+                    onClick={() => {
+                      const newItems = [...items];
+                      newItems[index].type = "boolean";
+                      setItems(newItems);
+                    }}
                   >
                     Boolean
                   </Menu.Item>
@@ -418,7 +434,21 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
                   </Menu.Item>
                   <Menu.Item
                     leftSection={<IconBraces size={14} />}
-                    onClick={() => updateItem(index, "type", "json")}
+                    onClick={() => {
+                      const newItems = [...items];
+                      newItems[index].type = "map";
+                      setItems(newItems);
+                    }}
+                  >
+                    Map
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconBraces size={14} />}
+                    onClick={() => {
+                      const newItems = [...items];
+                      newItems[index].type = "json";
+                      setItems(newItems);
+                    }}
                   >
                     JSON
                   </Menu.Item>
