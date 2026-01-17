@@ -6,6 +6,7 @@ import {
   LAYOUT,
   TRANSITIONS,
   OPACITY,
+  Z_INDEX,
 } from "./tokens";
 import { createColorPalette } from "./colors"; // Assuming this helps generate ColorPalette
 
@@ -26,6 +27,7 @@ export const createTheme = (
     layout: LAYOUT,
     transitions: TRANSITIONS,
     opacity: OPACITY,
+    zIndex: Z_INDEX,
   };
 };
 

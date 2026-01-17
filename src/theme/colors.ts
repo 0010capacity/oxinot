@@ -59,6 +59,7 @@ export function createColorPalette(
         secondary: "#1a1a1d",
         tertiary: "#3a3a42",
         elevated: "#2a2a30",
+        overlay: "rgba(0, 0, 0, 0.6)",
       },
       text: {
         primary: "#f0f0f2",
@@ -96,6 +97,7 @@ export function createColorPalette(
       secondary: "#f9f9fb",
       tertiary: "#f5f5f8",
       elevated: "#efefef",
+      overlay: "rgba(0, 0, 0, 0.6)",
     },
     text: {
       primary: "#1a1a1a",
