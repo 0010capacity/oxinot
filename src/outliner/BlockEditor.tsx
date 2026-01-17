@@ -3,21 +3,14 @@ import { useEffect, useMemo } from "react";
 import { IconCopy } from "@tabler/icons-react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
-import { BlockSelectionToolbar } from "../components/BlockSelectionToolbar";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
 import { PageContainer } from "../components/layout/PageContainer";
 import { PageHeader } from "../components/layout/PageHeader";
 import { useBlockStore } from "../stores/blockStore";
-import { useBlockUIStore, useSelectionCount } from "../stores/blockUIStore";
 import { useThemeStore } from "../stores/themeStore";
 import { useViewStore } from "../stores/viewStore";
 import { useRegisterCommands } from "../stores/commandStore";
 import { showToast } from "../utils/toast";
-import {
-  indentBlocks,
-  outdentBlocks,
-  deleteBlocks,
-} from "../utils/batchBlockOperations";
 import { BlockComponent } from "./BlockComponent";
 import "./BlockEditor.css";
 
@@ -43,8 +36,6 @@ export function BlockEditor({
   const childrenMap = useBlockStore((state) => state.childrenMap);
 
   const focusedBlockId = useViewStore((state) => state.focusedBlockId);
-  const selectionCount = useSelectionCount();
-  const selectedBlockIds = useBlockUIStore((state) => state.selectedBlockIds);
 
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
@@ -76,52 +67,6 @@ export function BlockEditor({
       openPage(pageId);
     }
   }, [pageId, openPage]);
-
-  // Batch operation handlers
-  const handleBatchIndent = async () => {
-    try {
-      await indentBlocks(selectedBlockIds);
-      showToast({
-        message: `Indented ${selectedBlockIds.length} blocks`,
-        type: "success",
-      });
-    } catch (err) {
-      showToast({
-        message: "Failed to indent blocks",
-        type: "error",
-      });
-    }
-  };
-
-  const handleBatchOutdent = async () => {
-    try {
-      await outdentBlocks(selectedBlockIds);
-      showToast({
-        message: `Outdented ${selectedBlockIds.length} blocks`,
-        type: "success",
-      });
-    } catch (err) {
-      showToast({
-        message: "Failed to outdent blocks",
-        type: "error",
-      });
-    }
-  };
-
-  const handleBatchDelete = async () => {
-    try {
-      await deleteBlocks(selectedBlockIds);
-      showToast({
-        message: `Deleted ${selectedBlockIds.length} blocks`,
-        type: "success",
-      });
-    } catch (err) {
-      showToast({
-        message: "Failed to delete blocks",
-        type: "error",
-      });
-    }
-  };
 
   // Determine which blocks to show based on zoom level
   const blocksToShow = focusedBlockId
@@ -173,14 +118,6 @@ export function BlockEditor({
             onNavigateHome={onNavigateHome}
           />
         )}
-
-        {/* Selection Toolbar */}
-        <BlockSelectionToolbar
-          selectedCount={selectionCount}
-          onDelete={handleBatchDelete}
-          onIndent={handleBatchIndent}
-          onOutdent={handleBatchOutdent}
-        />
 
         <div
           className="blocks-list"

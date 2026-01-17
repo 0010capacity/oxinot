@@ -6,9 +6,16 @@ import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  IconIndentIncrease,
+  IconIndentDecrease,
+  IconCopy,
+  IconTrash,
+} from "@tabler/icons-react";
+import {
   ContextMenu,
   type ContextMenuSection,
 } from "../components/common/ContextMenu";
+import * as batchOps from "../utils/batchBlockOperations";
 import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
@@ -93,6 +100,75 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         {
           items: [
             {
+              label: t("common.indent") || "Indent",
+              icon: <IconIndentIncrease size={16} />,
+              onClick: async () => {
+                // commitDraft will be available when onClick is called
+                const draftCommit = useBlockStore.getState().blocksById[blockId]
+                  ? draftRef.current
+                  : "";
+                if (
+                  draftCommit !==
+                  useBlockStore.getState().blocksById[blockId]?.content
+                ) {
+                  await useBlockStore
+                    .getState()
+                    .updateBlockContent(blockId, draftRef.current);
+                }
+                await indentBlock(blockId);
+              },
+              disabled: !batchOps.canIndentBlocks([blockId]),
+            },
+            {
+              label: t("common.outdent") || "Outdent",
+              icon: <IconIndentDecrease size={16} />,
+              onClick: async () => {
+                const draftCommit = useBlockStore.getState().blocksById[blockId]
+                  ? draftRef.current
+                  : "";
+                if (
+                  draftCommit !==
+                  useBlockStore.getState().blocksById[blockId]?.content
+                ) {
+                  await useBlockStore
+                    .getState()
+                    .updateBlockContent(blockId, draftRef.current);
+                }
+                await outdentBlock(blockId);
+              },
+              disabled: !batchOps.canOutdentBlocks([blockId]),
+            },
+            {
+              label: t("common.duplicate") || "Duplicate",
+              icon: <IconCopy size={16} />,
+              onClick: async () => {
+                const draftCommit = useBlockStore.getState().blocksById[blockId]
+                  ? draftRef.current
+                  : "";
+                if (
+                  draftCommit !==
+                  useBlockStore.getState().blocksById[blockId]?.content
+                ) {
+                  await useBlockStore
+                    .getState()
+                    .updateBlockContent(blockId, draftRef.current);
+                }
+                createBlock(blockId);
+              },
+            },
+            {
+              label: t("common.delete") || "Delete",
+              icon: <IconTrash size={16} />,
+              color: "red",
+              onClick: () => {
+                deleteBlock(blockId);
+              },
+            },
+          ],
+        },
+        {
+          items: [
+            {
               label: t("common.context_menu.copy_content"),
               onClick: () => {
                 navigator.clipboard.writeText(block.content);
@@ -110,17 +186,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 setIsMetadataOpen(true);
               },
             },
-            {
-              label: t("common.context_menu.delete"),
-              color: "red",
-              onClick: () => {
-                deleteBlock(blockId);
-              },
-            },
           ],
         },
       ],
-      [block.content, blockId, deleteBlock, t]
+      [
+        t,
+        blockId,
+        block.content,
+        indentBlock,
+        outdentBlock,
+        createBlock,
+        deleteBlock,
+      ]
     );
 
     // Text selection context menu
@@ -273,6 +350,146 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const commitDraft = useCallback(async () => {
       const latestDraft = draftRef.current;
       const latestBlock = useBlockStore.getState().blocksById[blockId];
+
+      // Build context menu sections after commitDraft is available
+      contextMenuSections.length = 0;
+      contextMenuSections.push({
+        items: [
+          {
+            label: t("common.indent") || "Indent",
+            icon: <IconIndentIncrease size={16} />,
+            onClick: async () => {
+              await commitDraft();
+              await indentBlock(blockId);
+            },
+            disabled: !batchOps.canIndentBlocks([blockId]),
+          },
+          {
+            label: t("common.outdent") || "Outdent",
+            icon: <IconIndentDecrease size={16} />,
+            onClick: async () => {
+              await commitDraft();
+              await outdentBlock(blockId);
+            },
+            disabled: !batchOps.canOutdentBlocks([blockId]),
+          },
+          {
+            label: t("common.duplicate") || "Duplicate",
+            icon: <IconCopy size={16} />,
+            onClick: async () => {
+              await commitDraft();
+              createBlock(blockId);
+            },
+          },
+          {
+            label: t("common.delete") || "Delete",
+            icon: <IconTrash size={16} />,
+            color: "red",
+            onClick: () => {
+              deleteBlock(blockId);
+            },
+          },
+        ],
+      });
+      contextMenuSections.push({
+        items: [
+          {
+            label: t("common.context_menu.copy_content"),
+            onClick: () => {
+              navigator.clipboard.writeText(block.content);
+            },
+          },
+          {
+            label: t("common.context_menu.copy_id"),
+            onClick: () => {
+              navigator.clipboard.writeText(blockId);
+            },
+          },
+          {
+            label: t("common.context_menu.edit_metadata"),
+            onClick: () => {
+              setIsMetadataOpen(true);
+            },
+          },
+        ],
+      });
+
+      // Context menu sections - defined after commitDraft to avoid reference issues
+      useMemo(() => {
+        contextMenuSections.length = 0;
+        contextMenuSections.push({
+          items: [
+            {
+              label: t("common.indent") || "Indent",
+              icon: <IconIndentIncrease size={16} />,
+              onClick: () => {
+                commitDraft().then(() => {
+                  indentBlock(blockId);
+                });
+              },
+              disabled: !batchOps.canIndentBlocks([blockId]),
+            },
+            {
+              label: t("common.outdent") || "Outdent",
+              icon: <IconIndentDecrease size={16} />,
+              onClick: () => {
+                commitDraft().then(() => {
+                  outdentBlock(blockId);
+                });
+              },
+              disabled: !batchOps.canOutdentBlocks([blockId]),
+            },
+            {
+              label: t("common.duplicate") || "Duplicate",
+              icon: <IconCopy size={16} />,
+              onClick: () => {
+                commitDraft().then(() => {
+                  createBlock(blockId);
+                });
+              },
+            },
+            {
+              label: t("common.delete") || "Delete",
+              icon: <IconTrash size={16} />,
+              color: "red",
+              onClick: () => {
+                deleteBlock(blockId);
+              },
+            },
+          ],
+        });
+        contextMenuSections.push({
+          items: [
+            {
+              label: t("common.context_menu.copy_content"),
+              onClick: () => {
+                navigator.clipboard.writeText(block.content);
+              },
+            },
+            {
+              label: t("common.context_menu.copy_id"),
+              onClick: () => {
+                navigator.clipboard.writeText(blockId);
+              },
+            },
+            {
+              label: t("common.context_menu.edit_metadata"),
+              onClick: () => {
+                setIsMetadataOpen(true);
+              },
+            },
+          ],
+        });
+      }, [
+        block.content,
+        blockId,
+        deleteBlock,
+        createBlock,
+        indentBlock,
+        outdentBlock,
+        commitDraft,
+        t,
+      ]);
 
       // Avoid unnecessary writes; also tolerate missing block during transitions.
       if (latestBlock && latestDraft !== latestBlock.content) {
