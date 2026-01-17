@@ -1,5 +1,25 @@
 # oxinot
 
+## 0.13.0
+
+### Minor Changes
+
+- 75702e1: - add query macro syntax {{}} for dynamic block queries (#360)
+  - add template note support (#363)
+  - fix indentation alignment and add deletion logging (#366)
+  - add CASCADE deletion warning in delete modal (#368)
+  - File tree drag-and-drop issues with directories and validation (#370)
+- 75702e1: - add query macro syntax {{}} for dynamic block queries (#360)
+  - add template note support (#363)
+  - fix indentation alignment and add deletion logging (#366)
+  - add CASCADE deletion warning in delete modal (#368)
+- 75702e1: - add query macro syntax {{}} for dynamic block queries (#360)
+  - add template note support (#363)
+- 75702e1: - add query macro syntax {{}} for dynamic block queries (#360)
+- 75702e1: - add query macro syntax {{}} for dynamic block queries (#360)
+  - add template note support (#363)
+  - fix indentation alignment and add deletion logging (#366)
+
 ## 0.12.1
 
 ### Patch Changes
