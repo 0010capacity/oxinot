@@ -1,6 +1,5 @@
 import { useComputedColorScheme, MantineProvider } from "@mantine/core";
-import { type ReactNode, createContext, useEffect, useMemo } from "react";
-import { useThemeStore } from "../stores/themeStore";
+import { type ReactNode, createContext, useEffect, useMemo, useCallback } from "react";
 import type { AppTheme } from "./schema"; // Import AppTheme
 import { themeRegistry } from "./themes"; // Import themeRegistry
 import type { MantineThemeOverride } from "@mantine/core";
@@ -14,7 +13,6 @@ interface ThemeProviderProps {
 // Inner provider that uses Mantine hooks
 function ThemeProviderInner({ children }: ThemeProviderProps) {
   const computedColorScheme = useComputedColorScheme("light");
-  const colorVariant = useThemeStore((state) => state.colorVariant);
 
   const theme: AppTheme = useMemo(() => {
     // For now, we'll just pick 'light' or 'dark' from the registry.
@@ -65,14 +63,14 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
           const cssVarName = `--${prefix}-${camelToKebab(key)}`;
 
           if (typeof value === "object" && value !== null) {
-            setCssVariables(element, cssVarName, value);
+            setCssVariables(element, cssVarName, value as Record<string, unknown>);
           } else {
             // Handle specific cases where units might be missing (e.g., indentSize from layout)
             let cssValue = value;
             if (key === 'indentSize' && typeof value === 'number') {
               cssValue = `${value}px`;
             }
-            element.style.setProperty(cssVarName, cssValue);
+            element.style.setProperty(cssVarName, String(cssValue));
           }
         }
       }

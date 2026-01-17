@@ -2,6 +2,7 @@ import type { ColorScheme, ColorVariant, ColorPalette, Spacing, Typography, Radi
 
 // Define interfaces for Layout, Transitions, and Opacity based on tokens.ts
 export interface Layout {
+  [key: string]: unknown; // Changed from any to unknown
   maxContentWidth: string;
   containerPadding: string;
   containerPaddingMobile: string;
@@ -14,12 +15,14 @@ export interface Layout {
 }
 
 export interface Transitions {
+  [key: string]: unknown; // Changed from any to unknown
   fast: string;
   normal: string;
   slow: string;
 }
 
 export interface Opacity {
+  [key: string]: unknown; // Changed from any to unknown
   disabled: string;
   dimmed: string;
   hover: string;
