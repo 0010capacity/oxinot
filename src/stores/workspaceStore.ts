@@ -1,6 +1,8 @@
 import { persist } from "zustand/middleware";
 import { createWithEqualityFn } from "zustand/traditional";
 import { type FileSystemItem, tauriAPI } from "../tauri-api";
+import { useBlockStore } from "./blockStore";
+import { usePageStore } from "./pageStore";
 
 // Throttle lastAccessed updates to 5 minutes
 const LAST_ACCESSED_THROTTLE_MS = 5 * 60 * 1000;
@@ -61,6 +63,10 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
           const path = await tauriAPI.selectWorkspace();
 
           if (path) {
+            // Clear page and block stores when switching workspaces
+            usePageStore.getState().clearPages();
+            useBlockStore.getState().clearPage();
+
             const items = await tauriAPI.readDirectory(path);
             const name = path.split("/").pop() || path;
 
@@ -86,6 +92,11 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
       openWorkspace: async (path: string) => {
         try {
           set({ isLoading: true, error: null });
+
+          // Clear page and block stores when switching workspaces
+          usePageStore.getState().clearPages();
+          useBlockStore.getState().clearPage();
+
           const items = await tauriAPI.readDirectory(path);
 
           // Update last accessed time (throttled to 5 minutes)

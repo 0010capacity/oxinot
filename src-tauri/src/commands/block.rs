@@ -365,11 +365,22 @@ pub async fn get_page_blocks(
                         "[get_page_blocks] FOREIGN KEY constraint failed for page {}: {}",
                         page_id, e
                     );
+                    eprintln!("[get_page_blocks] Attempting database repair...");
                     // Perform inline database repair
-                    perform_db_repair(&mut conn)?;
-                    eprintln!("[get_page_blocks] Database repair completed, retrying query");
-                    // Retry the loop
-                    continue;
+                    match perform_db_repair(&mut conn) {
+                        Ok(()) => {
+                            eprintln!("[get_page_blocks] Database repair completed successfully, retrying query");
+                            // Retry the loop
+                            continue;
+                        }
+                        Err(repair_err) => {
+                            eprintln!("[get_page_blocks] Database repair failed: {}", repair_err);
+                            return Err(format!(
+                                "FOREIGN KEY constraint failed and repair unsuccessful: {}",
+                                e
+                            ));
+                        }
+                    }
                 } else {
                     return Err(e);
                 }
@@ -414,80 +425,139 @@ fn query_blocks_for_page(conn: &Connection, page_id: &str) -> Result<Vec<Block>,
 
 /// Helper function to repair database integrity
 fn perform_db_repair(conn: &mut Connection) -> Result<(), String> {
+    eprintln!("[perform_db_repair] Starting database repair...");
+
     let tx = conn
         .transaction()
         .map_err(|e| format!("Failed to start repair transaction: {}", e))?;
 
     // 1. Delete blocks with non-existent page_id
-    tx.execute(
-        "DELETE FROM blocks WHERE page_id NOT IN (SELECT id FROM pages)",
-        [],
-    )
-    .map_err(|e| e.to_string())?;
+    let invalid_page_count = tx
+        .execute(
+            "DELETE FROM blocks WHERE page_id NOT IN (SELECT id FROM pages)",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    if invalid_page_count > 0 {
+        eprintln!(
+            "[perform_db_repair] Deleted {} blocks with invalid page_id",
+            invalid_page_count
+        );
+    }
 
     // 2. Delete blocks with parent_id that references non-existent block
-    tx.execute(
-        "DELETE FROM blocks WHERE parent_id IS NOT NULL AND parent_id NOT IN (SELECT id FROM blocks)",
-        [],
-    )
-    .map_err(|e| e.to_string())?;
+    let invalid_parent_count = tx
+        .execute(
+            "DELETE FROM blocks WHERE parent_id IS NOT NULL AND parent_id NOT IN (SELECT id FROM blocks)",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    if invalid_parent_count > 0 {
+        eprintln!(
+            "[perform_db_repair] Deleted {} blocks with invalid parent_id",
+            invalid_parent_count
+        );
+    }
 
     // 3. Fix blocks with parent_id in different page (set to NULL)
-    tx.execute(
-        "UPDATE blocks SET parent_id = NULL
-         WHERE parent_id IS NOT NULL
-         AND EXISTS (
-            SELECT 1 FROM blocks b2
-            WHERE parent_id = b2.id AND blocks.page_id != b2.page_id
-         )",
-        [],
-    )
-    .map_err(|e| e.to_string())?;
+    let cross_page_count = tx
+        .execute(
+            "UPDATE blocks SET parent_id = NULL
+             WHERE parent_id IS NOT NULL
+             AND EXISTS (
+                SELECT 1 FROM blocks b2
+                WHERE parent_id = b2.id AND blocks.page_id != b2.page_id
+             )",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    if cross_page_count > 0 {
+        eprintln!(
+            "[perform_db_repair] Fixed {} blocks with cross-page parent_id",
+            cross_page_count
+        );
+    }
 
     // 4. Clean up orphaned metadata
-    tx.execute(
-        "DELETE FROM block_metadata WHERE block_id NOT IN (SELECT id FROM blocks)",
-        [],
-    )
-    .map_err(|e| e.to_string())?;
+    let metadata_count = tx
+        .execute(
+            "DELETE FROM block_metadata WHERE block_id NOT IN (SELECT id FROM blocks)",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    if metadata_count > 0 {
+        eprintln!(
+            "[perform_db_repair] Deleted {} orphaned metadata records",
+            metadata_count
+        );
+    }
 
     // 5. Clean up orphaned block_refs
-    tx.execute(
-        "DELETE FROM block_refs
-         WHERE from_block_id NOT IN (SELECT id FROM blocks)
-         OR to_block_id NOT IN (SELECT id FROM blocks)",
-        [],
-    )
-    .map_err(|e| e.to_string())?;
+    let refs_count = tx
+        .execute(
+            "DELETE FROM block_refs
+             WHERE from_block_id NOT IN (SELECT id FROM blocks)
+             OR to_block_id NOT IN (SELECT id FROM blocks)",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    if refs_count > 0 {
+        eprintln!(
+            "[perform_db_repair] Deleted {} orphaned block_refs",
+            refs_count
+        );
+    }
 
     // 6. Clean up orphaned wiki_links
-    tx.execute(
-        "DELETE FROM wiki_links
-         WHERE from_page_id NOT IN (SELECT id FROM pages)
-         OR from_block_id NOT IN (SELECT id FROM blocks)",
-        [],
-    )
-    .map_err(|e| e.to_string())?;
+    let wiki_links_count = tx
+        .execute(
+            "DELETE FROM wiki_links
+             WHERE from_page_id NOT IN (SELECT id FROM pages)
+             OR from_block_id NOT IN (SELECT id FROM blocks)",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    if wiki_links_count > 0 {
+        eprintln!(
+            "[perform_db_repair] Deleted {} orphaned wiki_links",
+            wiki_links_count
+        );
+    }
 
     // 7. Clean up orphaned block_paths
-    tx.execute(
-        "DELETE FROM block_paths
-         WHERE block_id NOT IN (SELECT id FROM blocks)
-         OR page_id NOT IN (SELECT id FROM pages)",
-        [],
-    )
-    .map_err(|e| e.to_string())?;
+    let block_paths_count = tx
+        .execute(
+            "DELETE FROM block_paths
+             WHERE block_id NOT IN (SELECT id FROM blocks)
+             OR page_id NOT IN (SELECT id FROM pages)",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    if block_paths_count > 0 {
+        eprintln!(
+            "[perform_db_repair] Deleted {} orphaned block_paths",
+            block_paths_count
+        );
+    }
 
     // 8. Clean up orphaned page_paths
-    tx.execute(
-        "DELETE FROM page_paths WHERE page_id NOT IN (SELECT id FROM pages)",
-        [],
-    )
-    .map_err(|e| e.to_string())?;
+    let page_paths_count = tx
+        .execute(
+            "DELETE FROM page_paths WHERE page_id NOT IN (SELECT id FROM pages)",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    if page_paths_count > 0 {
+        eprintln!(
+            "[perform_db_repair] Deleted {} orphaned page_paths",
+            page_paths_count
+        );
+    }
 
     tx.commit()
         .map_err(|e| format!("Failed to commit repair transaction: {}", e))?;
 
+    eprintln!("[perform_db_repair] Database repair completed successfully");
     Ok(())
 }
 
