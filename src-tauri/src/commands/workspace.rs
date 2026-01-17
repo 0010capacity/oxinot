@@ -340,14 +340,36 @@ fn sync_directory(
         let path = entry.path();
 
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            if name == ".oxinot" {
+            // Skip .oxinot and common heavy/system directories
+            if name == ".oxinot"
+                || name == ".git"
+                || name == "node_modules"
+                || name == "target"
+                || name == "dist"
+                || name == "build"
+                || name == ".vscode"
+                || name == ".idea"
+                || name == ".DS_Store"
+            {
                 continue;
             }
         }
 
+        // Use symlink_metadata to avoid following symlinks into potential loops
         let metadata = entry
             .metadata()
             .map_err(|e| format!("Error reading metadata: {}", e))?;
+        
+        // Also check for symlinks explicitly if we want to skip them
+        let symlink_metadata = entry
+             .path()
+             .symlink_metadata()
+             .map_err(|e| format!("Error reading symlink metadata: {}", e))?;
+        
+        if symlink_metadata.is_symlink() {
+            println!("[sync_directory] Skipping symlink: {:?}", path);
+            continue;
+        }
 
         if metadata.is_dir() {
             dir_entries.push(entry);
