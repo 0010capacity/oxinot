@@ -19,6 +19,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSyncStore } from "../stores/syncStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { tauriAPI } from "../tauri-api";
@@ -31,6 +32,7 @@ interface WorkspacePickerProps {
 export function WorkspacePicker({
   currentWorkspacePath,
 }: WorkspacePickerProps) {
+  const { t } = useTranslation();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
   const [menuOpened, setMenuOpened] = useState(false);
@@ -290,25 +292,27 @@ export function WorkspacePicker({
       <Modal
         opened={deleteModalOpened}
         onClose={() => setDeleteModalOpened(false)}
-        title="Remove Workspace"
+        title={t("common.remove_workspace")}
         centered
       >
-        <Stack gap="md">
+        <Stack gap="lg">
           <Text size="sm">
-            Are you sure you want to remove "
-            {workspaceToDelete &&
-              workspaces.find((w) => w.path === workspaceToDelete)?.name}
-            " from your recent workspaces?
+            {t("common.remove_workspace_question", {
+              name:
+                (workspaceToDelete &&
+                  workspaces.find((w) => w.path === workspaceToDelete)?.name) ||
+                "",
+            })}
           </Text>
-          <Group justify="flex-end" gap="md">
+          <Group justify="flex-end" gap="sm">
             <Button
               variant="default"
               onClick={() => setDeleteModalOpened(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button color="red" onClick={confirmDeleteWorkspace}>
-              Remove
+              {t("common.remove")}
             </Button>
           </Group>
         </Stack>
