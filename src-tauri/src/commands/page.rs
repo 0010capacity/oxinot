@@ -361,23 +361,56 @@ pub async fn move_page(
     workspace_path: String,
     request: MovePageRequest,
 ) -> Result<Page, String> {
+    println!("[move_page] Called with request:");
+    println!("  - id: {}", request.id);
+    println!("  - new_parent_id: {:?}", request.new_parent_id);
+
     let conn = open_workspace_db(&workspace_path)?;
     let now = Utc::now().to_rfc3339();
 
+    // Log all pages before move
+    let all_pages_before: Vec<(String, String, Option<String>)> = conn
+        .prepare("SELECT id, title, parent_id FROM pages ORDER BY title")
+        .map_err(|e| e.to_string())?
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    println!("[move_page] All pages before move:");
+    for (id, title, parent_id) in &all_pages_before {
+        println!("  - {} (title: {}, parent: {:?})", id, title, parent_id);
+    }
+
     // Validate: cannot move to itself
     if let Some(parent_id) = &request.new_parent_id {
+        println!("[move_page] Validating move to parent: {}", parent_id);
+
         if parent_id == &request.id {
+            println!("[move_page] ERROR: Cannot move page to itself");
             return Err("Cannot move page to itself".to_string());
         }
 
         // Validate: cannot move to its own descendant
         if is_descendant(&conn, parent_id, &request.id)? {
+            println!("[move_page] ERROR: Cannot move page to its own descendant");
             return Err("Cannot move page to its own descendant".to_string());
         }
 
         let parent = get_page_by_id(&conn, parent_id)?;
+        println!(
+            "[move_page] Parent page: {} (is_directory: {})",
+            parent.title, parent.is_directory
+        );
         if !parent.is_directory {
             // Convert parent to directory first
+            println!("[move_page] Converting parent to directory...");
             let file_sync = FileSyncService::new(workspace_path.clone());
             let new_path = file_sync
                 .convert_page_to_directory(&conn, parent_id)
@@ -388,10 +421,15 @@ pub async fn move_page(
                 params![&new_path, &now, parent_id],
             )
             .map_err(|e| e.to_string())?;
+            println!(
+                "[move_page] Parent converted to directory with path: {}",
+                new_path
+            );
         }
     }
 
     // Move file in file system
+    println!("[move_page] Moving file in filesystem...");
     let file_sync = FileSyncService::new(workspace_path.clone());
     let new_path = file_sync
         .move_page_file(
@@ -400,28 +438,66 @@ pub async fn move_page(
             request.new_parent_id.as_ref().map(|s| s.as_str()),
         )
         .map_err(|e| format!("Failed to move page file: {}", e))?;
+    println!("[move_page] File moved to: {}", new_path);
 
     // Get old parent before update
     let page = get_page_by_id(&conn, &request.id)?;
     let old_parent_id = page.parent_id.clone();
+    println!("[move_page] Current page state:");
+    println!("  - id: {}", page.id);
+    println!("  - title: {}", page.title);
+    println!("  - old parent_id: {:?}", old_parent_id);
+    println!("  - old file_path: {:?}", page.file_path);
 
     // Update database
+    println!("[move_page] Updating database...");
     conn.execute(
         "UPDATE pages SET parent_id = ?, file_path = ?, updated_at = ? WHERE id = ?",
         params![&request.new_parent_id, &new_path, &now, &request.id],
     )
     .map_err(|e| e.to_string())?;
+    println!("[move_page] Database updated successfully");
 
     // Check if old parent should be converted back to regular file
     if let Some(old_pid) = old_parent_id {
+        println!(
+            "[move_page] Checking if old parent {} should be converted back to file...",
+            old_pid
+        );
         check_and_convert_to_file(&conn, &workspace_path, &old_pid)?;
     }
 
     let page = get_page_by_id(&conn, &request.id)?;
+    println!("[move_page] Final page state:");
+    println!("  - id: {}", page.id);
+    println!("  - title: {}", page.title);
+    println!("  - parent_id: {:?}", page.parent_id);
+    println!("  - file_path: {:?}", page.file_path);
+
+    // Log all pages after move
+    let all_pages_after: Vec<(String, String, Option<String>)> = conn
+        .prepare("SELECT id, title, parent_id FROM pages ORDER BY title")
+        .map_err(|e| e.to_string())?
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    println!("[move_page] All pages after move:");
+    for (id, title, parent_id) in &all_pages_after {
+        println!("  - {} (title: {}, parent: {:?})", id, title, parent_id);
+    }
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
+    println!("[move_page] Move completed successfully");
     Ok(page)
 }
 
