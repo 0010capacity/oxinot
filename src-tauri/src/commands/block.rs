@@ -1213,6 +1213,38 @@ fn calculate_new_order_weight(
     parent_id: Option<&str>,
     after_block_id: Option<&str>,
 ) -> Result<f64, String> {
+    let (before, after) = get_neighbor_weights(conn, page_id, parent_id, after_block_id)?;
+
+    // Check rebalancing
+    let needs_rebalance = match (before, after) {
+        (Some(b), Some(a)) => fractional_index::needs_rebalancing(b, a),
+        (None, Some(a)) => a < 1e-5, // Heuristic: if first item is very close to 0
+        (Some(b), None) => b > 1e15, // Heuristic: if last item is huge (near f64 mantissa limit)
+        (None, None) => false,
+    };
+
+    if needs_rebalance {
+        println!(
+            "[calculate_new_order_weight] Rebalancing siblings for page {} parent {:?}",
+            page_id, parent_id
+        );
+        rebalance_siblings(conn, page_id, parent_id)?;
+
+        // Re-fetch
+        let (before_new, after_new) =
+            get_neighbor_weights(conn, page_id, parent_id, after_block_id)?;
+        return Ok(fractional_index::calculate_middle(before_new, after_new));
+    }
+
+    Ok(fractional_index::calculate_middle(before, after))
+}
+
+fn get_neighbor_weights(
+    conn: &Connection,
+    page_id: &str,
+    parent_id: Option<&str>,
+    after_block_id: Option<&str>,
+) -> Result<(Option<f64>, Option<f64>), String> {
     match after_block_id {
         Some(after_id) => {
             let after_block = get_block_by_id(conn, after_id)?;
@@ -1228,14 +1260,10 @@ fn calculate_new_order_weight(
                 )
                 .ok();
 
-            Ok(fractional_index::calculate_middle(
-                Some(after_block.order_weight),
-                next_sibling,
-            ))
+            Ok((Some(after_block.order_weight), next_sibling))
         }
         None => {
             // If no after_block_id is provided, we insert at the BEGINNING of the siblings list.
-            // This supports the outliner rule: "Enter at end of parent -> insert as first child".
             let first_order: Option<f64> = conn
                 .query_row(
                     "SELECT MIN(order_weight) FROM blocks WHERE page_id = ? AND parent_id IS ?",
@@ -1245,9 +1273,40 @@ fn calculate_new_order_weight(
                 .ok()
                 .flatten();
 
-            Ok(fractional_index::calculate_middle(None, first_order))
+            Ok((None, first_order))
         }
     }
+}
+
+fn rebalance_siblings(
+    conn: &Connection,
+    page_id: &str,
+    parent_id: Option<&str>,
+) -> Result<(), String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id FROM blocks WHERE page_id = ? AND parent_id IS ? ORDER BY order_weight",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let sibling_ids: Vec<String> = stmt
+        .query_map(params![page_id, parent_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let new_weights = fractional_index::rebalance_order_weights(sibling_ids.len());
+    let now = Utc::now().to_rfc3339();
+
+    for (i, id) in sibling_ids.iter().enumerate() {
+        conn.execute(
+            "UPDATE blocks SET order_weight = ?, updated_at = ? WHERE id = ?",
+            params![new_weights[i], &now, id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
 }
 
 /// Load metadata for a block from the database
