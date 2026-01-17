@@ -34,6 +34,7 @@ export function BlockEditor({
   const isLoading = useBlockStore((state) => state.isLoading);
   const error = useBlockStore((state) => state.error);
   const childrenMap = useBlockStore((state) => state.childrenMap);
+  const blocksById = useBlockStore((state) => state.blocksById);
 
   const focusedBlockId = useViewStore((state) => state.focusedBlockId);
 
@@ -41,22 +42,27 @@ export function BlockEditor({
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
 
   // Register context-aware commands
-  useRegisterCommands(useMemo(() => [
-    {
-      id: `copy-link-${pageId}`,
-      label: `Copy link to [[${pageName || pageId}]]`,
-      description: "Copy wiki-link to clipboard",
-      icon: <IconCopy size={16} />,
-      action: () => {
-        navigator.clipboard.writeText(`[[${pageName || pageId}]]`);
-        showToast({ message: "Link copied to clipboard", type: "success" });
-      },
-      category: "Page",
-      keywords: ["copy", "link", "wiki"],
-    }
-  ], [pageId, pageName]));
+  useRegisterCommands(
+    useMemo(
+      () => [
+        {
+          id: `copy-link-${pageId}`,
+          label: `Copy link to [[${pageName || pageId}]]`,
+          description: "Copy wiki-link to clipboard",
+          icon: <IconCopy size={16} />,
+          action: () => {
+            navigator.clipboard.writeText(`[[${pageName || pageId}]]`);
+            showToast({ message: "Link copied to clipboard", type: "success" });
+          },
+          category: "Page",
+          keywords: ["copy", "link", "wiki"],
+        },
+      ],
+      [pageId, pageName]
+    )
+  );
 
-  // Load page blocks (deterministic open flow)
+  // Load page blocks
   useEffect(() => {
     if (pageId) {
       openPage(pageId);
@@ -67,6 +73,24 @@ export function BlockEditor({
   const blocksToShow = focusedBlockId
     ? [focusedBlockId]
     : childrenMap.root || [];
+
+  // Get all visible block IDs in tree order (including nested children) for range selection
+  const blockOrder = useMemo(() => {
+    const getAllVisibleBlocks = (blockIds: string[]): string[] => {
+      const result: string[] = [];
+      for (const blockId of blockIds) {
+        result.push(blockId);
+        const block = blocksById[blockId];
+        const children = childrenMap[blockId];
+        // Include children only if block exists, has children, and is not collapsed
+        if (block && children && children.length > 0 && !block.isCollapsed) {
+          result.push(...getAllVisibleBlocks(children));
+        }
+      }
+      return result;
+    };
+    return getAllVisibleBlocks(blocksToShow);
+  }, [blocksToShow, blocksById, childrenMap]);
 
   if (isLoading) {
     return (
@@ -98,8 +122,6 @@ export function BlockEditor({
     );
   }
 
-  // blocksToShow is computed above (includes in-flight initial create handling)
-
   return (
     <PageContainer className={isDark ? "theme-dark" : "theme-light"}>
       <ContentWrapper>
@@ -130,7 +152,12 @@ export function BlockEditor({
             </div>
           ) : (
             blocksToShow.map((blockId) => (
-              <BlockComponent key={blockId} blockId={blockId} depth={0} />
+              <BlockComponent
+                key={blockId}
+                blockId={blockId}
+                depth={0}
+                blockOrder={blockOrder}
+              />
             ))
           )}
         </div>

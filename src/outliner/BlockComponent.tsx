@@ -6,13 +6,25 @@ import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  IconIndentIncrease,
+  IconIndentDecrease,
+  IconCopy,
+  IconTrash,
+} from "@tabler/icons-react";
+import {
   ContextMenu,
   type ContextMenuSection,
 } from "../components/common/ContextMenu";
+import * as batchOps from "../utils/batchBlockOperations";
 import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
-import { useBlock, useBlockStore, useChildrenIds } from "../stores/blockStore";
+import {
+  useBlock,
+  useBlockStore,
+  useChildrenIds,
+  type BlockData,
+} from "../stores/blockStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import {
   useFocusedBlockId,
@@ -22,6 +34,7 @@ import { useBlockUIStore } from "../stores/blockUIStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
+import { showToast } from "../utils/toast";
 import { MacroContentWrapper } from "./MacroContentWrapper";
 import "./BlockComponent.css";
 import { INDENT_PER_LEVEL } from "../constants/layout";
@@ -29,10 +42,11 @@ import { INDENT_PER_LEVEL } from "../constants/layout";
 interface BlockComponentProps {
   blockId: string;
   depth: number;
+  blockOrder?: string[];
 }
 
 export const BlockComponent: React.FC<BlockComponentProps> = memo(
-  ({ blockId, depth }: BlockComponentProps) => {
+  ({ blockId, depth, blockOrder = [] }: BlockComponentProps) => {
     const computedColorScheme = useComputedColorScheme("light");
     const isDark = computedColorScheme === "dark";
 
@@ -58,6 +72,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const clearTargetCursorPosition = useBlockUIStore(
       (state) => state.clearTargetCursorPosition
     );
+    const toggleBlockSelection = useBlockUIStore(
+      (state) => state.toggleBlockSelection
+    );
+    const selectBlockRange = useBlockUIStore((state) => state.selectBlockRange);
+    const selectedBlockIds = useBlockUIStore((state) => state.selectedBlockIds);
+    const lastSelectedBlockId = useBlockUIStore(
+      (state) => state.lastSelectedBlockId
+    );
+    const isSelected = selectedBlockIds.includes(blockId);
 
     const { t } = useTranslation();
 
@@ -78,15 +101,151 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       typeof setTimeout
     > | null>(null);
 
-    const contextMenuSections: ContextMenuSection[] = useMemo(
-      () => [
+    // Helper function to calculate block depth
+    const calculateBlockDepth = useCallback((id: string): number => {
+      const blocksById = useBlockStore.getState().blocksById;
+      let depth = 0;
+      let currentId: string | null = id;
+
+      while (currentId) {
+        const currentBlock = blocksById[currentId] as BlockData | undefined;
+        if (!currentBlock?.parentId) break;
+        depth++;
+        currentId = currentBlock.parentId;
+      }
+
+      return depth;
+    }, []);
+
+    // Helper function to copy blocks as markdown
+    const copyBlocksAsMarkdown = useCallback(() => {
+      const { selectedBlockIds } = useBlockUIStore.getState();
+      const targetBlocks =
+        selectedBlockIds.length > 0 ? selectedBlockIds : [blockId];
+
+      // Filter blockOrder to maintain display order
+      const orderedBlocks = blockOrder.filter((id) =>
+        targetBlocks.includes(id)
+      );
+
+      const blocksById = useBlockStore.getState().blocksById;
+
+      // Convert blocks to markdown with bullets and indentation
+      const markdown = orderedBlocks
+        .map((id) => {
+          const block = blocksById[id];
+          if (!block) return "";
+
+          const depth = calculateBlockDepth(id);
+          const indent = "  ".repeat(depth); // 2 spaces per depth level
+
+          return `${indent}- ${block.content}`;
+        })
+        .filter((line) => line.length > 0)
+        .join("\n");
+
+      navigator.clipboard.writeText(markdown);
+
+      // Show toast
+      const count = orderedBlocks.length;
+      showToast({
+        message:
+          count > 1
+            ? `Copied ${count} blocks to clipboard`
+            : "Copied to clipboard",
+        type: "success",
+      });
+
+      // Clear selection after copy
+      if (selectedBlockIds.length > 0) {
+        useBlockUIStore.getState().clearSelectedBlocks();
+        useBlockUIStore.getState().clearSelectionAnchor();
+      }
+    }, [blockId, blockOrder, calculateBlockDepth]);
+
+    const contextMenuSections: ContextMenuSection[] = useMemo(() => {
+      // Determine which blocks to operate on
+      const targetBlocks =
+        isSelected && selectedBlockIds.length > 0
+          ? selectedBlockIds
+          : [blockId];
+      const isBatchOperation = targetBlocks.length > 1;
+
+      return [
         {
           items: [
             {
-              label: t("common.context_menu.copy_content"),
-              onClick: () => {
-                navigator.clipboard.writeText(block.content);
+              label: isBatchOperation
+                ? `${t("common.indent") || "Indent"} (${targetBlocks.length})`
+                : t("common.indent") || "Indent",
+              icon: <IconIndentIncrease size={16} />,
+              onClick: async () => {
+                for (const id of targetBlocks) {
+                  await indentBlock(id);
+                }
+                if (isBatchOperation) {
+                  useBlockUIStore.getState().clearSelectedBlocks();
+                }
               },
+              disabled: !batchOps.canIndentBlocks(targetBlocks),
+            },
+            {
+              label: isBatchOperation
+                ? `${t("common.outdent") || "Outdent"} (${targetBlocks.length})`
+                : t("common.outdent") || "Outdent",
+              icon: <IconIndentDecrease size={16} />,
+              onClick: async () => {
+                for (const id of targetBlocks) {
+                  await outdentBlock(id);
+                }
+                if (isBatchOperation) {
+                  useBlockUIStore.getState().clearSelectedBlocks();
+                }
+              },
+              disabled: !batchOps.canOutdentBlocks(targetBlocks),
+            },
+            {
+              label: isBatchOperation
+                ? `${t("common.duplicate") || "Duplicate"} (${
+                    targetBlocks.length
+                  })`
+                : t("common.duplicate") || "Duplicate",
+              icon: <IconCopy size={16} />,
+              onClick: async () => {
+                for (const id of targetBlocks) {
+                  await createBlock(id);
+                }
+                if (isBatchOperation) {
+                  useBlockUIStore.getState().clearSelectedBlocks();
+                }
+              },
+            },
+            {
+              label: isBatchOperation
+                ? `${t("common.delete") || "Delete"} (${targetBlocks.length})`
+                : t("common.delete") || "Delete",
+              icon: <IconTrash size={16} />,
+              color: "red",
+              onClick: async () => {
+                for (const id of targetBlocks) {
+                  await deleteBlock(id);
+                }
+                if (isBatchOperation) {
+                  useBlockUIStore.getState().clearSelectedBlocks();
+                }
+              },
+            },
+          ],
+        },
+        {
+          items: [
+            {
+              label: isBatchOperation
+                ? `${t("common.context_menu.copy_content")} (${
+                    targetBlocks.length
+                  })`
+                : t("common.context_menu.copy_content"),
+              onClick: copyBlocksAsMarkdown,
             },
             {
               label: t("common.context_menu.copy_id"),
@@ -100,18 +259,24 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 setIsMetadataOpen(true);
               },
             },
-            {
-              label: t("common.context_menu.delete"),
-              color: "red",
-              onClick: () => {
-                deleteBlock(blockId);
-              },
-            },
           ],
         },
-      ],
-      [block.content, blockId, deleteBlock, t]
-    );
+      ];
+    }, [
+      t,
+      blockId,
+      block.content,
+      indentBlock,
+      outdentBlock,
+      createBlock,
+      deleteBlock,
+      isSelected,
+      selectedBlockIds,
+      copyBlocksAsMarkdown,
+    ]);
+
+    // Ref to store text selection for context menu
+    const savedTextSelectionRef = useRef<string>("");
 
     // Text selection context menu
     const textSelectionSections: ContextMenuSection[] = useMemo(
@@ -121,18 +286,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             {
               label: t("common.context_menu.copy"),
               onClick: () => {
-                const selection = window.getSelection();
-                const selectedText = selection?.toString() || "";
+                const selectedText = savedTextSelectionRef.current;
                 if (selectedText) {
                   navigator.clipboard.writeText(selectedText);
+                  showToast({
+                    message: "Copied to clipboard",
+                    type: "success",
+                  });
                 }
               },
             },
             {
               label: t("common.context_menu.cut"),
               onClick: async () => {
-                const selection = window.getSelection();
-                const selectedText = selection?.toString() || "";
+                const selectedText = savedTextSelectionRef.current;
                 if (selectedText && editorRef.current) {
                   await navigator.clipboard.writeText(selectedText);
                   // Delete selected text by replacing with empty string
@@ -144,6 +311,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                       selection: { anchor: from },
                     });
                   }
+                  showToast({
+                    message: "Cut to clipboard",
+                    type: "success",
+                  });
                 }
               },
             },
@@ -183,6 +354,94 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         document.removeEventListener("click", handleDocumentClick);
       };
     }, [isMetadataOpen]);
+
+    // Handle keyboard shortcuts (Ctrl+C for copy)
+    useEffect(() => {
+      if (focusedBlockId !== blockId) return;
+
+      const handleCopy = (event: KeyboardEvent) => {
+        // Ctrl+C or Cmd+C
+        if ((event.ctrlKey || event.metaKey) && event.key === "c") {
+          const { selectedBlockIds } = useBlockUIStore.getState();
+          // Only handle if blocks are selected (let browser handle text selection)
+          if (selectedBlockIds.length > 0) {
+            event.preventDefault();
+            event.stopPropagation();
+            copyBlocksAsMarkdown();
+          }
+        }
+      };
+
+      document.addEventListener("keydown", handleCopy, true);
+      return () => {
+        document.removeEventListener("keydown", handleCopy, true);
+      };
+    }, [focusedBlockId, blockId, copyBlocksAsMarkdown]);
+
+    // Handle Shift+Arrow key selection when this block is focused
+    useEffect(() => {
+      if (focusedBlockId !== blockId) return;
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        // Clear selection and anchor if navigating without Shift
+        if (
+          !event.shiftKey &&
+          (event.key === "ArrowUp" || event.key === "ArrowDown")
+        ) {
+          useBlockUIStore.getState().clearSelectionAnchor();
+          useBlockUIStore.getState().clearSelectedBlocks();
+          return;
+        }
+
+        if (!event.shiftKey) return;
+
+        const state = useBlockUIStore.getState();
+
+        // Set anchor on first Shift+Arrow if not already set
+        if (!state.selectionAnchorId) {
+          useBlockUIStore.setState({ selectionAnchorId: blockId });
+        }
+
+        const anchorId = state.selectionAnchorId || blockId;
+
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          event.stopPropagation();
+          // Use blockOrder for cross-depth navigation
+          const currentIndex = blockOrder.indexOf(blockId);
+          if (currentIndex > 0) {
+            const prevBlockId = blockOrder[currentIndex - 1];
+            // Extend selection from fixed anchor to the new block
+            selectBlockRange(anchorId, prevBlockId, blockOrder);
+            // Update focus to the new block so further arrow keys continue from there
+            setFocusedBlock(prevBlockId);
+          }
+        } else if (event.key === "ArrowDown") {
+          event.preventDefault();
+          event.stopPropagation();
+          // Use blockOrder for cross-depth navigation
+          const currentIndex = blockOrder.indexOf(blockId);
+          if (currentIndex >= 0 && currentIndex < blockOrder.length - 1) {
+            const nextBlockId = blockOrder[currentIndex + 1];
+            // Extend selection from fixed anchor to the new block
+            selectBlockRange(anchorId, nextBlockId, blockOrder);
+            // Update focus to the new block so further arrow keys continue from there
+            setFocusedBlock(nextBlockId);
+          }
+        }
+      };
+
+      document.addEventListener("keydown", handleKeyDown, true);
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown, true);
+      };
+    }, [
+      focusedBlockId,
+      blockId,
+      blockOrder,
+      selectBlockRange,
+      setFocusedBlock,
+    ]);
 
     // Consolidated IME state
     const imeStateRef = useRef({
@@ -725,12 +984,31 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           ref={blockComponentRef}
           className="block-component"
           onMouseDown={(e) => {
-            // Prevent default text selection on right-click
+            // Save text selection before right-click might clear it
             if (e.button === 2) {
-              e.preventDefault();
-              e.stopPropagation();
-              // Clear any existing selection to prevent browser from auto-selecting text
-              window.getSelection()?.removeAllRanges();
+              const selection = window.getSelection();
+              if (selection && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                if (!range.collapsed) {
+                  savedTextSelectionRef.current = selection.toString();
+                } else {
+                  savedTextSelectionRef.current = "";
+                }
+              } else {
+                savedTextSelectionRef.current = "";
+              }
+
+              // If no text selection, prevent default and clear browser selection
+              if (!savedTextSelectionRef.current) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.getSelection()?.removeAllRanges();
+
+                // If this block is not selected, select it
+                if (!isSelected) {
+                  useBlockUIStore.getState().setSelectedBlocks([blockId]);
+                }
+              }
             }
           }}
           onContextMenu={() => {}}
@@ -743,7 +1021,40 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }}
         >
           {indentGuide}
-          <div className="block-row" style={{ paddingLeft: `${depth * INDENT_PER_LEVEL}px` }}>
+          <div
+            className="block-row"
+            style={{
+              paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
+              backgroundColor: isSelected
+                ? "rgba(128, 128, 128, 0.1)"
+                : undefined,
+              transition: "background-color 0.15s ease",
+            }}
+            onClick={(e: React.MouseEvent) => {
+              // Handle multi-select with Ctrl/Cmd + Click
+              if (e.ctrlKey || e.metaKey) {
+                e.stopPropagation();
+                toggleBlockSelection(blockId);
+              }
+              // Handle range select with Shift + Click
+              else if (e.shiftKey && blockOrder.length > 0) {
+                e.stopPropagation();
+                // Use lastSelectedBlockId or focusedBlockId as anchor
+                const anchorBlockId = lastSelectedBlockId || focusedBlockId;
+                if (anchorBlockId && anchorBlockId !== blockId) {
+                  selectBlockRange(anchorBlockId, blockId, blockOrder);
+                } else {
+                  // No anchor or same block, just select this block
+                  useBlockUIStore.getState().setSelectedBlocks([blockId]);
+                }
+              }
+              // Clear selection on regular click without modifiers
+              else if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                useBlockUIStore.getState().clearSelectedBlocks();
+                useBlockUIStore.getState().clearSelectionAnchor();
+              }
+            }}
+          >
             {/* Collapse/Expand Toggle */}
             {hasChildren ? (
               <button
@@ -880,6 +1191,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   key={childId}
                   blockId={childId}
                   depth={depth + 1}
+                  blockOrder={blockOrder}
                 />
               ))}
             </div>
