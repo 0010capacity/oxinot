@@ -76,11 +76,7 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
   return (
     <Group
       p="md"
-      bg={isDark ? "transparent" : "var(--mantine-color-gray-0)"}
-      style={{
-        borderTop: "1px solid var(--mantine-color-gray-3)",
-        borderBottom: "1px solid var(--mantine-color-gray-3)",
-      }}
+      bg={isDark ? "rgba(128, 128, 128, 0.08)" : "rgba(128, 128, 128, 0.05)"}
     >
       <Badge size="lg" variant="light" color="gray">
         {selectedCount} {selectedCount === 1 ? "block" : "blocks"} selected

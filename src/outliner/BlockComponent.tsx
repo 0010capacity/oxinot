@@ -810,17 +810,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             style={{
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
               backgroundColor: isSelected
-                ? isDark
-                  ? "rgba(59, 130, 246, 0.15)"
-                  : "var(--mantine-color-blue-0)"
+                ? "rgba(128, 128, 128, 0.1)"
                 : undefined,
-              borderLeft: isSelected
-                ? isDark
-                  ? "3px solid var(--mantine-color-blue-4)"
-                  : "3px solid var(--mantine-color-blue-6)"
-                : undefined,
-              transition:
-                "background-color 0.15s ease, border-left-color 0.15s ease",
+              transition: "background-color 0.15s ease",
             }}
             onClick={(e: React.MouseEvent) => {
               // Handle multi-select with Ctrl/Cmd + Click
