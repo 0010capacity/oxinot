@@ -1,5 +1,6 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
+import { completionStatus } from "@codemirror/autocomplete";
 import { Box, Popover, useComputedColorScheme } from "@mantine/core";
 
 import type React from "react";
@@ -473,6 +474,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         {
           key: "Enter",
           run: (view: EditorView) => {
+            // If autocomplete dropdown is open, let it handle the Enter key
+            if (completionStatus(view.state) === "active") {
+              return false;
+            }
+
             // If Enter was pressed during/after IME composition, skip normal processing
             if (
               imeStateRef.current.isComposing ||
@@ -571,6 +577,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         {
           key: "ArrowUp",
           run: (view: EditorView) => {
+            // If autocomplete dropdown is open, let it handle arrow navigation
+            if (completionStatus(view.state) === "active") {
+              return false;
+            }
+
             const cursor = view.state.selection.main.head;
             const line = view.state.doc.lineAt(cursor);
 
@@ -614,12 +625,17 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         {
           key: "ArrowDown",
           run: (view: EditorView) => {
+            // If autocomplete dropdown is open, let it handle arrow navigation
+            if (completionStatus(view.state) === "active") {
+              return false;
+            }
+
             const cursor = view.state.selection.main.head;
             const line = view.state.doc.lineAt(cursor);
-            const lastLine = view.state.doc.lines;
+            const doc = view.state.doc;
 
             // Only navigate if on last line
-            if (line.number === lastLine) {
+            if (line.number === doc.lines) {
               const nextBlockId = useBlockStore
                 .getState()
                 .getNextBlock(blockId);
