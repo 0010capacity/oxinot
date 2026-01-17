@@ -275,6 +275,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       copyBlocksAsMarkdown,
     ]);
 
+    // Ref to store text selection for context menu
+    const savedTextSelectionRef = useRef<string>("");
+
     // Text selection context menu
     const textSelectionSections: ContextMenuSection[] = useMemo(
       () => [
@@ -283,18 +286,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             {
               label: t("common.context_menu.copy"),
               onClick: () => {
-                const selection = window.getSelection();
-                const selectedText = selection?.toString() || "";
+                const selectedText = savedTextSelectionRef.current;
                 if (selectedText) {
                   navigator.clipboard.writeText(selectedText);
+                  showToast({
+                    message: "Copied to clipboard",
+                    type: "success",
+                  });
                 }
               },
             },
             {
               label: t("common.context_menu.cut"),
               onClick: async () => {
-                const selection = window.getSelection();
-                const selectedText = selection?.toString() || "";
+                const selectedText = savedTextSelectionRef.current;
                 if (selectedText && editorRef.current) {
                   await navigator.clipboard.writeText(selectedText);
                   // Delete selected text by replacing with empty string
@@ -306,6 +311,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                       selection: { anchor: from },
                     });
                   }
+                  showToast({
+                    message: "Cut to clipboard",
+                    type: "success",
+                  });
                 }
               },
             },
@@ -975,16 +984,30 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           ref={blockComponentRef}
           className="block-component"
           onMouseDown={(e) => {
-            // Prevent default text selection on right-click
+            // Save text selection before right-click might clear it
             if (e.button === 2) {
-              e.preventDefault();
-              e.stopPropagation();
-              // Clear any existing selection to prevent browser from auto-selecting text
-              window.getSelection()?.removeAllRanges();
+              const selection = window.getSelection();
+              if (selection && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                if (!range.collapsed) {
+                  savedTextSelectionRef.current = selection.toString();
+                } else {
+                  savedTextSelectionRef.current = "";
+                }
+              } else {
+                savedTextSelectionRef.current = "";
+              }
 
-              // If this block is not selected, select it
-              if (!isSelected) {
-                useBlockUIStore.getState().setSelectedBlocks([blockId]);
+              // If no text selection, prevent default and clear browser selection
+              if (!savedTextSelectionRef.current) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.getSelection()?.removeAllRanges();
+
+                // If this block is not selected, select it
+                if (!isSelected) {
+                  useBlockUIStore.getState().setSelectedBlocks([blockId]);
+                }
               }
             }
           }}
