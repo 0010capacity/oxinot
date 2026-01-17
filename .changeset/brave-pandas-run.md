@@ -1,0 +1,33 @@
+---
+"oxinot": minor
+---
+
+- batch IPC calls for block refs (#254) (#279)
+- add cleanup logic to deleteBlock (#262) (#281)
+- optimize childrenMap update to avoid O(N) (#260) (#282)
+- add database vacuum and optimize commands (#283)
+- apply color variant selection to accent colors
+- make Mantine theme dynamic based on color variant
+- resolve MantineProvider nesting issue
+- fix light mode color scheme detection and application
+- fix light mode by using media query with !important
+- improve dark mode bullet point visibility (#294)
+- remove markdown text from ThemeProvider.tsx
+- remove markdown text from variables.css
+- improve tempId handling during rapid typing (#297)
+- improve atomicity in delete_path_with_db (#298)
+- implement FTS5 for block search (#299)
+- fix autocomplete keyboard navigation (#302)
+- fix N+1 query in load_block_metadata (#303)
+- implement filesystem sandboxing (workspace isolation) (#304)
+- replace inline hover styles with CSS :hover in SubPagesSection (#305)
+- tighten CSP and Shell Open permissions (#306)
+- add list and map types for metadata fields (#307)
+- Validate and default color variant
+- optimize wiki link updates during page rename (#309)
+- refine MetadataEditor type inference logic (#308)
+- fix color variant changes not applying and remove deprecated default option
+- optimize mask_code_blocks in wiki_link_parser (#311)
+- implement batch processing for reindex_all_links (#312)
+- implement robust path validation in Rust backend (#313)
+- optimize decoration updates in hybridRendering.ts (#314)
