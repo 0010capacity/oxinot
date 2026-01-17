@@ -79,6 +79,11 @@ pub fn open_workspace_db(workspace_path: &str) -> Result<Connection, String> {
         OxinotError::database(format!("Failed to enable foreign keys: {}", e)).to_string()
     })?;
 
+    // Enable WAL mode for better concurrency
+    conn.execute("PRAGMA journal_mode = WAL", []).map_err(|e| {
+        OxinotError::database(format!("Failed to enable WAL mode: {}", e)).to_string()
+    })?;
+
     // Initialize schema
     crate::db::schema::init_schema(&conn).map_err(|e| {
         OxinotError::database(format!("Failed to initialize schema: {}", e)).to_string()

@@ -20,6 +20,9 @@ pub fn init_db(db_path: PathBuf) -> SqliteResult<Connection> {
     // Enable foreign keys
     conn.execute("PRAGMA foreign_keys = ON", [])?;
 
+    // Enable WAL mode for better concurrency
+    conn.execute("PRAGMA journal_mode = WAL", [])?;
+
     // Initialize schema
     schema::init_schema(&conn)?;
 
