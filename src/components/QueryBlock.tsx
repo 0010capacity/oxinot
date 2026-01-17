@@ -40,6 +40,7 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
   const setFocusedBlock = useBlockUIStore((state) => state.setFocusedBlock);
 
   // Execute query on mount or when macro changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: props are intentionally used
   useEffect(() => {
     executeQuery();
   }, [macroString, workspacePath]);
@@ -203,6 +204,7 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
       <Box style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
         {state.results.map((block) => (
           <Box
+            key={block.id}
             style={{
               display: "flex",
               gap: "6px",
@@ -258,6 +260,7 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
                   fontSize: "14px",
                   lineHeight: "1.5",
                 }}
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: content is sanitized markdown
                 dangerouslySetInnerHTML={{
                   __html: renderMarkdownToHtml(block.content, {
                     allowBlocks: true,

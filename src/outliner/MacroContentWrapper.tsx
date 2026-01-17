@@ -51,9 +51,9 @@ export const MacroContentWrapper: React.FC<MacroContentWrapperProps> = ({
   if (workspacePath && queryMacros.length > 0) {
     return (
       <Stack gap={0}>
-        {queryMacros.map((macroString, index) => (
+        {queryMacros.map((macroString) => (
           <QueryBlock
-            key={`${blockId}-macro-${index}`}
+            key={`${blockId}-macro-${macroString}`}
             macroString={macroString}
             workspacePath={workspacePath}
             onEdit={onEdit}

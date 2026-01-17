@@ -47,10 +47,11 @@ export class QueryParseError extends Error {
 export function extractQueryMacros(text: string): string[] {
   const regex = /\{\{([^}]*)\}\}/g;
   const matches: string[] = [];
-  let match: RegExpExecArray | null;
+  let match: RegExpExecArray | null = regex.exec(text);
 
-  while ((match = regex.exec(text)) !== null) {
+  while (match !== null) {
     matches.push(match[1].trim());
+    match = regex.exec(text);
   }
 
   return matches;
@@ -113,10 +114,11 @@ function parseFromClause(input: string): FromClause {
 function extractBracketedPaths(input: string): string[] {
   const bracketsRegex = /\[([^\]]+)\]/g;
   const paths: string[] = [];
-  let match: RegExpExecArray | null;
+  let match: RegExpExecArray | null = bracketsRegex.exec(input);
 
-  while ((match = bracketsRegex.exec(input)) !== null) {
+  while (match !== null) {
     paths.push(match[1].trim());
+    match = bracketsRegex.exec(input);
   }
 
   return paths;
