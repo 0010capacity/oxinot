@@ -103,18 +103,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               label: t("common.indent") || "Indent",
               icon: <IconIndentIncrease size={16} />,
               onClick: async () => {
-                // commitDraft will be available when onClick is called
-                const draftCommit = useBlockStore.getState().blocksById[blockId]
-                  ? draftRef.current
-                  : "";
-                if (
-                  draftCommit !==
-                  useBlockStore.getState().blocksById[blockId]?.content
-                ) {
-                  await useBlockStore
-                    .getState()
-                    .updateBlockContent(blockId, draftRef.current);
-                }
                 await indentBlock(blockId);
               },
               disabled: !batchOps.canIndentBlocks([blockId]),
@@ -123,17 +111,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               label: t("common.outdent") || "Outdent",
               icon: <IconIndentDecrease size={16} />,
               onClick: async () => {
-                const draftCommit = useBlockStore.getState().blocksById[blockId]
-                  ? draftRef.current
-                  : "";
-                if (
-                  draftCommit !==
-                  useBlockStore.getState().blocksById[blockId]?.content
-                ) {
-                  await useBlockStore
-                    .getState()
-                    .updateBlockContent(blockId, draftRef.current);
-                }
                 await outdentBlock(blockId);
               },
               disabled: !batchOps.canOutdentBlocks([blockId]),
@@ -142,17 +119,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               label: t("common.duplicate") || "Duplicate",
               icon: <IconCopy size={16} />,
               onClick: async () => {
-                const draftCommit = useBlockStore.getState().blocksById[blockId]
-                  ? draftRef.current
-                  : "";
-                if (
-                  draftCommit !==
-                  useBlockStore.getState().blocksById[blockId]?.content
-                ) {
-                  await useBlockStore
-                    .getState()
-                    .updateBlockContent(blockId, draftRef.current);
-                }
                 createBlock(blockId);
               },
             },
