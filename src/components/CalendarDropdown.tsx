@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { ActionIcon, Box, Stack, Text } from "@mantine/core";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
@@ -29,6 +29,32 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
   );
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const openBlockPage = useBlockStore((state) => state.openPage);
+
+  // Pre-calculate page paths for O(1) lookup
+  // Map<FullPath, PageId>
+  const pagePathMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const buildPath = (pageId: string): string => {
+      const page = pagesById[pageId];
+      if (!page) return "";
+      
+      // If we already computed this page's path, verify if we can cache intermediate results.
+      // For now, simple recursion is fine as we are building the whole map once per update.
+      if (page.parentId) {
+        const parentPath = buildPath(page.parentId);
+        return parentPath ? `${parentPath}/${page.title}` : page.title;
+      }
+      return page.title;
+    };
+
+    for (const id of pageIds) {
+      const path = buildPath(id);
+      if (path) {
+        map.set(path, id);
+      }
+    }
+    return map;
+  }, [pagesById, pageIds]);
 
   const monthNames = [
     "January",
@@ -63,25 +89,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
 
   const getDailyNotePage = (date: Date) => {
     const fullPath = getFullDailyNotePath(date);
-
-    const getPageIdByPath = (path: string): string | undefined => {
-      return pageIds.find((id) => {
-        const page = pagesById[id];
-        if (!page) return false;
-        const buildPath = (pageId: string): string => {
-          const p = pagesById[pageId];
-          if (!p) return "";
-          if (p.parentId) {
-            const parentPath = buildPath(p.parentId);
-            return parentPath ? `${parentPath}/${p.title}` : p.title;
-          }
-          return p.title;
-        };
-        return buildPath(id) === path;
-      });
-    };
-
-    const pageId = getPageIdByPath(fullPath);
+    const pageId = pagePathMap.get(fullPath);
     return pageId ? pagesById[pageId] : undefined;
   };
 
@@ -178,8 +186,9 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
     );
     const fullPath = getFullDailyNotePath(selectedDate);
 
-    // Check if page already exists
-    const page = getDailyNotePage(selectedDate);
+    // Check if page already exists using our optimized map
+    const pageId = pagePathMap.get(fullPath);
+    const page = pageId ? pagesById[pageId] : undefined;
 
     if (!page) {
       // Create new daily note page with full path
@@ -192,26 +201,11 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
         for (let i = 0; i < pathParts.length; i++) {
           const currentPath = pathParts.slice(0, i + 1).join("/");
 
-          // Find existing page at this path level
-          const existingPage = pageIds.find((id) => {
-            const p = pagesById[id];
-            if (!p) return false;
+          // Use map for O(1) lookup instead of O(N) find
+          const existingPageId = pagePathMap.get(currentPath);
 
-            const buildPath = (pageId: string): string => {
-              const page = pagesById[pageId];
-              if (!page) return "";
-              if (page.parentId) {
-                const parentPath = buildPath(page.parentId);
-                return parentPath ? `${parentPath}/${page.title}` : page.title;
-              }
-              return page.title;
-            };
-
-            return buildPath(id) === currentPath;
-          });
-
-          if (existingPage) {
-            parentId = existingPage;
+          if (existingPageId) {
+            parentId = existingPageId;
           } else {
             const newPageId = await createPage(pathParts[i], parentId);
             parentId = newPageId;
@@ -223,25 +217,16 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
 
         // Get fresh store state after reload
         const freshPagesById = usePageStore.getState().pagesById;
-        const freshPageIds = usePageStore.getState().pageIds;
 
-        // Find the created page after reload using the full path
-        const createdPageId = freshPageIds.find((id) => {
-          const p = freshPagesById[id];
-          if (!p) return false;
-
-          const buildPath = (pageId: string): string => {
-            const page = freshPagesById[pageId];
-            if (!page) return "";
-            if (page.parentId) {
-              const parentPath = buildPath(page.parentId);
-              return parentPath ? `${parentPath}/${page.title}` : page.title;
-            }
-            return page.title;
-          };
-
-          return buildPath(id) === fullPath;
-        });
+        // Note: After reload, our local pagePathMap is stale until next render.
+        // We need to find the newly created page ID.
+        // Since we just created it, we can traverse looking for the leaf pathPart with the correct parent.
+        
+        // However, for simplicity and correctness in this async flow, we can re-scan or just rebuild the path logic locally 
+        // for this one-time operation, OR better yet, leverage the `parentId` (which is the leaf ID now).
+        // `parentId` variable holds the ID of the last created/found page from the loop above.
+        
+        const createdPageId = parentId; 
 
         if (createdPageId) {
           // Copy template blocks if template is set
@@ -250,30 +235,31 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
           }
 
           const createdPage = freshPagesById[createdPageId];
-
-          // Build parent names array for breadcrumb
-          const parentNames: string[] = [];
-          const pagePathIds: string[] = [];
-
-          const buildParentPath = (pageId: string) => {
-            const page = freshPagesById[pageId];
-            if (!page) return;
-
-            if (page.parentId) {
-              buildParentPath(page.parentId);
-              const parentPage = freshPagesById[page.parentId];
-              if (parentPage) {
-                parentNames.push(parentPage.title);
-                pagePathIds.push(page.parentId);
-              }
-            }
-          };
-
-          buildParentPath(createdPageId);
-          pagePathIds.push(createdPageId);
-
-          setCurrentPageId(createdPageId);
-          openNote(createdPageId, createdPage.title, parentNames, pagePathIds);
+          if (createdPage) {
+              // Build parent names array for breadcrumb
+              const parentNames: string[] = [];
+              const pagePathIds: string[] = [];
+    
+              const buildParentPath = (pid: string) => {
+                const p = freshPagesById[pid];
+                if (!p) return;
+    
+                if (p.parentId) {
+                  buildParentPath(p.parentId);
+                  const parentPage = freshPagesById[p.parentId];
+                  if (parentPage) {
+                    parentNames.push(parentPage.title);
+                    pagePathIds.push(p.parentId);
+                  }
+                }
+              };
+    
+              buildParentPath(createdPageId);
+              pagePathIds.push(createdPageId);
+    
+              setCurrentPageId(createdPageId);
+              openNote(createdPageId, createdPage.title, parentNames, pagePathIds);
+          }
         }
       } catch (error) {
         console.error("Failed to create daily note:", error);
@@ -283,8 +269,8 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
       const parentNames: string[] = [];
       const pagePathIds: string[] = [];
 
-      const buildParentPath = (pageId: string) => {
-        const p = pagesById[pageId];
+      const buildParentPath = (pid: string) => {
+        const p = pagesById[pid];
         if (!p) return;
 
         if (p.parentId) {
