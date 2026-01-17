@@ -22,6 +22,7 @@ import { useBlockUIStore } from "../stores/blockUIStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
+import { MacroContentWrapper } from "./MacroContentWrapper";
 import "./BlockComponent.css";
 
 interface BlockComponentProps {
@@ -777,73 +778,79 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               className="block-content-wrapper"
               style={{ position: "relative" }}
             >
-              <Popover
-                opened={isMetadataOpen}
-                onClose={() => {
-                  setIsMetadataOpen(false);
-                }}
-                position="bottom"
-                withArrow
-                shadow="md"
-                trapFocus={false}
-                closeOnEscape
-                closeOnClickOutside
-                withinPortal={true}
-                transitionProps={{ duration: 0 }}
+              <MacroContentWrapper
+                content={draft}
+                blockId={blockId}
+                isFocused={focusedBlockId === blockId}
               >
-                <Popover.Target>
-                  <Box style={{ width: "100%" }}>
-                    <Editor
-                      ref={editorRef}
-                      value={draft}
-                      onChange={handleContentChangeWithTrigger}
-                      onFocus={handleFocus}
-                      onBlur={handleBlur}
-                      lineNumbers={false}
-                      lineWrapping={true}
-                      theme={isDark ? "dark" : "light"}
-                      keybindings={keybindings}
-                      // FOCUS STATE PROP:
-                      // -----------------
-                      // This determines whether markdown markers are visible or hidden
-                      // focusedBlockId comes from useViewStore and is set when user clicks/focuses a block
-                      //
-                      // When true (block has focus):
-                      //   → shouldShowMarkers = true (via shouldShowMarkersForLine in hybridRendering.ts)
-                      //   → Markers are visible → Shows raw markdown (e.g., [[link]], # heading)
-                      //
-                      // When false (block unfocused):
-                      //   → shouldShowMarkers = false
-                      //   → Markers are hidden → Renders formatted content (e.g., link, styled heading)
-                      isFocused={focusedBlockId === blockId}
-                      className="block-editor"
-                      style={{
-                        minHeight: "24px",
-                        fontSize: "14px",
+                <Popover
+                  opened={isMetadataOpen}
+                  onClose={() => {
+                    setIsMetadataOpen(false);
+                  }}
+                  position="bottom"
+                  withArrow
+                  shadow="md"
+                  trapFocus={false}
+                  closeOnEscape
+                  closeOnClickOutside
+                  withinPortal={true}
+                  transitionProps={{ duration: 0 }}
+                >
+                  <Popover.Target>
+                    <Box style={{ width: "100%" }}>
+                      <Editor
+                        ref={editorRef}
+                        value={draft}
+                        onChange={handleContentChangeWithTrigger}
+                        onFocus={handleFocus}
+                        onBlur={handleBlur}
+                        lineNumbers={false}
+                        lineWrapping={true}
+                        theme={isDark ? "dark" : "light"}
+                        keybindings={keybindings}
+                        // FOCUS STATE PROP:
+                        // -----------------
+                        // This determines whether markdown markers are visible or hidden
+                        // focusedBlockId comes from useViewStore and is set when user clicks/focuses a block
+                        //
+                        // When true (block has focus):
+                        //   → shouldShowMarkers = true (via shouldShowMarkersForLine in hybridRendering.ts)
+                        //   → Markers are visible → Shows raw markdown (e.g., [[link]], # heading)
+                        //
+                        // When false (block unfocused):
+                        //   → shouldShowMarkers = false
+                        //   → Markers are hidden → Renders formatted content (e.g., link, styled heading)
+                        isFocused={focusedBlockId === blockId}
+                        className="block-editor"
+                        style={{
+                          minHeight: "24px",
+                          fontSize: "14px",
+                        }}
+                      />
+                    </Box>
+                  </Popover.Target>
+                  <Popover.Dropdown
+                    p={0}
+                    ref={popoverDropdownRef}
+                    style={{ minWidth: "300px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <MetadataEditor
+                      blockId={blockId}
+                      onClose={() => {
+                        setIsMetadataOpen(false);
+                        // Return focus to editor after metadata is saved
+                        setTimeout(() => {
+                          editorRef.current?.focus();
+                        }, 0);
                       }}
                     />
-                  </Box>
-                </Popover.Target>
-                <Popover.Dropdown
-                  p={0}
-                  ref={popoverDropdownRef}
-                  style={{ minWidth: "300px" }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                >
-                  <MetadataEditor
-                    blockId={blockId}
-                    onClose={() => {
-                      setIsMetadataOpen(false);
-                      // Return focus to editor after metadata is saved
-                      setTimeout(() => {
-                        editorRef.current?.focus();
-                      }, 0);
-                    }}
-                  />
-                </Popover.Dropdown>
-              </Popover>
+                  </Popover.Dropdown>
+                </Popover>
+              </MacroContentWrapper>
 
               {/* Metadata Badge - small indicator with tooltip */}
               {block.metadata && (
