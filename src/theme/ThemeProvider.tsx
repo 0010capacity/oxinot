@@ -1,11 +1,5 @@
 import { useComputedColorScheme, MantineProvider } from "@mantine/core";
-import {
-  type ReactNode,
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-} from "react";
+import { type ReactNode, createContext, useEffect, useMemo } from "react";
 import { useThemeStore } from "../stores/themeStore";
 import { createColorPalette } from "./colors";
 import {
