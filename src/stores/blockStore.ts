@@ -26,10 +26,13 @@ export interface BlockData {
   metadata?: Record<string, string>;
 }
 
+export type BlockStatus = "synced" | "optimistic" | "syncing" | "error";
+
 interface BlockState {
   // 정규화된 데이터
   blocksById: Record<string, BlockData>;
   childrenMap: Record<string, string[]>;
+  blockStatus: Record<string, BlockStatus>;
 
   // 현재 상태
   currentPageId: string | null;
@@ -102,6 +105,7 @@ export const useBlockStore = create<BlockStore>()(
     // Initial State
     blocksById: {},
     childrenMap: {},
+    blockStatus: {},
     currentPageId: null,
     isLoading: false,
     error: null,
@@ -269,9 +273,6 @@ export const useBlockStore = create<BlockStore>()(
 
       if (isRootBlockCreation) {
         // Optimistic: 임시 ID로 즉시 추가
-        // NOTE: This must happen synchronously before any async work so the editor
-        // can render a root block immediately (avoids "empty-state" flicker/races on
-        // first open of a new, empty page).
         const tempId = `temp-${Date.now()}`;
         const nowIso = new Date().toISOString();
         const tempBlock: BlockData = {
@@ -288,6 +289,7 @@ export const useBlockStore = create<BlockStore>()(
 
         set((state) => {
           state.blocksById[tempId] = tempBlock;
+          state.blockStatus[tempId] = "optimistic";
           const parentKey = parentId ?? "root";
           if (!state.childrenMap[parentKey]) {
             state.childrenMap[parentKey] = [];
@@ -295,10 +297,6 @@ export const useBlockStore = create<BlockStore>()(
           state.childrenMap[parentKey].push(tempId);
         });
         useBlockUIStore.setState({ focusedBlockId: tempId });
-
-        // Kick off the backend create after the optimistic state is committed.
-        // Yield one tick to ensure React/Zustand subscribers can render the temp block.
-        await Promise.resolve();
 
         try {
           const workspacePath = useWorkspaceStore.getState().workspacePath;
@@ -316,10 +314,23 @@ export const useBlockStore = create<BlockStore>()(
             },
           });
 
+          // Capture pending updates before clearing them
+          const pendingUpdates = get().pendingUpdates.filter(
+            (u) => u.tempId === tempId
+          );
+          const latestContent =
+            pendingUpdates.length > 0
+              ? pendingUpdates[pendingUpdates.length - 1].content
+              : null;
+
           // 임시 블록을 실제 블록으로 교체
           set((state) => {
             delete state.blocksById[tempId];
+            delete state.blockStatus[tempId];
+            
+            // Add new block
             state.blocksById[newBlock.id] = newBlock;
+            state.blockStatus[newBlock.id] = "synced";
 
             const parentKey = parentId ?? "root";
             const tempIndex = state.childrenMap[parentKey].indexOf(tempId);
@@ -330,13 +341,8 @@ export const useBlockStore = create<BlockStore>()(
             // tempIdMap에 매핑 기록
             state.tempIdMap[tempId] = newBlock.id;
 
-            // 해당 tempId의 pending updates를 처리
-            const pendingList = state.pendingUpdates.filter(
-              (u) => u.tempId === tempId
-            );
-            if (pendingList.length > 0) {
-              // 가장 최신의 content만 적용 (마지막 pending update)
-              const latestContent = pendingList[pendingList.length - 1].content;
+            // Apply latest content from pending updates
+            if (latestContent !== null) {
               if (state.blocksById[newBlock.id]) {
                 state.blocksById[newBlock.id].content = latestContent;
                 state.blocksById[newBlock.id].updatedAt =
@@ -348,14 +354,13 @@ export const useBlockStore = create<BlockStore>()(
               );
             }
           });
-          useBlockUIStore.setState({ focusedBlockId: newBlock.id });
+          
+          if (useBlockUIStore.getState().focusedBlockId === tempId) {
+            useBlockUIStore.setState({ focusedBlockId: newBlock.id });
+          }
 
           // 백엔드에 pending updates 동기화
-          const pendingList = get().pendingUpdates.filter(
-            (u) => u.tempId === tempId
-          );
-          if (pendingList.length > 0) {
-            const latestContent = pendingList[pendingList.length - 1].content;
+          if (latestContent !== null) {
             try {
               const workspacePath = useWorkspaceStore.getState().workspacePath;
               if (workspacePath) {
@@ -377,6 +382,7 @@ export const useBlockStore = create<BlockStore>()(
           // 롤백
           set((state) => {
             delete state.blocksById[tempId];
+            delete state.blockStatus[tempId];
             const parentKey = parentId ?? "root";
             state.childrenMap[parentKey] = state.childrenMap[parentKey].filter(
               (id) => id !== tempId
@@ -460,7 +466,7 @@ export const useBlockStore = create<BlockStore>()(
     },
 
     updateBlockContent: async (id: string, content: string) => {
-      const { blocksById } = get();
+      const { blocksById, blockStatus } = get();
       const { mergingBlockId, mergingTargetBlockId } =
         useBlockUIStore.getState();
 
@@ -472,9 +478,12 @@ export const useBlockStore = create<BlockStore>()(
       const block = blocksById[id];
       if (!block) return;
 
-      // Check if this is a tempId (block creation still in progress)
-      const isTempId = id.startsWith("temp-");
-      if (isTempId) {
+      // Check if this is a tempId or optimistic/syncing status
+      const status = blockStatus[id];
+      const isOptimistic =
+        status === "optimistic" || status === "syncing" || id.startsWith("temp-");
+
+      if (isOptimistic) {
         // 큐에 추가하고 실제 ID로 교체될 때까지 대기
         set((state) => {
           state.pendingUpdates.push({ tempId: id, content });
