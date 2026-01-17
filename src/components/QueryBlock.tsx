@@ -6,6 +6,7 @@ import { useBlockStore } from "../stores/blockStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { tauriAPI, QueryResultBlock } from "../tauri-api";
 import { parseQueryMacro, QueryParseError } from "../utils/queryParser";
+import { renderMarkdownToHtml } from "../outliner/markdownRenderer";
 
 interface QueryBlockProps {
   macroString: string;
@@ -252,15 +253,17 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
             </button>
 
             <Box style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-              <Text
-                size="sm"
+              <Box
                 style={{
-                  wordBreak: "break-word",
-                  whiteSpace: "pre-wrap",
+                  fontSize: "14px",
+                  lineHeight: "1.5",
                 }}
-              >
-                {block.content}
-              </Text>
+                dangerouslySetInnerHTML={{
+                  __html: renderMarkdownToHtml(block.content, {
+                    allowBlocks: true,
+                  }),
+                }}
+              />
               <Text size="xs" c="dimmed" style={{ marginTop: "2px" }}>
                 {block.pagePath}
               </Text>
