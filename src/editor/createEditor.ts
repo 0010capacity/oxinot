@@ -138,6 +138,10 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
 
     // Keymaps (prepend user bindings so they override defaults)
     keymap.of([
+      // Autocomplete keymap (Enter, Arrows, Esc) must take precedence over
+      // outliner keybindings so the dropdown can be navigated when open.
+      ...completionKeymap,
+
       ...(config.keybindings ?? []),
 
       // Force insert Space to bypass any blockers (completion keymap, IME artifacts, etc)
@@ -268,7 +272,6 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
       ...historyKeymap,
       ...closeBracketsKeymap,
       ...searchKeymap,
-      ...completionKeymap,
     ])
   );
 
