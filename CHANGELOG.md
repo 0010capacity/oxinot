@@ -1,5 +1,102 @@
 # oxinot
 
+## 0.14.0
+
+### Minor Changes
+
+- 40f0d23: - fix indentation alignment and add deletion logging
+  - fix context menu triggering parent menu on child click
+  - add CASCADE deletion warning in delete modal
+- f1cad29: - fix indentation alignment and add deletion logging
+  - fix context menu triggering parent menu on child click
+  - add CASCADE deletion warning in delete modal
+  - add CASCADE deletion warning in delete modal
+  - add comprehensive logging for drag-drop move debugging
+  - handle non-existent files in path validation
+  - fix directory move and silently ignore invalid moves
+  - shortcuts manager
+  - transaction support for create_page
+  - implement CommandRegistry/Provider pattern for Command Palette
+  - optimize CalendarDropdown with O(1) path lookup
+  - fix borrow checker error in create_page
+- 40f0d23: - fix indentation alignment and add deletion logging
+  - fix context menu triggering parent menu on child click
+  - add CASCADE deletion warning in delete modal
+  - add CASCADE deletion warning in delete modal
+  - add comprehensive logging for drag-drop move debugging
+  - handle non-existent files in path validation
+  - fix directory move and silently ignore invalid moves
+  - shortcuts manager
+- 40f0d23: - fix indentation alignment and add deletion logging
+  - fix context menu triggering parent menu on child click
+  - add CASCADE deletion warning in delete modal
+  - add CASCADE deletion warning in delete modal
+  - add comprehensive logging for drag-drop move debugging
+  - handle non-existent files in path validation
+  - fix directory move and silently ignore invalid moves
+  - shortcuts manager
+- 40f0d23: - fix indentation alignment and add deletion logging
+  - fix context menu triggering parent menu on child click
+  - add CASCADE deletion warning in delete modal
+  - add CASCADE deletion warning in delete modal
+  - add comprehensive logging for drag-drop move debugging
+  - handle non-existent files in path validation
+  - fix directory move and silently ignore invalid moves
+  - shortcuts manager
+  - transaction support for create_page
+  - implement CommandRegistry/Provider pattern for Command Palette
+  - optimize CalendarDropdown with O(1) path lookup
+  - fix borrow checker error in create_page
+- 40f0d23: - fix indentation alignment and add deletion logging
+  - fix context menu triggering parent menu on child click
+  - add CASCADE deletion warning in delete modal
+  - add CASCADE deletion warning in delete modal
+  - add comprehensive logging for drag-drop move debugging
+  - handle non-existent files in path validation
+  - fix directory move and silently ignore invalid moves
+  - shortcuts manager
+  - transaction support for create_page
+  - implement CommandRegistry/Provider pattern for Command Palette
+  - optimize CalendarDropdown with O(1) path lookup
+- 40f0d23: - fix indentation alignment and add deletion logging
+  - fix context menu triggering parent menu on child click
+  - add CASCADE deletion warning in delete modal
+  - add CASCADE deletion warning in delete modal
+  - add comprehensive logging for drag-drop move debugging
+  - handle non-existent files in path validation
+  - fix directory move and silently ignore invalid moves
+  - shortcuts manager
+- 40f0d23: - fix indentation alignment and add deletion logging
+  - fix context menu triggering parent menu on child click
+  - add CASCADE deletion warning in delete modal
+  - add CASCADE deletion warning in delete modal
+  - add comprehensive logging for drag-drop move debugging
+  - handle non-existent files in path validation
+  - fix directory move and silently ignore invalid moves
+  - shortcuts manager
+  - implement CommandRegistry/Provider pattern for Command Palette
+- 40f0d23: - add query macro syntax {{}} for dynamic block queries (#360)
+  - add template note support (#363)
+  - fix indentation alignment and add deletion logging (#366)
+  - add CASCADE deletion warning in delete modal (#368)
+  - File tree drag-and-drop issues with directories and validation (#370)
+- 40f0d23: - fix indentation alignment and add deletion logging
+  - fix context menu triggering parent menu on child click
+  - add CASCADE deletion warning in delete modal
+  - add CASCADE deletion warning in delete modal
+  - add comprehensive logging for drag-drop move debugging
+  - handle non-existent files in path validation
+  - fix directory move and silently ignore invalid moves
+  - shortcuts manager
+- 40f0d23: - fix indentation alignment and add deletion logging
+  - fix context menu triggering parent menu on child click
+  - add CASCADE deletion warning in delete modal
+  - add CASCADE deletion warning in delete modal
+  - add comprehensive logging for drag-drop move debugging
+  - handle non-existent files in path validation
+  - fix directory move and silently ignore invalid moves
+  - shortcuts manager
+
 ## 0.13.0
 
 ### Minor Changes
