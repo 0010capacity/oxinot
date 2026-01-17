@@ -303,10 +303,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         if (event.key === "ArrowUp") {
           event.preventDefault();
           event.stopPropagation();
-          const prevBlockId = useBlockStore
-            .getState()
-            .getPreviousBlock(blockId);
-          if (prevBlockId && blockOrder.length > 0) {
+          // Use blockOrder for cross-depth navigation
+          const currentIndex = blockOrder.indexOf(blockId);
+          if (currentIndex > 0) {
+            const prevBlockId = blockOrder[currentIndex - 1];
             // Extend selection from fixed anchor to the new block
             selectBlockRange(anchorId, prevBlockId, blockOrder);
             // Update focus to the new block so further arrow keys continue from there
@@ -315,8 +315,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         } else if (event.key === "ArrowDown") {
           event.preventDefault();
           event.stopPropagation();
-          const nextBlockId = useBlockStore.getState().getNextBlock(blockId);
-          if (nextBlockId && blockOrder.length > 0) {
+          // Use blockOrder for cross-depth navigation
+          const currentIndex = blockOrder.indexOf(blockId);
+          if (currentIndex >= 0 && currentIndex < blockOrder.length - 1) {
+            const nextBlockId = blockOrder[currentIndex + 1];
             // Extend selection from fixed anchor to the new block
             selectBlockRange(anchorId, nextBlockId, blockOrder);
             // Update focus to the new block so further arrow keys continue from there
