@@ -29,7 +29,6 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
   );
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const openBlockPage = useBlockStore((state) => state.openPage);
-  const createBlockStoreBlock = useBlockStore((state) => state.createBlock);
 
   const monthNames = [
     "January",
@@ -95,9 +94,6 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
         throw new Error("No workspace selected");
       }
 
-      // First, load the target page into blockStore
-      await openBlockPage(targetPageId);
-
       // Fetch template page blocks
       const templateBlocks: BlockData[] = await invoke("get_page_blocks", {
         workspacePath,
@@ -108,31 +104,58 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
         return;
       }
 
-      // Helper to recursively copy blocks
-      const copyBlocksRecursively = async (
-        blocks: BlockData[],
-        parentId: string | null = null
-      ) => {
-        for (const block of blocks) {
-          // Create block in target page
-          const newBlockId = await createBlockStoreBlock(
-            parentId,
-            block.content
-          );
+      // Map to track original block ID to new block ID
+      const blockIdMap = new Map<string, string>();
 
-          // Find children of this block
-          const children = templateBlocks.filter(
-            (b) => b.parentId === block.id
-          );
-          if (children.length > 0) {
-            await copyBlocksRecursively(children, newBlockId);
+      // Create a map of original blocks for quick lookup
+      const blockMap = new Map<string, BlockData>();
+      templateBlocks.forEach((block) => {
+        blockMap.set(block.id, block);
+      });
+
+      // Process blocks in order, ensuring parents are created before children
+      const processedIds = new Set<string>();
+
+      const processBlock = async (block: BlockData): Promise<string> => {
+        // If already processed, return the mapped ID
+        if (processedIds.has(block.id)) {
+          return blockIdMap.get(block.id)!;
+        }
+
+        // Process parent first if it exists
+        let newParentId: string | null = null;
+        if (block.parentId) {
+          const parentBlock = blockMap.get(block.parentId);
+          if (parentBlock) {
+            newParentId = await processBlock(parentBlock);
           }
         }
+
+        // Create the block with correct parent
+        const newBlock: BlockData = await invoke("create_block", {
+          workspacePath,
+          request: {
+            pageId: targetPageId,
+            parentId: newParentId,
+            afterBlockId: null,
+            content: block.content,
+          },
+        });
+
+        blockIdMap.set(block.id, newBlock.id);
+        processedIds.add(block.id);
+
+        return newBlock.id;
       };
 
-      // Copy only root-level blocks (parentId: null)
+      // Process all root blocks
       const rootBlocks = templateBlocks.filter((b) => b.parentId === null);
-      await copyBlocksRecursively(rootBlocks);
+      for (const rootBlock of rootBlocks) {
+        await processBlock(rootBlock);
+      }
+
+      // Reload the target page to update blockStore
+      await openBlockPage(targetPageId);
     } catch (error) {
       console.error("Failed to copy template blocks:", error);
     }
