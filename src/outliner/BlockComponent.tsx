@@ -280,11 +280,25 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       if (focusedBlockId !== blockId) return;
 
       const handleKeyDown = (event: KeyboardEvent) => {
+        // Clear anchor if navigating without Shift
+        if (
+          !event.shiftKey &&
+          (event.key === "ArrowUp" || event.key === "ArrowDown")
+        ) {
+          useBlockUIStore.getState().clearSelectionAnchor();
+          return;
+        }
+
         if (!event.shiftKey) return;
 
         const state = useBlockUIStore.getState();
-        const lastSelected = state.lastSelectedBlockId;
-        const selectionStart = lastSelected || blockId;
+
+        // Set anchor on first Shift+Arrow if not already set
+        if (!state.selectionAnchorId) {
+          useBlockUIStore.setState({ selectionAnchorId: blockId });
+        }
+
+        const anchorId = state.selectionAnchorId || blockId;
 
         if (event.key === "ArrowUp") {
           event.preventDefault();
@@ -293,8 +307,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             .getState()
             .getPreviousBlock(blockId);
           if (prevBlockId && blockOrder.length > 0) {
-            // Extend selection from the original selection start to the new block
-            selectBlockRange(selectionStart, prevBlockId, blockOrder);
+            // Extend selection from fixed anchor to the new block
+            selectBlockRange(anchorId, prevBlockId, blockOrder);
             // Update focus to the new block so further arrow keys continue from there
             setFocusedBlock(prevBlockId);
           }
@@ -303,8 +317,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           event.stopPropagation();
           const nextBlockId = useBlockStore.getState().getNextBlock(blockId);
           if (nextBlockId && blockOrder.length > 0) {
-            // Extend selection from the original selection start to the new block
-            selectBlockRange(selectionStart, nextBlockId, blockOrder);
+            // Extend selection from fixed anchor to the new block
+            selectBlockRange(anchorId, nextBlockId, blockOrder);
             // Update focus to the new block so further arrow keys continue from there
             setFocusedBlock(nextBlockId);
           }
@@ -917,6 +931,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               // Clear selection on regular click without modifiers
               else if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
                 useBlockUIStore.getState().clearSelectedBlocks();
+                useBlockUIStore.getState().clearSelectionAnchor();
               }
             }}
           >

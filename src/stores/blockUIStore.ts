@@ -8,6 +8,7 @@ interface BlockUIState {
   focusedBlockId: string | null;
   selectedBlockIds: string[];
   lastSelectedBlockId: string | null; // Shift+Click 범위 선택용
+  selectionAnchorId: string | null; // Fixed anchor for Shift+Arrow range selection
 
   // 작업 상태 (병합 중)
   mergingBlockId: string | null;
@@ -25,6 +26,10 @@ interface BlockUIActions {
   // 단일 선택 관리
   setSelectedBlocks: (ids: string[]) => void;
   clearSelectedBlocks: () => void;
+
+  // 선택 앵커 관리
+  setSelectionAnchor: (id: string | null) => void;
+  clearSelectionAnchor: () => void;
 
   // 다중 선택 관리
   toggleBlockSelection: (id: string) => void;
@@ -64,6 +69,7 @@ const initialState: BlockUIState = {
   focusedBlockId: null,
   selectedBlockIds: [],
   lastSelectedBlockId: null,
+  selectionAnchorId: null,
   mergingBlockId: null,
   mergingTargetBlockId: null,
   targetCursorPosition: null,
@@ -100,6 +106,19 @@ export const useBlockUIStore = create<BlockUIStore>()(
       set((state) => {
         state.selectedBlockIds = [];
         state.lastSelectedBlockId = null;
+        state.selectionAnchorId = null;
+      });
+    },
+
+    setSelectionAnchor: (id: string | null) => {
+      set((state) => {
+        state.selectionAnchorId = id;
+      });
+    },
+
+    clearSelectionAnchor: () => {
+      set((state) => {
+        state.selectionAnchorId = null;
       });
     },
 
