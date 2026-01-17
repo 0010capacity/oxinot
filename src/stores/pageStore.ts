@@ -165,8 +165,27 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
     },
 
     deletePage: async (id: string) => {
+      console.log("[pageStore] deletePage called with id:", id);
+
       const page = get().pagesById[id];
-      if (!page) return;
+      if (!page) {
+        console.error("[pageStore] Page not found:", id);
+        return;
+      }
+
+      console.log("[pageStore] Deleting page:", {
+        id: page.id,
+        title: page.title,
+        parentId: page.parentId,
+      });
+
+      // Log all pages before deletion
+      const allPages = get().pageIds.map((pid) => ({
+        id: pid,
+        title: get().pagesById[pid]?.title,
+        parentId: get().pagesById[pid]?.parentId,
+      }));
+      console.log("[pageStore] All pages before deletion:", allPages);
 
       const backup = { ...page };
       const backupIndex = get().pageIds.indexOf(id);
@@ -179,14 +198,32 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         }
       });
 
+      console.log("[pageStore] Optimistically removed page from store");
+
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
           throw new Error("No workspace selected");
         }
 
+        console.log("[pageStore] Invoking Tauri delete_page command...");
         await invoke("delete_page", { workspacePath, pageId: id });
+        console.log(
+          "[pageStore] Tauri delete_page command completed successfully"
+        );
+
+        // Log all pages after deletion
+        const remainingPages = get().pageIds.map((pid) => ({
+          id: pid,
+          title: get().pagesById[pid]?.title,
+          parentId: get().pagesById[pid]?.parentId,
+        }));
+        console.log(
+          "[pageStore] Remaining pages after deletion:",
+          remainingPages
+        );
       } catch (error) {
+        console.error("[pageStore] Error deleting page, rolling back:", error);
         set((state) => {
           state.pagesById[backup.id] = backup;
           state.pageIds.splice(backupIndex, 0, backup.id);

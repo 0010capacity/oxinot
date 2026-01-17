@@ -293,8 +293,31 @@ export function FileTreeIndex() {
 
   const handleDeletePage = useCallback(
     (pageId: string) => {
+      console.log(
+        "[FileTreeIndex] handleDeletePage called with pageId:",
+        pageId
+      );
       const page = pages.find((p) => p.id === pageId);
-      if (!page) return;
+      if (!page) {
+        console.error("[FileTreeIndex] Page not found:", pageId);
+        return;
+      }
+
+      console.log("[FileTreeIndex] Found page to delete:", {
+        id: page.id,
+        title: page.title,
+        parentId: page.parentId,
+      });
+
+      // Log all pages to see the current state
+      console.log(
+        "[FileTreeIndex] Current pages in store:",
+        pages.map((p) => ({
+          id: p.id,
+          title: p.title,
+          parentId: p.parentId,
+        }))
+      );
 
       setPageToDelete(page);
       setDeleteModalOpened(true);
@@ -303,15 +326,30 @@ export function FileTreeIndex() {
   );
 
   const confirmDeletePage = useCallback(async () => {
-    if (!pageToDelete) return;
+    if (!pageToDelete) {
+      console.log("[FileTreeIndex] confirmDeletePage: No page to delete");
+      return;
+    }
+
+    console.log("[FileTreeIndex] confirmDeletePage: Deleting page:", {
+      id: pageToDelete.id,
+      title: pageToDelete.title,
+      parentId: pageToDelete.parentId,
+    });
 
     try {
+      console.log(
+        "[FileTreeIndex] Calling deletePage with id:",
+        pageToDelete.id
+      );
       await deletePage(pageToDelete.id);
+      console.log("[FileTreeIndex] deletePage completed, reloading pages...");
       await loadPages();
+      console.log("[FileTreeIndex] Pages reloaded successfully");
       setDeleteModalOpened(false);
       setPageToDelete(null);
     } catch (error) {
-      console.error("Failed to delete page:", error);
+      console.error("[FileTreeIndex] Failed to delete page:", error);
       alert(`Failed to delete page: ${error}`);
     }
   }, [pageToDelete, deletePage, loadPages]);
