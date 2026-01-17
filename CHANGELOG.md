@@ -1,5 +1,39 @@
 # oxinot
 
+## 0.11.0
+
+### Minor Changes
+
+- 41e0d21: - batch IPC calls for block refs (#254) (#279)
+  - add cleanup logic to deleteBlock (#262) (#281)
+  - optimize childrenMap update to avoid O(N) (#260) (#282)
+  - add database vacuum and optimize commands (#283)
+- 41e0d21: - batch IPC calls for block refs (#254) (#279)
+  - add cleanup logic to deleteBlock (#262) (#281)
+  - optimize childrenMap update to avoid O(N) (#260) (#282)
+  - add database vacuum and optimize commands (#283)
+  - apply color variant selection to accent colors
+  - make Mantine theme dynamic based on color variant
+  - resolve MantineProvider nesting issue
+  - fix light mode color scheme detection and application
+- 41e0d21: - batch IPC calls for block refs (#254) (#279)
+  - add cleanup logic to deleteBlock (#262) (#281)
+  - optimize childrenMap update to avoid O(N) (#260) (#282)
+  - add database vacuum and optimize commands (#283)
+  - apply color variant selection to accent colors
+  - make Mantine theme dynamic based on color variant
+  - resolve MantineProvider nesting issue
+  - fix light mode color scheme detection and application
+- 41e0d21: - batch IPC calls for block refs (#254) (#279)
+  - add cleanup logic to deleteBlock (#262) (#281)
+  - optimize childrenMap update to avoid O(N) (#260) (#282)
+  - add database vacuum and optimize commands (#283)
+  - apply color variant selection to accent colors
+  - make Mantine theme dynamic based on color variant
+  - resolve MantineProvider nesting issue
+  - fix light mode color scheme detection and application
+  - improve dark mode bullet point visibility (#294)
+
 ## 0.10.0
 
 ### Minor Changes
