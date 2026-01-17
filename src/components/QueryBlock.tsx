@@ -154,7 +154,7 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
         backgroundColor: isDark
           ? "rgba(255, 255, 255, 0.02)"
           : "rgba(0, 0, 0, 0.01)",
-        width: "716px",
+        width: "100%",
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
