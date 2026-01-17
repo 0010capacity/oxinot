@@ -806,7 +806,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             style={{
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
               backgroundColor: isSelected
-                ? "rgba(59, 130, 246, 0.15)"
+                ? "rgba(59, 130, 246, 0.25)"
                 : undefined,
               borderLeft: isSelected
                 ? "3px solid rgb(59, 130, 246)"
