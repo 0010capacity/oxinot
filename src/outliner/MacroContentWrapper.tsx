@@ -10,38 +10,57 @@ interface MacroContentWrapperProps {
   blockId: string;
   isFocused: boolean;
   children: React.ReactNode;
+  onEdit?: () => void;
 }
 
 /**
  * Wrapper component that detects {{}} query macros in block content
  * and renders QueryBlock components above the editor.
  *
- * When the block is focused (being edited), only shows the editor.
- * When unfocused, shows QueryBlock results if macros are detected.
+ * When the block is focused (being edited), shows both QueryBlock and editor.
+ * When unfocused, shows only QueryBlock results (hides the query text).
  */
 export const MacroContentWrapper: React.FC<MacroContentWrapperProps> = ({
   content,
   blockId,
   isFocused,
   children,
+  onEdit,
 }) => {
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
 
   // Extract query macros from content
   const queryMacros = useMemo(() => {
-    if (isFocused || !content) {
+    if (!content) {
       return [];
     }
     return extractQueryMacros(content);
-  }, [content, isFocused]);
+  }, [content]);
 
-  // Don't show macros while editing
-  if (isFocused) {
+  // If no macros, just show children
+  if (queryMacros.length === 0) {
     return <>{children}</>;
   }
 
-  // Show macros above editor
-  if (queryMacros.length > 0 && workspacePath) {
+  // If focused (editing), show both macros and editor
+  if (isFocused) {
+    return (
+      <Stack gap={0}>
+        {queryMacros.map((macroString, index) => (
+          <QueryBlock
+            key={`${blockId}-macro-${index}`}
+            macroString={macroString}
+            workspacePath={workspacePath || ""}
+            onEdit={onEdit}
+          />
+        ))}
+        <Box>{children}</Box>
+      </Stack>
+    );
+  }
+
+  // Not focused: show only macros, hide the query text (editor)
+  if (workspacePath && queryMacros.length > 0) {
     return (
       <Stack gap={0}>
         {queryMacros.map((macroString, index) => (
@@ -49,9 +68,9 @@ export const MacroContentWrapper: React.FC<MacroContentWrapperProps> = ({
             key={`${blockId}-macro-${index}`}
             macroString={macroString}
             workspacePath={workspacePath}
+            onEdit={onEdit}
           />
         ))}
-        <Box>{children}</Box>
       </Stack>
     );
   }

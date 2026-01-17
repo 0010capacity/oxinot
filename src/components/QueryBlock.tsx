@@ -1,36 +1,28 @@
-import { useEffect, useState } from "react";
-import {
-  Box,
-  Group,
-  Stack,
-  Text,
-  Loader,
-  Alert,
-  Button,
-  ActionIcon,
-  Tooltip,
-  useComputedColorScheme,
-} from "@mantine/core";
+import { Box, Text, useComputedColorScheme } from "@mantine/core";
 import { IconEdit } from "@tabler/icons-react";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { useBlockStore } from "../stores/blockStore";
+import { useBlockUIStore } from "../stores/blockUIStore";
 import { tauriAPI, QueryResultBlock } from "../tauri-api";
 import { parseQueryMacro, QueryParseError } from "../utils/queryParser";
 
 interface QueryBlockProps {
   macroString: string;
   workspacePath: string;
+  onEdit?: () => void;
 }
 
 interface QueryBlockState {
   results: QueryResultBlock[];
   isLoading: boolean;
   error: string | null;
-  isEditing: boolean;
-  editValue: string;
 }
 
 const QueryBlock: React.FC<QueryBlockProps> = ({
   macroString,
   workspacePath,
+  onEdit,
 }) => {
   const computedColorScheme = useComputedColorScheme("light");
   const isDark = computedColorScheme === "dark";
@@ -39,9 +31,12 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
     results: [],
     isLoading: true,
     error: null,
-    isEditing: false,
-    editValue: macroString,
   });
+
+  const [isHovered, setIsHovered] = useState(false);
+
+  const openPage = useBlockStore((state) => state.openPage);
+  const setFocusedBlock = useBlockUIStore((state) => state.setFocusedBlock);
 
   // Execute query on mount or when macro changes
   useEffect(() => {
@@ -52,7 +47,7 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // Parse and validate the query macro
+      // Parse the query macro to validate syntax
       parseQueryMacro(macroString);
 
       // Execute query via Tauri
@@ -90,110 +85,34 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
     }
   };
 
-  const handleEdit = () => {
-    setState((prev) => ({ ...prev, isEditing: true, editValue: macroString }));
-  };
-
-  const handleSave = async () => {
+  const handleNavigateToBlock = async (block: QueryResultBlock) => {
     try {
-      parseQueryMacro(state.editValue);
-      setState((prev) => ({
-        ...prev,
-        isEditing: false,
-      }));
-      // The useEffect will trigger a re-query
+      // Open the page containing the block
+      await openPage(block.pageId);
+      // Focus the block
+      setFocusedBlock(block.id);
     } catch (err) {
-      const message =
-        err instanceof QueryParseError ? err.message : "Invalid query syntax";
-      setState((prev) => ({
-        ...prev,
-        error: message,
-      }));
+      console.error("Failed to navigate to block:", err);
     }
   };
 
-  const handleCancel = () => {
-    setState((prev) => ({ ...prev, isEditing: false }));
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit?.();
   };
-
-  // Show edit mode
-  if (state.isEditing) {
-    return (
-      <Box
-        p="md"
-        style={{
-          border: `2px solid ${
-            isDark
-              ? "var(--mantine-color-blue-7)"
-              : "var(--mantine-color-blue-5)"
-          }`,
-          backgroundColor: isDark
-            ? "rgba(63, 81, 181, 0.1)"
-            : "var(--mantine-color-blue-0)",
-          borderRadius: "6px",
-        }}
-        mb="md"
-      >
-        <Stack gap="sm">
-          <Text size="sm" fw={500} c="blue">
-            Edit Query
-          </Text>
-          <textarea
-            value={state.editValue}
-            onChange={(e) =>
-              setState((prev) => ({ ...prev, editValue: e.target.value }))
-            }
-            style={{
-              width: "100%",
-              minHeight: "100px",
-              fontFamily: "monospace",
-              padding: "12px",
-              fontSize: "13px",
-              border: `1px solid ${
-                isDark
-                  ? "var(--mantine-color-gray-6)"
-                  : "var(--mantine-color-gray-4)"
-              }`,
-              borderRadius: "4px",
-              resize: "vertical",
-              boxSizing: "border-box",
-              backgroundColor: isDark ? "var(--mantine-color-gray-8)" : "white",
-              color: isDark ? "var(--mantine-color-gray-0)" : "inherit",
-            }}
-          />
-          <Group gap="sm">
-            <Button size="xs" onClick={handleSave}>
-              Save
-            </Button>
-            <Button size="xs" variant="default" onClick={handleCancel}>
-              Cancel
-            </Button>
-          </Group>
-        </Stack>
-      </Box>
-    );
-  }
 
   // Show loading state
   if (state.isLoading) {
     return (
       <Box
-        p="md"
-        ta="center"
-        mb="md"
         style={{
-          border: `1px solid ${
-            isDark
-              ? "var(--mantine-color-gray-6)"
-              : "var(--mantine-color-gray-3)"
-          }`,
-          borderRadius: "4px",
-          backgroundColor: isDark
-            ? "var(--mantine-color-gray-9)"
-            : "transparent",
+          margin: "6px 0",
+          opacity: 0.6,
         }}
       >
-        <Loader size="sm" />
+        <Text size="sm" c="dimmed">
+          Loading…
+        </Text>
       </Box>
     );
   }
@@ -201,122 +120,154 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
   // Show error state
   if (state.error) {
     return (
-      <Alert
-        title="Query Error"
-        color="red"
-        mb="md"
-        style={{ cursor: "pointer", borderRadius: "4px" }}
-        onClick={handleEdit}
-        icon={
-          <Tooltip label="Click to edit">
-            <ActionIcon
-              size="sm"
-              color="red"
-              variant="subtle"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleEdit();
-              }}
-            >
-              <IconEdit size={14} />
-            </ActionIcon>
-          </Tooltip>
-        }
-      >
-        {state.error}
-      </Alert>
+      <Box style={{ margin: "6px 0" }}>
+        <Text size="sm" c="red">
+          {state.error}
+        </Text>
+      </Box>
     );
   }
 
-  // Show results (embed style)
+  // No results
+  if (state.results.length === 0) {
+    return (
+      <Box style={{ margin: "6px 0" }}>
+        <Text size="sm" c="dimmed" style={{ fontStyle: "italic" }}>
+          No results found
+        </Text>
+      </Box>
+    );
+  }
+
+  // Render results in embed style
   return (
     <Box
-      p="md"
-      mb="md"
       style={{
+        margin: "0",
+        position: "relative",
         border: `1px solid ${
-          isDark ? "var(--mantine-color-blue-7)" : "var(--mantine-color-blue-2)"
+          isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"
         }`,
+        borderRadius: "8px",
+        padding: "12px",
         backgroundColor: isDark
-          ? "rgba(63, 81, 181, 0.08)"
-          : "var(--mantine-color-blue-0)",
-        borderRadius: "6px",
-        cursor: "pointer",
+          ? "rgba(255, 255, 255, 0.02)"
+          : "rgba(0, 0, 0, 0.01)",
       }}
-      onClick={handleEdit}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <Stack gap="sm">
-        <Group justify="space-between" mb="xs">
-          <Group gap="xs">
-            <Text size="sm" fw={500} c="blue">
-              Query Results
-            </Text>
-            <Text size="xs" c="dimmed">
-              ({state.results.length})
-            </Text>
-          </Group>
-          <Tooltip label="Edit query">
-            <ActionIcon
-              size="sm"
-              variant="subtle"
-              color="blue"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleEdit();
-              }}
-            >
-              <IconEdit size={16} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
+      {/* Hover action buttons */}
+      <Box
+        style={{
+          position: "absolute",
+          top: "8px",
+          right: "8px",
+          display: "flex",
+          gap: "6px",
+          opacity: isHovered ? 1 : 0,
+          transition: "opacity 120ms ease",
+          pointerEvents: "auto",
+          zIndex: 10,
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleEdit}
+          title="Edit query"
+          style={{
+            border: "none",
+            background: isDark
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.05)",
+            color: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
+            borderRadius: "4px",
+            padding: "4px",
+            fontSize: "12px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "auto",
+            position: "relative",
+            zIndex: 11,
+          }}
+        >
+          <IconEdit size={16} />
+        </button>
+      </Box>
 
-        {state.results.length === 0 ? (
-          <Text size="sm" c="dimmed" style={{ fontStyle: "italic" }}>
-            No results found
-          </Text>
-        ) : (
-          <Stack gap="xs">
-            {state.results.map((block) => (
-              <Box
-                key={block.id}
-                p="xs"
+      {/* Results */}
+      <Box style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {state.results.map((block) => (
+          <Box
+            key={block.id}
+            onClick={() => handleNavigateToBlock(block)}
+            style={{
+              display: "flex",
+              gap: "8px",
+              alignItems: "flex-start",
+              cursor: "pointer",
+              padding: "8px",
+              borderRadius: "4px",
+              transition: "background-color 120ms ease",
+              backgroundColor: isDark
+                ? "rgba(255, 255, 255, 0.04)"
+                : "rgba(0, 0, 0, 0.02)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = isDark
+                ? "rgba(255, 255, 255, 0.08)"
+                : "rgba(0, 0, 0, 0.04)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = isDark
+                ? "rgba(255, 255, 255, 0.04)"
+                : "rgba(0, 0, 0, 0.02)";
+            }}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleNavigateToBlock(block);
+              }}
+              style={{
+                opacity: 0.55,
+                userSelect: "none",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                padding: 0,
+                margin: 0,
+                fontSize: "14px",
+                lineHeight: "1.5",
+                minWidth: "12px",
+                textAlign: "center",
+              }}
+              title="Navigate to this block"
+            >
+              •
+            </button>
+
+            <Box style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+              <Text
+                size="sm"
                 style={{
-                  backgroundColor: isDark
-                    ? "var(--mantine-color-gray-8)"
-                    : "white",
-                  borderLeft: `3px solid ${
-                    isDark
-                      ? "var(--mantine-color-blue-5)"
-                      : "var(--mantine-color-blue-4)"
-                  }`,
-                  borderRadius: "3px",
+                  wordBreak: "break-word",
+                  whiteSpace: "pre-wrap",
                 }}
               >
-                <Text size="xs" c="dimmed" fw={500}>
-                  {block.pagePath}
-                </Text>
-                <Text
-                  size="sm"
-                  style={{
-                    wordBreak: "break-word",
-                    color: isDark ? "var(--mantine-color-gray-1)" : "inherit",
-                  }}
-                >
-                  {block.content}
-                </Text>
-              </Box>
-            ))}
-          </Stack>
-        )}
-
-        <Text
-          size="xs"
-          c="dimmed"
-          style={{ fontStyle: "italic", marginTop: "4px" }}
-        >
-          Click or press Edit to modify query
-        </Text>
-      </Stack>
+                {block.content}
+              </Text>
+              <Text size="xs" c="dimmed" style={{ marginTop: "4px" }}>
+                {block.pagePath}
+              </Text>
+            </Box>
+          </Box>
+        ))}
+      </Box>
     </Box>
   );
 };

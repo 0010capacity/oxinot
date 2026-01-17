@@ -782,6 +782,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 content={draft}
                 blockId={blockId}
                 isFocused={focusedBlockId === blockId}
+                onEdit={() => setFocusedBlock(blockId)}
               >
                 <Popover
                   opened={isMetadataOpen}
