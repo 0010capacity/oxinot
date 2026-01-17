@@ -18,7 +18,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
   const loadPages = usePageStore((state) => state.loadPages);
   const openNote = useViewStore((state) => state.openNote);
   const getDailyNotePath = useAppSettingsStore(
-    (state) => state.getDailyNotePath,
+    (state) => state.getDailyNotePath
   );
 
   const monthNames = [
@@ -80,7 +80,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
     const selectedDate = new Date(
       currentDate.getFullYear(),
       currentDate.getMonth(),
-      day,
+      day
     );
     const fullPath = getFullDailyNotePath(selectedDate);
 
@@ -210,20 +210,14 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
 
   const handlePrevMonth = () => {
     setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1),
+      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
     );
   };
 
   const handleNextMonth = () => {
     setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
+      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
     );
-  };
-
-  const handleToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
-    handleDayClick(today.getDate());
   };
 
   const renderCalendar = () => {
@@ -240,7 +234,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
             aspectRatio: "1",
             padding: "6px",
           }}
-        />,
+        />
       );
     }
 
@@ -254,7 +248,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
       const date = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth(),
-        day,
+        day
       );
       const isToday = isCurrentMonth && day === today.getDate();
       const hasNote = !!getDailyNotePage(date);
@@ -283,7 +277,8 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
             fontSize: "13px",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-interactive-hover)";
+            e.currentTarget.style.backgroundColor =
+              "var(--color-interactive-hover)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = hasNote
@@ -294,7 +289,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
           <Text size="xs" style={{ fontSize: "13px" }}>
             {day}
           </Text>
-        </Box>,
+        </Box>
       );
     }
 
@@ -356,11 +351,6 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
       >
         {renderCalendar()}
       </div>
-
-      {/* Today Button */}
-      <Button onClick={handleToday} fullWidth variant="light" size="sm">
-        Today
-      </Button>
     </Stack>
   );
 }
