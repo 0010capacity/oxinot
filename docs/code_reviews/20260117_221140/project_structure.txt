@@ -7,11 +7,11 @@
 ./.github/workflows
 ./.husky
 ./.husky/_
+./.issue_bodies
 ./dist
 ./docs
 ./docs/code_reviews
-./docs/code_reviews/20260116_230214
-./docs/code_reviews/20260117_144114
+./docs/code_reviews/20260117_221140
 ./node_modules
 ./src
 ./src-tauri
