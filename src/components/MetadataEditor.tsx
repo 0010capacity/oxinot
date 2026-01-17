@@ -10,6 +10,7 @@ import {
 import {
   IconBraces,
   IconHash,
+  IconList,
   IconPlus,
   IconTextCaption,
   IconToggleLeft,
@@ -21,7 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import type { BlockData } from "../stores/blockStore";
 import { useBlockStore } from "../stores/blockStore";
 
-type MetadataType = "text" | "number" | "boolean" | "json";
+type MetadataType = "text" | "number" | "boolean" | "json" | "list" | "map";
 
 interface MetadataItem {
   id: string;
@@ -34,11 +35,24 @@ const guessType = (value: string): MetadataType => {
   const trimmed = value.trim();
   if (trimmed === "true" || trimmed === "false") return "boolean";
   if (!Number.isNaN(Number(trimmed)) && trimmed !== "") return "number";
-  if (
-    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("[") && trimmed.endsWith("]"))
-  )
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return "list";
+    } catch {
+      // Fall through to check if it's a simple list format
+      if (trimmed.split(",").length > 1) return "list";
+    }
+  }
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (!Array.isArray(parsed) && typeof parsed === "object") return "map";
+    } catch {
+      // Fall through
+    }
     return "json";
+  }
   return "text";
 };
 
@@ -50,6 +64,10 @@ const getTypeLabel = (type: MetadataType): string => {
       return "boolean";
     case "json":
       return "json";
+    case "list":
+      return "list";
+    case "map":
+      return "map";
     default:
       return "text";
   }
@@ -62,6 +80,10 @@ const getTypeIcon = (type: MetadataType) => {
     case "boolean":
       return <IconToggleLeft size={14} />;
     case "json":
+      return <IconBraces size={14} />;
+    case "list":
+      return <IconList size={14} />;
+    case "map":
       return <IconBraces size={14} />;
     default:
       return <IconTextCaption size={14} />;
@@ -79,7 +101,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
 }) => {
   const updateBlock = useBlockStore((state) => state.updateBlock);
   const getBlock = useBlockStore((state) => state.getBlock) as (
-    id: string
+    id: string,
   ) => BlockData | undefined;
 
   const [items, setItems] = useState<MetadataItem[]>([]);
@@ -185,7 +207,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   const updateItem = (
     index: number,
     field: keyof MetadataItem,
-    value: string
+    value: string,
   ) => {
     const newItems = [...items];
     let type = newItems[index].type;
@@ -204,7 +226,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   const handleInputKeyDown = (
     e: React.KeyboardEvent,
     index: number,
-    field: "key" | "value"
+    field: "key" | "value",
   ) => {
     if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
       e.preventDefault();
@@ -236,6 +258,26 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
         e.preventDefault();
         (field === "key" ? keyRefs : valueRefs).current[index + 1]?.focus();
       }
+    }
+  };
+
+  const isValidMetadataValue = (item: MetadataItem): boolean => {
+    if (!item.value) return true;
+
+    switch (item.type) {
+      case "number":
+        return !Number.isNaN(Number(item.value));
+      case "json":
+      case "list":
+      case "map":
+        try {
+          JSON.parse(item.value);
+          return true;
+        } catch {
+          return false;
+        }
+      default:
+        return true;
     }
   };
 
@@ -363,6 +405,18 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
                     Boolean
                   </Menu.Item>
                   <Menu.Item
+                    leftSection={<IconList size={14} />}
+                    onClick={() => updateItem(index, "type", "list")}
+                  >
+                    List
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconBraces size={14} />}
+                    onClick={() => updateItem(index, "type", "map")}
+                  >
+                    Map
+                  </Menu.Item>
+                  <Menu.Item
                     leftSection={<IconBraces size={14} />}
                     onClick={() => updateItem(index, "type", "json")}
                   >
@@ -395,22 +449,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
                       : "rgba(0,0,0,0.02)",
                   },
                 }}
-                error={
-                  item.type === "number" &&
-                  item.value &&
-                  Number.isNaN(Number(item.value))
-                    ? true
-                    : item.type === "json" && item.value
-                    ? (() => {
-                        try {
-                          JSON.parse(item.value);
-                          return false;
-                        } catch {
-                          return true;
-                        }
-                      })()
-                    : false
-                }
+                error={!isValidMetadataValue(item)}
               />
 
               {/* Delete Button */}
