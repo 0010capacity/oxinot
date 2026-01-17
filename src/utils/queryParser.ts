@@ -47,7 +47,7 @@ export class QueryParseError extends Error {
 export function extractQueryMacros(text: string): string[] {
   const regex = /\{\{([^}]*)\}\}/g;
   const matches: string[] = [];
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = regex.exec(text)) !== null) {
     matches.push(match[1].trim());
@@ -113,7 +113,7 @@ function parseFromClause(input: string): FromClause {
 function extractBracketedPaths(input: string): string[] {
   const bracketsRegex = /\[([^\]]+)\]/g;
   const paths: string[] = [];
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = bracketsRegex.exec(input)) !== null) {
     paths.push(match[1].trim());
@@ -142,10 +142,10 @@ function parseDepthClause(input: string): DepthRange | undefined {
     return undefined;
   }
 
-  const min = parseInt(match[1], 10);
-  const max = match[2] ? parseInt(match[2], 10) : min;
+  const min = Number.parseInt(match[1], 10);
+  const max = match[2] ? Number.parseInt(match[2], 10) : min;
 
-  if (isNaN(min) || isNaN(max)) {
+  if (Number.isNaN(min) || Number.isNaN(max)) {
     throw new QueryParseError("Invalid DEPTH values");
   }
 
@@ -167,8 +167,8 @@ function parseLimitClause(input: string): number | undefined {
     return undefined;
   }
 
-  const limit = parseInt(match[1], 10);
-  if (isNaN(limit)) {
+  const limit = Number.parseInt(match[1], 10);
+  if (Number.isNaN(limit)) {
     throw new QueryParseError("Invalid LIMIT value");
   }
 

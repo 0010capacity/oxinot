@@ -4,7 +4,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { useBlockStore } from "../stores/blockStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
-import { tauriAPI, QueryResultBlock } from "../tauri-api";
+import { tauriAPI, type QueryResultBlock } from "../tauri-api";
 import { parseQueryMacro, QueryParseError } from "../utils/queryParser";
 import { renderMarkdownToHtml } from "../outliner/markdownRenderer";
 
@@ -275,21 +275,42 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
               <Box
                 style={{
                   display: "flex",
-                  gap: "4px",
+                  gap: "6px",
                   flexWrap: "wrap",
                   justifyContent: "flex-end",
                   alignItems: "center",
                   minWidth: "100px",
+                  alignSelf: "center",
                 }}
               >
                 {Object.entries(block.metadata).map(([key, value]) => (
                   <Badge
                     key={`${block.id}-${key}`}
-                    size="xs"
-                    variant="light"
-                    style={{ fontSize: "10px" }}
+                    size="sm"
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 500,
+                      padding: "4px 8px",
+                      backgroundColor: isDark
+                        ? "rgba(255, 255, 255, 0.08)"
+                        : "rgba(0, 0, 0, 0.05)",
+                      color: isDark
+                        ? "rgba(255, 255, 255, 0.8)"
+                        : "rgba(0, 0, 0, 0.75)",
+                      border: `1px solid ${
+                        isDark
+                          ? "rgba(255, 255, 255, 0.12)"
+                          : "rgba(0, 0, 0, 0.08)"
+                      }`,
+                      borderRadius: "4px",
+                    }}
                   >
-                    {key}: {value}
+                    <span style={{ fontSize: "10px", opacity: 0.7 }}>
+                      {key}
+                    </span>
+                    <span style={{ marginLeft: "3px", fontWeight: 600 }}>
+                      {value}
+                    </span>
                   </Badge>
                 ))}
               </Box>

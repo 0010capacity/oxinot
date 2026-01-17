@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { tauriAPI, QueryResultBlock } from "../tauri-api";
+import { tauriAPI, type QueryResultBlock } from "../tauri-api";
 import { parseQueryMacro, QueryParseError } from "../utils/queryParser";
 
 export interface UseQueryMacroState {
