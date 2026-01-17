@@ -280,12 +280,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       if (focusedBlockId !== blockId) return;
 
       const handleKeyDown = (event: KeyboardEvent) => {
-        // Clear anchor if navigating without Shift
+        // Clear selection and anchor if navigating without Shift
         if (
           !event.shiftKey &&
           (event.key === "ArrowUp" || event.key === "ArrowDown")
         ) {
           useBlockUIStore.getState().clearSelectionAnchor();
+          useBlockUIStore.getState().clearSelectedBlocks();
           return;
         }
 
