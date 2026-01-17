@@ -325,7 +325,7 @@ span.cm-wiki-link,
    - Do NOT force fixed positioning (it breaks placement and can pin the panel to top-left). */
 .md-autocomplete-tooltip {
   /* High enough to float over editor/content, but let app-level overlays win if needed */
-  z-index: 2000;
+  z-index: var(--z-index-toast);
 
   /* Keep CM positioning (usually absolute) */
   position: static;

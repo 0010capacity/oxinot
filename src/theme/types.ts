@@ -18,6 +18,7 @@ export interface ColorPalette {
     secondary: string;
     tertiary: string;
     elevated: string;
+    overlay: string;
   };
 
   // Text colors

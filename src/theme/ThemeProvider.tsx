@@ -88,6 +88,7 @@ function ThemeSynchronizer({ children }: { children: ReactNode }) {
     setCssVariables(root, "--layout", appTheme.layout);
     setCssVariables(root, "--transition", appTheme.transitions);
     setCssVariables(root, "--opacity", appTheme.opacity);
+    setCssVariables(root, "--z-index", appTheme.zIndex);
   }, [appTheme, camelToKebab]);
 
   return (
