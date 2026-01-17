@@ -1215,13 +1215,15 @@ pub fn index_block_fts(
          VALUES (?, ?, ?, ?, ?)",
         params![block_id, page_id, content, block_id, ""],
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 /// Remove a block from the FTS5 index
 pub fn deindex_block_fts(conn: &Connection, block_id: &str) -> Result<(), String> {
     conn.execute("DELETE FROM blocks_fts WHERE block_id = ?", [block_id])
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[cfg(test)]
