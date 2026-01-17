@@ -1,6 +1,7 @@
 import { TextInput } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { BulletPoint } from "../common/BulletPoint";
+import { INDENT_PER_LEVEL } from "../../constants/layout";
 
 interface NewPageInputProps {
   depth: number;
@@ -67,7 +68,7 @@ export function NewPageInput({
         display: "flex",
         alignItems: "center",
         gap: "var(--spacing-sm)",
-        paddingLeft: `${depth * 24}px`,
+        paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
         paddingTop: "2px",
         paddingBottom: "2px",
         position: "relative",
