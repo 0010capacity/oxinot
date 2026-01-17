@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Text, TextInput } from "@mantine/core";
+import { ActionIcon, Group, Text, TextInput, UnstyledButton } from "@mantine/core";
 import {
   IconCheck,
   IconEdit,
@@ -166,6 +166,43 @@ export function PageTreeItem({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowRight") {
+      if (hasChildren && isCollapsed) {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggleCollapse(page.id);
+      }
+    } else if (e.key === "ArrowLeft") {
+      if (hasChildren && !isCollapsed) {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggleCollapse(page.id);
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      e.stopPropagation();
+      moveFocus(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      e.stopPropagation();
+      moveFocus(-1);
+    }
+  };
+
+  const moveFocus = (direction: number) => {
+    const buttons = Array.from(
+      document.querySelectorAll(".page-tree-item-button")
+    ) as HTMLElement[];
+    const currentIndex = buttons.indexOf(document.activeElement as HTMLElement);
+    if (currentIndex !== -1) {
+      const nextIndex = currentIndex + direction;
+      if (nextIndex >= 0 && nextIndex < buttons.length) {
+        buttons[nextIndex].focus();
+      }
+    }
+  };
+
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
@@ -304,12 +341,17 @@ export function PageTreeItem({
               </Group>
             ) : (
               <>
-                <Text
-                  size="sm"
+                <UnstyledButton
+                  className="page-tree-item-button"
                   onClick={(e) => {
                     e.stopPropagation();
                     handlePageClick(e);
                   }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(page.id);
+                  }}
+                  onKeyDown={handleKeyDown}
                   style={{
                     flex: 1,
                     color: "var(--color-accent)",
@@ -320,16 +362,16 @@ export function PageTreeItem({
                     paddingBottom: "2px",
                     paddingLeft: "4px",
                     paddingRight: "8px",
-                    cursor: "pointer",
                     fontWeight: 500,
+                    textAlign: "left",
                   }}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    onEdit(page.id);
-                  }}
+                  aria-label={page.title}
+                  aria-expanded={hasChildren ? !isCollapsed : undefined}
                 >
-                  {getPageBasename(page.title)}
-                </Text>
+                  <Text size="sm" truncate>
+                    {getPageBasename(page.title)}
+                  </Text>
+                </UnstyledButton>
 
                 {/* Action buttons */}
                 {isHovered && !isEditing && (
