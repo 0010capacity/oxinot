@@ -1,6 +1,6 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
-import { Box, Popover, useComputedColorScheme, Checkbox } from "@mantine/core";
+import { Box, Popover, useComputedColorScheme } from "@mantine/core";
 
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -66,9 +66,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const selectedBlockIds = useBlockUIStore((state) => state.selectedBlockIds);
     const lastSelectedBlockId = useBlockUIStore(
       (state) => state.lastSelectedBlockId
-    );
-    const removeBlockFromSelection = useBlockUIStore(
-      (state) => state.removeBlockFromSelection
     );
     const addBlockToSelection = useBlockUIStore(
       (state) => state.addBlockToSelection
@@ -707,6 +704,46 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             return true;
           },
         },
+        {
+          key: "Shift-ArrowUp",
+          preventDefault: true,
+          run: () => {
+            // Select from current block upward
+            const prevBlockId = useBlockStore
+              .getState()
+              .getPreviousBlock(blockId);
+            if (prevBlockId && blockOrder.length > 0) {
+              if (isSelected) {
+                // If already selected, extend selection upward
+                selectBlockRange(prevBlockId, blockId, blockOrder);
+              } else {
+                // Start new selection
+                selectBlockRange(blockId, blockId, blockOrder);
+                addBlockToSelection(prevBlockId);
+              }
+            }
+            return true;
+          },
+        },
+        {
+          key: "Shift-ArrowDown",
+          preventDefault: true,
+          run: () => {
+            // Select from current block downward
+            const nextBlockId = useBlockStore.getState().getNextBlock(blockId);
+            if (nextBlockId && blockOrder.length > 0) {
+              if (isSelected) {
+                // If already selected, extend selection downward
+                selectBlockRange(blockId, nextBlockId, blockOrder);
+              } else {
+                // Start new selection
+                selectBlockRange(blockId, blockId, blockOrder);
+                addBlockToSelection(nextBlockId);
+              }
+            }
+            return true;
+          },
+        },
       ];
     }, [
       blockId,
@@ -717,6 +754,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       commitDraft,
       mergeWithPrevious,
       splitBlockAtCursor,
+      isSelected,
+      selectBlockRange,
+      addBlockToSelection,
+      blockOrder,
     ]);
 
     if (!block) return null;
@@ -759,19 +800,29 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }}
         >
           {indentGuide}
-          <div
+          <button
+            type="button"
             className="block-row"
             style={{
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
               backgroundColor: isSelected
-                ? "rgba(59, 130, 246, 0.1)"
+                ? "rgba(59, 130, 246, 0.15)"
                 : undefined,
               borderLeft: isSelected
                 ? "3px solid rgb(59, 130, 246)"
                 : undefined,
-              transition: "background-color 0.15s ease",
+              transition:
+                "background-color 0.15s ease, border-left-color 0.15s ease",
+              border: "none",
+              background: "transparent",
+              textAlign: "left",
+              cursor: "default",
+              padding: 0,
+              margin: 0,
+              font: "inherit",
+              color: "inherit",
             }}
-            onClick={(e: React.MouseEvent) => {
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
               // Handle multi-select with Ctrl/Cmd + Click
               if (e.ctrlKey || e.metaKey) {
                 e.stopPropagation();
@@ -787,30 +838,16 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 selectBlockRange(lastSelectedBlockId, blockId, blockOrder);
               }
             }}
+            onKeyDown={(e: React.KeyboardEvent<HTMLButtonElement>) => {
+              // Keyboard equivalents for selection (handled via keybindings above)
+              // This is here for a11y compliance when button has onClick
+              if ((e.ctrlKey || e.metaKey) && e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleBlockSelection(blockId);
+              }
+            }}
           >
-            {/* Selection Checkbox */}
-            <Checkbox
-              checked={isSelected}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                e.stopPropagation();
-                if (isSelected) {
-                  removeBlockFromSelection(blockId);
-                } else {
-                  addBlockToSelection(blockId);
-                }
-              }}
-              onClick={(e: React.MouseEvent) => {
-                e.stopPropagation();
-              }}
-              aria-label="Select this block"
-              style={{
-                cursor: "pointer",
-                marginRight: "8px",
-                marginTop: "2px",
-                opacity: selectedBlockIds.length > 0 ? 1 : 0.5,
-              }}
-            />
-
             {/* Collapse/Expand Toggle */}
             {hasChildren ? (
               <button
@@ -937,7 +974,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 </Box>
               )}
             </div>
-          </div>
+          </button>
 
           {/* Render children recursively if not collapsed */}
           {hasChildren && !block.isCollapsed && (
