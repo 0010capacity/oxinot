@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Represents a single query macro: {{ QUERY: ... }}
 #[derive(Debug, Clone, Serialize, Deserialize)]

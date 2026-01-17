@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Box, Group, Stack, Text, Loader, Alert, Button } from "@mantine/core";
 import { tauriAPI, QueryResultBlock } from "../tauri-api";
 import { parseQueryMacro, QueryParseError } from "../utils/queryParser";
-import BlockComponent from "../outliner/BlockComponent";
 
 interface QueryBlockProps {
   macroString: string;
@@ -17,7 +16,10 @@ interface QueryBlockState {
   editValue: string;
 }
 
-const QueryBlock: React.FC<QueryBlockProps> = ({ macroString, workspacePath }) => {
+const QueryBlock: React.FC<QueryBlockProps> = ({
+  macroString,
+  workspacePath,
+}) => {
   const [state, setState] = useState<QueryBlockState>({
     results: [],
     isLoading: true,
@@ -35,8 +37,8 @@ const QueryBlock: React.FC<QueryBlockProps> = ({ macroString, workspacePath }) =
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // Parse the query macro
-      const parsed = parseQueryMacro(macroString);
+      // Parse and validate the query macro
+      parseQueryMacro(macroString);
 
       // Execute query via Tauri
       const result = await tauriAPI.executeQueryMacro(
@@ -62,8 +64,8 @@ const QueryBlock: React.FC<QueryBlockProps> = ({ macroString, workspacePath }) =
         err instanceof QueryParseError
           ? `Parse error: ${err.message}`
           : err instanceof Error
-            ? err.message
-            : "Unknown error";
+          ? err.message
+          : "Unknown error";
 
       setState((prev) => ({
         ...prev,
@@ -180,7 +182,7 @@ const QueryBlock: React.FC<QueryBlockProps> = ({ macroString, workspacePath }) =
         </Group>
 
         {state.results.length === 0 ? (
-          <Text size="sm" c="dimmed" italic>
+          <Text size="sm" c="dimmed" style={{ fontStyle: "italic" }}>
             No results found
           </Text>
         ) : (
@@ -204,7 +206,7 @@ const QueryBlock: React.FC<QueryBlockProps> = ({ macroString, workspacePath }) =
           </Stack>
         )}
 
-        <Text size="xs" c="dimmed" italic>
+        <Text size="xs" c="dimmed" style={{ fontStyle: "italic" }}>
           Click to edit query
         </Text>
       </Stack>

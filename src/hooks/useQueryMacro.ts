@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { tauriAPI, QueryResultBlock, QueryResult } from "../tauri-api";
+import { tauriAPI, QueryResultBlock } from "../tauri-api";
 import { parseQueryMacro, QueryParseError } from "../utils/queryParser";
 
 export interface UseQueryMacroState {
@@ -66,8 +66,8 @@ export function useQueryMacro(
         err instanceof QueryParseError
           ? `Parse error: ${err.message}`
           : err instanceof Error
-            ? err.message
-            : "Unknown error";
+          ? err.message
+          : "Unknown error";
 
       setState({
         results: [],

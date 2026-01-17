@@ -1,6 +1,5 @@
 use crate::models::query::*;
 use regex::Regex;
-use std::collections::HashMap;
 
 /// Parse a query macro string (the content inside {{ }})
 pub fn parse_query_macro(input: &str) -> Result<QueryMacro, QueryError> {
