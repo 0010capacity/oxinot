@@ -109,9 +109,9 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
 
       // Create a map of original blocks for quick lookup
       const blockMap = new Map<string, BlockData>();
-      templateBlocks.forEach((block) => {
+      for (const block of templateBlocks) {
         blockMap.set(block.id, block);
-      });
+      }
 
       // Process blocks in order, ensuring parents are created before children
       const processedIds = new Set<string>();
@@ -119,7 +119,10 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
       const processBlock = async (block: BlockData): Promise<string> => {
         // If already processed, return the mapped ID
         if (processedIds.has(block.id)) {
-          return blockIdMap.get(block.id)!;
+          const mappedId = blockIdMap.get(block.id);
+          if (mappedId) {
+            return mappedId;
+          }
         }
 
         // Process parent first if it exists
