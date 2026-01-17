@@ -1,6 +1,6 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
-import { Box, Popover, useComputedColorScheme } from "@mantine/core";
+import { Box, Popover, useComputedColorScheme, Checkbox } from "@mantine/core";
 
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -29,10 +29,11 @@ import { INDENT_PER_LEVEL } from "../constants/layout";
 interface BlockComponentProps {
   blockId: string;
   depth: number;
+  blockOrder?: string[];
 }
 
 export const BlockComponent: React.FC<BlockComponentProps> = memo(
-  ({ blockId, depth }: BlockComponentProps) => {
+  ({ blockId, depth, blockOrder = [] }: BlockComponentProps) => {
     const computedColorScheme = useComputedColorScheme("light");
     const isDark = computedColorScheme === "dark";
 
@@ -58,6 +59,21 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const clearTargetCursorPosition = useBlockUIStore(
       (state) => state.clearTargetCursorPosition
     );
+    const toggleBlockSelection = useBlockUIStore(
+      (state) => state.toggleBlockSelection
+    );
+    const selectBlockRange = useBlockUIStore((state) => state.selectBlockRange);
+    const selectedBlockIds = useBlockUIStore((state) => state.selectedBlockIds);
+    const lastSelectedBlockId = useBlockUIStore(
+      (state) => state.lastSelectedBlockId
+    );
+    const removeBlockFromSelection = useBlockUIStore(
+      (state) => state.removeBlockFromSelection
+    );
+    const addBlockToSelection = useBlockUIStore(
+      (state) => state.addBlockToSelection
+    );
+    const isSelected = selectedBlockIds.includes(blockId);
 
     const { t } = useTranslation();
 
@@ -743,7 +759,58 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }}
         >
           {indentGuide}
-          <div className="block-row" style={{ paddingLeft: `${depth * INDENT_PER_LEVEL}px` }}>
+          <div
+            className="block-row"
+            style={{
+              paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
+              backgroundColor: isSelected
+                ? "rgba(59, 130, 246, 0.1)"
+                : undefined,
+              borderLeft: isSelected
+                ? "3px solid rgb(59, 130, 246)"
+                : undefined,
+              transition: "background-color 0.15s ease",
+            }}
+            onClick={(e: React.MouseEvent) => {
+              // Handle multi-select with Ctrl/Cmd + Click
+              if (e.ctrlKey || e.metaKey) {
+                e.stopPropagation();
+                toggleBlockSelection(blockId);
+              }
+              // Handle range select with Shift + Click
+              else if (
+                e.shiftKey &&
+                lastSelectedBlockId &&
+                blockOrder.length > 0
+              ) {
+                e.stopPropagation();
+                selectBlockRange(lastSelectedBlockId, blockId, blockOrder);
+              }
+            }}
+          >
+            {/* Selection Checkbox */}
+            <Checkbox
+              checked={isSelected}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                e.stopPropagation();
+                if (isSelected) {
+                  removeBlockFromSelection(blockId);
+                } else {
+                  addBlockToSelection(blockId);
+                }
+              }}
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+              }}
+              aria-label="Select this block"
+              style={{
+                cursor: "pointer",
+                marginRight: "8px",
+                marginTop: "2px",
+                opacity: selectedBlockIds.length > 0 ? 1 : 0.5,
+              }}
+            />
+
             {/* Collapse/Expand Toggle */}
             {hasChildren ? (
               <button

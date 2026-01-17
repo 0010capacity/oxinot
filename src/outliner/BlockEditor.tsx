@@ -3,14 +3,21 @@ import { useEffect, useMemo } from "react";
 import { IconCopy } from "@tabler/icons-react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
+import { BlockSelectionToolbar } from "../components/BlockSelectionToolbar";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
 import { PageContainer } from "../components/layout/PageContainer";
 import { PageHeader } from "../components/layout/PageHeader";
 import { useBlockStore } from "../stores/blockStore";
+import { useBlockUIStore, useSelectionCount } from "../stores/blockUIStore";
 import { useThemeStore } from "../stores/themeStore";
 import { useViewStore } from "../stores/viewStore";
 import { useRegisterCommands } from "../stores/commandStore";
 import { showToast } from "../utils/toast";
+import {
+  indentBlocks,
+  outdentBlocks,
+  deleteBlocks,
+} from "../utils/batchBlockOperations";
 import { BlockComponent } from "./BlockComponent";
 import "./BlockEditor.css";
 
@@ -36,37 +43,93 @@ export function BlockEditor({
   const childrenMap = useBlockStore((state) => state.childrenMap);
 
   const focusedBlockId = useViewStore((state) => state.focusedBlockId);
+  const selectionCount = useSelectionCount();
+  const selectedBlockIds = useBlockUIStore((state) => state.selectedBlockIds);
 
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
 
   // Register context-aware commands
-  useRegisterCommands(useMemo(() => [
-    {
-      id: `copy-link-${pageId}`,
-      label: `Copy link to [[${pageName || pageId}]]`,
-      description: "Copy wiki-link to clipboard",
-      icon: <IconCopy size={16} />,
-      action: () => {
-        navigator.clipboard.writeText(`[[${pageName || pageId}]]`);
-        showToast({ message: "Link copied to clipboard", type: "success" });
-      },
-      category: "Page",
-      keywords: ["copy", "link", "wiki"],
-    }
-  ], [pageId, pageName]));
+  useRegisterCommands(
+    useMemo(
+      () => [
+        {
+          id: `copy-link-${pageId}`,
+          label: `Copy link to [[${pageName || pageId}]]`,
+          description: "Copy wiki-link to clipboard",
+          icon: <IconCopy size={16} />,
+          action: () => {
+            navigator.clipboard.writeText(`[[${pageName || pageId}]]`);
+            showToast({ message: "Link copied to clipboard", type: "success" });
+          },
+          category: "Page",
+          keywords: ["copy", "link", "wiki"],
+        },
+      ],
+      [pageId, pageName]
+    )
+  );
 
-  // Load page blocks (deterministic open flow)
+  // Load page blocks
   useEffect(() => {
     if (pageId) {
       openPage(pageId);
     }
   }, [pageId, openPage]);
 
+  // Batch operation handlers
+  const handleBatchIndent = async () => {
+    try {
+      await indentBlocks(selectedBlockIds);
+      showToast({
+        message: `Indented ${selectedBlockIds.length} blocks`,
+        type: "success",
+      });
+    } catch (err) {
+      showToast({
+        message: "Failed to indent blocks",
+        type: "error",
+      });
+    }
+  };
+
+  const handleBatchOutdent = async () => {
+    try {
+      await outdentBlocks(selectedBlockIds);
+      showToast({
+        message: `Outdented ${selectedBlockIds.length} blocks`,
+        type: "success",
+      });
+    } catch (err) {
+      showToast({
+        message: "Failed to outdent blocks",
+        type: "error",
+      });
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    try {
+      await deleteBlocks(selectedBlockIds);
+      showToast({
+        message: `Deleted ${selectedBlockIds.length} blocks`,
+        type: "success",
+      });
+    } catch (err) {
+      showToast({
+        message: "Failed to delete blocks",
+        type: "error",
+      });
+    }
+  };
+
   // Determine which blocks to show based on zoom level
   const blocksToShow = focusedBlockId
     ? [focusedBlockId]
     : childrenMap.root || [];
+
+  // Get ordered block IDs for range selection
+  const blockOrder = useMemo(() => blocksToShow, [blocksToShow]);
 
   if (isLoading) {
     return (
@@ -98,8 +161,6 @@ export function BlockEditor({
     );
   }
 
-  // blocksToShow is computed above (includes in-flight initial create handling)
-
   return (
     <PageContainer className={isDark ? "theme-dark" : "theme-light"}>
       <ContentWrapper>
@@ -112,6 +173,14 @@ export function BlockEditor({
             onNavigateHome={onNavigateHome}
           />
         )}
+
+        {/* Selection Toolbar */}
+        <BlockSelectionToolbar
+          selectedCount={selectionCount}
+          onDelete={handleBatchDelete}
+          onIndent={handleBatchIndent}
+          onOutdent={handleBatchOutdent}
+        />
 
         <div
           className="blocks-list"
@@ -130,7 +199,12 @@ export function BlockEditor({
             </div>
           ) : (
             blocksToShow.map((blockId) => (
-              <BlockComponent key={blockId} blockId={blockId} depth={0} />
+              <BlockComponent
+                key={blockId}
+                blockId={blockId}
+                depth={0}
+                blockOrder={blockOrder}
+              />
             ))
           )}
         </div>
