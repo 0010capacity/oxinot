@@ -12,7 +12,7 @@ OUTPUT_DIR="${BASE_OUTPUT_DIR}/${TIMESTAMP}"
 mkdir -p "$OUTPUT_DIR"
 
 # 컨텍스트 크기 제한 (대략 문자 수, Gemini 2.0 Flash 기준 약 1M 토큰)
-MAX_CONTEXT_CHARS=100000
+MAX_CONTEXT_CHARS=800000
 
 # API Rate Limit 방지: 동시 실행 수 제한
 MAX_PARALLEL=3

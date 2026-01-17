@@ -357,8 +357,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           // For create (at end), we trigger save but can proceed with creation independently
 
           if (cursor === contentLength) {
-            commitDraft();
-            createBlock(blockId);
+            commitDraft().then(() => {
+              createBlock(blockId);
+            });
           } else {
             // Pass current content to ensure split happens on the correct text
             splitBlockAtCursor(blockId, cursor, content);
@@ -534,8 +535,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             if (cursor === contentLength) {
               // Cursor at end: create new sibling block
               // Commit current block changes first
-              commitDraft();
-              createBlock(blockId);
+              commitDraft().then(() => {
+                createBlock(blockId);
+              });
             } else {
               // Cursor in middle: split current block
               // Pass content explicitly to avoid race conditions with store state
