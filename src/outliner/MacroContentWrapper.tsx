@@ -1,4 +1,4 @@
-import { Box, Stack } from "@mantine/core";
+import { Stack } from "@mantine/core";
 import type React from "react";
 import { useMemo } from "react";
 import QueryBlock from "../components/QueryBlock";
@@ -17,7 +17,7 @@ interface MacroContentWrapperProps {
  * Wrapper component that detects {{}} query macros in block content
  * and renders QueryBlock components above the editor.
  *
- * When the block is focused (being edited), shows both QueryBlock and editor.
+ * When the block is focused (being edited), shows only the editor (hides QueryBlock).
  * When unfocused, shows only QueryBlock results (hides the query text).
  */
 export const MacroContentWrapper: React.FC<MacroContentWrapperProps> = ({
@@ -42,24 +42,12 @@ export const MacroContentWrapper: React.FC<MacroContentWrapperProps> = ({
     return <>{children}</>;
   }
 
-  // If focused (editing), show both macros and editor
+  // If focused (editing), show only editor - hide QueryBlock
   if (isFocused) {
-    return (
-      <Stack gap={0}>
-        {queryMacros.map((macroString, index) => (
-          <QueryBlock
-            key={`${blockId}-macro-${index}`}
-            macroString={macroString}
-            workspacePath={workspacePath || ""}
-            onEdit={onEdit}
-          />
-        ))}
-        <Box>{children}</Box>
-      </Stack>
-    );
+    return <>{children}</>;
   }
 
-  // Not focused: show only macros, hide the query text (editor)
+  // Not focused: show only QueryBlock, hide the query text (editor)
   if (workspacePath && queryMacros.length > 0) {
     return (
       <Stack gap={0}>
