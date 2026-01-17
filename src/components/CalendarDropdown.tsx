@@ -145,6 +145,12 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
         blockIdMap.set(block.id, newBlock.id);
         processedIds.add(block.id);
 
+        // Process children of this block
+        const children = templateBlocks.filter((b) => b.parentId === block.id);
+        for (const child of children) {
+          await processBlock(child);
+        }
+
         return newBlock.id;
       };
 
