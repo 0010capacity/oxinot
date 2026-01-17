@@ -3,7 +3,7 @@ import { SPACING, TYPOGRAPHY, RADIUS, LAYOUT, TRANSITIONS, OPACITY } from './tok
 import { createColorPalette } from './colors'; // Assuming this helps generate ColorPalette
 
 // Helper to create a complete AppTheme from a color scheme
-const createTheme = (
+export const createTheme = (
   scheme: 'light' | 'dark',
   variant: 'default' | 'blue' | 'purple' | 'green' | 'amber' = 'default',
 ): AppTheme => {

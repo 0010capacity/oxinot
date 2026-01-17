@@ -1,7 +1,8 @@
 import { useComputedColorScheme, MantineProvider } from "@mantine/core";
 import { type ReactNode, createContext, useEffect, useMemo, useCallback } from "react";
+import { useThemeStore } from "../stores/themeStore";
 import type { AppTheme } from "./schema"; // Import AppTheme
-import { themeRegistry } from "./themes"; // Import themeRegistry
+import { createTheme } from "./themes"; // Import createTheme
 import type { MantineThemeOverride } from "@mantine/core";
 
 export const ThemeContext = createContext<AppTheme | null>(null);
@@ -13,13 +14,12 @@ interface ThemeProviderProps {
 // Inner provider that uses Mantine hooks
 function ThemeProviderInner({ children }: ThemeProviderProps) {
   const computedColorScheme = useComputedColorScheme("light");
+  const colorVariant = useThemeStore((state) => state.colorVariant); // Re-added colorVariant
 
   const theme: AppTheme = useMemo(() => {
-    // For now, we'll just pick 'light' or 'dark' from the registry.
-    // Future work: map colorVariant to specific named themes in the registry.
-    const selectedThemeName = computedColorScheme === "dark" ? "dark" : "light";
-    return themeRegistry[selectedThemeName] || themeRegistry.light; // Fallback to light
-  }, [computedColorScheme]); // Removed colorVariant from dependencies
+    // Dynamically create theme using computedColorScheme and colorVariant
+    return createTheme(computedColorScheme === "dark" ? "dark" : "light", colorVariant);
+  }, [computedColorScheme, colorVariant]); // Added colorVariant to dependencies // Removed colorVariant from dependencies
 
   const mantineTheme: MantineThemeOverride = useMemo(
     () => ({
