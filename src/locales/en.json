@@ -10,6 +10,7 @@
     "delete": "Delete",
     "edit": "Edit",
     "create": "Create",
+    "clear": "Clear",
     "back": "Back",
     "loading": "Loading...",
     "error": "Error",
@@ -134,7 +135,10 @@
       "description": "Configure automatic daily note creation",
       "path": "Daily Notes Path",
       "path_desc": "Path where daily notes will be created (e.g., 'Daily' or 'Notes/Daily')",
-      "path_placeholder": "Daily"
+      "path_placeholder": "Daily",
+      "template": "Template Note",
+      "template_placeholder": "Select a template note",
+      "template_desc": "Content from this note will be used as a template for new daily notes"
     },
     "homepage": {
       "title": "Homepage",

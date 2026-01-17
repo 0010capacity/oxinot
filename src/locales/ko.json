@@ -10,6 +10,7 @@
     "delete": "삭제",
     "edit": "편집",
     "create": "생성",
+    "clear": "지우기",
     "back": "뒤로",
     "loading": "로딩 중...",
     "error": "오류",
@@ -134,7 +135,10 @@
       "description": "자동 데일리 노트 생성을 설정합니다",
       "path": "데일리 노트 경로",
       "path_desc": "데일리 노트가 생성될 경로 (예: 'Daily' 또는 'Notes/Daily')",
-      "path_placeholder": "Daily"
+      "path_placeholder": "Daily",
+      "template": "템플릿 노트",
+      "template_placeholder": "템플릿 노트 선택",
+      "template_desc": "이 노트의 내용이 새 데일리 노트의 템플릿으로 사용됩니다"
     },
     "homepage": {
       "title": "홈페이지",

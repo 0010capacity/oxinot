@@ -1,9 +1,13 @@
+import { invoke } from "@tauri-apps/api/core";
 import { ActionIcon, Box, Stack, Text } from "@mantine/core";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
+import { useBlockStore } from "../stores/blockStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
+import type { BlockData } from "../stores/blockStore";
 
 interface CalendarDropdownProps {
   onClose: () => void;
@@ -20,6 +24,12 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
   const getDailyNotePath = useAppSettingsStore(
     (state) => state.getDailyNotePath
   );
+  const dailyNoteTemplateId = useAppSettingsStore(
+    (state) => state.dailyNoteTemplateId
+  );
+  const workspacePath = useWorkspaceStore((state) => state.workspacePath);
+  const openBlockPage = useBlockStore((state) => state.openPage);
+  const createBlockStoreBlock = useBlockStore((state) => state.createBlock);
 
   const monthNames = [
     "January",
@@ -74,6 +84,58 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
 
     const pageId = getPageIdByPath(fullPath);
     return pageId ? pagesById[pageId] : undefined;
+  };
+
+  const copyTemplateBlocks = async (
+    templatePageId: string,
+    targetPageId: string
+  ) => {
+    try {
+      if (!workspacePath) {
+        throw new Error("No workspace selected");
+      }
+
+      // First, load the target page into blockStore
+      await openBlockPage(targetPageId);
+
+      // Fetch template page blocks
+      const templateBlocks: BlockData[] = await invoke("get_page_blocks", {
+        workspacePath,
+        pageId: templatePageId,
+      });
+
+      if (templateBlocks.length === 0) {
+        return;
+      }
+
+      // Helper to recursively copy blocks
+      const copyBlocksRecursively = async (
+        blocks: BlockData[],
+        parentId: string | null = null
+      ) => {
+        for (const block of blocks) {
+          // Create block in target page
+          const newBlockId = await createBlockStoreBlock(
+            parentId,
+            block.content
+          );
+
+          // Find children of this block
+          const children = templateBlocks.filter(
+            (b) => b.parentId === block.id
+          );
+          if (children.length > 0) {
+            await copyBlocksRecursively(children, newBlockId);
+          }
+        }
+      };
+
+      // Copy only root-level blocks (parentId: null)
+      const rootBlocks = templateBlocks.filter((b) => b.parentId === null);
+      await copyBlocksRecursively(rootBlocks);
+    } catch (error) {
+      console.error("Failed to copy template blocks:", error);
+    }
   };
 
   const handleDayClick = async (day: number) => {
@@ -150,6 +212,11 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
         });
 
         if (createdPageId) {
+          // Copy template blocks if template is set
+          if (dailyNoteTemplateId) {
+            await copyTemplateBlocks(dailyNoteTemplateId, createdPageId);
+          }
+
           const createdPage = freshPagesById[createdPageId];
 
           // Build parent names array for breadcrumb
