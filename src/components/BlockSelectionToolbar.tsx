@@ -76,15 +76,13 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
   return (
     <Group
       p="md"
-      bg={
-        isDark ? "var(--mantine-color-blue-9)" : "var(--mantine-color-blue-0)"
-      }
+      bg={isDark ? "transparent" : "var(--mantine-color-gray-0)"}
       style={{
         borderTop: "1px solid var(--mantine-color-gray-3)",
         borderBottom: "1px solid var(--mantine-color-gray-3)",
       }}
     >
-      <Badge size="lg" variant="light">
+      <Badge size="lg" variant="light" color="gray">
         {selectedCount} {selectedCount === 1 ? "block" : "blocks"} selected
       </Badge>
 
@@ -96,7 +94,8 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
           position="top"
         >
           <ActionIcon
-            variant="light"
+            variant="subtle"
+            color="gray"
             onClick={handleIndent}
             disabled={!canIndent}
             aria-label="Indent selected blocks"
@@ -112,7 +111,8 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
           position="top"
         >
           <ActionIcon
-            variant="light"
+            variant="subtle"
+            color="gray"
             onClick={handleOutdent}
             disabled={!canOutdent}
             aria-label="Outdent selected blocks"
@@ -124,7 +124,7 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
         {/* More Options Menu */}
         <Menu position="bottom-end" shadow="md">
           <Menu.Target>
-            <ActionIcon variant="light" aria-label="More options">
+            <ActionIcon variant="subtle" color="gray" aria-label="More options">
               <IconCopy size={18} />
             </ActionIcon>
           </Menu.Target>
@@ -141,7 +141,7 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
           position="top"
         >
           <ActionIcon
-            variant="light"
+            variant="subtle"
             color="red"
             onClick={handleDelete}
             aria-label="Delete selected blocks"
