@@ -67,9 +67,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const lastSelectedBlockId = useBlockUIStore(
       (state) => state.lastSelectedBlockId
     );
-    const addBlockToSelection = useBlockUIStore(
-      (state) => state.addBlockToSelection
-    );
     const isSelected = selectedBlockIds.includes(blockId);
 
     const { t } = useTranslation();
@@ -204,6 +201,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       const handleKeyDown = (event: KeyboardEvent) => {
         if (!event.shiftKey) return;
 
+        const state = useBlockUIStore.getState();
+        const lastSelected = state.lastSelectedBlockId;
+        const selectionStart = lastSelected || blockId;
+
         if (event.key === "ArrowUp") {
           event.preventDefault();
           event.stopPropagation();
@@ -211,24 +212,16 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             .getState()
             .getPreviousBlock(blockId);
           if (prevBlockId && blockOrder.length > 0) {
-            if (isSelected) {
-              selectBlockRange(prevBlockId, blockId, blockOrder);
-            } else {
-              selectBlockRange(blockId, blockId, blockOrder);
-              addBlockToSelection(prevBlockId);
-            }
+            // Extend selection from the original selection start to the new block
+            selectBlockRange(selectionStart, prevBlockId, blockOrder);
           }
         } else if (event.key === "ArrowDown") {
           event.preventDefault();
           event.stopPropagation();
           const nextBlockId = useBlockStore.getState().getNextBlock(blockId);
           if (nextBlockId && blockOrder.length > 0) {
-            if (isSelected) {
-              selectBlockRange(blockId, nextBlockId, blockOrder);
-            } else {
-              selectBlockRange(blockId, blockId, blockOrder);
-              addBlockToSelection(nextBlockId);
-            }
+            // Extend selection from the original selection start to the new block
+            selectBlockRange(selectionStart, nextBlockId, blockOrder);
           }
         }
       };
@@ -237,14 +230,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       return () => {
         document.removeEventListener("keydown", handleKeyDown, true);
       };
-    }, [
-      focusedBlockId,
-      blockId,
-      isSelected,
-      blockOrder,
-      selectBlockRange,
-      addBlockToSelection,
-    ]);
+    }, [focusedBlockId, blockId, blockOrder, selectBlockRange]);
 
     // Consolidated IME state
     const imeStateRef = useRef({
@@ -828,6 +814,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               ) {
                 e.stopPropagation();
                 selectBlockRange(lastSelectedBlockId, blockId, blockOrder);
+              }
+              // Clear selection on regular click without modifiers
+              else if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                useBlockUIStore.getState().clearSelectedBlocks();
               }
             }}
           >
