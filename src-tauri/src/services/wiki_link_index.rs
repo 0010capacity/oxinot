@@ -1,5 +1,6 @@
 use crate::services::wiki_link_parser::parse_wiki_links;
 use rusqlite::{named_params, Connection, OptionalExtension};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 fn resolve_link_target(
@@ -96,14 +97,38 @@ pub fn index_block_links(
 pub fn reindex_all_links(conn: &mut Connection) -> Result<(), rusqlite::Error> {
     let tx = conn.transaction()?;
 
-    // Clear all
+    // 1. Pre-load all page paths into memory for O(1) resolution
+    // This avoids N+1 DB queries (or 3N queries due to UNION) when resolving targets.
+    let mut path_map: HashMap<String, String> = HashMap::new();
+    let mut basename_map: HashMap<String, String> = HashMap::new();
+
+    {
+        let mut stmt = tx.prepare("SELECT path_text, page_id FROM page_paths")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+
+        for row in rows {
+            let (path, page_id) = row?;
+            // Map full path -> page_id
+            path_map.insert(path.clone(), page_id.clone());
+
+            // Map basename -> page_id (for fuzzy matching)
+            // Note: If multiple paths share the same basename, the last one loaded wins.
+            // This is acceptable behavior for fuzzy matching where ambiguity exists.
+            let basename = path.split('/').last().unwrap_or(&path).to_string();
+            basename_map.insert(basename, page_id);
+        }
+    }
+
+    // 2. Clear existing links
     tx.execute("DELETE FROM wiki_links", [])?;
 
     let batch_size = 1000;
     let mut offset = 0;
 
     loop {
-        // Fetch blocks in batches to avoid OOM with large datasets
+        // Fetch blocks in batches
         let mut stmt = tx.prepare(
             "SELECT id, page_id, content FROM blocks WHERE content LIKE '%[[%'
              ORDER BY id LIMIT :limit OFFSET :offset",
@@ -142,13 +167,19 @@ pub fn reindex_all_links(conn: &mut Connection) -> Result<(), rusqlite::Error> {
             for (block_id, page_id, content) in blocks {
                 let links = parse_wiki_links(&content);
                 for link in links {
-                    let to_page_id: Option<String> = resolve_link_target(&tx, &link.target_path)?;
+                    // Optimized resolution using in-memory maps
+                    let target_basename = link.target_path.split('/').last().unwrap_or(&link.target_path);
+                    
+                    let to_page_id: Option<String> = path_map
+                        .get(&link.target_path)
+                        .or_else(|| basename_map.get(target_basename))
+                        .cloned();
 
                     if to_page_id.is_none() {
-                        eprintln!(
-                            "[reindex_all_links] Unresolved link '{}' in block {} from page {}",
-                            link.target_path, block_id, page_id
-                        );
+                        // eprintln!(
+                        //     "[reindex_all_links] Unresolved link '{}' in block {} from page {}",
+                        //     link.target_path, block_id, page_id
+                        // );
                     }
 
                     let id = Uuid::new_v4().to_string();
