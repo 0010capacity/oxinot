@@ -1,19 +1,11 @@
 import { useComputedColorScheme, MantineProvider } from "@mantine/core";
-import { type ReactNode, createContext, useEffect, useMemo } from "react";
+import { type ReactNode, createContext, useEffect, useMemo, useCallback } from "react";
 import { useThemeStore } from "../stores/themeStore";
-import { createColorPalette } from "./colors";
-import {
-  LAYOUT,
-  OPACITY,
-  RADIUS,
-  SPACING,
-  TRANSITIONS,
-  TYPOGRAPHY,
-} from "./tokens";
-import type { ColorScheme, Theme } from "./types";
+import type { AppTheme } from "./schema"; // Import AppTheme
+import { createTheme } from "./themes"; // Import createTheme
 import type { MantineThemeOverride } from "@mantine/core";
 
-export const ThemeContext = createContext<Theme | null>(null);
+export const ThemeContext = createContext<AppTheme | null>(null);
 
 interface ThemeProviderProps {
   children: ReactNode;
@@ -22,26 +14,17 @@ interface ThemeProviderProps {
 // Inner provider that uses Mantine hooks
 function ThemeProviderInner({ children }: ThemeProviderProps) {
   const computedColorScheme = useComputedColorScheme("light");
-  const colorVariant = useThemeStore((state) => state.colorVariant);
+  const colorVariant = useThemeStore((state) => state.colorVariant); // Re-added colorVariant
 
-  const theme: Theme = useMemo(
-    () => ({
-      scheme: computedColorScheme as ColorScheme,
-      variant: colorVariant,
-      colors: createColorPalette(
-        computedColorScheme as ColorScheme,
-        colorVariant
-      ),
-      spacing: SPACING,
-      typography: TYPOGRAPHY,
-      radius: RADIUS,
-    }),
-    [computedColorScheme, colorVariant]
-  );
+  const theme: AppTheme = useMemo(() => {
+    // Explicitly cast to ensure type correctness and handle potential initial undefined/null
+    const resolvedColorScheme: "dark" | "light" = computedColorScheme || "light";
+    return createTheme(resolvedColorScheme, colorVariant);
+  }, [computedColorScheme, colorVariant]);
 
   const mantineTheme: MantineThemeOverride = useMemo(
     () => ({
-      primaryColor: "indigo",
+      primaryColor: "indigo", // Mantine's primaryColor usually refers to a palette name
       colors: {
         indigo: [
           theme.colors.accent,
@@ -56,101 +39,71 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
           theme.colors.accent,
         ],
       },
-      fontFamily: TYPOGRAPHY.fontFamily,
+      fontFamily: theme.typography.fontFamily,
     }),
-    [theme.colors.accent]
+    [theme.colors.accent, theme.typography.fontFamily]
   );
+
+  const camelToKebab = useCallback((str: string): string => {
+    return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+  }, []);
 
   // Apply ALL CSS variables dynamically on every theme change
   useEffect(() => {
     const root = document.documentElement;
-    const { colors } = theme;
 
-    // Background colors
-    root.style.setProperty("--color-bg-primary", colors.bg.primary);
-    root.style.setProperty("--color-bg-secondary", colors.bg.secondary);
-    root.style.setProperty("--color-bg-tertiary", colors.bg.tertiary);
-    root.style.setProperty("--color-bg-elevated", colors.bg.elevated);
+    // Helper to recursively set CSS variables
+    const setCssVariables = (
+      element: HTMLElement,
+      prefix: string,
+      obj: Record<string, unknown>, // Changed 'any' to 'unknown'
+    ) => {
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const value = obj[key];
+          const cssVarName = `--${prefix}-${camelToKebab(key)}`;
 
-    // Text colors
-    root.style.setProperty("--color-text-primary", colors.text.primary);
-    root.style.setProperty("--color-text-secondary", colors.text.secondary);
-    root.style.setProperty("--color-text-tertiary", colors.text.tertiary);
-    root.style.setProperty("--color-text-link", colors.text.link);
+          if (typeof value === "object" && value !== null) {
+            setCssVariables(element, cssVarName, value as Record<string, unknown>);
+          } else {
+            // Handle specific cases where units might be missing (e.g., indentSize from layout)
+            let cssValue = value;
+            if (key === 'indentSize' && typeof value === 'number') {
+              cssValue = `${value}px`;
+            }
+            element.style.setProperty(cssVarName, String(cssValue));
+          }
+        }
+      }
+    };
 
-    // Border colors
-    root.style.setProperty("--color-border-primary", colors.border.primary);
-    root.style.setProperty("--color-border-secondary", colors.border.secondary);
-    root.style.setProperty("--color-border-focus", colors.border.focus);
+    // Apply colors
+    setCssVariables(root, "color", theme.colors);
 
-    // Interactive colors
-    root.style.setProperty(
-      "--color-interactive-hover",
-      colors.interactive.hover
-    );
-    root.style.setProperty(
-      "--color-interactive-active",
-      colors.interactive.active
-    );
-    root.style.setProperty(
-      "--color-interactive-selected",
-      colors.interactive.selected
-    );
-    root.style.setProperty(
-      "--color-interactive-focus",
-      colors.interactive.focus
-    );
+    // Apply spacing
+    setCssVariables(root, "spacing", theme.spacing);
 
-    // Semantic colors
-    root.style.setProperty("--color-accent", colors.accent);
-    root.style.setProperty("--color-success", colors.success);
-    root.style.setProperty("--color-warning", colors.warning);
-    root.style.setProperty("--color-error", colors.error);
+    // Apply typography
+    root.style.setProperty("--font-family", theme.typography.fontFamily);
+    root.style.setProperty("--font-family-mono", theme.typography.monoFontFamily);
+    setCssVariables(root, "font-size", theme.typography.fontSize);
+    setCssVariables(root, "line-height", theme.typography.lineHeight);
 
-    // Component-specific
-    root.style.setProperty("--color-bullet-default", colors.bullet.default);
-    root.style.setProperty("--color-bullet-hover", colors.bullet.hover);
-    root.style.setProperty("--color-bullet-active", colors.bullet.active);
-    root.style.setProperty("--color-indent-guide", colors.indentGuide);
+    // Apply radius
+    setCssVariables(root, "radius", theme.radius);
 
-    // Spacing
-    for (const [key, value] of Object.entries(SPACING)) {
-      root.style.setProperty(`--spacing-${key}`, value);
-    }
+    // Apply layout
+    setCssVariables(root, "layout", theme.layout);
 
-    // Typography
-    root.style.setProperty("--font-family", TYPOGRAPHY.fontFamily);
-    root.style.setProperty("--font-family-mono", TYPOGRAPHY.monoFontFamily);
-    for (const [key, value] of Object.entries(TYPOGRAPHY.fontSize)) {
-      root.style.setProperty(`--font-size-${key}`, value);
-    }
-    for (const [key, value] of Object.entries(TYPOGRAPHY.lineHeight)) {
-      root.style.setProperty(`--line-height-${key}`, value);
-    }
+    // Apply transitions
+    setCssVariables(root, "transition", theme.transitions);
 
-    // Radius
-    for (const [key, value] of Object.entries(RADIUS)) {
-      root.style.setProperty(`--radius-${key}`, value);
-    }
+    // Apply opacity
+    setCssVariables(root, "opacity", theme.opacity);
 
-    // Layout
-    for (const [key, value] of Object.entries(LAYOUT)) {
-      root.style.setProperty(
-        `--layout-${camelToKebab(key)}`,
-        typeof value === "number" ? `${value}px` : value
-      );
-    }
+    // TODO: Apply shadows if they are part of AppTheme
+  }, [theme, camelToKebab]); // Added camelToKebab to dependencies
 
-    // Transitions
-    for (const [key, value] of Object.entries(TRANSITIONS)) {
-      root.style.setProperty(`--transition-${key}`, value);
-    }
-
-    // Opacity
-    for (const [key, value] of Object.entries(OPACITY)) {
-      root.style.setProperty(`--opacity-${key}`, value);
-    }
-  }, [theme]);
 
   return (
     <MantineProvider theme={mantineTheme} defaultColorScheme="auto">
@@ -167,7 +120,104 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     </MantineProvider>
   );
 }
+```
 
-function camelToKebab(str: string): string {
-  return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+Now let me create the resolved `variables.css` file:
+
+<file_path>
+oxinot/src/styles/variables.css
+</file_path>
+
+<edit_description>
+Resolve merge conflict in variables.css - use cleaner placeholder approach
+</edit_description>
+
+```
+/* CSS Custom Properties - Theme Variables */
+/* All active theme variables are dynamically set by ThemeProvider.tsx. */
+/* These are placeholder/fallback definitions to ensure variables are recognized. */
+
+:root {
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+
+  /* Typography */
+  --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-family-mono: "SF Mono", "Monaco", "Menlo", "Consolas", monospace;
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 24px;
+  --line-height-tight: 1.3;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+
+  /* Editor Settings - Dynamic */
+  --editor-font-size: 16px;
+  --editor-line-height: 1.6;
+
+  /* Border Radius */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+
+  /* Layout */
+  --layout-max-content-width: 800px;
+  --layout-container-padding: 40px 20px;
+  --layout-container-padding-mobile: 20px 12px;
+  --layout-content-bottom-padding: 80px;
+  --layout-title-bar-height: 44px;
+  --layout-bullet-size: 6px;
+  --layout-bullet-container-size: 24px;
+  --layout-collapse-toggle-size: 20px;
+  --layout-indent-size: 24px;
+
+  /* Transitions */
+  --transition-fast: 0.1s ease;
+  --transition-normal: 0.15s ease;
+  --transition-slow: 0.2s ease;
+
+  /* Opacity */
+  --opacity-disabled: 0.3;
+  --opacity-dimmed: 0.5;
+  --opacity-hover: 0.6;
+  --opacity-active: 0.85;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 2px 4px -1px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+
+  /* Color variables - set dynamically by ThemeProvider */
+  --color-bg-primary: #0f0f0f;
+  --color-bg-secondary: #1a1a1d;
+  --color-bg-tertiary: #3a3a42;
+  --color-bg-elevated: #2a2a30;
+  --color-text-primary: #f0f0f2;
+  --color-text-secondary: #d4d4d8;
+  --color-text-tertiary: #a1a1a6;
+  --color-text-link: #8b9dff;
+  --color-border-primary: rgba(255, 255, 255, 0.12);
+  --color-border-secondary: rgba(255, 255, 255, 0.08);
+  --color-border-focus: #7c3aed;
+  --color-interactive-hover: rgba(255, 255, 255, 0.1);
+  --color-interactive-active: rgba(255, 255, 255, 0.15);
+  --color-interactive-selected: rgba(124, 58, 237, 0.2);
+  --color-interactive-focus: rgba(124, 58, 237, 0.3);
+  --color-accent: #7c3aed;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ff6b6b;
+  --color-bullet-default: rgba(255, 255, 255, 0.35);
+  --color-bullet-hover: rgba(255, 255, 255, 0.65);
+  --color-bullet-active: rgba(255, 255, 255, 0.9);
+  --color-indent-guide: rgba(255, 255, 255, 0.08);
 }

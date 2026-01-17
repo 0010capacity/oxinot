@@ -2,7 +2,7 @@ import type { ColorPalette } from "./types";
 
 // Define base color palettes for each variant
 export const COLOR_VARIANTS = {
-  default: {
+  indigo: {
     accent: "#7c3aed",
     accentHover: "#8b9dff",
   },
@@ -72,9 +72,9 @@ export function createColorPalette(
       warning: "#f59e0b",
       error: "#ff6b6b",
       bullet: {
-        default: "rgba(255, 255, 255, 0.35)",
-        hover: "rgba(255, 255, 255, 0.65)",
-        active: "rgba(255, 255, 255, 0.9)",
+        default: "rgba(255, 255, 255, 0.4)",
+        hover: "rgba(255, 255, 255, 0.7)",
+        active: "rgba(255, 255, 255, 1)",
       },
       indentGuide: "rgba(255, 255, 255, 0.08)",
     };
