@@ -61,7 +61,7 @@ pub async fn create_page(
     workspace_path: String,
     request: CreatePageRequest,
 ) -> Result<Page, String> {
-    let conn = open_workspace_db(&workspace_path)?;
+    let mut conn = open_workspace_db(&workspace_path)?;
 
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
@@ -71,7 +71,9 @@ pub async fn create_page(
         id, request.title, request.parent_id
     );
 
-    conn.execute(
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    tx.execute(
         "INSERT INTO pages (id, title, parent_id, file_path, is_directory, created_at, updated_at)
          VALUES (?, ?, ?, ?, 0, ?, ?)",
         params![
@@ -85,28 +87,47 @@ pub async fn create_page(
     )
     .map_err(|e| format!("Failed to insert page: {}", e))?;
 
-    println!("[create_page] Page inserted into DB successfully");
+    println!("[create_page] Page inserted into DB successfully (pending commit)");
 
     // Create file in file system (workspace_path is passed as parameter)
     let file_sync = FileSyncService::new(workspace_path.clone());
-    let file_path = file_sync
-        .create_page_file(&conn, &id, &request.title)
-        .map_err(|e| format!("Failed to create page file: {}", e))?;
+    
+    // Pass transaction to create_page_file (it derefs to Connection)
+    let file_path = match file_sync.create_page_file(&tx, &id, &request.title) {
+        Ok(path) => path,
+        Err(e) => {
+            // Transaction will be rolled back when tx is dropped on return
+            return Err(format!("Failed to create page file: {}", e));
+        }
+    };
 
     // Update file_path in database
-    conn.execute(
+    if let Err(e) = tx.execute(
         "UPDATE pages SET file_path = ? WHERE id = ?",
         params![&file_path, &id],
-    )
-    .map_err(|e| e.to_string())?;
+    ) {
+        // Compensating transaction: Delete the created file
+        println!("[create_page] DB Update failed, deleting created file...");
+        let _ = file_sync.delete_page_file(&tx, &id);
+        return Err(e.to_string());
+    }
 
     println!("[create_page] File created at: {}", file_path);
     println!("[create_page] Updated file_path in DB");
 
     // Update page_paths for wiki link resolution
-    page_path_service::update_page_path(&conn, &id, &file_path)
-        .map_err(|e| format!("Failed to update page path: {}", e))?;
+    if let Err(e) = page_path_service::update_page_path(&tx, &id, &file_path) {
+        // Compensating transaction: Delete the created file
+        println!("[create_page] Update page path failed, deleting created file...");
+        let _ = file_sync.delete_page_file(&tx, &id);
+        return Err(format!("Failed to update page path: {}", e));
+    }
 
+    // Commit the transaction
+    tx.commit().map_err(|e| format!("Failed to commit transaction: {}", e))?;
+    println!("[create_page] Transaction committed");
+
+    // Re-query the page from the connection (transaction is consumed)
     let page = get_page_by_id(&conn, &id)?;
     println!("[create_page] Returning page: {:?}", page);
 
