@@ -22,15 +22,70 @@ impl PathValidator {
     /// # Returns
     /// Ok(()) if path is within workspace, Err with message if outside
     pub fn validate_absolute_path(&self, abs_path: &Path) -> Result<(), String> {
-        // Canonicalize both paths to resolve symlinks and relative components
+        // Canonicalize workspace root to resolve symlinks and relative components
         let canonical_root = self
             .workspace_root
             .canonicalize()
             .map_err(|e| format!("Failed to canonicalize workspace root: {}", e))?;
 
-        let canonical_path = abs_path
-            .canonicalize()
-            .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
+        // Try to canonicalize the path, but if it doesn't exist, validate the logical path
+        let canonical_path = if abs_path.exists() {
+            abs_path
+                .canonicalize()
+                .map_err(|e| format!("Failed to canonicalize path: {}", e))?
+        } else {
+            // For non-existent paths, canonicalize parent and append filename
+            if let Some(parent) = abs_path.parent() {
+                if parent.exists() {
+                    let canonical_parent = parent
+                        .canonicalize()
+                        .map_err(|e| format!("Failed to canonicalize parent: {}", e))?;
+
+                    if let Some(filename) = abs_path.file_name() {
+                        canonical_parent.join(filename)
+                    } else {
+                        return Err("Invalid path: no filename".to_string());
+                    }
+                } else {
+                    // Parent doesn't exist either - validate logically by checking prefix
+                    let mut current = abs_path.to_path_buf();
+                    let mut components = Vec::new();
+
+                    // Collect components until we find an existing ancestor
+                    while !current.exists() {
+                        if let Some(filename) = current.file_name() {
+                            components.push(filename.to_os_string());
+                            if let Some(parent) = current.parent() {
+                                current = parent.to_path_buf();
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // Canonicalize the existing ancestor
+                    if current.exists() {
+                        let mut canonical = current
+                            .canonicalize()
+                            .map_err(|e| format!("Failed to canonicalize ancestor: {}", e))?;
+
+                        // Rebuild path with collected components
+                        for component in components.iter().rev() {
+                            canonical = canonical.join(component);
+                        }
+                        canonical
+                    } else {
+                        // Can't find any existing ancestor, use absolute path as-is
+                        abs_path.to_path_buf()
+                    }
+                }
+            } else {
+                // No parent, use path as-is
+                abs_path.to_path_buf()
+            }
+        };
 
         // Check if the canonical path is under the canonical root
         if !canonical_path.starts_with(&canonical_root) {
