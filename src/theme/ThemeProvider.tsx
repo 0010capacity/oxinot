@@ -68,7 +68,7 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
       for (const key in obj) {
         if (Object.prototype.hasOwnProperty.call(obj, key)) {
           const value = obj[key];
-          const cssVarName = `--${prefix}-${camelToKebab(key)}`;
+          const cssVarName = `${prefix}-${camelToKebab(key)}`;
 
           if (typeof value === "object" && value !== null) {
             setCssVariables(
@@ -87,19 +87,19 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
       }
     };
 
-    setCssVariables(root, "color", theme.colors);
-    setCssVariables(root, "spacing", theme.spacing);
+    setCssVariables(root, "--color", theme.colors);
+    setCssVariables(root, "--spacing", theme.spacing);
     root.style.setProperty("--font-family", theme.typography.fontFamily);
     root.style.setProperty(
       "--font-family-mono",
       theme.typography.monoFontFamily
     );
-    setCssVariables(root, "font-size", theme.typography.fontSize);
-    setCssVariables(root, "line-height", theme.typography.lineHeight);
-    setCssVariables(root, "radius", theme.radius);
-    setCssVariables(root, "layout", theme.layout);
-    setCssVariables(root, "transition", theme.transitions);
-    setCssVariables(root, "opacity", theme.opacity);
+    setCssVariables(root, "--font-size", theme.typography.fontSize);
+    setCssVariables(root, "--line-height", theme.typography.lineHeight);
+    setCssVariables(root, "--radius", theme.radius);
+    setCssVariables(root, "--layout", theme.layout);
+    setCssVariables(root, "--transition", theme.transitions);
+    setCssVariables(root, "--opacity", theme.opacity);
   }, [theme, camelToKebab]);
 
   return (
