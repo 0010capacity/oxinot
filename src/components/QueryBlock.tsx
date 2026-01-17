@@ -263,6 +263,7 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
                     allowBlocks: true,
                   }),
                 }}
+                className="markdown-rendered"
               />
               <Text size="xs" c="dimmed" style={{ marginTop: "2px" }}>
                 {block.pagePath}
@@ -276,3 +277,70 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
 };
 
 export default QueryBlock;
+
+const markdownStyles = `
+  .markdown-rendered {
+    color: inherit;
+  }
+
+  .markdown-rendered p {
+    margin: 0;
+    display: inline;
+  }
+
+  .markdown-rendered blockquote {
+    border-left: 3px solid currentColor;
+    margin: 0;
+    padding-left: 12px;
+    opacity: 0.7;
+  }
+
+  .markdown-rendered strong {
+    font-weight: 600;
+  }
+
+  .markdown-rendered em {
+    font-style: italic;
+  }
+
+  .markdown-rendered code {
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-family: monospace;
+    font-size: 0.9em;
+  }
+
+  .markdown-rendered a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  .markdown-rendered h1,
+  .markdown-rendered h2,
+  .markdown-rendered h3,
+  .markdown-rendered h4,
+  .markdown-rendered h5,
+  .markdown-rendered h6 {
+    margin: 0;
+    font-weight: 600;
+    display: inline;
+  }
+
+  .markdown-rendered ul,
+  .markdown-rendered ol {
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  .markdown-rendered li {
+    margin: 0;
+  }
+`;
+
+// Inject styles
+if (typeof document !== "undefined") {
+  const style = document.createElement("style");
+  style.textContent = markdownStyles;
+  document.head.appendChild(style);
+}
