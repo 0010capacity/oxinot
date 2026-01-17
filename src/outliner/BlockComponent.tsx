@@ -1073,6 +1073,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   key={childId}
                   blockId={childId}
                   depth={depth + 1}
+                  blockOrder={blockOrder}
                 />
               ))}
             </div>
