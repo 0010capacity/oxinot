@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { INDENT_PER_LEVEL } from "../../constants/layout";
+import styles from "./IndentGuide.module.css";
 
 interface IndentGuideProps {
   depth: number;
@@ -38,16 +39,9 @@ export function IndentGuide({
 
   return (
     <div
-      className={`indent-guide ${className}`}
+      className={`${styles.indentGuide} ${className}`}
       style={{
-        position: "absolute",
         left: `${leftPosition}px`,
-        top: 0,
-        bottom: 0,
-        width: "1px",
-        backgroundColor: "var(--color-indent-guide)",
-        pointerEvents: "none",
-        zIndex: 0,
         ...style,
       }}
     />
