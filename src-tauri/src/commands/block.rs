@@ -9,7 +9,7 @@ use crate::commands::workspace::open_workspace_db;
 use crate::models::block::{
     Block, BlockType, CreateBlockRequest, MoveBlockRequest, UpdateBlockRequest,
 };
-use crate::services::wiki_link_index;
+use crate::services::{wiki_link_index, FtsService};
 use crate::utils::fractional_index;
 use crate::utils::page_sync::{
     sync_page_to_markdown, sync_page_to_markdown_after_create, sync_page_to_markdown_after_delete,
@@ -1284,9 +1284,7 @@ fn rebalance_siblings(
     parent_id: Option<&str>,
 ) -> Result<(), String> {
     let mut stmt = conn
-        .prepare(
-            "SELECT id FROM blocks WHERE page_id = ? AND parent_id IS ? ORDER BY order_weight",
-        )
+        .prepare("SELECT id FROM blocks WHERE page_id = ? AND parent_id IS ? ORDER BY order_weight")
         .map_err(|e| e.to_string())?;
 
     let sibling_ids: Vec<String> = stmt
@@ -1505,20 +1503,12 @@ pub fn index_block_fts(
     page_id: &str,
     content: &str,
 ) -> Result<(), String> {
-    conn.execute(
-        "INSERT OR REPLACE INTO blocks_fts (block_id, page_id, content, anchor_id, path_text)
-         VALUES (?, ?, ?, ?, ?)",
-        params![block_id, page_id, content, block_id, ""],
-    )
-    .map_err(|e| e.to_string())?;
-    Ok(())
+    FtsService::index_block(conn, block_id, page_id, content)
 }
 
 /// Remove a block from the FTS5 index
 pub fn deindex_block_fts(conn: &Connection, block_id: &str) -> Result<(), String> {
-    conn.execute("DELETE FROM blocks_fts WHERE block_id = ?", [block_id])
-        .map_err(|e| e.to_string())?;
-    Ok(())
+    FtsService::deindex_block(conn, block_id)
 }
 
 #[cfg(test)]

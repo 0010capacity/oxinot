@@ -449,6 +449,11 @@ pub fn run() {
             commands::db::vacuum_db,
             commands::db::optimize_db,
             commands::db::repair_db,
+            commands::db::get_fts_stats,
+            commands::db::rebuild_fts_index,
+            commands::db::verify_fts_index,
+            commands::db::optimize_fts_index,
+            commands::db::rebuild_page_fts_index,
             // Search commands
             commands::search::search_content,
             // Git commands
