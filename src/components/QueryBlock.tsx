@@ -4,7 +4,6 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { useBlockStore } from "../stores/blockStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
-import { Editor } from "./Editor";
 import { tauriAPI, QueryResultBlock } from "../tauri-api";
 import { parseQueryMacro, QueryParseError } from "../utils/queryParser";
 
@@ -253,28 +252,15 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
             </button>
 
             <Box style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-              <Box
+              <Text
+                size="sm"
                 style={{
-                  fontSize: "13px",
-                  lineHeight: "1.4",
+                  wordBreak: "break-word",
+                  whiteSpace: "pre-wrap",
                 }}
               >
-                <Editor
-                  value={block.content}
-                  onChange={() => {
-                    // Read-only: no-op
-                  }}
-                  readOnly={true}
-                  lineNumbers={false}
-                  theme={isDark ? "dark" : "light"}
-                  style={{
-                    fontSize: "13px",
-                    lineHeight: "1.4",
-                    minHeight: "auto",
-                    maxHeight: "100px",
-                  }}
-                />
-              </Box>
+                {block.content}
+              </Text>
               <Text size="xs" c="dimmed" style={{ marginTop: "2px" }}>
                 {block.pagePath}
               </Text>
