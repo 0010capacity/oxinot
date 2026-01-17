@@ -730,13 +730,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             }
           }}
           onContextMenu={() => {}}
-          onKeyDown={(e) => {
-            // Handle keyboard navigation for accessibility
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              e.stopPropagation();
-            }
-          }}
         >
           {indentGuide}
           <div className="block-row" style={{ paddingLeft: `${depth * 24}px` }}>
