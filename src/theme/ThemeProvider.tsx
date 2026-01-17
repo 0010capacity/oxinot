@@ -17,9 +17,10 @@ function ThemeProviderInner({ children }: ThemeProviderProps) {
   const colorVariant = useThemeStore((state) => state.colorVariant); // Re-added colorVariant
 
   const theme: AppTheme = useMemo(() => {
-    // Dynamically create theme using computedColorScheme and colorVariant
-    return createTheme(computedColorScheme === "dark" ? "dark" : "light", colorVariant);
-  }, [computedColorScheme, colorVariant]); // Added colorVariant to dependencies // Removed colorVariant from dependencies
+    // Explicitly cast to ensure type correctness and handle potential initial undefined/null
+    const resolvedColorScheme: "dark" | "light" = computedColorScheme || "light"; 
+    return createTheme(resolvedColorScheme, colorVariant);
+  }, [computedColorScheme, colorVariant]);
 
   const mantineTheme: MantineThemeOverride = useMemo(
     () => ({
