@@ -170,6 +170,12 @@ export function SettingsModal({
   const setDailyNotesPath = useAppSettingsStore(
     (state) => state.setDailyNotesPath
   );
+  const dailyNoteTemplateId = useAppSettingsStore(
+    (state) => state.dailyNoteTemplateId
+  );
+  const setDailyNoteTemplateId = useAppSettingsStore(
+    (state) => state.setDailyNoteTemplateId
+  );
   const homepageType = useAppSettingsStore((state) => state.homepageType);
   const setHomepageType = useAppSettingsStore((state) => state.setHomepageType);
   const customHomepageId = useAppSettingsStore(
@@ -586,6 +592,10 @@ export function SettingsModal({
               matchesSearch={matchesSearch}
               dailyNotesPath={dailyNotesPath}
               setDailyNotesPath={setDailyNotesPath}
+              dailyNoteTemplateId={dailyNoteTemplateId}
+              setDailyNoteTemplateId={setDailyNoteTemplateId}
+              pagesById={pagesById}
+              pageIds={pageIds}
             />
           </Tabs.Panel>
 

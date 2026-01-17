@@ -1,9 +1,13 @@
+import { invoke } from "@tauri-apps/api/core";
 import { ActionIcon, Box, Stack, Text } from "@mantine/core";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
+import { useBlockStore } from "../stores/blockStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
+import type { BlockData } from "../stores/blockStore";
 
 interface CalendarDropdownProps {
   onClose: () => void;
@@ -20,6 +24,11 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
   const getDailyNotePath = useAppSettingsStore(
     (state) => state.getDailyNotePath
   );
+  const dailyNoteTemplateId = useAppSettingsStore(
+    (state) => state.dailyNoteTemplateId
+  );
+  const workspacePath = useWorkspaceStore((state) => state.workspacePath);
+  const openBlockPage = useBlockStore((state) => state.openPage);
 
   const monthNames = [
     "January",
@@ -74,6 +83,91 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
 
     const pageId = getPageIdByPath(fullPath);
     return pageId ? pagesById[pageId] : undefined;
+  };
+
+  const copyTemplateBlocks = async (
+    templatePageId: string,
+    targetPageId: string
+  ) => {
+    try {
+      if (!workspacePath) {
+        throw new Error("No workspace selected");
+      }
+
+      // Fetch template page blocks
+      const templateBlocks: BlockData[] = await invoke("get_page_blocks", {
+        workspacePath,
+        pageId: templatePageId,
+      });
+
+      if (templateBlocks.length === 0) {
+        return;
+      }
+
+      // Map to track original block ID to new block ID
+      const blockIdMap = new Map<string, string>();
+
+      // Create a map of original blocks for quick lookup
+      const blockMap = new Map<string, BlockData>();
+      for (const block of templateBlocks) {
+        blockMap.set(block.id, block);
+      }
+
+      // Process blocks in order, ensuring parents are created before children
+      const processedIds = new Set<string>();
+
+      const processBlock = async (block: BlockData): Promise<string> => {
+        // If already processed, return the mapped ID
+        if (processedIds.has(block.id)) {
+          const mappedId = blockIdMap.get(block.id);
+          if (mappedId) {
+            return mappedId;
+          }
+        }
+
+        // Process parent first if it exists
+        let newParentId: string | null = null;
+        if (block.parentId) {
+          const parentBlock = blockMap.get(block.parentId);
+          if (parentBlock) {
+            newParentId = await processBlock(parentBlock);
+          }
+        }
+
+        // Create the block with correct parent
+        const newBlock: BlockData = await invoke("create_block", {
+          workspacePath,
+          request: {
+            pageId: targetPageId,
+            parentId: newParentId,
+            afterBlockId: null,
+            content: block.content,
+          },
+        });
+
+        blockIdMap.set(block.id, newBlock.id);
+        processedIds.add(block.id);
+
+        // Process children of this block
+        const children = templateBlocks.filter((b) => b.parentId === block.id);
+        for (const child of children) {
+          await processBlock(child);
+        }
+
+        return newBlock.id;
+      };
+
+      // Process all root blocks
+      const rootBlocks = templateBlocks.filter((b) => b.parentId === null);
+      for (const rootBlock of rootBlocks) {
+        await processBlock(rootBlock);
+      }
+
+      // Reload the target page to update blockStore
+      await openBlockPage(targetPageId);
+    } catch (error) {
+      console.error("Failed to copy template blocks:", error);
+    }
   };
 
   const handleDayClick = async (day: number) => {
@@ -150,6 +244,11 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
         });
 
         if (createdPageId) {
+          // Copy template blocks if template is set
+          if (dailyNoteTemplateId) {
+            await copyTemplateBlocks(dailyNoteTemplateId, createdPageId);
+          }
+
           const createdPage = freshPagesById[createdPageId];
 
           // Build parent names array for breadcrumb
