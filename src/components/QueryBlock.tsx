@@ -205,6 +205,7 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
         {state.results.map((block) => (
           <Box
             key={block.id}
+            onClick={() => handleNavigateToBlock(block)}
             style={{
               display: "flex",
               gap: "6px",
