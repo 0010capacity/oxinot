@@ -805,8 +805,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }}
         >
           {indentGuide}
-          <button
-            type="button"
+          <div
             className="block-row"
             style={{
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
@@ -818,16 +817,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 : undefined,
               transition:
                 "background-color 0.15s ease, border-left-color 0.15s ease",
-              border: "none",
-              background: "transparent",
-              textAlign: "left",
-              cursor: "default",
-              padding: 0,
-              margin: 0,
-              font: "inherit",
-              color: "inherit",
             }}
-            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+            onClick={(e: React.MouseEvent) => {
               // Handle multi-select with Ctrl/Cmd + Click
               if (e.ctrlKey || e.metaKey) {
                 e.stopPropagation();
@@ -841,15 +832,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               ) {
                 e.stopPropagation();
                 selectBlockRange(lastSelectedBlockId, blockId, blockOrder);
-              }
-            }}
-            onKeyDown={(e: React.KeyboardEvent<HTMLButtonElement>) => {
-              // Keyboard equivalents for selection (handled via keybindings above)
-              // This is here for a11y compliance when button has onClick
-              if ((e.ctrlKey || e.metaKey) && e.key === " ") {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleBlockSelection(blockId);
               }
             }}
           >
@@ -979,7 +961,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 </Box>
               )}
             </div>
-          </button>
+          </div>
 
           {/* Render children recursively if not collapsed */}
           {hasChildren && !block.isCollapsed && (
