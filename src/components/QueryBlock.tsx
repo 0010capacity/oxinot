@@ -1,4 +1,4 @@
-import { Box, Text, useComputedColorScheme } from "@mantine/core";
+import { Badge, Box, Text, useComputedColorScheme } from "@mantine/core";
 import { IconEdit } from "@tabler/icons-react";
 import type React from "react";
 import { useEffect, useState } from "react";
@@ -203,12 +203,11 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
       <Box style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
         {state.results.map((block) => (
           <Box
-            key={block.id}
-            onClick={() => handleNavigateToBlock(block)}
             style={{
               display: "flex",
               gap: "6px",
               alignItems: "flex-start",
+              justifyContent: "space-between",
               cursor: "pointer",
               padding: "4px 6px",
               borderRadius: "4px",
@@ -270,6 +269,31 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
                 {block.pagePath}
               </Text>
             </Box>
+
+            {/* Metadata Badges */}
+            {Object.keys(block.metadata).length > 0 && (
+              <Box
+                style={{
+                  display: "flex",
+                  gap: "4px",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  minWidth: "100px",
+                }}
+              >
+                {Object.entries(block.metadata).map(([key, value]) => (
+                  <Badge
+                    key={`${block.id}-${key}`}
+                    size="xs"
+                    variant="light"
+                    style={{ fontSize: "10px" }}
+                  >
+                    {key}: {value}
+                  </Badge>
+                ))}
+              </Box>
+            )}
           </Box>
         ))}
       </Box>
