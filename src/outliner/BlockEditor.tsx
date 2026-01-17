@@ -1,5 +1,6 @@
 import { useComputedColorScheme } from "@mantine/core";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { IconCopy } from "@tabler/icons-react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
@@ -8,6 +9,8 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { useBlockStore } from "../stores/blockStore";
 import { useThemeStore } from "../stores/themeStore";
 import { useViewStore } from "../stores/viewStore";
+import { useRegisterCommands } from "../stores/commandStore";
+import { showToast } from "../utils/toast";
 import { BlockComponent } from "./BlockComponent";
 import "./BlockEditor.css";
 
@@ -36,6 +39,22 @@ export function BlockEditor({
 
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
+
+  // Register context-aware commands
+  useRegisterCommands(useMemo(() => [
+    {
+      id: `copy-link-${pageId}`,
+      label: `Copy link to [[${pageName || pageId}]]`,
+      description: "Copy wiki-link to clipboard",
+      icon: <IconCopy size={16} />,
+      action: () => {
+        navigator.clipboard.writeText(`[[${pageName || pageId}]]`);
+        showToast({ message: "Link copied to clipboard", type: "success" });
+      },
+      category: "Page",
+      keywords: ["copy", "link", "wiki"],
+    }
+  ], [pageId, pageName]));
 
   // Load page blocks (deterministic open flow)
   useEffect(() => {
