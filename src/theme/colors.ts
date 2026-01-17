@@ -42,6 +42,14 @@ export function createColorPalette(
 ): ColorPalette {
   const variantColors = COLOR_VARIANTS[variant];
 
+  if (!variantColors) {
+    throw new Error(
+      `Invalid color variant: ${String(variant)}. Must be one of: ${Object.keys(
+        COLOR_VARIANTS
+      ).join(", ")}`
+    );
+  }
+
   if (scheme === "dark") {
     return {
       bg: {

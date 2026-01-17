@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useThemeStore } from "../stores/themeStore";
 import type { AppTheme } from "./schema";
+import type { ColorVariant } from "./types";
 import { createTheme } from "./themes";
 import type { MantineThemeOverride } from "@mantine/core";
 
@@ -20,7 +21,9 @@ interface ThemeProviderProps {
 // Inner provider that uses Mantine hooks
 function ThemeProviderInner({ children }: ThemeProviderProps) {
   const computedColorScheme = useComputedColorScheme("light");
-  const colorVariant = useThemeStore((state) => state.colorVariant);
+  const colorVariant: ColorVariant = useThemeStore(
+    (state) => state.colorVariant ?? "indigo"
+  );
 
   const theme: AppTheme = useMemo(() => {
     const resolvedColorScheme: "dark" | "light" =
