@@ -55,3 +55,16 @@ export const OPACITY = {
   hover: "0.6",
   active: "0.85",
 } as const;
+
+export const Z_INDEX = {
+  base: 0,
+  low: 1,
+  elevated: 10,
+  dropdown: 1000,
+  sticky: 1020,
+  backdrop: 1040,
+  modal: 1050,
+  popover: 1060,
+  tooltip: 1070,
+  toast: 2000,
+} as const;

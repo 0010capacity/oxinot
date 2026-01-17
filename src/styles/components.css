@@ -170,7 +170,7 @@
 
 .tooltip {
   position: absolute;
-  z-index: 1070;
+  z-index: var(--z-index-tooltip);
   padding: var(--spacing-xs) var(--spacing-sm);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
@@ -198,7 +198,7 @@
 
 .dropdown-menu {
   position: absolute;
-  z-index: 1000;
+  z-index: var(--z-index-dropdown);
   min-width: 160px;
   padding: var(--spacing-xs) 0;
   margin-top: var(--spacing-xs);
@@ -258,8 +258,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1040;
-  background-color: rgba(0, 0, 0, 0.6);
+  z-index: var(--z-index-backdrop);
+  background-color: var(--color-bg-overlay);
   backdrop-filter: blur(4px);
   opacity: 0;
   transition: opacity var(--transition-normal);
@@ -274,7 +274,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 1050;
+  z-index: var(--z-index-modal);
   width: 90%;
   max-width: 600px;
   max-height: 90vh;

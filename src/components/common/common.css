@@ -16,7 +16,7 @@
   transition: opacity var(--transition-normal), background-color var(--transition-normal);
   border-radius: var(--radius-sm);
   position: relative;
-  z-index: 1;
+  z-index: var(--z-index-low);
 }
 
 .collapse-toggle.collapsed {

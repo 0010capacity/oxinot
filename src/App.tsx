@@ -38,6 +38,7 @@ import { useThemeStore } from "./stores/themeStore";
 import { useHomepage } from "./hooks/useHomepage";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useWorkspaceInitializer } from "./hooks/useWorkspaceInitializer";
+import { useCoreCommands } from "./hooks/useCoreCommands";
 import { ThemeProvider } from "./theme/ThemeProvider";
 
 function WorkspaceSelector() {
@@ -104,6 +105,14 @@ function AppContent({ workspacePath }: AppContentProps) {
     handleMigrationComplete,
     handleMigrationCancel,
   } = useWorkspaceInitializer(workspacePath, openHomepage, setWorkspaceName);
+
+  // Register core commands
+  useCoreCommands({
+    onOpenSearch: () => setSearchOpened(true),
+    onOpenSettings: () => setSettingsOpened(true),
+    onOpenHelp: () => setHelpOpened(true),
+    onClose: () => setCommandPaletteOpened(false),
+  });
 
   // Setup keyboard shortcuts
   useKeyboardShortcuts({
@@ -234,9 +243,6 @@ function AppContent({ workspacePath }: AppContentProps) {
       <CommandPalette
         opened={commandPaletteOpened}
         onClose={() => setCommandPaletteOpened(false)}
-        onOpenSearch={() => setSearchOpened(true)}
-        onOpenSettings={() => setSettingsOpened(true)}
-        onOpenHelp={() => setHelpOpened(true)}
       />
 
       {/* Help Modal */}

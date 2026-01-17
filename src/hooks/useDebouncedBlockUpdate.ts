@@ -14,6 +14,21 @@ export function useDebouncedBlockUpdate(blockId: string) {
     blockIdRef.current = blockId;
   }, [blockId]);
 
+  // Helper to resolve the real block ID (handling temp->real mapping)
+  const resolveBlockId = useCallback(() => {
+    const state = useBlockStore.getState();
+    const currentBlockId = blockIdRef.current;
+
+    // Check if the block has been mapped from tempId to realId
+    if (currentBlockId.startsWith("temp-")) {
+      const realId = state.tempIdMap[currentBlockId];
+      if (realId) {
+        return realId;
+      }
+    }
+    return currentBlockId;
+  }, []);
+
   const debouncedUpdate = useCallback(
     (content: string) => {
       pendingContentRef.current = content;
@@ -24,18 +39,8 @@ export function useDebouncedBlockUpdate(blockId: string) {
 
       timerRef.current = setTimeout(() => {
         if (pendingContentRef.current !== undefined) {
-          // Get current state to handle tempId -> realId mapping
-          const state = useBlockStore.getState();
-          let currentBlockId = blockIdRef.current;
-
-          // Check if the block has been mapped from tempId to realId
-          if (currentBlockId.startsWith("temp-")) {
-            const realId = state.tempIdMap[currentBlockId];
-            if (realId) {
-              currentBlockId = realId;
-            }
-          }
-
+          const currentBlockId = resolveBlockId();
+          
           // Access the current version of updateBlockContent
           const currentUpdateBlockContent =
             useBlockStore.getState().updateBlockContent;
@@ -45,7 +50,7 @@ export function useDebouncedBlockUpdate(blockId: string) {
       }, DEBOUNCE_MS);
     },
     // Empty dependency array - blockId changes handled via ref
-    []
+    [resolveBlockId]
   );
 
   const flushUpdate = useCallback(() => {
@@ -53,24 +58,14 @@ export function useDebouncedBlockUpdate(blockId: string) {
       clearTimeout(timerRef.current);
     }
     if (pendingContentRef.current !== undefined) {
-      // Get current state to handle tempId -> realId mapping
-      const state = useBlockStore.getState();
-      let currentBlockId = blockIdRef.current;
-
-      // Check if the block has been mapped from tempId to realId
-      if (currentBlockId.startsWith("temp-")) {
-        const realId = state.tempIdMap[currentBlockId];
-        if (realId) {
-          currentBlockId = realId;
-        }
-      }
+      const currentBlockId = resolveBlockId();
 
       const currentUpdateBlockContent =
         useBlockStore.getState().updateBlockContent;
       currentUpdateBlockContent(currentBlockId, pendingContentRef.current);
       pendingContentRef.current = undefined;
     }
-  }, []);
+  }, [resolveBlockId]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -1,224 +1,36 @@
 import { Box, Kbd, Modal, Stack, Text, TextInput } from "@mantine/core";
-import {
-  IconFile,
-  IconFolderPlus,
-  IconGitBranch,
-  IconGitCommit,
-  IconHelp,
-  IconSearch,
-  IconSettings,
-} from "@tabler/icons-react";
+import { IconSearch } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
-import { useGitStore } from "../stores/gitStore";
-import { usePageStore } from "../stores/pageStore";
-import { useViewStore } from "../stores/viewStore";
-import { useWorkspaceStore } from "../stores/workspaceStore";
-
-interface Command {
-  id: string;
-  label: string;
-  description?: string;
-  icon: React.ReactNode;
-  action: () => void | Promise<void>;
-  keywords?: string[];
-}
+import { useCommandStore } from "../stores/commandStore";
 
 interface CommandPaletteProps {
   opened: boolean;
   onClose: () => void;
-  onOpenSearch?: () => void;
-  onOpenSettings?: () => void;
-  onOpenHelp?: () => void;
 }
 
 export function CommandPalette({
   opened,
   onClose,
-  onOpenSearch,
-  onOpenSettings,
-  onOpenHelp,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const createPage = usePageStore((state) => state.createPage);
-  const loadPages = usePageStore((state) => state.loadPages);
-  const showPage = useViewStore((state) => state.showPage);
-  const showIndex = useViewStore((state) => state.showIndex);
-  const workspacePath = useWorkspaceStore((state) => state.workspacePath);
+  const registeredCommands = useCommandStore((state) => state.commands);
 
-  const gitCommit = useGitStore((state) => state.commit);
-  const gitPush = useGitStore((state) => state.push);
-  const gitPull = useGitStore((state) => state.pull);
-  const checkGitStatus = useGitStore((state) => state.checkStatus);
-  const hasChanges = useGitStore((state) => state.hasChanges);
-  const isRepo = useGitStore((state) => state.isRepo);
-
-  const commands: Command[] = useMemo(
-    () => [
-      // Navigation
-      {
-        id: "search",
-        label: "Search",
-        description: "Search pages and blocks",
-        icon: <IconSearch size={16} />,
-        action: () => {
-          onClose();
-          onOpenSearch?.();
-        },
-        keywords: ["find", "search", "query"],
-      },
-      {
-        id: "file-tree",
-        label: "Go to File Tree",
-        description: "Show workspace file tree",
-        icon: <IconFolderPlus size={16} />,
-        action: () => {
-          onClose();
-          showIndex();
-        },
-        keywords: ["tree", "files", "workspace", "home"],
-      },
-
-      // Page actions
-      {
-        id: "new-page",
-        label: "New Page",
-        description: "Create a new page",
-        icon: <IconFile size={16} />,
-        action: async () => {
-          onClose();
-          try {
-            const pageId = await createPage("Untitled");
-            await loadPages();
-            showPage(pageId);
-          } catch (error) {
-            console.error("Failed to create page:", error);
-          }
-        },
-        keywords: ["create", "add", "note", "document"],
-      },
-
-      // Git actions (only if repo is initialized)
-      ...(isRepo
-        ? [
-            {
-              id: "git-commit",
-              label: "Git: Commit Changes",
-              description: hasChanges
-                ? "Commit current changes"
-                : "No changes to commit",
-              icon: <IconGitCommit size={16} />,
-              action: async () => {
-                if (!workspacePath || !hasChanges) return;
-                onClose();
-                try {
-                  const message = prompt("Commit message:");
-                  if (message) {
-                    await gitCommit(workspacePath, message);
-                  }
-                } catch (error) {
-                  console.error("Failed to commit:", error);
-                }
-              },
-              keywords: ["git", "commit", "save", "version"],
-            },
-            {
-              id: "git-push",
-              label: "Git: Push",
-              description: "Push to remote repository",
-              icon: <IconGitBranch size={16} />,
-              action: async () => {
-                if (!workspacePath) return;
-                onClose();
-                try {
-                  await gitPush(workspacePath);
-                } catch (error) {
-                  console.error("Failed to push:", error);
-                  alert(
-                    "Failed to push. Make sure you have a remote configured.",
-                  );
-                }
-              },
-              keywords: ["git", "push", "upload", "sync"],
-            },
-            {
-              id: "git-pull",
-              label: "Git: Pull",
-              description: "Pull from remote repository",
-              icon: <IconGitBranch size={16} />,
-              action: async () => {
-                if (!workspacePath) return;
-                onClose();
-                try {
-                  await gitPull(workspacePath);
-                  await loadPages();
-                } catch (error) {
-                  console.error("Failed to pull:", error);
-                  alert(
-                    "Failed to pull. Make sure you have a remote configured.",
-                  );
-                }
-              },
-              keywords: ["git", "pull", "download", "sync", "fetch"],
-            },
-            {
-              id: "git-status",
-              label: "Git: Refresh Status",
-              description: "Check git repository status",
-              icon: <IconGitCommit size={16} />,
-              action: async () => {
-                if (!workspacePath) return;
-                onClose();
-                await checkGitStatus(workspacePath);
-              },
-              keywords: ["git", "status", "refresh", "check"],
-            },
-          ]
-        : []),
-
-      // Settings
-      {
-        id: "settings",
-        label: "Settings",
-        description: "Open settings",
-        icon: <IconSettings size={16} />,
-        action: () => {
-          onClose();
-          onOpenSettings?.();
-        },
-        keywords: ["preferences", "config", "options"],
-      },
-      {
-        id: "help",
-        label: "Help",
-        description: "View help and documentation",
-        icon: <IconHelp size={16} />,
-        action: () => {
-          onClose();
-          onOpenHelp?.();
-        },
-        keywords: ["docs", "documentation", "guide"],
-      },
-    ],
-    [
-      isRepo,
-      hasChanges,
-      workspacePath,
-      onClose,
-      onOpenSearch,
-      onOpenSettings,
-      onOpenHelp,
-      createPage,
-      loadPages,
-      showPage,
-      showIndex,
-      gitCommit,
-      gitPush,
-      gitPull,
-      checkGitStatus,
-    ],
-  );
+  const commands = useMemo(() => {
+    return Object.values(registeredCommands).sort((a, b) => {
+      // Sort by category first, then by order, then by label
+      const catA = a.category || "";
+      const catB = b.category || "";
+      if (catA !== catB) return catA.localeCompare(catB);
+      
+      const orderA = a.order ?? 100;
+      const orderB = b.order ?? 100;
+      if (orderA !== orderB) return orderA - orderB;
+      
+      return a.label.localeCompare(b.label);
+    });
+  }, [registeredCommands]);
 
   const filteredCommands = useMemo(() => {
     if (!query.trim()) return commands;
@@ -230,7 +42,8 @@ export function CommandPalette({
       const keywordMatch = cmd.keywords?.some((kw) =>
         kw.toLowerCase().includes(lowerQuery),
       );
-      return labelMatch || descMatch || keywordMatch;
+      const categoryMatch = cmd.category?.toLowerCase().includes(lowerQuery);
+      return labelMatch || descMatch || keywordMatch || categoryMatch;
     });
   }, [commands, query]);
 
@@ -350,16 +163,31 @@ export function CommandPalette({
                       {command.icon}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <Text
-                        size="sm"
-                        style={{
-                          color: "var(--color-text-secondary)",
-                          fontSize: "0.9rem",
-                          marginBottom: command.description ? "2px" : 0,
-                        }}
-                      >
-                        {command.label}
-                      </Text>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                        <Text
+                          size="sm"
+                          style={{
+                            color: "var(--color-text-secondary)",
+                            fontSize: "0.9rem",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {command.label}
+                        </Text>
+                        {command.category && (
+                          <Text
+                            size="xs"
+                            style={{
+                              color: "var(--color-text-tertiary)",
+                              fontSize: "0.7rem",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.5px",
+                            }}
+                          >
+                            {command.category}
+                          </Text>
+                        )}
+                      </div>
                       {command.description && (
                         <Text
                           size="xs"
