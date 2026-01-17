@@ -66,14 +66,15 @@ fn execute_query(
 ) -> Result<Vec<QueryResultBlock>, String> {
     let filter = &query_macro.query_filter;
 
-    // Query all blocks with their page information
+    // Query all blocks with their page information using page_paths table
     let mut stmt = conn
         .prepare(
             "SELECT b.id, b.page_id, b.parent_id, b.content, b.order_weight,
                     b.is_collapsed, b.block_type, b.language, b.created_at, b.updated_at,
-                    p.page_path
+                    COALESCE(pp.path_text, '')
              FROM blocks b
              JOIN pages p ON b.page_id = p.id
+             LEFT JOIN page_paths pp ON p.id = pp.page_id
              ORDER BY b.created_at",
         )
         .map_err(|e| format!("Failed to prepare statement: {}", e))?;
