@@ -103,7 +103,11 @@ fn execute_query(
         .map_err(|e| format!("Failed to query blocks: {}", e))?;
 
     for row_result in rows {
-        let (block, page_path) = row_result.map_err(|e| format!("Failed to read row: {}", e))?;
+        let (mut block, page_path) =
+            row_result.map_err(|e| format!("Failed to read row: {}", e))?;
+
+        // Load metadata for the block
+        block.metadata = load_block_metadata(conn, &block.id).unwrap_or_default();
 
         // Filter by FROM clause (page paths)
         let matches_path = filter
@@ -189,6 +193,31 @@ fn get_block_depth(conn: &rusqlite::Connection, block_id: &str) -> Result<u32, S
     }
 
     Ok(depth)
+}
+
+/// Load metadata for a block
+fn load_block_metadata(
+    conn: &rusqlite::Connection,
+    block_id: &str,
+) -> Result<HashMap<String, String>, String> {
+    let mut stmt = conn
+        .prepare("SELECT key, value FROM block_metadata WHERE block_id = ?")
+        .map_err(|e| format!("Failed to prepare metadata statement: {}", e))?;
+
+    let mut metadata = HashMap::new();
+
+    let rows = stmt
+        .query_map([block_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|e| format!("Failed to query metadata: {}", e))?;
+
+    for row_result in rows {
+        let (key, value) = row_result.map_err(|e| format!("Failed to read metadata row: {}", e))?;
+        metadata.insert(key, value);
+    }
+
+    Ok(metadata)
 }
 
 /// Parse block type from string
