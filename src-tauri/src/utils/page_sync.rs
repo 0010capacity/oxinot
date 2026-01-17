@@ -49,6 +49,13 @@ fn write_page_lines(
     let parent = full_path
         .parent()
         .ok_or_else(|| "Invalid file path: no parent directory".to_string())?;
+
+    // Ensure parent directory exists
+    if !parent.exists() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create parent directory: {}", e))?;
+    }
+
     let file_name = full_path
         .file_name()
         .ok_or_else(|| "Invalid file path: no file name".to_string())?;
@@ -892,6 +899,15 @@ pub fn sync_page_to_markdown_after_block_change(
 
     // Write to file
     let full_path = std::path::Path::new(workspace_path).join(file_path.unwrap());
+
+    // Ensure parent directory exists
+    if let Some(parent) = full_path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create parent directory: {}", e))?;
+        }
+    }
+
     std::fs::write(&full_path, markdown).map_err(|e| format!("Failed to write file: {}", e))?;
 
     update_page_file_metadata(conn, &full_path, page_id)?;
