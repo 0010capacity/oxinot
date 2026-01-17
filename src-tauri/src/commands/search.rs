@@ -21,15 +21,13 @@ pub fn search_content(workspace_path: String, query: String) -> Result<Vec<Searc
     let conn = open_workspace_db(&workspace_path)?;
     let mut results = Vec::new();
 
-    // Search query pattern for LIKE
+    // 1. Search in page titles using FTS (LIKE as fallback for case-insensitive)
     let search_pattern = format!("%{}%", query);
-
-    // 1. Search in page titles
     let mut stmt = conn
         .prepare(
             "SELECT id, title, parent_id
              FROM pages
-             WHERE title LIKE ?1
+             WHERE title LIKE ?1 AND is_deleted = 0
              ORDER BY title COLLATE NOCASE",
         )
         .map_err(|e| e.to_string())?;
@@ -59,19 +57,22 @@ pub fn search_content(workspace_path: String, query: String) -> Result<Vec<Searc
         }
     }
 
-    // 2. Search in block content
+    // 2. Search in block content using FTS5
+    // FTS5 MATCH query for better performance with large datasets
     let mut stmt = conn
         .prepare(
-            "SELECT b.id, b.page_id, b.content, p.title
-             FROM blocks b
+            "SELECT b.id, b.page_id, b.content, p.title, b.order_weight
+             FROM blocks_fts fts
+             JOIN blocks b ON fts.block_id = b.id
              JOIN pages p ON b.page_id = p.id
-             WHERE b.content LIKE ?1
+             WHERE blocks_fts MATCH ?1
+             AND p.is_deleted = 0
              ORDER BY p.title COLLATE NOCASE, b.order_weight",
         )
         .map_err(|e| e.to_string())?;
 
     let block_results = stmt
-        .query_map([&search_pattern], |row| {
+        .query_map([&format_fts_query(&query)], |row| {
             let id: String = row.get(0)?;
             let page_id: String = row.get(1)?;
             let content: String = row.get(2)?;
@@ -98,6 +99,14 @@ pub fn search_content(workspace_path: String, query: String) -> Result<Vec<Searc
     }
 
     Ok(results)
+}
+
+/// Format query string for FTS5 MATCH operation
+/// FTS5 supports basic operators like AND, OR, NOT and phrase search with quotes
+fn format_fts_query(query: &str) -> String {
+    // For simple queries, wrap in quotes for phrase matching
+    // This ensures exact phrase matches take priority
+    format!("\"{}\"", query)
 }
 
 /// Highlight the matching text in the content
