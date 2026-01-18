@@ -30,7 +30,7 @@ function hexToRgb(hex: string): string {
   return result
     ? `${Number.parseInt(result[1], 16)}, ${Number.parseInt(
         result[2],
-        16,
+        16
       )}, ${Number.parseInt(result[3], 16)}`
     : "0, 0, 0";
 }
@@ -38,7 +38,7 @@ function hexToRgb(hex: string): string {
 // Generate color palettes for dark and light schemes
 export function createColorPalette(
   scheme: "dark" | "light",
-  variant: keyof typeof COLOR_VARIANTS,
+  variant: keyof typeof COLOR_VARIANTS
 ): ColorPalette {
   // Fallback to blue if invalid variant
   const validVariant = variant in COLOR_VARIANTS ? variant : ("blue" as const);
@@ -47,8 +47,8 @@ export function createColorPalette(
   if (!variantColors) {
     throw new Error(
       `Invalid color variant: ${String(variant)}. Must be one of: ${Object.keys(
-        COLOR_VARIANTS,
-      ).join(", ")}`,
+        COLOR_VARIANTS
+      ).join(", ")}`
     );
   }
 
@@ -88,6 +88,10 @@ export function createColorPalette(
         active: "rgba(255, 255, 255, 1)",
       },
       indentGuide: "rgba(255, 255, 255, 0.08)",
+      graph: {
+        nodePage: "#ffffff",
+        nodeBlock: "#e0e0e0",
+      },
     };
   }
 
@@ -126,5 +130,9 @@ export function createColorPalette(
       active: "rgba(0, 0, 0, 0.8)",
     },
     indentGuide: "rgba(0, 0, 0, 0.06)",
+    graph: {
+      nodePage: "#000000",
+      nodeBlock: "#333333",
+    },
   };
 }

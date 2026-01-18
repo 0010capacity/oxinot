@@ -221,15 +221,11 @@ export function GraphViewModal({
       .enter()
       .append("circle")
       .attr("r", (d) => (d.node_type === "page" ? 8 : 5))
-      .attr("fill", (d) => {
-        const isDark = window.matchMedia(
-          "(prefers-color-scheme: dark)"
-        ).matches;
-        if (d.node_type === "page") {
-          return isDark ? "#ffffff" : "#000000";
-        }
-        return isDark ? "#e0e0e0" : "#333333";
-      })
+      .attr("fill", (d) =>
+        d.node_type === "page"
+          ? "var(--color-graph-node-page)"
+          : "var(--color-graph-node-block)"
+      )
       .attr("opacity", 1)
       .attr("class", styles.nodeCircle)
       .call(

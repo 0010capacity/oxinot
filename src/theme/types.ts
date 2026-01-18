@@ -58,6 +58,12 @@ export interface ColorPalette {
   };
 
   indentGuide: string;
+
+  // Graph visualization
+  graph: {
+    nodePage: string;
+    nodeBlock: string;
+  };
 }
 
 export interface Spacing {

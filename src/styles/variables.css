@@ -57,8 +57,8 @@
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px
-    rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 2px 4px -1px rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
 
   /* Color variables - set dynamically by ThemeProvider */
@@ -85,4 +85,8 @@
   --color-bullet-hover: rgba(255, 255, 255, 0.65);
   --color-bullet-active: rgba(255, 255, 255, 0.9);
   --color-indent-guide: rgba(255, 255, 255, 0.08);
+
+  /* Graph Node Colors */
+  --color-graph-node-page: #ffffff;
+  --color-graph-node-block: #e0e0e0;
 }
