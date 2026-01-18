@@ -1,5 +1,128 @@
 # oxinot
 
+## 0.18.0
+
+### Minor Changes
+
+- f44e02b: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+  - optimize code block masking by using ranges instead of string allocation
+  - add lifecycle safety check to hybrid rendering plugin
+  - implement undo/redo system with zundo (#465)
+  - migrate to SQLite FTS5 Trigram indexing for better substring search (#395)
+
+## 0.17.0
+
+### Minor Changes
+
+- e04cd64: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+- 1606821: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+  - optimize code block masking by using ranges instead of string allocation
+  - add lifecycle safety check to hybrid rendering plugin
+- 96d4640: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+- ef3a912: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+  - optimize code block masking by using ranges instead of string allocation
+  - add lifecycle safety check to hybrid rendering plugin
+  - implement undo/redo system with zundo (#465)
+  - migrate to SQLite FTS5 Trigram indexing for better substring search (#395)
+- e04cd64: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+  - optimize code block masking by using ranges instead of string allocation
+  - add lifecycle safety check to hybrid rendering plugin
+- e04cd64: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+  - optimize code block masking by using ranges instead of string allocation
+- 96d4640: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+- e04cd64: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+  - optimize code block masking by using ranges instead of string allocation
+  - add lifecycle safety check to hybrid rendering plugin
+- 8015314: - remove loading UI from page navigation
+  - migrate file I/O to tokio::fs for non-blocking async operations (#442)
+  - restore page tree drag-and-drop functionality
+  - replace page store full reload with incremental updates
+  - correct movePage command parameters
+  - use reindexWikiLinks instead of missing command
+  - remove loadPages call after drag-and-drop move
+  - replace page store full reload with incremental updates (#445)
+  - remove loadPages calls after page mutations
+  - auto-convert empty directories to regular pages after move
+  - refetch old parent after move to update UI
+  - correct get_page request field name (pageId -> page_id)
+  - add isDirectory to memo comparison for proper re-rendering
+  - also refetch new parent after move to update isDirectory
+  - add childCount to memo comparison
+- ef3a912: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+  - optimize code block masking by using ranges instead of string allocation
+  - add lifecycle safety check to hybrid rendering plugin
+  - implement undo/redo system with zundo (#465)
+  - migrate to SQLite FTS5 Trigram indexing for better substring search (#395)
+- e04cd64: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+- e04cd64: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+  - optimize code block masking by using ranges instead of string allocation
+- ef3a912: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+  - optimize code block masking by using ranges instead of string allocation
+  - add lifecycle safety check to hybrid rendering plugin
+  - implement undo/redo system with zundo (#465)
+- 96d4640: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+- 96d4640: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+- e04cd64: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+- ef3a912: - regenerate icon.icns for proper macOS app icon rendering (#451)
+  - implement graph view API and modal UI (#452)
+  - load pages after opening workspace to fix missing content (#455)
+  - make entire subpage item clickable (#456)
+  - optimize code block masking by using ranges instead of string allocation
+  - add lifecycle safety check to hybrid rendering plugin
+  - implement undo/redo system with zundo (#465)
+
+### Patch Changes
+
+- 8015314: - regenerate icon.icns for proper macOS app icon rendering (#451)
+
 ## 0.16.0
 
 ### Minor Changes
