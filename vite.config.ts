@@ -51,9 +51,15 @@ export default defineConfig({
 
           // DnD Kit
           dnd: ["@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
+
+          // D3 visualization
+          d3: ["d3"],
+
+          // i18next localization
+          i18n: ["i18next", "react-i18next"],
         },
       },
     },
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 750,
   },
 });

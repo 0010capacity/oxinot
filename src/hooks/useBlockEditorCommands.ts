@@ -14,12 +14,10 @@ import { showToast } from "../utils/toast";
 import React, { useMemo } from "react";
 
 interface UseBlockEditorCommandsProps {
-  pageId: string;
   onClose?: () => void;
 }
 
 export function useBlockEditorCommands({
-  pageId,
   onClose,
 }: UseBlockEditorCommandsProps) {
   const { t } = useTranslation();
@@ -220,7 +218,6 @@ export function useBlockEditorCommands({
     focusedBlockId,
     blocksById,
     childrenMap,
-    pageId,
     createBlock,
     deleteBlock,
     indentBlock,

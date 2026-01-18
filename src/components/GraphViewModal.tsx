@@ -64,7 +64,7 @@ export function GraphViewModal({
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const simulationRef = useRef<d3.Simulation<GraphNode, GraphEdge> | null>(
-    null,
+    null
   );
   const tooltipRef = useRef<d3.Selection<
     HTMLDivElement,
@@ -154,13 +154,11 @@ export function GraphViewModal({
     if (!svgRef.current) return;
 
     const svg = d3.select(svgRef.current);
+    const zoomBehavior = d3.zoom<SVGSVGElement, unknown>();
     svg
       .transition()
       .duration(750)
-      .call(
-        (d3.zoom<SVGSVGElement, unknown>() as any).transform as any,
-        d3.zoomIdentity,
-      );
+      .call(zoomBehavior.transform, d3.zoomIdentity);
   }, []);
 
   useEffect(() => {
@@ -187,15 +185,15 @@ export function GraphViewModal({
         "link",
         d3
           .forceLink<GraphNode, d3.SimulationLinkDatum<GraphNode>>(
-            graphData.edges as d3.SimulationLinkDatum<GraphNode>[],
+            graphData.edges as d3.SimulationLinkDatum<GraphNode>[]
           )
           .id((d) => d.id)
-          .distance(linkDistance),
+          .distance(linkDistance)
       )
       .force("charge", d3.forceManyBody<GraphNode>().strength(chargeStrength))
       .force(
         "center",
-        d3.forceCenter<GraphNode>(width / 2, height / 2).strength(0.1),
+        d3.forceCenter<GraphNode>(width / 2, height / 2).strength(0.1)
       )
       .force("collision", d3.forceCollide<GraphNode>().radius(collisionRadius));
 
@@ -211,7 +209,7 @@ export function GraphViewModal({
       .attr("stroke", (d) =>
         d.is_embed
           ? "var(--color-text-secondary)"
-          : "var(--color-text-tertiary)",
+          : "var(--color-text-tertiary)"
       )
       .attr("stroke-width", (d) => (d.is_embed ? 2 : 1))
       .attr("opacity", 0.6);
@@ -226,7 +224,7 @@ export function GraphViewModal({
       .attr("fill", (d) =>
         d.node_type === "page"
           ? "var(--color-interactive-hover)"
-          : "var(--color-text-secondary)",
+          : "var(--color-text-secondary)"
       )
       .attr("opacity", 0.8)
       .attr("class", styles.nodeCircle)
@@ -240,7 +238,7 @@ export function GraphViewModal({
               const node = event.subject;
               node.fx = node.x;
               node.fy = node.y;
-            },
+            }
           )
           .on(
             "drag",
@@ -248,7 +246,7 @@ export function GraphViewModal({
               const node = event.subject;
               node.fx = event.x;
               node.fy = event.y;
-            },
+            }
           )
           .on(
             "end",
@@ -257,8 +255,8 @@ export function GraphViewModal({
               const node = event.subject;
               node.fx = undefined;
               node.fy = undefined;
-            },
-          ),
+            }
+          )
       );
 
     // Create labels (hidden by default, shown on hover)
@@ -286,7 +284,7 @@ export function GraphViewModal({
       .on("mouseover", (_event: MouseEvent, d: GraphNode) => {
         // Show label
         labels.attr("class", (node) =>
-          node.id === d.id ? styles.nodeLabelVisible : styles.nodeLabel,
+          node.id === d.id ? styles.nodeLabelVisible : styles.nodeLabel
         );
 
         // Show tooltip
@@ -314,7 +312,7 @@ export function GraphViewModal({
       g.attr("transform", event.transform);
     });
 
-    svg.call(zoom as any);
+    svg.call(zoom);
 
     simulation.on("tick", () => {
       links
