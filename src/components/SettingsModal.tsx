@@ -127,13 +127,13 @@ export function SettingsModal({
 
   // Advanced settings
   const telemetryEnabled = useAdvancedSettingsStore(
-    (state) => state.telemetryEnabled
+    (state) => state.telemetryEnabled,
   );
   const setTelemetryEnabled = useAdvancedSettingsStore(
-    (state) => state.setTelemetryEnabled
+    (state) => state.setTelemetryEnabled,
   );
   const resetAllSettings = useAdvancedSettingsStore(
-    (state) => state.resetAllSettings
+    (state) => state.resetAllSettings,
   );
   const clearCache = useAdvancedSettingsStore((state) => state.clearCache);
 
@@ -148,10 +148,10 @@ export function SettingsModal({
   const editorFontSize = useThemeStore((state) => state.editorFontSize || 16);
   const setEditorFontSize = useThemeStore((state) => state.setEditorFontSize);
   const editorLineHeight = useThemeStore(
-    (state) => state.editorLineHeight || 1.6
+    (state) => state.editorLineHeight || 1.6,
   );
   const setEditorLineHeight = useThemeStore(
-    (state) => state.setEditorLineHeight
+    (state) => state.setEditorLineHeight,
   );
 
   // Clock Format
@@ -161,7 +161,7 @@ export function SettingsModal({
   const setTimeFormat = useClockFormatStore((state) => state.setTimeFormat);
   const setDateOrder = useClockFormatStore((state) => state.setDateOrder);
   const setDateSeparator = useClockFormatStore(
-    (state) => state.setDateSeparator
+    (state) => state.setDateSeparator,
   );
   const timezone = useClockFormatStore((state) => state.timezone);
   const setTimezone = useClockFormatStore((state) => state.setTimezone);
@@ -169,53 +169,53 @@ export function SettingsModal({
   // App Settings
   const dailyNotesPath = useAppSettingsStore((state) => state.dailyNotesPath);
   const setDailyNotesPath = useAppSettingsStore(
-    (state) => state.setDailyNotesPath
+    (state) => state.setDailyNotesPath,
   );
   const dailyNoteTemplateId = useAppSettingsStore(
-    (state) => state.dailyNoteTemplateId
+    (state) => state.dailyNoteTemplateId,
   );
   const setDailyNoteTemplateId = useAppSettingsStore(
-    (state) => state.setDailyNoteTemplateId
+    (state) => state.setDailyNoteTemplateId,
   );
   const homepageType = useAppSettingsStore((state) => state.homepageType);
   const setHomepageType = useAppSettingsStore((state) => state.setHomepageType);
   const customHomepageId = useAppSettingsStore(
-    (state) => state.customHomepageId
+    (state) => state.customHomepageId,
   );
   const setCustomHomepageId = useAppSettingsStore(
-    (state) => state.setCustomHomepageId
+    (state) => state.setCustomHomepageId,
   );
   const language = useAppSettingsStore((state) => state.language);
   const setLanguage = useAppSettingsStore((state) => state.setLanguage);
 
   // Outliner
   const showIndentGuides = useOutlinerSettingsStore(
-    (state) => state.showIndentGuides
+    (state) => state.showIndentGuides,
   );
   const toggleIndentGuides = useOutlinerSettingsStore(
-    (state) => state.toggleIndentGuides
+    (state) => state.toggleIndentGuides,
   );
   const autoExpandBlocks = useOutlinerSettingsStore(
-    (state) => state.autoExpandBlocks ?? true
+    (state) => state.autoExpandBlocks ?? true,
   );
   const setAutoExpandBlocks = useOutlinerSettingsStore(
-    (state) => state.setAutoExpandBlocks
+    (state) => state.setAutoExpandBlocks,
   );
   const showBlockCount = useOutlinerSettingsStore(
-    (state) => state.showBlockCount ?? false
+    (state) => state.showBlockCount ?? false,
   );
   const setShowBlockCount = useOutlinerSettingsStore(
-    (state) => state.setShowBlockCount
+    (state) => state.setShowBlockCount,
   );
   const showCodeBlockLineNumbers = useOutlinerSettingsStore(
-    (state) => state.showCodeBlockLineNumbers ?? true
+    (state) => state.showCodeBlockLineNumbers ?? true,
   );
   const setShowCodeBlockLineNumbers = useOutlinerSettingsStore(
-    (state) => state.setShowCodeBlockLineNumbers
+    (state) => state.setShowCodeBlockLineNumbers,
   );
   const indentSize = useOutlinerSettingsStore((state) => state.indentSize);
   const setIndentSize = useOutlinerSettingsStore(
-    (state) => state.setIndentSize
+    (state) => state.setIndentSize,
   );
 
   // Git
@@ -223,11 +223,11 @@ export function SettingsModal({
   const hasGitChanges = useGitStore((state) => state.hasChanges);
   const autoCommitEnabled = useGitStore((state) => state.autoCommitEnabled);
   const setAutoCommitEnabled = useGitStore(
-    (state) => state.setAutoCommitEnabled
+    (state) => state.setAutoCommitEnabled,
   );
   const autoCommitInterval = useGitStore((state) => state.autoCommitInterval);
   const setAutoCommitInterval = useGitStore(
-    (state) => state.setAutoCommitInterval
+    (state) => state.setAutoCommitInterval,
   );
   const checkGitStatus = useGitStore((state) => state.checkStatus);
   const gitCommit = useGitStore((state) => state.commit);
@@ -242,7 +242,7 @@ export function SettingsModal({
       if (!searchQuery.trim()) return true;
       return text.toLowerCase().includes(searchQuery.toLowerCase());
     },
-    [searchQuery]
+    [searchQuery],
   );
 
   const tabs: SettingTabConfig[] = useMemo(
@@ -602,7 +602,7 @@ export function SettingsModal({
       vacuumDatabase,
       optimizeDatabase,
       appVersion,
-    ]
+    ],
   );
 
   const filteredTabs = useMemo(() => {
@@ -612,7 +612,7 @@ export function SettingsModal({
       const label = t(tab.labelKey).toLowerCase();
       if (label.includes(query)) return true;
       return tab.keywords.some((keyword) =>
-        keyword.toLowerCase().includes(query)
+        keyword.toLowerCase().includes(query),
       );
     });
   }, [tabs, searchQuery, t]);
@@ -693,11 +693,7 @@ export function SettingsModal({
             )}
 
             {filteredTabs.map((tab) => (
-              <Tabs.Tab
-                key={tab.id}
-                value={tab.id}
-                leftSection={tab.icon}
-              >
+              <Tabs.Tab key={tab.id} value={tab.id} leftSection={tab.icon}>
                 {t(tab.labelKey)}
               </Tabs.Tab>
             ))}

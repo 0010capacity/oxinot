@@ -1,10 +1,4 @@
-import {
-  Group,
-  Select,
-  Slider,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { Group, Select, Slider, Stack, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { FontFamily } from "../../stores/themeStore";
 import type { AppearanceSettingsProps } from "./types";

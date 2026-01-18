@@ -144,7 +144,7 @@ function clamp(n: number, min: number, max: number): number {
 function getVisibleLineRanges(
   view: EditorView,
   mergedVisibleRanges: VisibleRange[],
-  bufferLines: number
+  bufferLines: number,
 ): Array<{ fromLine: number; toLine: number }> {
   const { doc } = view.state;
   const out: Array<{ fromLine: number; toLine: number }> = [];
@@ -234,7 +234,7 @@ function buildDecorations(view: EditorView): DecorationSet {
   const visibleLineRanges = getVisibleLineRanges(
     view,
     mergedVisibleRanges,
-    VISIBLE_LINE_BUFFER
+    VISIBLE_LINE_BUFFER,
   );
 
   // Process line-by-line patterns (not represented in syntax tree)
@@ -249,28 +249,28 @@ function buildDecorations(view: EditorView): DecorationSet {
 
       // Block-level and inline wiki links (embed pages are block-level)
       decorations.push(
-        ...WikiLinkHandler.processLine(lineText, line.from, isEditMode)
+        ...WikiLinkHandler.processLine(lineText, line.from, isEditMode),
       );
 
       // Block-level and inline block references (embed blocks are block-level)
       decorations.push(
-        ...BlockRefHandler.processLine(lineText, line.from, isEditMode)
+        ...BlockRefHandler.processLine(lineText, line.from, isEditMode),
       );
 
       // Inline patterns
       decorations.push(
-        ...TagHandler.processLine(lineText, line.from, isEditMode)
+        ...TagHandler.processLine(lineText, line.from, isEditMode),
       );
       decorations.push(
-        ...HighlightHandler.processLine(lineText, line.from, isEditMode)
+        ...HighlightHandler.processLine(lineText, line.from, isEditMode),
       );
       decorations.push(
-        ...CommentHandler.processLine(lineText, line.from, isEditMode)
+        ...CommentHandler.processLine(lineText, line.from, isEditMode),
       );
 
       // Block-level callouts (but enforced in CalloutHandler)
       decorations.push(
-        ...CalloutHandler.processLine(lineText, line.from, isEditMode)
+        ...CalloutHandler.processLine(lineText, line.from, isEditMode),
       );
     }
   }
@@ -596,11 +596,11 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
       try {
         this.view.dom.removeEventListener(
           "compositionstart",
-          this.onCompositionStart
+          this.onCompositionStart,
         );
         this.view.dom.removeEventListener(
           "compositionend",
-          this.onCompositionEnd
+          this.onCompositionEnd,
         );
       } catch {
         // no-op
@@ -609,7 +609,7 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
   },
   {
     decorations: (v) => v.decorations,
-  }
+  },
 );
 
 /**

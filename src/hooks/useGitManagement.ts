@@ -23,7 +23,7 @@ export interface GitManagementActions {
 }
 
 export const useGitManagement = (
-  workspacePath: string
+  workspacePath: string,
 ): GitManagementState & GitManagementActions => {
   const hasGitChanges = useGitStore((state) => state.hasChanges);
   const isGitRepo = useGitStore((state) => state.isRepo);
@@ -71,7 +71,7 @@ export const useGitManagement = (
         checkGitStatus(workspacePath).catch((error) => {
           console.error(
             "[useGitManagement] Failed to check git status:",
-            error
+            error,
           );
         });
       }
@@ -82,7 +82,7 @@ export const useGitManagement = (
       .catch((error) => {
         console.error(
           "[useGitManagement] Failed to setup workspace-changed listener:",
-          error
+          error,
         );
       });
 
@@ -97,11 +97,14 @@ export const useGitManagement = (
   useEffect(() => {
     if (!workspacePath || !autoCommitEnabled) return;
 
-    const intervalId = setInterval(() => {
-      autoCommit(workspacePath).catch((error) => {
-        console.error("[useGitManagement] Auto-commit failed:", error);
-      });
-    }, autoCommitInterval * 60 * 1000);
+    const intervalId = setInterval(
+      () => {
+        autoCommit(workspacePath).catch((error) => {
+          console.error("[useGitManagement] Auto-commit failed:", error);
+        });
+      },
+      autoCommitInterval * 60 * 1000,
+    );
 
     return () => clearInterval(intervalId);
   }, [workspacePath, autoCommitEnabled, autoCommitInterval, autoCommit]);

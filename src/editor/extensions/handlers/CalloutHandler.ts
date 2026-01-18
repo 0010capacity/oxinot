@@ -102,7 +102,8 @@ export class CalloutHandler extends BaseHandler {
     },
     quote: {
       color: "var(--color-text-secondary)",
-      bgColor: "color-mix(in srgb, var(--color-text-secondary), transparent 90%)",
+      bgColor:
+        "color-mix(in srgb, var(--color-text-secondary), transparent 90%)",
       icon: "💬",
     },
     bug: {

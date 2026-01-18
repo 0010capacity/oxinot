@@ -24,6 +24,8 @@ export const DEFAULT_SHORTCUTS: Record<string, Shortcut> = {
   help: { id: "help", key: "?", modKey: true },
   search: { id: "search", key: "p", modKey: true },
   toggle_index: { id: "toggle_index", key: "\\", modKey: true },
+  undo: { id: "undo", key: "z", modKey: true },
+  redo: { id: "redo", key: "z", modKey: true, shiftKey: true },
 };
 
 export const useShortcutStore = create<ShortcutStore>()(
@@ -42,6 +44,6 @@ export const useShortcutStore = create<ShortcutStore>()(
     }),
     {
       name: "shortcut-storage",
-    }
-  )
+    },
+  ),
 );

@@ -43,7 +43,10 @@ export function useCoreCommands(options: CoreCommandsOptions) {
       {
         id: "search",
         label: t("commands.search.label", "Search"),
-        description: t("commands.search.description", "Search pages and blocks"),
+        description: t(
+          "commands.search.description",
+          "Search pages and blocks",
+        ),
         icon: React.createElement(IconSearch, { size: 16 }),
         action: () => {
           options.onClose?.();
@@ -56,7 +59,10 @@ export function useCoreCommands(options: CoreCommandsOptions) {
       {
         id: "file-tree",
         label: t("commands.file_tree.label", "Go to File Tree"),
-        description: t("commands.file_tree.description", "Show workspace file tree"),
+        description: t(
+          "commands.file_tree.description",
+          "Show workspace file tree",
+        ),
         icon: React.createElement(IconFolderPlus, { size: 16 }),
         action: () => {
           options.onClose?.();
@@ -105,7 +111,10 @@ export function useCoreCommands(options: CoreCommandsOptions) {
       {
         id: "help",
         label: t("commands.help.label", "Help"),
-        description: t("commands.help.description", "View help and documentation"),
+        description: t(
+          "commands.help.description",
+          "View help and documentation",
+        ),
         icon: React.createElement(IconHelp, { size: 16 }),
         action: () => {
           options.onClose?.();
@@ -124,8 +133,14 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           id: "git-commit",
           label: t("commands.git_commit.label", "Git: Commit Changes"),
           description: hasChanges
-            ? t("commands.git_commit.description_changes", "Commit current changes")
-            : t("commands.git_commit.description_no_changes", "No changes to commit"),
+            ? t(
+                "commands.git_commit.description_changes",
+                "Commit current changes",
+              )
+            : t(
+                "commands.git_commit.description_no_changes",
+                "No changes to commit",
+              ),
           icon: React.createElement(IconGitCommit, { size: 16 }),
           action: async () => {
             if (!workspacePath || !hasChanges) return;
@@ -146,7 +161,10 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         {
           id: "git-push",
           label: t("commands.git_push.label", "Git: Push"),
-          description: t("commands.git_push.description", "Push to remote repository"),
+          description: t(
+            "commands.git_push.description",
+            "Push to remote repository",
+          ),
           icon: React.createElement(IconGitBranch, { size: 16 }),
           action: async () => {
             if (!workspacePath) return;
@@ -155,9 +173,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
               await gitPush(workspacePath);
             } catch (error) {
               console.error("Failed to push:", error);
-              alert(
-                "Failed to push. Make sure you have a remote configured.",
-              );
+              alert("Failed to push. Make sure you have a remote configured.");
             }
           },
           keywords: ["git", "push", "upload", "sync"],
@@ -167,7 +183,10 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         {
           id: "git-pull",
           label: t("commands.git_pull.label", "Git: Pull"),
-          description: t("commands.git_pull.description", "Pull from remote repository"),
+          description: t(
+            "commands.git_pull.description",
+            "Pull from remote repository",
+          ),
           icon: React.createElement(IconGitBranch, { size: 16 }),
           action: async () => {
             if (!workspacePath) return;
@@ -177,9 +196,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
               await loadPages();
             } catch (error) {
               console.error("Failed to pull:", error);
-              alert(
-                "Failed to pull. Make sure you have a remote configured.",
-              );
+              alert("Failed to pull. Make sure you have a remote configured.");
             }
           },
           keywords: ["git", "pull", "download", "sync", "fetch"],
@@ -189,7 +206,10 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         {
           id: "git-status",
           label: t("commands.git_status.label", "Git: Refresh Status"),
-          description: t("commands.git_status.description", "Check git repository status"),
+          description: t(
+            "commands.git_status.description",
+            "Check git repository status",
+          ),
           icon: React.createElement(IconGitCommit, { size: 16 }),
           action: async () => {
             if (!workspacePath) return;
@@ -199,7 +219,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           keywords: ["git", "status", "refresh", "check"],
           category: "Git",
           order: 40,
-        }
+        },
       );
     }
 
@@ -217,7 +237,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
     gitPush,
     gitPull,
     checkGitStatus,
-    t
+    t,
   ]);
 
   useRegisterCommands(coreCommands);

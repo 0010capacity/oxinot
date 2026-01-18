@@ -50,8 +50,8 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity var(--transition-normal),
-    background-color var(--transition-normal);
+  transition: opacity var(--transition-normal), background-color
+    var(--transition-normal);
   border-radius: var(--radius-sm);
   position: relative;
   z-index: var(--z-index-low);

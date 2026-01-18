@@ -61,7 +61,7 @@ function getWikiBasename(path: string): string {
 function isEmbedPageAlone(
   lineText: string,
   startIndex: number,
-  endIndex: number
+  endIndex: number,
 ): boolean {
   const beforeText = lineText.slice(0, startIndex).trim();
   const afterText = lineText.slice(endIndex).trim();
@@ -103,7 +103,7 @@ class EmbedPageWidget extends WidgetType {
                 new CustomEvent("cm-embed-navigate", {
                   bubbles: true,
                   detail: { blockId },
-                })
+                }),
               );
             },
             onEdit: () => {
@@ -116,9 +116,9 @@ class EmbedPageWidget extends WidgetType {
                 });
               }
             },
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
 
     return container;
@@ -174,7 +174,7 @@ export class WikiLinkHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isEditMode: boolean
+    isEditMode: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -261,7 +261,7 @@ export class WikiLinkHandler extends BaseHandler {
                 font-weight: 500;
                 text-decoration: none !important;
               `,
-            })
+            }),
           );
         } else {
           // Format: [[note]]
@@ -295,7 +295,7 @@ export class WikiLinkHandler extends BaseHandler {
                 font-weight: 500;
                 text-decoration: none !important;
               `,
-            })
+            }),
           );
 
           // Hide any trailing part (unlikely, but keep safe) - always hide

@@ -54,7 +54,8 @@ export function Clock() {
               : "transparent",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-interactive-hover)";
+            e.currentTarget.style.backgroundColor =
+              "var(--color-interactive-hover)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = opened

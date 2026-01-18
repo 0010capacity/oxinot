@@ -38,7 +38,7 @@ interface BlockUIActions {
   selectBlockRange: (
     fromId: string,
     toId: string,
-    visibleBlockIds: string[]
+    visibleBlockIds: string[],
   ) => void;
   selectAllBlocks: (allBlockIds: string[]) => void;
 
@@ -49,7 +49,7 @@ interface BlockUIActions {
   // 병합 상태 관리
   setMergingBlocks: (
     mergingBlockId: string | null,
-    mergingTargetBlockId: string | null
+    mergingTargetBlockId: string | null,
   ) => void;
   clearMergingBlocks: () => void;
 
@@ -161,7 +161,7 @@ export const useBlockUIStore = create<BlockUIStore>()(
     selectBlockRange: (
       fromId: string,
       toId: string,
-      visibleBlockIds: string[]
+      visibleBlockIds: string[],
     ) => {
       set((state) => {
         const fromIndex = visibleBlockIds.indexOf(fromId);
@@ -198,7 +198,7 @@ export const useBlockUIStore = create<BlockUIStore>()(
 
     setMergingBlocks: (
       mergingBlockId: string | null,
-      mergingTargetBlockId: string | null
+      mergingTargetBlockId: string | null,
     ) => {
       set((state) => {
         state.mergingBlockId = mergingBlockId;
@@ -228,7 +228,7 @@ export const useBlockUIStore = create<BlockUIStore>()(
     reset: () => {
       set(initialState);
     },
-  }))
+  })),
 );
 
 // ============ Selector Hooks ============

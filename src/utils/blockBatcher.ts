@@ -106,7 +106,7 @@ class BlockBatcher {
   public clearCache() {
     this.cache.clear();
   }
-  
+
   public invalidate(blockId: string) {
     this.cache.delete(blockId);
   }

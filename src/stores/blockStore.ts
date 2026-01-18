@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { immer } from "zustand/middleware/immer";
+import { temporal } from "zundo";
 import { shallow } from "zustand/shallow";
 import { createWithEqualityFn as create } from "zustand/traditional";
 import { useWorkspaceStore } from "./workspaceStore";
@@ -101,8 +102,9 @@ type BlockStore = BlockState & BlockActions;
 // ============ Store Implementation ============
 
 export const useBlockStore = create<BlockStore>()(
-  immer((set, get) => ({
-    // Initial State
+  temporal(
+    immer((set, get) => ({
+      // Initial State
     blocksById: {},
     childrenMap: {},
     blockStatus: {},
@@ -984,8 +986,15 @@ export const useBlockStore = create<BlockStore>()(
 
       return null;
     },
-  }))
-);
+  })),
+  {
+    limit: 100,
+    partialize: (state) => ({
+      blocksById: state.blocksById,
+      childrenMap: state.childrenMap,
+    }),
+  }
+));
 
 // ============ Selector Hooks ============
 

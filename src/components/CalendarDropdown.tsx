@@ -22,10 +22,10 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
   const loadPages = usePageStore((state) => state.loadPages);
   const openNote = useViewStore((state) => state.openNote);
   const getDailyNotePath = useAppSettingsStore(
-    (state) => state.getDailyNotePath
+    (state) => state.getDailyNotePath,
   );
   const dailyNoteTemplateId = useAppSettingsStore(
-    (state) => state.dailyNoteTemplateId
+    (state) => state.dailyNoteTemplateId,
   );
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const openBlockPage = useBlockStore((state) => state.openPage);
@@ -37,7 +37,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
     const buildPath = (pageId: string): string => {
       const page = pagesById[pageId];
       if (!page) return "";
-      
+
       // If we already computed this page's path, verify if we can cache intermediate results.
       // For now, simple recursion is fine as we are building the whole map once per update.
       if (page.parentId) {
@@ -95,7 +95,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
 
   const copyTemplateBlocks = async (
     templatePageId: string,
-    targetPageId: string
+    targetPageId: string,
   ) => {
     try {
       if (!workspacePath) {
@@ -182,7 +182,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
     const selectedDate = new Date(
       currentDate.getFullYear(),
       currentDate.getMonth(),
-      day
+      day,
     );
     const fullPath = getFullDailyNotePath(selectedDate);
 
@@ -221,12 +221,12 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
         // Note: After reload, our local pagePathMap is stale until next render.
         // We need to find the newly created page ID.
         // Since we just created it, we can traverse looking for the leaf pathPart with the correct parent.
-        
-        // However, for simplicity and correctness in this async flow, we can re-scan or just rebuild the path logic locally 
+
+        // However, for simplicity and correctness in this async flow, we can re-scan or just rebuild the path logic locally
         // for this one-time operation, OR better yet, leverage the `parentId` (which is the leaf ID now).
         // `parentId` variable holds the ID of the last created/found page from the loop above.
-        
-        const createdPageId = parentId; 
+
+        const createdPageId = parentId;
 
         if (createdPageId) {
           // Copy template blocks if template is set
@@ -236,29 +236,34 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
 
           const createdPage = freshPagesById[createdPageId];
           if (createdPage) {
-              // Build parent names array for breadcrumb
-              const parentNames: string[] = [];
-              const pagePathIds: string[] = [];
-    
-              const buildParentPath = (pid: string) => {
-                const p = freshPagesById[pid];
-                if (!p) return;
-    
-                if (p.parentId) {
-                  buildParentPath(p.parentId);
-                  const parentPage = freshPagesById[p.parentId];
-                  if (parentPage) {
-                    parentNames.push(parentPage.title);
-                    pagePathIds.push(p.parentId);
-                  }
+            // Build parent names array for breadcrumb
+            const parentNames: string[] = [];
+            const pagePathIds: string[] = [];
+
+            const buildParentPath = (pid: string) => {
+              const p = freshPagesById[pid];
+              if (!p) return;
+
+              if (p.parentId) {
+                buildParentPath(p.parentId);
+                const parentPage = freshPagesById[p.parentId];
+                if (parentPage) {
+                  parentNames.push(parentPage.title);
+                  pagePathIds.push(p.parentId);
                 }
-              };
-    
-              buildParentPath(createdPageId);
-              pagePathIds.push(createdPageId);
-    
-              setCurrentPageId(createdPageId);
-              openNote(createdPageId, createdPage.title, parentNames, pagePathIds);
+              }
+            };
+
+            buildParentPath(createdPageId);
+            pagePathIds.push(createdPageId);
+
+            setCurrentPageId(createdPageId);
+            openNote(
+              createdPageId,
+              createdPage.title,
+              parentNames,
+              pagePathIds,
+            );
           }
         }
       } catch (error) {
@@ -295,13 +300,13 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
 
   const handlePrevMonth = () => {
     setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
+      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1),
     );
   };
 
   const handleNextMonth = () => {
     setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
+      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
     );
   };
 
@@ -319,7 +324,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
             aspectRatio: "1",
             padding: "6px",
           }}
-        />
+        />,
       );
     }
 
@@ -333,7 +338,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
       const date = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth(),
-        day
+        day,
       );
       const isToday = isCurrentMonth && day === today.getDate();
       const hasNote = !!getDailyNotePage(date);
@@ -374,7 +379,7 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
           <Text size="xs" style={{ fontSize: "13px" }}>
             {day}
           </Text>
-        </Box>
+        </Box>,
       );
     }
 

@@ -147,7 +147,7 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
           if (shouldUpdateLastAccessed(exists.lastAccessed)) {
             set({
               workspaces: workspaces.map((w) =>
-                w.path === path ? { ...w, lastAccessed: Date.now() } : w
+                w.path === path ? { ...w, lastAccessed: Date.now() } : w,
               ),
             });
           }
@@ -306,7 +306,7 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
             await tauriAPI.rewriteWikiLinksForPagePathChange(
               workspacePath,
               oldPath,
-              newPath
+              newPath,
             );
           } catch (e) {
             console.warn("[renameItem] Failed to rewrite wiki links:", e);
@@ -360,6 +360,6 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
         workspaces: state.workspaces,
         workspacePath: state.workspacePath,
       }),
-    }
-  )
+    },
+  ),
 );

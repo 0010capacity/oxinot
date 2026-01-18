@@ -140,7 +140,7 @@ export const useOutlinerSettingsStore =
           if (fontOption) {
             document.documentElement.style.setProperty(
               "--font-family",
-              fontOption.stack
+              fontOption.stack,
             );
           }
         },
@@ -148,14 +148,14 @@ export const useOutlinerSettingsStore =
         getFontStack: () => {
           const fontFamily = get().fontFamily;
           const fontOption = FONT_OPTIONS.find(
-            (opt) => opt.value === fontFamily
+            (opt) => opt.value === fontFamily,
           );
           return fontOption?.stack || FONT_OPTIONS[0].stack;
         },
       }),
       {
         name: "outliner-settings",
-      }
+      },
     ),
-    shallow
+    shallow,
   );

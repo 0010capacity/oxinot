@@ -40,7 +40,7 @@ export function isMetadataLine(line: string): boolean {
  * Parse a single metadata line into key and value
  */
 export function parseMetadataLine(
-  line: string
+  line: string,
 ): { key: string; value: string } | null {
   if (!isMetadataLine(line)) {
     return null;
@@ -99,7 +99,7 @@ export function serializeMetadata(metadata: Record<string, string>): string {
  */
 export function mergeContentWithMetadata(
   content: string,
-  metadata: Record<string, string>
+  metadata: Record<string, string>,
 ): string {
   const metadataStr = serializeMetadata(metadata);
   if (!metadataStr) {

@@ -1,9 +1,4 @@
-import {
-  Button,
-  Stack,
-  Switch,
-  Text,
-} from "@mantine/core";
+import { Button, Stack, Switch, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { AdvancedSettingsProps } from "./types";
@@ -98,7 +93,7 @@ export function AdvancedSettings({
                     onClick={() => {
                       if (
                         window.confirm(
-                          t("settings.advanced.optimize_db_confirm")
+                          t("settings.advanced.optimize_db_confirm"),
                         )
                       ) {
                         optimizeDatabase();

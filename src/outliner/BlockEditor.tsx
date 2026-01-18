@@ -57,8 +57,8 @@ export function BlockEditor({
           keywords: ["copy", "link", "wiki"],
         },
       ],
-      [pageId, pageName]
-    )
+      [pageId, pageName],
+    ),
   );
 
   // Load page blocks

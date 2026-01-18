@@ -1,4 +1,9 @@
-import { ActionIcon, Group, useComputedColorScheme, useMantineColorScheme } from "@mantine/core";
+import {
+  ActionIcon,
+  Group,
+  useComputedColorScheme,
+  useMantineColorScheme,
+} from "@mantine/core";
 import {
   IconCalendar,
   IconCommand,

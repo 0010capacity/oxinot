@@ -84,8 +84,8 @@ export const useThemeStore = createWithEqualityFn<ThemeState>()(
 
         return persistedState;
       },
-    }
-  )
+    },
+  ),
 );
 
 export type { ColorVariant };

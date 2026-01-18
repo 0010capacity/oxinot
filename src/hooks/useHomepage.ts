@@ -14,10 +14,10 @@ export const useHomepage = (): UseHomepageReturn => {
   const { showIndex, openNote } = useViewStore();
   const homepageType = useAppSettingsStore((state) => state.homepageType);
   const customHomepageId = useAppSettingsStore(
-    (state) => state.customHomepageId
+    (state) => state.customHomepageId,
   );
   const getDailyNotePath = useAppSettingsStore(
-    (state) => state.getDailyNotePath
+    (state) => state.getDailyNotePath,
   );
 
   const addError = useErrorStore((state) => state.addError);
@@ -71,7 +71,7 @@ export const useHomepage = (): UseHomepageReturn => {
           const freshPagesById = usePageStore.getState().pagesById;
           const { names, ids } = buildPageBreadcrumb(
             customHomepageId,
-            freshPagesById
+            freshPagesById,
           );
           openNote(customHomepageId, freshPageData.title, names, ids);
         } catch (error) {

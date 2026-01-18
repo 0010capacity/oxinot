@@ -1,4 +1,11 @@
-import type { ColorScheme, ColorVariant, ColorPalette, Spacing, Typography, Radius } from './types';
+import type {
+  ColorScheme,
+  ColorVariant,
+  ColorPalette,
+  Spacing,
+  Typography,
+  Radius,
+} from "./types";
 
 // Define interfaces for Layout, Transitions, and Opacity based on tokens.ts
 export interface Layout {
