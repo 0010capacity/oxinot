@@ -31,7 +31,6 @@ export function BlockEditor({
   const isDark = computedColorScheme === "dark";
 
   const openPage = useBlockStore((state) => state.openPage);
-  const isLoading = useBlockStore((state) => state.isLoading);
   const error = useBlockStore((state) => state.error);
   const childrenMap = useBlockStore((state) => state.childrenMap);
   const blocksById = useBlockStore((state) => state.blocksById);
@@ -91,24 +90,6 @@ export function BlockEditor({
     };
     return getAllVisibleBlocks(blocksToShow);
   }, [blocksToShow, blocksById, childrenMap]);
-
-  if (isLoading) {
-    return (
-      <PageContainer>
-        <ContentWrapper>
-          <div
-            style={{
-              padding: "16px",
-              opacity: "var(--opacity-dimmed)",
-              color: "var(--color-text-tertiary)",
-            }}
-          >
-            Loading...
-          </div>
-        </ContentWrapper>
-      </PageContainer>
-    );
-  }
 
   if (error) {
     return (

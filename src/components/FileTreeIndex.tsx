@@ -1,4 +1,4 @@
-import { Button, Group, Loader, Modal, Stack, Text } from "@mantine/core";
+import { Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { IconPlus } from "@tabler/icons-react";
 import React, {
   useEffect,
@@ -63,7 +63,7 @@ export function FileTreeIndex() {
   const { t } = useTranslation();
   const { loadPages, createPage, updatePageTitle, deletePage, movePage } =
     usePageStore();
-  const isLoading = usePageStore((state) => state.isLoading);
+
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const workspaceName = workspacePath?.split("/").pop() || "Workspace";
   const showIndentGuides = useOutlinerSettingsStore(
@@ -629,17 +629,6 @@ export function FileTreeIndex() {
 
     return descendants;
   }, [pageToDelete, pages]);
-
-  if (isLoading) {
-    return (
-      <Stack align="center" justify="center" h="100%" p="xl">
-        <Loader size="sm" />
-        <Text size="sm" c="dimmed">
-          Loading pages...
-        </Text>
-      </Stack>
-    );
-  }
 
   return (
     <PageContainer>
