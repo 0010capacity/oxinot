@@ -1,0 +1,97 @@
+.embedded-block-card {
+  margin: 0;
+  position: relative;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  background-color: var(--color-bg-secondary);
+  transition: border-color var(--transition-normal);
+}
+
+.embedded-block-card:hover {
+  border-color: var(--color-border-primary);
+}
+
+.embedded-block-card-actions {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  display: flex;
+  gap: var(--spacing-xs);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.embedded-block-card:hover .embedded-block-card-actions {
+  opacity: 1;
+}
+
+.embedded-block-card-action-button {
+  border: none;
+  background-color: var(--color-interactive-hover);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  position: relative;
+  z-index: 11;
+  transition: background-color var(--transition-normal);
+}
+
+.embedded-block-card-action-button:hover {
+  background-color: var(--color-interactive-active);
+  color: var(--color-text-primary);
+}
+
+.embedded-block-card-loading {
+  margin: var(--spacing-xs) 0;
+  opacity: var(--opacity-dimmed);
+}
+
+.embedded-block-card-error {
+  margin: var(--spacing-xs) 0;
+}
+
+.embedded-block-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.embedded-block-item {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: flex-start;
+}
+
+.embedded-block-bullet {
+  opacity: var(--opacity-hover);
+  user-select: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  min-width: 12px;
+  text-align: center;
+  color: var(--color-text-tertiary);
+  transition: color var(--transition-normal);
+}
+
+.embedded-block-bullet:hover {
+  color: var(--color-text-secondary);
+}
+
+.embedded-editor-wrapper {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}

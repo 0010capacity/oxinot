@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { showToast } from "../utils/toast";
 import { Editor } from "./Editor";
+import "./EmbeddedBlockCard.css";
 
 interface EmbeddedBlock {
   id: string;
@@ -29,7 +30,6 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
   const [blocks, setBlocks] = useState<EmbeddedBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isHovered, setIsHovered] = useState(false);
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const computedColorScheme = useComputedColorScheme("light");
   const isDark = computedColorScheme === "dark";
@@ -115,12 +115,10 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
     const hasChildren = children.length > 0;
 
     return (
-      <Box key={id} style={{ display: "flex", flexDirection: "column" }}>
+      <Box key={id} className="embedded-block-list">
         <Box
+          className="embedded-block-item"
           style={{
-            display: "flex",
-            gap: "8px",
-            alignItems: "flex-start",
             paddingLeft: `${depth * 20}px`,
           }}
         >
@@ -131,19 +129,7 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
               e.stopPropagation();
               onNavigate?.(block.id);
             }}
-            style={{
-              opacity: 0.55,
-              userSelect: "none",
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              padding: 0,
-              margin: 0,
-              fontSize: "14px",
-              lineHeight: "1.5",
-              minWidth: "12px",
-              textAlign: "center",
-            }}
+            className="embedded-block-bullet"
             title="Zoom to this block"
           >
             •
@@ -179,7 +165,7 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
 
   if (loading) {
     return (
-      <Box style={{ margin: "6px 0", opacity: 0.6 }}>
+      <Box className="embedded-block-card-loading">
         <Text size="sm" c="dimmed">
           Loading…
         </Text>
@@ -189,7 +175,7 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
 
   if (error) {
     return (
-      <Box style={{ margin: "6px 0" }}>
+      <Box className="embedded-block-card-error">
         <Text size="sm" c="red">
           {error}
         </Text>
@@ -198,79 +184,22 @@ export const EmbeddedBlockCard: React.FC<EmbeddedBlockCardProps> = ({
   }
 
   return (
-    <Box
-      style={{
-        margin: "0",
-        position: "relative",
-        border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
-        borderRadius: "8px",
-        padding: "12px",
-        backgroundColor: isDark
-          ? "rgba(255, 255, 255, 0.02)"
-          : "rgba(0, 0, 0, 0.01)",
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <Box className="embedded-block-card">
       {/* Hover action buttons */}
-      <Box
-        style={{
-          position: "absolute",
-          top: "8px",
-          right: "8px",
-          display: "flex",
-          gap: "6px",
-          opacity: isHovered ? 1 : 0,
-          transition: "opacity 120ms ease",
-          pointerEvents: "auto",
-          zIndex: 10,
-        }}
-      >
+      <Box className="embedded-block-card-actions">
         <button
           type="button"
           onClick={handleCopyBlockId}
+          className="embedded-block-card-action-button"
           title="Copy block reference"
-          style={{
-            border: "none",
-            background: isDark
-              ? "rgba(255, 255, 255, 0.1)"
-              : "rgba(0, 0, 0, 0.05)",
-            color: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
-            borderRadius: "4px",
-            padding: "4px",
-            fontSize: "12px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "auto",
-            position: "relative",
-            zIndex: 11,
-          }}
         >
           <IconCopy size={14} stroke={1.5} />
         </button>
         <button
           type="button"
           onClick={handleEdit}
+          className="embedded-block-card-action-button"
           title="Edit block"
-          style={{
-            border: "none",
-            background: isDark
-              ? "rgba(255, 255, 255, 0.1)"
-              : "rgba(0, 0, 0, 0.05)",
-            color: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
-            borderRadius: "4px",
-            padding: "4px",
-            fontSize: "12px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "auto",
-            position: "relative",
-            zIndex: 11,
-          }}
         >
           <IconEdit size={14} stroke={1.5} />
         </button>
