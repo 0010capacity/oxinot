@@ -5,6 +5,8 @@ import "@mantine/notifications/styles.css";
 
 import { invoke } from "@tauri-apps/api/core";
 import { showToast } from "./utils/toast";
+import { useTelemetryStore } from "./stores/telemetryStore";
+import { analytics } from "./utils/analytics";
 
 // Prevent default context menu globally
 if (typeof window !== "undefined") {
@@ -36,6 +38,7 @@ import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useTranslation } from "react-i18next";
 import { useAppSettingsStore } from "./stores/appSettingsStore";
 import { useThemeStore } from "./stores/themeStore";
+import { useAdvancedSettingsStore } from "./stores/advancedSettingsStore";
 
 import { useHomepage } from "./hooks/useHomepage";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -137,11 +140,11 @@ function AppContent({ workspacePath }: AppContentProps) {
     }
     document.documentElement.style.setProperty(
       "--editor-font-size",
-      `${editorFontSize}px`,
+      `${editorFontSize}px`
     );
     document.documentElement.style.setProperty(
       "--editor-line-height",
-      `${editorLineHeight}`,
+      `${editorLineHeight}`
     );
   }, [fontFamily, editorFontSize, editorLineHeight, getFontStack]);
 
@@ -320,6 +323,12 @@ function App() {
   const { i18n } = useTranslation();
   const language = useAppSettingsStore((state) => state.language);
   const setLanguage = useAppSettingsStore((state) => state.setLanguage);
+  const telemetryEnabled = useAdvancedSettingsStore(
+    (state) => state.telemetryEnabled
+  );
+  const setTelemetryStoreEnabled = useTelemetryStore(
+    (state) => state.setEnabled
+  );
 
   useEffect(() => {
     if (!language) {
@@ -334,6 +343,14 @@ function App() {
       i18n.changeLanguage(language);
     }
   }, [language, setLanguage, i18n]);
+
+  // Sync telemetry settings with telemetry store and track session
+  useEffect(() => {
+    setTelemetryStoreEnabled(telemetryEnabled);
+    if (telemetryEnabled) {
+      analytics.sessionStarted();
+    }
+  }, [telemetryEnabled, setTelemetryStoreEnabled]);
 
   if (!workspacePath) {
     return (
