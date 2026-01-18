@@ -9,7 +9,6 @@ import {
   SegmentedControl,
   Slider,
   Box,
-  Divider,
   Stack,
 } from "@mantine/core";
 import { IconLink, IconRefresh, IconZoomReset } from "@tabler/icons-react";
