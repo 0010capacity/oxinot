@@ -11,6 +11,7 @@ import { useThemeStore } from "../stores/themeStore";
 import { useViewStore } from "../stores/viewStore";
 import { useRegisterCommands } from "../stores/commandStore";
 import { showToast } from "../utils/toast";
+import { useBlockEditorCommands } from "../hooks/useBlockEditorCommands";
 import { BlockComponent } from "./BlockComponent";
 import "./BlockEditor.css";
 
@@ -40,7 +41,7 @@ export function BlockEditor({
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
 
-  // Register context-aware commands
+  // Register page-level command
   useRegisterCommands(
     useMemo(
       () => [
@@ -57,9 +58,15 @@ export function BlockEditor({
           keywords: ["copy", "link", "wiki"],
         },
       ],
-      [pageId, pageName],
-    ),
+      [pageId, pageName]
+    )
   );
+
+  // Register block editor commands
+  useBlockEditorCommands({
+    pageId,
+    onClose: undefined,
+  });
 
   // Load page blocks
   useEffect(() => {

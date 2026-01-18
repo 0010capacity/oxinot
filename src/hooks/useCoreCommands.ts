@@ -4,6 +4,8 @@ import {
   IconGitBranch,
   IconGitCommit,
   IconHelp,
+  IconHome,
+  IconRefresh,
   IconSearch,
   IconSettings,
 } from "@tabler/icons-react";
@@ -12,7 +14,10 @@ import { useGitStore } from "../stores/gitStore";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
+import { useSyncStore } from "../stores/syncStore";
 import { useRegisterCommands, type Command } from "../stores/commandStore";
+import { tauriAPI } from "../tauri-api";
+import { showToast } from "../utils/toast";
 import React, { useMemo } from "react";
 
 interface CoreCommandsOptions {
@@ -37,6 +42,9 @@ export function useCoreCommands(options: CoreCommandsOptions) {
   const hasChanges = useGitStore((state) => state.hasChanges);
   const isRepo = useGitStore((state) => state.isRepo);
 
+  const { startReindex, updateProgress, finishReindex, cancelReindex } =
+    useSyncStore();
+
   const coreCommands: Command[] = useMemo(() => {
     const cmds: Command[] = [
       // Navigation
@@ -45,7 +53,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         label: t("commands.search.label", "Search"),
         description: t(
           "commands.search.description",
-          "Search pages and blocks",
+          "Search pages and blocks"
         ),
         icon: React.createElement(IconSearch, { size: 16 }),
         action: () => {
@@ -61,7 +69,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         label: t("commands.file_tree.label", "Go to File Tree"),
         description: t(
           "commands.file_tree.description",
-          "Show workspace file tree",
+          "Show workspace file tree"
         ),
         icon: React.createElement(IconFolderPlus, { size: 16 }),
         action: () => {
@@ -71,6 +79,19 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         keywords: ["tree", "files", "workspace", "home"],
         category: "Navigation",
         order: 20,
+      },
+      {
+        id: "go-home",
+        label: t("commands.go_home.label", "Go Home"),
+        description: t("commands.go_home.description", "Return to home page"),
+        icon: React.createElement(IconHome, { size: 16 }),
+        action: () => {
+          options.onClose?.();
+          showIndex();
+        },
+        keywords: ["home", "root", "index"],
+        category: "Navigation",
+        order: 30,
       },
 
       // Page actions
@@ -93,6 +114,57 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         category: "Actions",
         order: 10,
       },
+      {
+        id: "reindex-workspace",
+        label: t("commands.reindex_workspace.label", "Re-index Workspace"),
+        description: t(
+          "commands.reindex_workspace.description",
+          "Scan and reindex all workspace files"
+        ),
+        icon: React.createElement(IconRefresh, { size: 16 }),
+        action: async () => {
+          if (!workspacePath) {
+            showToast({
+              message: "No workspace selected",
+              type: "error",
+            });
+            return;
+          }
+
+          try {
+            options.onClose?.();
+            startReindex();
+            updateProgress(10, "Scanning workspace files...");
+
+            const result = await tauriAPI.reindexWorkspace(workspacePath);
+
+            updateProgress(90, "Finalizing...");
+
+            setTimeout(() => {
+              finishReindex();
+              showToast({
+                message: `Re-indexed ${result.pages} pages`,
+                type: "success",
+              });
+
+              // Reload pages after a short delay
+              setTimeout(() => {
+                window.location.reload();
+              }, 1500);
+            }, 200);
+          } catch (error) {
+            cancelReindex();
+            showToast({
+              message: "Re-index failed",
+              type: "error",
+              duration: 2000,
+            });
+          }
+        },
+        keywords: ["reindex", "scan", "sync", "refresh", "workspace"],
+        category: "Actions",
+        order: 20,
+      },
 
       // Settings
       {
@@ -113,7 +185,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         label: t("commands.help.label", "Help"),
         description: t(
           "commands.help.description",
-          "View help and documentation",
+          "View help and documentation"
         ),
         icon: React.createElement(IconHelp, { size: 16 }),
         action: () => {
@@ -135,11 +207,11 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           description: hasChanges
             ? t(
                 "commands.git_commit.description_changes",
-                "Commit current changes",
+                "Commit current changes"
               )
             : t(
                 "commands.git_commit.description_no_changes",
-                "No changes to commit",
+                "No changes to commit"
               ),
           icon: React.createElement(IconGitCommit, { size: 16 }),
           action: async () => {
@@ -163,7 +235,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           label: t("commands.git_push.label", "Git: Push"),
           description: t(
             "commands.git_push.description",
-            "Push to remote repository",
+            "Push to remote repository"
           ),
           icon: React.createElement(IconGitBranch, { size: 16 }),
           action: async () => {
@@ -185,7 +257,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           label: t("commands.git_pull.label", "Git: Pull"),
           description: t(
             "commands.git_pull.description",
-            "Pull from remote repository",
+            "Pull from remote repository"
           ),
           icon: React.createElement(IconGitBranch, { size: 16 }),
           action: async () => {
@@ -208,7 +280,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           label: t("commands.git_status.label", "Git: Refresh Status"),
           description: t(
             "commands.git_status.description",
-            "Check git repository status",
+            "Check git repository status"
           ),
           icon: React.createElement(IconGitCommit, { size: 16 }),
           action: async () => {
@@ -219,7 +291,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           keywords: ["git", "status", "refresh", "check"],
           category: "Git",
           order: 40,
-        },
+        }
       );
     }
 
@@ -237,6 +309,10 @@ export function useCoreCommands(options: CoreCommandsOptions) {
     gitPush,
     gitPull,
     checkGitStatus,
+    startReindex,
+    updateProgress,
+    finishReindex,
+    cancelReindex,
     t,
   ]);
 
