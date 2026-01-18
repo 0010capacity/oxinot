@@ -523,6 +523,9 @@ pub fn run() {
             commands::wiki_link::get_page_backlinks,
             commands::wiki_link::get_broken_links,
             commands::wiki_link::reindex_wiki_links,
+            // Graph commands
+            commands::graph::get_graph_data,
+            commands::graph::get_page_graph_data,
             // Query commands
             commands::query::execute_query_macro,
         ])

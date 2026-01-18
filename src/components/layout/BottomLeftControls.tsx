@@ -9,6 +9,7 @@ import {
   IconHelp,
   IconHome,
   IconMoon,
+  IconNetwork,
   IconSearch,
   IconSettings,
   IconSun,
@@ -23,10 +24,11 @@ interface BottomLeftControlsProps {
   onSearchClick?: () => void;
   onHelpClick?: () => void;
   onCommandPaletteClick?: () => void;
+  onGraphViewClick?: () => void;
 }
 
 /**
- * Bottom-left control buttons (home, settings, help, theme, search, command palette).
+ * Bottom-left control buttons (home, settings, help, theme, search, command palette, graph view).
  * Positioned at the bottom-left of the screen for easy access.
  */
 export function BottomLeftControls({
@@ -35,6 +37,7 @@ export function BottomLeftControls({
   onSearchClick,
   onHelpClick,
   onCommandPaletteClick,
+  onGraphViewClick,
 }: BottomLeftControlsProps) {
   const { t } = useTranslation();
   const { toggleColorScheme } = useMantineColorScheme();
@@ -127,6 +130,17 @@ export function BottomLeftControls({
           styles={iconButtonStyles}
         >
           <IconCommand size={16} />
+        </ActionIcon>
+      </Tooltip>
+
+      <Tooltip label="Graph View" position="top">
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          onClick={onGraphViewClick}
+          styles={iconButtonStyles}
+        >
+          <IconNetwork size={16} />
         </ActionIcon>
       </Tooltip>
 
