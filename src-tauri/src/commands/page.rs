@@ -392,6 +392,10 @@ pub async fn move_page(
     let conn_mutex = Mutex::new(conn);
     let file_sync = FileSyncService::new(&workspace_path);
 
+    // Get the page being moved and its old parent
+    let moved_page = get_page_internal(&conn_mutex, &request.id)?;
+    let old_parent_id = moved_page.parent_id.clone();
+
     // If moving to a parent, ensure parent is a directory
     if let Some(pid) = &request.parent_id {
         let parent = get_page_internal(&conn_mutex, pid)?;
@@ -424,6 +428,38 @@ pub async fn move_page(
             params![request.parent_id, new_path, request.id],
         )
         .map_err(|e| e.to_string())?;
+    }
+
+    // If moved away from a parent, check if that parent is now empty
+    // If so, convert it back to a regular file
+    if let Some(old_pid) = old_parent_id {
+        let remaining_children: i64 = {
+            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+            conn.query_row(
+                "SELECT COUNT(*) FROM pages WHERE parent_id = ?",
+                [&old_pid],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?
+        };
+
+        if remaining_children == 0 {
+            // Old parent is now empty, convert back to regular file
+            let old_parent = get_page_internal(&conn_mutex, &old_pid)?;
+            if old_parent.is_directory {
+                let new_file_path = file_sync
+                    .convert_directory_to_file(&conn_mutex, &old_pid)
+                    .await?;
+                {
+                    let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+                    conn.execute(
+                        "UPDATE pages SET is_directory = 0, file_path = ? WHERE id = ?",
+                        params![new_file_path, old_pid],
+                    )
+                    .map_err(|e| e.to_string())?;
+                }
+            }
+        }
     }
 
     // Emit workspace changed event for git monitoring
