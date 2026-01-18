@@ -187,7 +187,10 @@ export function GraphViewModal({
           .distance(linkDistance)
       )
       .force("charge", d3.forceManyBody<GraphNode>().strength(chargeStrength))
-      .force("center", d3.forceCenter<GraphNode>(width / 2, height / 2))
+      .force(
+        "center",
+        d3.forceCenter<GraphNode>(width / 2, height / 2).strength(0.1)
+      )
       .force("collision", d3.forceCollide<GraphNode>().radius(collisionRadius));
 
     simulationRef.current = simulation;
