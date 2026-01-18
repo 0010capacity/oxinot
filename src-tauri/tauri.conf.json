@@ -55,7 +55,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: https: data:; style-src 'self'; script-src 'self'; connect-src 'self' https://github.com; font-src 'self' data:;"
+      "csp": "default-src 'self'; img-src 'self' asset: https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self' https://github.com ipc://; font-src 'self' data: https://fonts.gstatic.com;"
     },
     "withGlobalTauri": false
   }
