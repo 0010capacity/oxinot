@@ -122,10 +122,16 @@ function AppContent({ workspacePath }: AppContentProps) {
 
   // Setup keyboard shortcuts
   useKeyboardShortcuts({
-    onCommandPalette: () => setCommandPaletteOpened((prev) => !prev),
+    onCommandPalette: () => {
+      setSearchOpened(false);
+      setCommandPaletteOpened((prev) => !prev);
+    },
     onSettings: () => setSettingsOpened(true),
     onHelp: () => setHelpOpened(true),
-    onSearch: () => setSearchOpened((prev) => !prev),
+    onSearch: () => {
+      setCommandPaletteOpened(false);
+      setSearchOpened((prev) => !prev);
+    },
     onToggleIndex: () => showIndex(),
     onUndo: () => useBlockStore.temporal.getState().undo(),
     onRedo: () => useBlockStore.temporal.getState().redo(),
@@ -192,9 +198,15 @@ function AppContent({ workspacePath }: AppContentProps) {
           <BottomLeftControls
             onHomeClick={openHomepage}
             onSettingsClick={() => setSettingsOpened(true)}
-            onSearchClick={() => setSearchOpened(true)}
+            onSearchClick={() => {
+              setCommandPaletteOpened(false);
+              setSearchOpened(true);
+            }}
             onHelpClick={() => setHelpOpened(true)}
-            onCommandPaletteClick={() => setCommandPaletteOpened(true)}
+            onCommandPaletteClick={() => {
+              setSearchOpened(false);
+              setCommandPaletteOpened(true);
+            }}
             onGraphViewClick={() => setGraphViewOpened(true)}
           />
 
