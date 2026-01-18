@@ -225,6 +225,32 @@
         "claude": "Anthropic Claude",
         "ollama": "Ollama (Local)",
         "custom": "Custom (OpenAI Compatible)"
+      },
+      "copilot": {
+        "button_tooltip": "AI Copilot",
+        "placeholder": "Ask AI to edit or generate text...",
+        "mode": {
+          "label": "Mode",
+          "edit": "Edit",
+          "generate": "Generate",
+          "chat": "Chat"
+        },
+        "scope": {
+          "label": "Scope",
+          "block": "Current Block",
+          "selection": "Selection",
+          "page": "Whole Page"
+        },
+        "actions": {
+          "send": "Send",
+          "stop": "Stop",
+          "apply": "Apply",
+          "discard": "Discard",
+          "retry": "Retry",
+          "undo": "Undo"
+        },
+        "preview_title": "Preview",
+        "templates_tooltip": "Use Template"
       }
     },
     "shortcuts": {
