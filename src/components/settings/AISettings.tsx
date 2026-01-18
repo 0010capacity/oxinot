@@ -63,7 +63,10 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
       const aiProvider = createAIProvider(provider, baseUrl);
       const models = await aiProvider.getModels(baseUrl, apiKey);
       if (models.length > 0) {
+        console.log(`Successfully fetched ${models.length} models for ${provider}:`, models);
         setAvailableModels(models);
+      } else {
+        console.log(`No models found for ${provider}. Check your API key or Base URL.`);
       }
     } catch (error) {
       console.error("Failed to fetch models:", error);
