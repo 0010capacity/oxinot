@@ -40,7 +40,7 @@ A modern markdown outliner application built with Tauri, React, and TypeScript. 
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/0010capacity/oxinot.git
 cd oxinot
 ```
 
