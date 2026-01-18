@@ -7,6 +7,7 @@ import React, {
   createContext,
   useMemo,
   memo,
+  useRef,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
@@ -98,35 +99,39 @@ export function FileTreeIndex() {
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
   const [pageToDelete, setPageToDelete] = useState<PageData | null>(null);
 
+  // Use refs to hold latest values without triggering re-renders
+  const pagesRef = useRef(pages);
+  const movePageRef = useRef(movePage);
+  const loadPagesRef = useRef(loadPages);
+
+  useEffect(() => {
+    pagesRef.current = pages;
+    movePageRef.current = movePage;
+    loadPagesRef.current = loadPages;
+  }, [pages, movePage, loadPages]);
+
   useEffect(() => {
     loadPages();
   }, [loadPages]);
 
-  // Mouse-based drag and drop
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+  // Mouse-based drag and drop - use callback refs to maintain stable event handlers
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    setDragState((prevState) => {
       // Check if we should start dragging (threshold check)
-      if (dragState.draggedPageId && !dragState.isDragging) {
-        const deltaX = Math.abs(e.clientX - dragState.startX);
-        const deltaY = Math.abs(e.clientY - dragState.startY);
+      if (prevState.draggedPageId && !prevState.isDragging) {
+        const deltaX = Math.abs(e.clientX - prevState.startX);
+        const deltaY = Math.abs(e.clientY - prevState.startY);
 
         if (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD) {
-          setDragState((prev) => ({ ...prev, isDragging: true }));
+          return { ...prevState, isDragging: true };
         }
-        return;
+        return prevState;
       }
 
-      if (!dragState.isDragging) return;
+      if (!prevState.isDragging) return prevState;
 
       // Prevent text selection while dragging
       e.preventDefault();
-
-      // Update mouse position
-      setDragState((prev) => ({
-        ...prev,
-        mouseX: e.clientX,
-        mouseY: e.clientY,
-      }));
 
       // Find element under cursor
       const elements = document.elementsFromPoint(e.clientX, e.clientY);
@@ -137,21 +142,29 @@ export function FileTreeIndex() {
         (el) => el.getAttribute("data-drop-zone") === "root"
       );
 
+      let dragOverPageId: string | null = null;
       if (pageElement) {
         const pageId = pageElement.getAttribute("data-page-id");
-        if (pageId && pageId !== dragState.draggedPageId) {
-          setDragState((prev) => ({ ...prev, dragOverPageId: pageId }));
+        if (pageId && pageId !== prevState.draggedPageId) {
+          dragOverPageId = pageId;
         }
       } else if (dropZone) {
-        // Hovering over root drop zone
-        setDragState((prev) => ({ ...prev, dragOverPageId: "root" }));
-      } else {
-        setDragState((prev) => ({ ...prev, dragOverPageId: null }));
+        dragOverPageId = "root";
       }
-    };
 
-    const handleMouseUp = async () => {
-      const { draggedPageId, dragOverPageId, isDragging } = dragState;
+      // Update mouse position and dragOverPageId
+      return {
+        ...prevState,
+        mouseX: e.clientX,
+        mouseY: e.clientY,
+        dragOverPageId,
+      };
+    });
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    setDragState((currentState) => {
+      const { draggedPageId, dragOverPageId, isDragging } = currentState;
 
       console.log("[FileTreeIndex.handleMouseUp] Called with:", {
         draggedPageId,
@@ -159,27 +172,25 @@ export function FileTreeIndex() {
         isDragging,
       });
 
-      // Reset drag state
-      setDragState({
-        isDragging: false,
-        draggedPageId: null,
-        dragOverPageId: null,
-        startY: 0,
-        startX: 0,
-        mouseX: 0,
-        mouseY: 0,
-      });
-
-      // If we never started dragging (just a click), do nothing
+      // If we never started dragging (just a click), reset and do nothing
       if (!isDragging) {
         console.log("[FileTreeIndex.handleMouseUp] No drag detected, exiting");
-        return;
+        return {
+          isDragging: false,
+          draggedPageId: null,
+          dragOverPageId: null,
+          startY: 0,
+          startX: 0,
+          mouseX: 0,
+          mouseY: 0,
+        };
       }
 
       // Perform drop if valid
       if (draggedPageId) {
-        const draggedPage = pages.find((p) => p.id === draggedPageId);
-        const targetPage = pages.find((p) => p.id === dragOverPageId);
+        const currentPages = pagesRef.current;
+        const draggedPage = currentPages.find((p) => p.id === draggedPageId);
+        const targetPage = currentPages.find((p) => p.id === dragOverPageId);
 
         console.log("[FileTreeIndex.handleMouseUp] Dragged page:", {
           id: draggedPage?.id,
@@ -194,54 +205,59 @@ export function FileTreeIndex() {
           );
           console.log(
             "[FileTreeIndex.handleMouseUp] Pages state BEFORE movePage:",
-            pages.map((p) => ({
+            currentPages.map((p) => ({
               id: p.id,
               title: p.title,
               parentId: p.parentId,
             }))
           );
 
-          try {
-            await movePage(draggedPageId, null);
-            console.log(
-              "[FileTreeIndex.handleMouseUp] movePage completed, now calling loadPages..."
-            );
-            await loadPages();
-            console.log(
-              "[FileTreeIndex.handleMouseUp] loadPages completed, checking final state..."
-            );
-
-            const finalPage = usePageStore.getState().pagesById[draggedPageId];
-            console.log("[FileTreeIndex.handleMouseUp] Final page state:", {
-              id: finalPage?.id,
-              title: finalPage?.title,
-              parentId: finalPage?.parentId,
-            });
-
-            console.log(
-              "[FileTreeIndex.handleMouseUp] Page moved to root successfully"
-            );
-          } catch (error) {
-            const errorMessage = String(error);
-            console.error(
-              "[FileTreeIndex.handleMouseUp] Failed to move page:",
-              error
-            );
-
-            // Silently ignore validation errors (invalid move operations)
-            if (
-              errorMessage.includes("Cannot move page to itself") ||
-              errorMessage.includes("Cannot move page to its own descendant")
-            ) {
+          movePageRef
+            .current(draggedPageId, null)
+            .then(() => {
               console.log(
-                "[FileTreeIndex.handleMouseUp] Invalid move operation ignored"
+                "[FileTreeIndex.handleMouseUp] movePage completed, now calling loadPages..."
               );
-              return;
-            }
+              return loadPagesRef.current();
+            })
+            .then(() => {
+              console.log(
+                "[FileTreeIndex.handleMouseUp] loadPages completed, checking final state..."
+              );
 
-            // Show alert for actual errors
-            alert(`Failed to move page: ${error}`);
-          }
+              const finalPage =
+                usePageStore.getState().pagesById[draggedPageId];
+              console.log("[FileTreeIndex.handleMouseUp] Final page state:", {
+                id: finalPage?.id,
+                title: finalPage?.title,
+                parentId: finalPage?.parentId,
+              });
+
+              console.log(
+                "[FileTreeIndex.handleMouseUp] Page moved to root successfully"
+              );
+            })
+            .catch((error) => {
+              const errorMessage = String(error);
+              console.error(
+                "[FileTreeIndex.handleMouseUp] Failed to move page:",
+                error
+              );
+
+              // Silently ignore validation errors (invalid move operations)
+              if (
+                errorMessage.includes("Cannot move page to itself") ||
+                errorMessage.includes("Cannot move page to its own descendant")
+              ) {
+                console.log(
+                  "[FileTreeIndex.handleMouseUp] Invalid move operation ignored"
+                );
+                return;
+              }
+
+              // Show alert for actual errors
+              alert(`Failed to move page: ${error}`);
+            });
         } else if (dragOverPageId && draggedPageId !== dragOverPageId) {
           console.log(
             `[FileTreeIndex.handleMouseUp] Dropping ${draggedPageId} on ${dragOverPageId}`
@@ -252,58 +268,63 @@ export function FileTreeIndex() {
           });
           console.log(
             "[FileTreeIndex.handleMouseUp] Pages state BEFORE movePage:",
-            pages.map((p) => ({
+            currentPages.map((p) => ({
               id: p.id,
               title: p.title,
               parentId: p.parentId,
             }))
           );
 
-          try {
-            await movePage(draggedPageId, dragOverPageId);
-            console.log(
-              "[FileTreeIndex.handleMouseUp] movePage completed, now calling loadPages..."
-            );
-            await loadPages();
-            console.log(
-              "[FileTreeIndex.handleMouseUp] loadPages completed, checking final state..."
-            );
-
-            const finalPage = usePageStore.getState().pagesById[draggedPageId];
-            console.log("[FileTreeIndex.handleMouseUp] Final page state:", {
-              id: finalPage?.id,
-              title: finalPage?.title,
-              parentId: finalPage?.parentId,
-            });
-
-            setCollapsed((prev) => ({
-              ...prev,
-              [dragOverPageId]: false,
-            }));
-            console.log(
-              "[FileTreeIndex.handleMouseUp] Page moved successfully"
-            );
-          } catch (error) {
-            const errorMessage = String(error);
-            console.error(
-              "[FileTreeIndex.handleMouseUp] Failed to move page:",
-              error
-            );
-
-            // Silently ignore validation errors (invalid move operations)
-            if (
-              errorMessage.includes("Cannot move page to itself") ||
-              errorMessage.includes("Cannot move page to its own descendant")
-            ) {
+          movePageRef
+            .current(draggedPageId, dragOverPageId)
+            .then(() => {
               console.log(
-                "[FileTreeIndex.handleMouseUp] Invalid move operation ignored"
+                "[FileTreeIndex.handleMouseUp] movePage completed, now calling loadPages..."
               );
-              return;
-            }
+              return loadPagesRef.current();
+            })
+            .then(() => {
+              console.log(
+                "[FileTreeIndex.handleMouseUp] loadPages completed, checking final state..."
+              );
 
-            // Show alert for actual errors
-            alert(`Failed to move page: ${error}`);
-          }
+              const finalPage =
+                usePageStore.getState().pagesById[draggedPageId];
+              console.log("[FileTreeIndex.handleMouseUp] Final page state:", {
+                id: finalPage?.id,
+                title: finalPage?.title,
+                parentId: finalPage?.parentId,
+              });
+
+              setCollapsed((prev) => ({
+                ...prev,
+                [dragOverPageId]: false,
+              }));
+              console.log(
+                "[FileTreeIndex.handleMouseUp] Page moved successfully"
+              );
+            })
+            .catch((error) => {
+              const errorMessage = String(error);
+              console.error(
+                "[FileTreeIndex.handleMouseUp] Failed to move page:",
+                error
+              );
+
+              // Silently ignore validation errors (invalid move operations)
+              if (
+                errorMessage.includes("Cannot move page to itself") ||
+                errorMessage.includes("Cannot move page to its own descendant")
+              ) {
+                console.log(
+                  "[FileTreeIndex.handleMouseUp] Invalid move operation ignored"
+                );
+                return;
+              }
+
+              // Show alert for actual errors
+              alert(`Failed to move page: ${error}`);
+            });
         } else {
           console.log(
             "[FileTreeIndex.handleMouseUp] Invalid drop target, no action taken"
@@ -314,21 +335,44 @@ export function FileTreeIndex() {
           "[FileTreeIndex.handleMouseUp] No draggedPageId, no action taken"
         );
       }
-    };
 
-    if (dragState.draggedPageId) {
-      if (dragState.isDragging) {
-        document.body.style.cursor = "grabbing";
-      }
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      return () => {
-        document.body.style.cursor = "";
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
+      // Reset drag state
+      return {
+        isDragging: false,
+        draggedPageId: null,
+        dragOverPageId: null,
+        startY: 0,
+        startX: 0,
+        mouseX: 0,
+        mouseY: 0,
       };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!dragState.draggedPageId) {
+      document.body.style.cursor = "";
+      return;
     }
-  }, [dragState, movePage, loadPages]);
+
+    if (dragState.isDragging) {
+      document.body.style.cursor = "grabbing";
+    }
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.body.style.cursor = "";
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [
+    dragState.draggedPageId,
+    dragState.isDragging,
+    handleMouseMove,
+    handleMouseUp,
+  ]);
 
   const handleCreatePage = useCallback(
     async (title: string) => {
@@ -491,15 +535,16 @@ export function FileTreeIndex() {
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent, pageId: string) => {
-    // Only start drag on left mouse button and if not clicking on interactive elements
+    // Only start drag on left mouse button
     if (e.button !== 0) return;
 
     const target = e.target as HTMLElement;
+    // Don't start drag if clicking on action buttons or input fields
+    // But allow dragging from the page title text/button area
     if (
-      target.tagName === "BUTTON" ||
       target.tagName === "INPUT" ||
-      target.closest("button") ||
-      target.closest("input")
+      target.closest("input") ||
+      target.closest('[data-action-button="true"]')
     ) {
       return;
     }
