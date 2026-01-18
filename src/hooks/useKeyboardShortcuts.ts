@@ -7,6 +7,8 @@ export interface KeyboardShortcutHandlers {
   onHelp?: () => void;
   onSearch?: () => void;
   onNewPage?: () => void;
+  onGoHome?: () => void;
+  onGraphView?: () => void;
   onToggleIndex?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
@@ -88,6 +90,31 @@ export const useKeyboardShortcuts = (handlers: KeyboardShortcutHandlers) => {
       ) {
         e.preventDefault();
         handlers.onNewPage();
+      }
+      // Go Home
+      if (
+        handlers.onGoHome &&
+        (shortcuts.go_home
+          ? isShortcutMatch(e, shortcuts.go_home)
+          : isShortcutMatch(e, {
+              id: "go_home",
+              key: "h",
+              modKey: true,
+              shiftKey: true,
+            }))
+      ) {
+        e.preventDefault();
+        handlers.onGoHome();
+      }
+      // Graph View
+      if (
+        handlers.onGraphView &&
+        (shortcuts.graph_view
+          ? isShortcutMatch(e, shortcuts.graph_view)
+          : isShortcutMatch(e, { id: "graph_view", key: "g", modKey: true }))
+      ) {
+        e.preventDefault();
+        handlers.onGraphView();
       }
       // Toggle Index
       if (

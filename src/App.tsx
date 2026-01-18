@@ -128,12 +128,13 @@ function AppContent({ workspacePath }: AppContentProps) {
       setSearchOpened(false);
       setCommandPaletteOpened((prev) => !prev);
     },
-    onSettings: () => setSettingsOpened(true),
-    onHelp: () => setHelpOpened(true),
+    onSettings: () => setSettingsOpened((prev) => !prev),
+    onHelp: () => setHelpOpened((prev) => !prev),
     onSearch: () => {
       setCommandPaletteOpened(false);
       setSearchOpened((prev) => !prev);
     },
+    onGraphView: () => setGraphViewOpened((prev) => !prev),
     onNewPage: async () => {
       try {
         const pageId = await createPage("Untitled");
@@ -143,6 +144,7 @@ function AppContent({ workspacePath }: AppContentProps) {
         console.error("Failed to create page:", error);
       }
     },
+    onGoHome: () => showIndex(),
     onToggleIndex: () => showIndex(),
     onUndo: () => useBlockStore.temporal.getState().undo(),
     onRedo: () => useBlockStore.temporal.getState().redo(),
