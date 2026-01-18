@@ -1,5 +1,21 @@
 # oxinot
 
+## 0.21.0
+
+### Minor Changes
+
+- d7b55f2: - implement native dock icon click behavior (#490)
+- d7b55f2: - implement native dock icon click behavior
+  - fix update_page command name to update_page_title
+  - implement native dock icon click behavior (#490)
+  - auto-convert parent to directory when adding child page
+  - improve child page creation with proper state management
+  - fix ghost input persisting after page creation
+
+### Patch Changes
+
+- d7b55f2: - handle workspace loading errors and add recovery options
+
 ## 0.20.1
 
 ### Patch Changes
