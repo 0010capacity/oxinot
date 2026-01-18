@@ -269,6 +269,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
       });
 
       const fromPath = page.filePath;
+      const oldParentId = page.parentId;
       const backup = { ...page };
 
       try {
@@ -287,6 +288,73 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         set((state) => {
           state.pagesById[id] = updatedPage;
         });
+
+        // Refetch new parent if moving into a parent (to reflect directory conversion)
+        if (newParentId) {
+          console.log(
+            "[pageStore.movePage] Refetching new parent:",
+            newParentId
+          );
+          try {
+            const newParent = await invoke<PageData | null>("get_page", {
+              workspacePath,
+              request: { page_id: newParentId },
+            });
+            console.log("[pageStore.movePage] New parent fetched:", newParent);
+            if (newParent) {
+              console.log(
+                "[pageStore.movePage] New parent before update:",
+                get().pagesById[newParentId]
+              );
+              set((state) => {
+                state.pagesById[newParentId] = newParent;
+              });
+              console.log(
+                "[pageStore.movePage] New parent after update:",
+                get().pagesById[newParentId]
+              );
+            }
+          } catch (error) {
+            console.warn(
+              "[pageStore.movePage] Failed to refresh new parent:",
+              error
+            );
+          }
+        }
+
+        // If moved away from a parent, refetch the old parent to reflect potential directory conversion
+        if (oldParentId && oldParentId !== newParentId) {
+          console.log(
+            "[pageStore.movePage] Refetching old parent:",
+            oldParentId
+          );
+          try {
+            const oldParent = await invoke<PageData | null>("get_page", {
+              workspacePath,
+              request: { page_id: oldParentId },
+            });
+            console.log("[pageStore.movePage] Old parent fetched:", oldParent);
+            if (oldParent) {
+              console.log(
+                "[pageStore.movePage] Old parent before update:",
+                get().pagesById[oldParentId]
+              );
+              set((state) => {
+                state.pagesById[oldParentId] = oldParent;
+              });
+              console.log(
+                "[pageStore.movePage] Old parent after update:",
+                get().pagesById[oldParentId]
+              );
+              console.log("[pageStore.movePage] All pageIds:", get().pageIds);
+            }
+          } catch (error) {
+            console.warn(
+              "[pageStore.movePage] Failed to refresh old parent:",
+              error
+            );
+          }
+        }
 
         const toPath = updatedPage.filePath;
 
@@ -434,6 +502,18 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
 
 export const usePage = (id: string) =>
   usePageStore((state) => state.pagesById[id]);
+
+export const usePageChildrenIds = (parentId: string | null) =>
+  usePageStore((state) => {
+    // This is expensive if we iterate all pages every time
+    // But since we are inside a selector, it runs on every store update
+    // We can optimize this by maintaining a parent->children map in store if needed
+    // For now, let's just filter
+    return state.pageIds.filter((id) => {
+      const page = state.pagesById[id];
+      return page && (page.parentId ?? null) === parentId;
+    });
+  });
 
 export const usePageIds = () => usePageStore((state) => state.pageIds);
 
