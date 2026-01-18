@@ -100,16 +100,24 @@ fn execute_query(
          LEFT JOIN page_paths pp ON p.id = pp.page_id "
     );
 
+    // Join FTS table if content search is requested
+    if filter.like.is_some() {
+        sql.push_str("JOIN blocks_fts fts ON b.id = fts.block_id ");
+    }
+
     if filter.depth.is_some() {
         sql.push_str("JOIN block_hierarchy bh ON b.id = bh.id ");
     }
 
     let mut where_clauses = Vec::new();
 
-    // 2. Filter: LIKE (Content)
+    // 2. Filter: LIKE (Content) - Migrated to FTS5 Trigram
     if let Some(ref like_text) = filter.like {
-        where_clauses.push("b.content LIKE ?".to_string());
-        params.push(Box::new(format!("%{}%", like_text)));
+        where_clauses.push("fts MATCH ?".to_string());
+        // Escape quotes in the search text: " -> ""
+        let escaped_text = like_text.replace("\"", "\"\"");
+        // Target specific column 'content' and use phrase search (quotes) for substring match
+        params.push(Box::new(format!("content:\"{}\"", escaped_text)));
     }
 
     // 3. Filter: FROM (Page Paths)
