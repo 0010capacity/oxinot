@@ -8,6 +8,8 @@ export function CopilotButton() {
   const toggle = useCopilotUiStore((state) => state.toggle);
   const isOpen = useCopilotUiStore((state) => state.isOpen);
 
+  if (isOpen) return null;
+
   return (
     <div
       style={{

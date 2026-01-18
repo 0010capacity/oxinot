@@ -23,6 +23,8 @@ import {
   IconDownload,
   IconTrash,
   IconRefresh,
+  IconUser,
+  IconRobot,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
@@ -53,6 +55,12 @@ export function CopilotPanel() {
   const setIsLoading = useCopilotUiStore((state) => state.setIsLoading);
   const setPreviewContent = useCopilotUiStore((state) => state.setPreviewContent);
   
+  // Chat State
+  const chatMessages = useCopilotUiStore((state) => state.chatMessages);
+  const addChatMessage = useCopilotUiStore((state) => state.addChatMessage);
+  const updateLastChatMessage = useCopilotUiStore((state) => state.updateLastChatMessage);
+  const clearChatMessages = useCopilotUiStore((state) => state.clearChatMessages);
+
   // Settings
   const { provider, apiKey, baseUrl, model, promptTemplates } = useAISettingsStore();
 
@@ -66,12 +74,12 @@ export function CopilotPanel() {
     }
   }, [isOpen]);
 
-  // Auto-scroll to bottom of preview
+  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollViewportRef.current) {
       scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
     }
-  });
+  }, [previewContent, chatMessages]);
 
   const gatherContext = (): { context: string; systemPrompt?: string } => {
     const blockStore = useBlockStore.getState();
@@ -100,7 +108,6 @@ export function CopilotPanel() {
         context = `Selected Blocks Content:\n${content}`;
         systemPrompt += " The user wants to process the selected blocks.";
       } else {
-        // Fallback to focused block if no selection
         const focusedId = uiStore.focusedBlockId;
         if (focusedId) {
           const block = blockStore.blocksById[focusedId];
@@ -113,8 +120,6 @@ export function CopilotPanel() {
       const pageId = blockStore.currentPageId;
       if (pageId) {
         const pageTitle = pageStore.pagesById[pageId]?.title || "Untitled";
-        // Simple context: just title for now to avoid huge context window issues
-        // In a real implementation, we would traverse the tree and collect content
         context = `Page Title: ${pageTitle}\n(Page content context is limited for performance)`;
         systemPrompt += " The user is asking about the current page.";
       }
@@ -126,15 +131,32 @@ export function CopilotPanel() {
   const handleSend = async () => {
     if (!inputValue.trim()) return;
     
-    setIsLoading(true);
-    setPreviewContent("");
+    const currentInput = inputValue;
+    setInputValue("");
     setError(null);
+    setIsLoading(true);
+
+    // If Chat Mode: Add user message immediately
+    if (mode === "chat") {
+      addChatMessage("user", currentInput);
+      addChatMessage("assistant", ""); // Placeholder for stream
+    } else {
+      setPreviewContent("");
+    }
 
     try {
       const aiProvider = createAIProvider(provider, baseUrl);
       const { context, systemPrompt } = gatherContext();
       
-      const prompt = `${context}\n\nUser Request: ${inputValue}`;
+      let prompt = "";
+      if (mode === "chat") {
+        // Include chat history context if possible, but for MVP just context + input
+        // Or simple history concat? 
+        // Let's stick to context + current input for now to avoid token limits with huge history
+        prompt = `${context}\n\nUser: ${currentInput}`;
+      } else {
+        prompt = `${context}\n\nUser Request: ${currentInput}`;
+      }
 
       const stream = aiProvider.generateStream({
         prompt,
@@ -147,12 +169,19 @@ export function CopilotPanel() {
       let fullContent = "";
       for await (const chunk of stream) {
         fullContent += chunk;
-        setPreviewContent(fullContent);
+        if (mode === "chat") {
+          updateLastChatMessage(fullContent);
+        } else {
+          setPreviewContent(fullContent);
+        }
       }
     } catch (err: unknown) {
       console.error("AI Generation Error:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to generate response";
       setError(errorMessage);
+      if (mode === "chat") {
+        updateLastChatMessage(`Error: ${errorMessage}`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -170,13 +199,18 @@ export function CopilotPanel() {
     const blockStore = useBlockStore.getState();
     const focusedId = uiStore.focusedBlockId;
 
-    if (!focusedId) return;
+    const contentToApply = mode === "chat" 
+      ? chatMessages[chatMessages.length - 1]?.content 
+      : previewContent;
+
+    if (!focusedId || !contentToApply) return;
 
     try {
-      await blockStore.updateBlockContent(focusedId, previewContent);
-      close();
-      setPreviewContent("");
-      setInputValue("");
+      await blockStore.updateBlockContent(focusedId, contentToApply);
+      if (mode !== "chat") {
+        close();
+        setPreviewContent("");
+      }
     } catch (e) {
       console.error("Failed to apply changes:", e);
       setError("Failed to apply changes");
@@ -188,13 +222,18 @@ export function CopilotPanel() {
     const blockStore = useBlockStore.getState();
     const focusedId = uiStore.focusedBlockId;
 
-    if (!focusedId) return;
+    const contentToApply = mode === "chat" 
+      ? chatMessages[chatMessages.length - 1]?.content 
+      : previewContent;
+
+    if (!focusedId || !contentToApply) return;
 
     try {
-      await blockStore.createBlock(focusedId, previewContent);
-      close();
-      setPreviewContent("");
-      setInputValue("");
+      await blockStore.createBlock(focusedId, contentToApply);
+      if (mode !== "chat") {
+        close();
+        setPreviewContent("");
+      }
     } catch (e) {
       console.error("Failed to insert block:", e);
       setError("Failed to insert block");
@@ -271,7 +310,7 @@ export function CopilotPanel() {
 
       {/* Content Area */}
       <Box style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        <LoadingOverlay visible={isLoading && !previewContent} zIndex={10} overlayProps={{ blur: 1 }} />
+        <LoadingOverlay visible={isLoading && mode !== "chat" && !previewContent} zIndex={10} overlayProps={{ blur: 1 }} />
         
         {error && (
           <div style={{ padding: "12px", backgroundColor: "var(--mantine-color-red-1)", color: "var(--mantine-color-red-9)" }}>
@@ -280,23 +319,70 @@ export function CopilotPanel() {
         )}
 
         <ScrollArea h="100%" p="md" viewportRef={scrollViewportRef}>
-          {previewContent ? (
-            <div>
-              <Text size="xs" fw={700} c="dimmed" mb="xs" style={{ textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                {t("settings.ai.copilot.preview_title")}
-              </Text>
-              <div 
-                className="markdown-preview"
-                style={{ fontSize: "15px", lineHeight: "1.6" }}
-                dangerouslySetInnerHTML={{ 
-                  __html: renderMarkdownToHtml(previewContent, { allowBlocks: true }) 
-                }} 
-              />
-            </div>
+          {mode === "chat" ? (
+            <Stack gap="md">
+              {chatMessages.length === 0 && (
+                <Stack align="center" justify="center" h="200px" style={{ opacity: 0.5 }}>
+                  <IconRobot size={48} stroke={1.5} />
+                  <Text size="sm" c="dimmed">Ask me anything about your notes.</Text>
+                </Stack>
+              )}
+              {chatMessages.map((msg) => (
+                <Group key={msg.id} align="flex-start" wrap="nowrap" justify={msg.role === "user" ? "flex-end" : "flex-start"}>
+                  {msg.role === "assistant" && (
+                    <ActionIcon variant="light" color="violet" radius="xl" size="sm" mt={4}>
+                      <IconRobot size={14} />
+                    </ActionIcon>
+                  )}
+                  <Paper
+                    p="sm"
+                    radius="md"
+                    bg={msg.role === "user" ? "var(--color-interactive-primary)" : "var(--color-bg-secondary)"}
+                    c={msg.role === "user" ? "white" : "var(--color-text-primary)"}
+                    style={{ maxWidth: "85%" }}
+                  >
+                    <div 
+                      className="markdown-preview"
+                      style={{ fontSize: "14px", lineHeight: "1.5" }}
+                      dangerouslySetInnerHTML={{ 
+                        __html: renderMarkdownToHtml(msg.content, { allowBlocks: true }) 
+                      }} 
+                    />
+                  </Paper>
+                  {msg.role === "user" && (
+                    <ActionIcon variant="filled" color="gray" radius="xl" size="sm" mt={4}>
+                      <IconUser size={14} />
+                    </ActionIcon>
+                  )}
+                </Group>
+              ))}
+              {isLoading && chatMessages[chatMessages.length - 1]?.role === "user" && (
+                 <Group align="center" gap="xs" ml="xs">
+                   <Loader size="xs" type="dots" />
+                 </Group>
+              )}
+            </Stack>
           ) : (
-             <Stack align="center" justify="center" h="100%" style={{ opacity: 0.5, minHeight: "200px" }}>
-               <Text size="sm" c="dimmed">Select a block and ask AI to edit or generate content.</Text>
-             </Stack>
+            <>
+              {previewContent ? (
+                <div>
+                  <Text size="xs" fw={700} c="dimmed" mb="xs" style={{ textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    {t("settings.ai.copilot.preview_title")}
+                  </Text>
+                  <div 
+                    className="markdown-preview"
+                    style={{ fontSize: "15px", lineHeight: "1.6" }}
+                    dangerouslySetInnerHTML={{ 
+                      __html: renderMarkdownToHtml(previewContent, { allowBlocks: true }) 
+                    }} 
+                  />
+                </div>
+              ) : (
+                 <Stack align="center" justify="center" h="100%" style={{ opacity: 0.5, minHeight: "200px" }}>
+                   <Text size="sm" c="dimmed">Select a block and ask AI to edit or generate content.</Text>
+                 </Stack>
+              )}
+            </>
           )}
         </ScrollArea>
       </Box>
@@ -335,7 +421,7 @@ export function CopilotPanel() {
               minRows={1}
               maxRows={5}
               style={{ flex: 1 }}
-              disabled={isLoading}
+              disabled={isLoading && mode !== "chat"} // Allow typing in chat while loading? No, simple MVP block it.
             />
             
             <Button 
@@ -351,26 +437,31 @@ export function CopilotPanel() {
             </Button>
           </Group>
           
-          {previewContent && !isLoading && (
+          {(previewContent || (mode === "chat" && chatMessages.length > 0)) && !isLoading && (
             <Group justify="flex-end" pt="xs">
                <Button 
                  variant="subtle" 
                  size="xs" 
                  color="gray" 
                  leftSection={<IconTrash size={14} />}
-                 onClick={() => setPreviewContent("")}
+                 onClick={() => {
+                   if (mode === "chat") clearChatMessages();
+                   else setPreviewContent("");
+                 }}
                >
-                 {t("settings.ai.copilot.actions.discard")}
+                 {mode === "chat" ? "Clear Chat" : t("settings.ai.copilot.actions.discard")}
                </Button>
-               <Button 
-                 variant="light" 
-                 size="xs" 
-                 color="blue" 
-                 leftSection={<IconRefresh size={14} />}
-                 onClick={handleSend}
-               >
-                 {t("settings.ai.copilot.actions.retry")}
-               </Button>
+               {mode !== "chat" && (
+                 <Button 
+                   variant="light" 
+                   size="xs" 
+                   color="blue" 
+                   leftSection={<IconRefresh size={14} />}
+                   onClick={handleSend}
+                 >
+                   {t("settings.ai.copilot.actions.retry")}
+                 </Button>
+               )}
                <Button 
                  variant="light" 
                  size="xs" 
