@@ -214,7 +214,7 @@ async fn delete_path_with_db(workspace_path: String, target_path: String) -> Res
     // Validate target path is within workspace boundaries using canonicalization
     validate_workspace_containment(&workspace_path, &target_path)?;
 
-    let conn = commands::workspace::open_workspace_db(&workspace_path)
+    let mut conn = commands::workspace::open_workspace_db(&workspace_path)
         .map_err(|e| format!("Failed to open workspace database: {}", e))?;
 
     // Find pages with matching file path
@@ -243,26 +243,28 @@ async fn delete_path_with_db(workspace_path: String, target_path: String) -> Res
         results
     };
 
-    // Start database transaction for atomicity
-    conn.execute("BEGIN TRANSACTION", [])
-        .map_err(|e| e.to_string())?;
+    // Start RAII transaction - automatically rolls back on drop if not committed
+    {
+        let tx = conn
+            .transaction()
+            .map_err(|e| format!("Failed to start transaction: {}", e))?;
 
-    // Step 1: Mark pages as deleting (soft delete) to indicate deletion is in progress
-    for page_id in page_ids.iter() {
-        conn.execute(
-            "UPDATE pages SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            [page_id],
-        )
-        .map_err(|e| {
-            let _ = conn.execute("ROLLBACK", []);
-            e.to_string()
-        })?;
+        // Step 1: Mark pages as deleting (soft delete) to indicate deletion is in progress
+        for page_id in page_ids.iter() {
+            tx.execute(
+                "UPDATE pages SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                [page_id],
+            )
+            .map_err(|e| format!("Failed to mark page as deleted: {}", e))?;
+        }
+
+        // Commit transaction before async operations
+        tx.commit()
+            .map_err(|e| format!("Failed to commit soft delete transaction: {}", e))?;
     }
 
-    // Step 2: Delete from filesystem (async block handled immediately)
+    // Step 2: Delete from filesystem (async operation after transaction is released)
     let path = Path::new(&target_path);
-    // Since we can't easily use closure for async block capturing vars in this context without complex types,
-    // we just execute logic directly.
 
     let delete_result = async {
         let metadata = tokio_fs::metadata(path)
@@ -285,26 +287,27 @@ async fn delete_path_with_db(workspace_path: String, target_path: String) -> Res
     // Step 3: Handle result
     match delete_result {
         Ok(()) => {
-            // Filesystem deletion succeeded, now permanently delete from DB within transaction
+            // Filesystem deletion succeeded, now permanently delete from DB in a new transaction
+            let tx = conn
+                .transaction()
+                .map_err(|e| format!("Failed to start final delete transaction: {}", e))?;
+
             for page_id in page_ids {
-                conn.execute("DELETE FROM pages WHERE id = ?", [&page_id])
-                    .map_err(|e| {
-                        let _ = conn.execute("ROLLBACK", []);
-                        e.to_string()
-                    })?;
+                tx.execute("DELETE FROM pages WHERE id = ?", [&page_id])
+                    .map_err(|e| format!("Failed to delete page from database: {}", e))?;
             }
 
-            // Commit the transaction
-            conn.execute("COMMIT", []).map_err(|e| e.to_string())?;
+            // Commit transaction - auto-rollback if any error occurs before this
+            tx.commit()
+                .map_err(|e| format!("Failed to commit final delete transaction: {}", e))?;
 
             Ok(true)
         }
         Err(e) => {
-            // Filesystem deletion failed, rollback all DB changes
-            let _ = conn.execute("ROLLBACK", []);
-
+            // Filesystem deletion failed - soft delete marked, transaction was already committed
+            // The pages are marked as deleted but not physically removed
             Err(format!(
-                "Failed to delete from filesystem, all changes rolled back: {}",
+                "Failed to delete from filesystem, pages marked as deleted but not removed: {}",
                 e
             ))
         }
