@@ -122,10 +122,10 @@ function AppContent({ workspacePath }: AppContentProps) {
 
   // Setup keyboard shortcuts
   useKeyboardShortcuts({
-    onCommandPalette: () => setCommandPaletteOpened(true),
+    onCommandPalette: () => setCommandPaletteOpened((prev) => !prev),
     onSettings: () => setSettingsOpened(true),
     onHelp: () => setHelpOpened(true),
-    onSearch: () => setSearchOpened(true),
+    onSearch: () => setSearchOpened((prev) => !prev),
     onToggleIndex: () => showIndex(),
     onUndo: () => useBlockStore.temporal.getState().undo(),
     onRedo: () => useBlockStore.temporal.getState().redo(),
