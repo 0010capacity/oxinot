@@ -90,6 +90,56 @@ impl FileSyncService {
         self.compute_rel_path(&abs_file_path).await
     }
 
+    /// Prepare a new page file (create it) before DB insertion
+    pub async fn prepare_new_page_file(
+        &self,
+        conn_mutex: &Mutex<Connection>,
+        parent_id: Option<&str>,
+        title: &str,
+    ) -> Result<(PathBuf, String), String> {
+        let parent_dir = if let Some(pid) = parent_id {
+            let parent_path = self.get_page_file_path(conn_mutex, pid).await?;
+            // If parent has a file path, the children go in the directory containing that file
+            // UNLESS the parent is a directory-page (Folder Note), in which case they go inside the folder.
+            // But wait, `get_page_file_path` returns the path to the MD file.
+            // If parent is a directory-page, its MD file is `.../Parent/Parent.md`.
+            // So `parent()` is `.../Parent`. This is correct for children: `.../Parent/Child.md`.
+            
+            // If parent is NOT a directory-page (just a file `.../Parent.md`), 
+            // then `parent()` is `.../`. Children would go to `.../Child.md` (sibling).
+            // BUT, `create_page` enforces that parent MUST be a directory.
+            // So we can assume `parent_path` points to a file inside the folder where we want to put the child.
+            
+            if let Some(p) = parent_path.parent() {
+                p.to_path_buf()
+            } else {
+                return Err("Invalid parent path".to_string());
+            }
+        } else {
+            self.workspace_path.clone()
+        };
+
+        let file_name = format!("{}.md", sanitize_filename(title));
+        let abs_file_path = parent_dir.join(file_name);
+
+        if abs_file_path.exists() {
+            return Err(format!("File already exists: {:?}", abs_file_path));
+        }
+
+        if let Some(parent) = abs_file_path.parent() {
+            fs::create_dir_all(parent)
+                .await
+                .map_err(|e| format!("Failed to create parent directory: {}", e))?;
+        }
+
+        fs::write(&abs_file_path, "")
+            .await
+            .map_err(|e| format!("Failed to create file: {}", e))?;
+
+        let rel_path = self.compute_rel_path(&abs_file_path).await?;
+        Ok((abs_file_path, rel_path))
+    }
+
     /// Rename a page file
     pub async fn rename_page_file(
         &self,
