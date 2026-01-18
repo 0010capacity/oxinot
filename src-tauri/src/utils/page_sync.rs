@@ -1,5 +1,7 @@
 use rusqlite::{params, Connection};
 use std::collections::HashMap;
+use std::sync::Mutex;
+use tokio::fs;
 
 use crate::models::block::Block;
 use crate::utils::markdown::{blocks_to_markdown, sanitize_content_for_markdown};
@@ -25,9 +27,10 @@ fn bullet_content_to_segment_lines(indent: &str, content: &str) -> Vec<String> {
 }
 
 /// Read the page markdown file and return its lines + whether it had a trailing '\n'.
-fn read_page_lines(full_path: &std::path::Path) -> Result<(Vec<String>, bool), String> {
-    let file_text =
-        std::fs::read_to_string(full_path).map_err(|e| format!("Failed to read file: {}", e))?;
+async fn read_page_lines(full_path: &std::path::Path) -> Result<(Vec<String>, bool), String> {
+    let file_text = fs::read_to_string(full_path)
+        .await
+        .map_err(|e| format!("Failed to read file: {}", e))?;
     let had_trailing_newline = file_text.ends_with('\n');
     let lines: Vec<String> = file_text.lines().map(|s| s.to_string()).collect();
     Ok((lines, had_trailing_newline))
@@ -35,7 +38,7 @@ fn read_page_lines(full_path: &std::path::Path) -> Result<(Vec<String>, bool), S
 
 /// Write lines back to the page markdown file, preserving whether it originally had a trailing '\n'
 /// when possible. (We keep a trailing newline for non-empty files.)
-fn write_page_lines(
+async fn write_page_lines(
     full_path: &std::path::Path,
     lines: Vec<String>,
     had_trailing_newline: bool,
@@ -52,7 +55,8 @@ fn write_page_lines(
 
     // Ensure parent directory exists
     if !parent.exists() {
-        std::fs::create_dir_all(parent)
+        fs::create_dir_all(parent)
+            .await
             .map_err(|e| format!("Failed to create parent directory: {}", e))?;
     }
 
@@ -62,18 +66,22 @@ fn write_page_lines(
     let temp_path = parent.join(format!(".{}.tmp", file_name.to_string_lossy()));
 
     // Write to temporary file
-    std::fs::write(&temp_path, &new_text)
+    fs::write(&temp_path, &new_text)
+        .await
         .map_err(|e| format!("Failed to write temporary file: {}", e))?;
 
     // Sync to disk
-    let temp_file = std::fs::File::open(&temp_path)
+    let temp_file = fs::File::open(&temp_path)
+        .await
         .map_err(|e| format!("Failed to open temporary file for sync: {}", e))?;
     temp_file
         .sync_all()
+        .await
         .map_err(|e| format!("Failed to sync temporary file to disk: {}", e))?;
 
     // Atomically rename to target path
-    std::fs::rename(&temp_path, full_path)
+    fs::rename(&temp_path, full_path)
+        .await
         .map_err(|e| format!("Failed to rename temporary file to target: {}", e))?;
 
     Ok(())
@@ -81,21 +89,23 @@ fn write_page_lines(
 
 /// External modification guard based on pages.file_mtime/file_size.
 /// Returns `Ok(true)` if safe to patch, `Ok(false)` if caller should fall back.
-fn is_safe_to_patch_file(
-    conn: &Connection,
+async fn is_safe_to_patch_file(
+    conn_mutex: &Mutex<Connection>,
     full_path: &std::path::Path,
     page_id: &str,
 ) -> Result<bool, String> {
-    let (db_mtime, db_size): (Option<i64>, Option<i64>) = conn
-        .query_row(
+    let (db_mtime, db_size): (Option<i64>, Option<i64>) = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT file_mtime, file_size FROM pages WHERE id = ?",
             [page_id],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
-        .unwrap_or((None, None));
+        .unwrap_or((None, None))
+    };
 
     if let (Some(expected_mtime), Some(expected_size)) = (db_mtime, db_size) {
-        if let Ok(metadata) = std::fs::metadata(full_path) {
+        if let Ok(metadata) = fs::metadata(full_path).await {
             let actual_size = metadata.len() as i64;
             let actual_mtime_secs: Option<i64> = metadata
                 .modified()
@@ -113,17 +123,18 @@ fn is_safe_to_patch_file(
 }
 
 /// Update page metadata (mtime/size) after patch write.
-fn update_page_file_metadata(
-    conn: &Connection,
+async fn update_page_file_metadata(
+    conn_mutex: &Mutex<Connection>,
     full_path: &std::path::Path,
     page_id: &str,
 ) -> Result<(), String> {
-    if let Ok(metadata) = std::fs::metadata(full_path) {
+    if let Ok(metadata) = fs::metadata(full_path).await {
         if let Ok(mtime) = metadata.modified() {
             if let Ok(duration) = mtime.duration_since(std::time::UNIX_EPOCH) {
                 let mtime_secs = duration.as_secs() as i64;
                 let size = metadata.len() as i64;
 
+                let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
                 conn.execute(
                     "UPDATE pages SET file_mtime = ?, file_size = ? WHERE id = ?",
                     params![mtime_secs, size, page_id],
@@ -236,19 +247,21 @@ fn reindent_subtree_lines(subtree_lines: &mut [String], indent_delta: isize) -> 
 /// - Requires on-disk file to match DB mtime/size.
 /// - Requires anchors (ID markers) to exist for both source and destination neighborhood.
 /// - Returns `Ok(false)` on any ambiguity, allowing full rewrite fallback.
-fn try_patch_bullet_subtree_relocation(
-    conn: &Connection,
+async fn try_patch_bullet_subtree_relocation(
+    conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
     moved_block_id: &str,
 ) -> Result<bool, String> {
-    let file_path: Option<String> = conn
-        .query_row(
+    let file_path: Option<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT file_path FROM pages WHERE id = ?",
             [page_id],
             |row| row.get(0),
         )
-        .ok();
+        .ok()
+    };
 
     let Some(rel_path) = file_path else {
         return Ok(false);
@@ -256,28 +269,31 @@ fn try_patch_bullet_subtree_relocation(
 
     let full_path = std::path::Path::new(workspace_path).join(&rel_path);
 
-    if !is_safe_to_patch_file(conn, &full_path, page_id)? {
+    if !is_safe_to_patch_file(conn_mutex, &full_path, page_id).await? {
         return Ok(false);
     }
 
     // Must exist in DB to derive destination/ordering
-    let (parent_id, order_weight, block_type): (Option<String>, f64, String) = conn
-        .query_row(
+    let (parent_id, order_weight, block_type): (Option<String>, f64, String) = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT parent_id, order_weight, block_type
              FROM blocks
              WHERE id = ? AND page_id = ?",
             params![moved_block_id, page_id],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+    };
 
     if block_type.to_lowercase() != "bullet" {
         return Ok(false);
     }
 
     // Determine destination neighbors under the NEW parent (DB already reflects move/indent/outdent).
-    let next_sibling_id: Option<String> = conn
-        .query_row(
+    let next_sibling_id: Option<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT id
              FROM blocks
              WHERE page_id = ?
@@ -288,10 +304,12 @@ fn try_patch_bullet_subtree_relocation(
             params![page_id, parent_id, order_weight],
             |row| row.get(0),
         )
-        .ok();
+        .ok()
+    };
 
-    let prev_sibling_id: Option<String> = conn
-        .query_row(
+    let prev_sibling_id: Option<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT id
              FROM blocks
              WHERE page_id = ?
@@ -302,9 +320,10 @@ fn try_patch_bullet_subtree_relocation(
             params![page_id, parent_id, order_weight],
             |row| row.get(0),
         )
-        .ok();
+        .ok()
+    };
 
-    let (mut lines, had_trailing_newline) = read_page_lines(&full_path)?;
+    let (mut lines, had_trailing_newline) = read_page_lines(&full_path).await?;
 
     // ---- Cut subtree from source location (anchored by moved_block_id marker) ----
     let Some(src_marker_idx) = find_marker_idx(&lines, moved_block_id) else {
@@ -403,27 +422,29 @@ fn try_patch_bullet_subtree_relocation(
     // Insert relocated subtree (multi-hunk complete)
     lines.splice(insert_at..insert_at, subtree_lines);
 
-    write_page_lines(&full_path, lines, had_trailing_newline)?;
-    update_page_file_metadata(conn, &full_path, page_id)?;
+    write_page_lines(&full_path, lines, had_trailing_newline).await?;
+    update_page_file_metadata(conn_mutex, &full_path, page_id).await?;
 
     Ok(true)
 }
 
 /// Attempt to delete a Bullet block from the page markdown file by removing its full bullet segment
 /// (one or more lines) and its `ID::<uuid>` marker line, without rewriting the full page.
-fn try_patch_bullet_block_deletion(
-    conn: &Connection,
+async fn try_patch_bullet_block_deletion(
+    conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
     deleted_block_id: &str,
 ) -> Result<bool, String> {
-    let file_path: Option<String> = conn
-        .query_row(
+    let file_path: Option<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT file_path FROM pages WHERE id = ?",
             [page_id],
             |row| row.get(0),
         )
-        .ok();
+        .ok()
+    };
 
     let Some(rel_path) = file_path else {
         return Ok(false);
@@ -431,18 +452,20 @@ fn try_patch_bullet_block_deletion(
 
     let full_path = std::path::Path::new(workspace_path).join(&rel_path);
 
-    if !is_safe_to_patch_file(conn, &full_path, page_id)? {
+    if !is_safe_to_patch_file(conn_mutex, &full_path, page_id).await? {
         return Ok(false);
     }
 
     // Determine block type from DB if it still exists (it may already be deleted from DB).
-    let block_type_opt: Option<String> = conn
-        .query_row(
+    let block_type_opt: Option<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT block_type FROM blocks WHERE id = ? AND page_id = ?",
             params![deleted_block_id, page_id],
             |row| row.get(0),
         )
-        .ok();
+        .ok()
+    };
 
     if let Some(bt) = block_type_opt {
         if bt.to_lowercase() != "bullet" {
@@ -450,7 +473,7 @@ fn try_patch_bullet_block_deletion(
         }
     }
 
-    let (mut lines, had_trailing_newline) = read_page_lines(&full_path)?;
+    let (mut lines, had_trailing_newline) = read_page_lines(&full_path).await?;
 
     let Some(mi) = find_marker_idx(&lines, deleted_block_id) else {
         return Ok(false);
@@ -461,42 +484,29 @@ fn try_patch_bullet_block_deletion(
 
     lines.drain(si..=mi);
 
-    write_page_lines(&full_path, lines, had_trailing_newline)?;
-    update_page_file_metadata(conn, &full_path, page_id)?;
+    write_page_lines(&full_path, lines, had_trailing_newline).await?;
+    update_page_file_metadata(conn_mutex, &full_path, page_id).await?;
 
     Ok(true)
 }
 
 /// Attempt to update a single bullet block's content in the page markdown file by patching
 /// the full bullet segment (one or more lines) that appears immediately before its `ID::<uuid>` marker.
-///
-/// Serializer format for Bullet blocks:
-/// - First line: "<indent>- <content_first_line>"
-/// - If content has multiple lines, subsequent lines are serialized as lines at the same indent:
-///     "<indent><content_next_line>"
-/// - Hidden marker line directly after the bullet segment:
-///     "<indent>  ID::<uuid>"
-///
-/// Safety rules:
-/// - Only applies to Bullet blocks (current canonical markdown format).
-/// - Anchors exclusively on the hidden `ID::<uuid>` marker line.
-/// - Uses line-based manipulation (no byte offsets) to avoid UTF-8 corruption.
-/// - If the file shape is unexpected (missing marker, missing bullet start, etc.), returns `Ok(false)`
-///   so the caller can fall back to a full rewrite.
-/// - If the on-disk file appears externally modified (mtime/size differ from DB), returns `Ok(false)`.
-fn try_patch_bullet_block_content(
-    conn: &Connection,
+async fn try_patch_bullet_block_content(
+    conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
     updated_block_id: &str,
 ) -> Result<bool, String> {
-    let file_path: Option<String> = conn
-        .query_row(
+    let file_path: Option<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT file_path FROM pages WHERE id = ?",
             [page_id],
             |row| row.get(0),
         )
-        .ok();
+        .ok()
+    };
 
     let Some(rel_path) = file_path else {
         return Ok(false);
@@ -504,44 +514,47 @@ fn try_patch_bullet_block_content(
 
     let full_path = std::path::Path::new(workspace_path).join(&rel_path);
 
-    if !is_safe_to_patch_file(conn, &full_path, page_id)? {
+    if !is_safe_to_patch_file(conn_mutex, &full_path, page_id).await? {
         return Ok(false);
     }
 
     // Get updated block content + type
-    let (block_type, content): (String, String) = conn
-        .query_row(
+    let (block_type, content): (String, String) = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT block_type, content FROM blocks WHERE id = ? AND page_id = ?",
             params![updated_block_id, page_id],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+    };
 
     if block_type.to_lowercase() != "bullet" {
         return Ok(false);
     }
 
     // Check if block has metadata in DB. If so, fallback to full rewrite to ensure metadata is synced.
-    let has_metadata: bool = conn
-        .query_row(
+    let has_metadata: bool = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM block_metadata WHERE block_id = ?)",
             [updated_block_id],
             |row| row.get(0),
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+    };
 
     if has_metadata {
         return Ok(false);
     }
 
-    let (mut lines, had_trailing_newline) = read_page_lines(&full_path)?;
+    let (mut lines, had_trailing_newline) = read_page_lines(&full_path).await?;
 
     let Some(mi) = find_marker_idx(&lines, updated_block_id) else {
         return Ok(false);
     };
 
     // Check if block has metadata in file (lines immediately after marker).
-    // If so, fallback to full rewrite to handle potential metadata deletion/change.
     let marker_line = &lines[mi];
     let indent_len_val = indent_len(marker_line);
     let mut j = mi + 1;
@@ -550,18 +563,13 @@ fn try_patch_bullet_block_content(
         let trimmed = line.trim_start();
         let depth = indent_len(line);
 
-        // Metadata must be indented same as marker
         if depth == indent_len_val && crate::utils::markdown::is_metadata_line(trimmed) {
             return Ok(false);
         }
 
-        // If we hit something that is not metadata at the same level, stop checking
         if depth <= indent_len_val {
             break;
         }
-        // If it's deeper (child), we stop checking for metadata but continue (it's content)
-        // Actually, metadata must be contiguous after ID.
-        // If we see a child block, metadata section is over.
         if depth > indent_len_val {
             break;
         }
@@ -572,48 +580,33 @@ fn try_patch_bullet_block_content(
         return Ok(false);
     };
 
-    // Marker line indent determines the bullet's depth.
-    let marker_line = &lines[mi];
-    let indent_len_val = indent_len(marker_line);
     let indent = " ".repeat(indent_len_val);
-
-    // Replace [si, mi) with the newly serialized bullet content lines.
     let replacement = bullet_content_to_segment_lines(&indent, &content);
 
-    // Splice in replacement. Keep marker line intact.
     lines.splice(si..mi, replacement);
 
-    write_page_lines(&full_path, lines, had_trailing_newline)?;
-    update_page_file_metadata(conn, &full_path, page_id)?;
+    write_page_lines(&full_path, lines, had_trailing_newline).await?;
+    update_page_file_metadata(conn_mutex, &full_path, page_id).await?;
 
     Ok(true)
 }
 
-/// Attempt to insert a newly created Bullet block into the page markdown file by inserting a new
-/// bullet segment (and its ID marker line) near its neighbors, without rewriting the full page.
-///
-/// Strategy (safe + simple):
-/// - Only applies to Bullet blocks.
-/// - Anchors on existing `ID::<uuid>` marker lines for sibling blocks.
-/// - Uses DB ordering (`order_weight`) to pick an insertion point:
-///   - If there is a next sibling, insert before the next sibling's bullet segment.
-///   - Else if there is a previous sibling, insert after the previous sibling's marker line.
-///   - Else (first root block / first child), insert at EOF.
-/// - If any shape assumptions fail, returns `Ok(false)` to allow full rewrite fallback.
-/// - If the on-disk file appears externally modified (mtime/size differ from DB), returns `Ok(false)`.
-fn try_patch_bullet_block_insertion(
-    conn: &Connection,
+/// Attempt to insert a newly created Bullet block into the page markdown file.
+async fn try_patch_bullet_block_insertion(
+    conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
     created_block_id: &str,
 ) -> Result<bool, String> {
-    let file_path: Option<String> = conn
-        .query_row(
+    let file_path: Option<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT file_path FROM pages WHERE id = ?",
             [page_id],
             |row| row.get(0),
         )
-        .ok();
+        .ok()
+    };
 
     let Some(rel_path) = file_path else {
         return Ok(false);
@@ -621,12 +614,13 @@ fn try_patch_bullet_block_insertion(
 
     let full_path = std::path::Path::new(workspace_path).join(&rel_path);
 
-    if !is_safe_to_patch_file(conn, &full_path, page_id)? {
+    if !is_safe_to_patch_file(conn_mutex, &full_path, page_id).await? {
         return Ok(false);
     }
 
     // Fetch created block (must exist in DB)
-    let (parent_id, order_weight, block_type, content): (Option<String>, f64, String, String) =
+    let (parent_id, order_weight, block_type, content): (Option<String>, f64, String, String) = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
         conn.query_row(
             "SELECT parent_id, order_weight, block_type, content
              FROM blocks
@@ -634,15 +628,17 @@ fn try_patch_bullet_block_insertion(
             params![created_block_id, page_id],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+    };
 
     if block_type.to_lowercase() != "bullet" {
         return Ok(false);
     }
 
     // Determine next/prev sibling in DB order under the same parent.
-    let next_sibling_id: Option<String> = conn
-        .query_row(
+    let next_sibling_id: Option<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT id
              FROM blocks
              WHERE page_id = ?
@@ -653,10 +649,12 @@ fn try_patch_bullet_block_insertion(
             params![page_id, parent_id, order_weight],
             |row| row.get(0),
         )
-        .ok();
+        .ok()
+    };
 
-    let prev_sibling_id: Option<String> = conn
-        .query_row(
+    let prev_sibling_id: Option<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT id
              FROM blocks
              WHERE page_id = ?
@@ -667,16 +665,15 @@ fn try_patch_bullet_block_insertion(
             params![page_id, parent_id, order_weight],
             |row| row.get(0),
         )
-        .ok();
+        .ok()
+    };
 
-    let (mut lines, had_trailing_newline) = read_page_lines(&full_path)?;
+    let (mut lines, had_trailing_newline) = read_page_lines(&full_path).await?;
 
-    // Safety check: ensure the block ID is not already in the file (prevent duplication)
     if find_marker_idx(&lines, created_block_id).is_some() {
         return Ok(false);
     }
 
-    // Infer indent from siblings; default to root indent.
     let mut indent_len_opt: Option<usize> = None;
     if let Some(ns) = next_sibling_id.as_deref() {
         if let Some(mi) = find_marker_idx(&lines, ns) {
@@ -694,11 +691,9 @@ fn try_patch_bullet_block_insertion(
     let indent_len_val = indent_len_opt.unwrap_or(0);
     let indent = " ".repeat(indent_len_val);
 
-    // Build inserted segment: bullet segment + marker
     let mut insert_segment = bullet_content_to_segment_lines(&indent, &content);
     insert_segment.push(format!("{}  ID::{}", indent, created_block_id));
 
-    // Find insertion index
     let insert_at: usize = if let Some(ns) = next_sibling_id.as_deref() {
         let Some(ns_marker_idx) = find_marker_idx(&lines, ns) else {
             return Ok(false);
@@ -718,141 +713,122 @@ fn try_patch_bullet_block_insertion(
 
     lines.splice(insert_at..insert_at, insert_segment);
 
-    write_page_lines(&full_path, lines, had_trailing_newline)?;
-    update_page_file_metadata(conn, &full_path, page_id)?;
+    write_page_lines(&full_path, lines, had_trailing_newline).await?;
+    update_page_file_metadata(conn_mutex, &full_path, page_id).await?;
 
     Ok(true)
 }
 
 /// Sync a page after a block creation, attempting safe incremental insertion.
-pub fn sync_page_to_markdown_after_create(
-    conn: &Connection,
+pub async fn sync_page_to_markdown_after_create(
+    conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
     created_block_id: &str,
 ) -> Result<(), String> {
-    if try_patch_bullet_block_insertion(conn, workspace_path, page_id, created_block_id)? {
+    if try_patch_bullet_block_insertion(conn_mutex, workspace_path, page_id, created_block_id)
+        .await?
+    {
         return Ok(());
     }
-    sync_page_to_markdown(conn, workspace_path, page_id)
+    sync_page_to_markdown(conn_mutex, workspace_path, page_id).await
 }
 
 /// Sync a page after a block update, attempting safe incremental content patch.
-pub fn sync_page_to_markdown_after_update(
-    conn: &Connection,
+pub async fn sync_page_to_markdown_after_update(
+    conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
     updated_block_id: &str,
 ) -> Result<(), String> {
-    if try_patch_bullet_block_content(conn, workspace_path, page_id, updated_block_id)? {
+    if try_patch_bullet_block_content(conn_mutex, workspace_path, page_id, updated_block_id).await?
+    {
         return Ok(());
     }
-    sync_page_to_markdown(conn, workspace_path, page_id)
+    sync_page_to_markdown(conn_mutex, workspace_path, page_id).await
 }
 
 /// Sync a page after a block deletion, attempting safe incremental deletion.
-pub fn sync_page_to_markdown_after_delete(
-    conn: &Connection,
+pub async fn sync_page_to_markdown_after_delete(
+    conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
     deleted_block_id: &str,
 ) -> Result<(), String> {
-    if try_patch_bullet_block_deletion(conn, workspace_path, page_id, deleted_block_id)? {
+    if try_patch_bullet_block_deletion(conn_mutex, workspace_path, page_id, deleted_block_id)
+        .await?
+    {
         return Ok(());
     }
-    sync_page_to_markdown(conn, workspace_path, page_id)
+    sync_page_to_markdown(conn_mutex, workspace_path, page_id).await
 }
 
 /// Sync a page after a block move/indent/outdent, attempting safe incremental relocation.
-pub fn sync_page_to_markdown_after_move(
-    conn: &Connection,
+pub async fn sync_page_to_markdown_after_move(
+    conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
     moved_block_id: &str,
 ) -> Result<(), String> {
-    if try_patch_bullet_subtree_relocation(conn, workspace_path, page_id, moved_block_id)? {
+    if try_patch_bullet_subtree_relocation(conn_mutex, workspace_path, page_id, moved_block_id)
+        .await?
+    {
         return Ok(());
     }
-    sync_page_to_markdown(conn, workspace_path, page_id)
+    sync_page_to_markdown(conn_mutex, workspace_path, page_id).await
 }
 
 /// Sync a page's blocks from DB to its markdown file on disk.
-///
-/// - `workspace_path` is the absolute workspace root path
-/// - `pages.file_path` is expected to be workspace-relative (e.g., `프로젝트/Oxinot.md`)
-///
-/// This function is intended to be the single shared implementation used by:
-/// - block commands after block mutations
-/// - page commands that rewrite block content (e.g., bulk link rewrite)
-///
-/// NOTE:
-/// This is a *DB -> file* sync. In this project, the filesystem markdown is the
-/// source of truth (SoT), but we still serialize from DB after mutations to keep
-/// the on-disk file consistent with DB state.
-pub fn sync_page_to_markdown(
-    conn: &Connection,
+pub async fn sync_page_to_markdown(
+    conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
 ) -> Result<(), String> {
     // Full rewrite default
-    sync_page_to_markdown_after_block_update(conn, workspace_path, page_id, None)
+    sync_page_to_markdown_after_block_update(conn_mutex, workspace_path, page_id, None).await
 }
 
 /// Backward-compatible alias for existing callers.
-///
-/// Prefer `sync_page_to_markdown_after_block_change` for new call sites (create/update/delete/move/etc).
-pub fn sync_page_to_markdown_after_block_update(
-    conn: &Connection,
+pub async fn sync_page_to_markdown_after_block_update(
+    conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
     updated_block_id: Option<&str>,
 ) -> Result<(), String> {
-    sync_page_to_markdown_after_block_change(conn, workspace_path, page_id, updated_block_id)
+    sync_page_to_markdown_after_block_change(conn_mutex, workspace_path, page_id, updated_block_id)
+        .await
 }
 
 /// Sync a page after a specific block change, allowing a targeted on-disk patch when safe.
-///
-/// - If `changed_block_id` is `Some`, we attempt safe incremental patching for:
-///   - insertions (single-hunk)
-///   - deletions (single-hunk)
-///   - content edits (single-hunk)
-///   - subtree moves/reindents (multi-hunk; best-effort, with conservative fallback)
-/// - If patching is not possible or unsafe, we fall back to a full rewrite (current behavior).
-///
-/// Note:
-/// This helper is intended to be called by commands that mutate blocks (create/update/delete/move/etc)
-/// so they can pass the specific block id they touched.
-pub fn sync_page_to_markdown_after_block_change(
-    conn: &Connection,
+pub async fn sync_page_to_markdown_after_block_change(
+    conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
     changed_block_id: Option<&str>,
 ) -> Result<(), String> {
-    // Resolve file path up-front so we can make patch decisions based on on-disk state.
-    // NOTE: file_path in DB is workspace-relative (P0 requirement)
-    let file_path: Option<String> = conn
-        .query_row(
+    // Resolve file path up-front
+    let file_path: Option<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
             "SELECT file_path FROM pages WHERE id = ?",
             [page_id],
             |row| row.get(0),
         )
-        .ok();
+        .ok()
+    };
 
     if file_path.is_none() {
         return Ok(()); // No file path, skip
     }
 
-    // NOTE: `full_path` was previously used for insertion-patch heuristics. Insertion patching is
-    // currently disabled, so we don't need a precomputed `full_path` here.
-
     if let Some(block_id) = changed_block_id {
-        // Deletion patch (may run even if block already removed from DB).
-        if try_patch_bullet_block_deletion(conn, workspace_path, page_id, block_id)? {
+        // Deletion patch
+        if try_patch_bullet_block_deletion(conn_mutex, workspace_path, page_id, block_id).await? {
             return Ok(());
         }
 
-        // Content update patch (requires block present in DB).
-        if try_patch_bullet_block_content(conn, workspace_path, page_id, block_id)? {
+        // Content update patch
+        if try_patch_bullet_block_content(conn_mutex, workspace_path, page_id, block_id).await? {
             return Ok(());
         }
     }
@@ -860,38 +836,47 @@ pub fn sync_page_to_markdown_after_block_change(
     // --- Full rewrite fallback (canonical behavior) ---
 
     // Get all blocks for this page
-    let mut stmt = conn
-        .prepare(
-            "SELECT id, page_id, parent_id, content, order_weight,
+    let mut blocks: Vec<Block> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, page_id, parent_id, content, order_weight,
                 is_collapsed, block_type, language, created_at, updated_at
          FROM blocks WHERE page_id = ? ORDER BY order_weight",
-        )
-        .map_err(|e| e.to_string())?;
+            )
+            .map_err(|e| e.to_string())?;
 
-    let mut blocks: Vec<Block> = stmt
-        .query_map([page_id], |row| {
-            Ok(Block {
-                id: row.get(0)?,
-                page_id: row.get(1)?,
-                parent_id: row.get(2)?,
-                content: row.get(3)?,
-                order_weight: row.get(4)?,
-                is_collapsed: row.get::<_, i32>(5)? != 0,
-                block_type: crate::models::block::string_to_block_type(&row.get::<_, String>(6)?),
-                language: row.get(7)?,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
-                metadata: HashMap::new(),
+        let results: Vec<Block> = stmt
+            .query_map([page_id], |row| {
+                Ok(Block {
+                    id: row.get(0)?,
+                    page_id: row.get(1)?,
+                    parent_id: row.get(2)?,
+                    content: row.get(3)?,
+                    order_weight: row.get(4)?,
+                    is_collapsed: row.get::<_, i32>(5)? != 0,
+                    block_type: crate::models::block::string_to_block_type(
+                        &row.get::<_, String>(6)?,
+                    ),
+                    language: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                    metadata: HashMap::new(),
+                })
             })
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        results
+    };
 
     // Load metadata for all blocks
-    for block in &mut blocks {
-        let metadata = load_block_metadata_for_sync(conn, &block.id)?;
-        block.metadata = metadata;
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        for block in &mut blocks {
+            let metadata = load_block_metadata_for_sync(&conn, &block.id)?;
+            block.metadata = metadata;
+        }
     }
 
     // Convert blocks to markdown (now includes metadata)
@@ -903,14 +888,17 @@ pub fn sync_page_to_markdown_after_block_change(
     // Ensure parent directory exists
     if let Some(parent) = full_path.parent() {
         if !parent.exists() {
-            std::fs::create_dir_all(parent)
+            fs::create_dir_all(parent)
+                .await
                 .map_err(|e| format!("Failed to create parent directory: {}", e))?;
         }
     }
 
-    std::fs::write(&full_path, markdown).map_err(|e| format!("Failed to write file: {}", e))?;
+    fs::write(&full_path, markdown)
+        .await
+        .map_err(|e| format!("Failed to write file: {}", e))?;
 
-    update_page_file_metadata(conn, &full_path, page_id)?;
+    update_page_file_metadata(conn_mutex, &full_path, page_id).await?;
 
     Ok(())
 }

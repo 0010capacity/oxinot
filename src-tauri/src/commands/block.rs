@@ -3,13 +3,14 @@ use rusqlite::OptionalExtension;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Mutex;
 use uuid::Uuid;
 
 use crate::commands::workspace::open_workspace_db;
 use crate::models::block::{
     Block, BlockType, CreateBlockRequest, MoveBlockRequest, UpdateBlockRequest,
 };
-use crate::services::{wiki_link_index, FtsService};
+use crate::services::wiki_link_index;
 use crate::utils::fractional_index;
 use crate::utils::page_sync::{
     sync_page_to_markdown, sync_page_to_markdown_after_create, sync_page_to_markdown_after_delete,
@@ -726,57 +727,71 @@ pub async fn create_block(
     request: CreateBlockRequest,
 ) -> Result<Block, String> {
     let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
 
     // Calculate order_weight
-    let order_weight = calculate_new_order_weight(
-        &conn,
-        &request.page_id,
-        request.parent_id.as_deref(),
-        request.after_block_id.as_deref(),
-    )?;
+    let order_weight = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        calculate_new_order_weight(
+            &conn,
+            &request.page_id,
+            request.parent_id.as_deref(),
+            request.after_block_id.as_deref(),
+        )?
+    };
 
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     let block_type = request.block_type.unwrap_or_default();
     let content = request.content.unwrap_or_default();
 
-    conn.execute(
-        "INSERT INTO blocks (id, page_id, parent_id, content, order_weight, block_type, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        params![
-            &id,
-            &request.page_id,
-            &request.parent_id,
-            &content,
-            order_weight,
-            block_type_to_string(&block_type),
-            &now,
-            &now
-        ],
-    )
-    .map_err(|e| e.to_string())?;
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "INSERT INTO blocks (id, page_id, parent_id, content, order_weight, block_type, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            params![
+                &id,
+                &request.page_id,
+                &request.parent_id,
+                &content,
+                order_weight,
+                block_type_to_string(&block_type),
+                &now,
+                &now
+            ],
+        )
+        .map_err(|e| e.to_string())?;
 
-    // Index block in FTS5
-    index_block_fts(&conn, &id, &request.page_id, &content)?;
+        // Index block in FTS5
+        index_block_fts(&conn, &id, &request.page_id, &content)?;
+    }
 
-    let created_block = get_block_by_id(&conn, &id)?;
+    let created_block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &id)?
+    };
 
     // Sync to markdown file (allow targeted patching for this create)
     sync_page_to_markdown_after_create(
-        &conn,
+        &conn_mutex,
         &workspace_path,
         &created_block.page_id,
         created_block.id.as_str(),
-    )?;
+    )
+    .await?;
 
     // Index wiki links
-    wiki_link_index::index_block_links(
-        &conn,
-        &created_block.id,
-        &created_block.content,
-        &created_block.page_id,
-    )
-    .map_err(|e| e.to_string())?;
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        wiki_link_index::index_block_links(
+            &conn,
+            &created_block.id,
+            &created_block.content,
+            &created_block.page_id,
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
@@ -792,54 +807,68 @@ pub async fn update_block(
     request: UpdateBlockRequest,
 ) -> Result<Block, String> {
     let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
     let now = Utc::now().to_rfc3339();
 
-    let block = get_block_by_id(&conn, &request.id)?;
+    let block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &request.id)?
+    };
 
     let new_content = request.content.unwrap_or(block.content);
     let new_collapsed = request.is_collapsed.unwrap_or(block.is_collapsed);
     let new_block_type = request.block_type.unwrap_or(block.block_type);
     let new_language = request.language.or(block.language);
 
-    conn.execute(
-        "UPDATE blocks SET content = ?, is_collapsed = ?, block_type = ?, language = ?, updated_at = ? WHERE id = ?",
-        params![
-            &new_content,
-            new_collapsed as i32,
-            block_type_to_string(&new_block_type),
-            &new_language,
-            &now,
-            &request.id
-        ],
-    )
-    .map_err(|e| e.to_string())?;
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE blocks SET content = ?, is_collapsed = ?, block_type = ?, language = ?, updated_at = ? WHERE id = ?",
+            params![
+                &new_content,
+                new_collapsed as i32,
+                block_type_to_string(&new_block_type),
+                &new_language,
+                &now,
+                &request.id
+            ],
+        )
+        .map_err(|e| e.to_string())?;
 
-    // Update FTS5 index with new content
-    index_block_fts(&conn, &request.id, &block.page_id, &new_content)?;
+        // Update FTS5 index with new content
+        index_block_fts(&conn, &request.id, &block.page_id, &new_content)?;
 
-    // Update metadata if provided
-    if let Some(metadata) = &request.metadata {
-        save_block_metadata(&conn, &request.id, metadata)?;
+        // Update metadata if provided
+        if let Some(metadata) = &request.metadata {
+            save_block_metadata(&conn, &request.id, metadata)?;
+        }
     }
 
-    let updated_block = get_block_by_id(&conn, &request.id)?;
+    let updated_block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &request.id)?
+    };
 
     // Sync to markdown file (allow targeted patching for this update)
     sync_page_to_markdown_after_update(
-        &conn,
+        &conn_mutex,
         &workspace_path,
         &updated_block.page_id,
         updated_block.id.as_str(),
-    )?;
+    )
+    .await?;
 
     // Index wiki links
-    wiki_link_index::index_block_links(
-        &conn,
-        &updated_block.id,
-        &updated_block.content,
-        &updated_block.page_id,
-    )
-    .map_err(|e| e.to_string())?;
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        wiki_link_index::index_block_links(
+            &conn,
+            &updated_block.id,
+            &updated_block.content,
+            &updated_block.page_id,
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
@@ -855,47 +884,58 @@ pub async fn delete_block(
     block_id: String,
 ) -> Result<Vec<String>, String> {
     let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
 
-    // Get page_id and parent_id before deletion
-    let (page_id, parent_id): (String, Option<String>) = conn
-        .query_row(
+    let (page_id, parent_id) = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        // Get page_id and parent_id before deletion
+        conn.query_row(
             "SELECT page_id, parent_id FROM blocks WHERE id = ?",
             [&block_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+    };
 
     // Get all direct children of the block to be deleted
-    let mut stmt = conn
-        .prepare("SELECT id FROM blocks WHERE parent_id = ? ORDER BY order_weight")
-        .map_err(|e| e.to_string())?;
+    let children: Vec<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare("SELECT id FROM blocks WHERE parent_id = ? ORDER BY order_weight")
+            .map_err(|e| e.to_string())?;
 
-    let children: Vec<String> = stmt
-        .query_map([&block_id], |row| row.get(0))
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<String>, _>>()
-        .map_err(|e| e.to_string())?;
+        let results: Vec<String> = stmt
+            .query_map([&block_id], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<String>, _>>()
+            .map_err(|e| e.to_string())?;
+        results
+    };
 
-    let now = chrono::Utc::now().to_rfc3339();
+    let now = chrono::Utc::now().to_rfc3339(); // Wait, to_rfc3339()
 
-    // Move children to the deleted block's parent (merge/promote children)
-    for child_id in children {
-        conn.execute(
-            "UPDATE blocks SET parent_id = ?, updated_at = ? WHERE id = ?",
-            params![&parent_id, &now, &child_id],
-        )
-        .map_err(|e| e.to_string())?;
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        // Move children to the deleted block's parent (merge/promote children)
+        for child_id in children {
+            conn.execute(
+                "UPDATE blocks SET parent_id = ?, updated_at = ? WHERE id = ?",
+                params![&parent_id, &now, &child_id],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+
+        // Delete only the target block (children are now preserved and promoted)
+        conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
+            .map_err(|e| e.to_string())?;
+
+        // Remove block from FTS5 index
+        deindex_block_fts(&conn, &block_id)?;
     }
 
-    // Delete only the target block (children are now preserved and promoted)
-    conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
-        .map_err(|e| e.to_string())?;
-
-    // Remove block from FTS5 index
-    deindex_block_fts(&conn, &block_id)?;
-
     // Sync to markdown file
-    sync_page_to_markdown_after_delete(&conn, &workspace_path, &page_id, block_id.as_str())?;
+    sync_page_to_markdown_after_delete(&conn_mutex, &workspace_path, &page_id, block_id.as_str())
+        .await?;
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
@@ -917,34 +957,48 @@ pub async fn move_block(
     request: MoveBlockRequest,
 ) -> Result<Block, String> {
     let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
 
-    let block = get_block_by_id(&conn, &request.id)?;
+    let block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &request.id)?
+    };
 
     // Calculate new order_weight
-    let new_order = calculate_new_order_weight(
-        &conn,
-        &block.page_id,
-        request.new_parent_id.as_deref(),
-        request.after_block_id.as_deref(),
-    )?;
+    let new_order = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        calculate_new_order_weight(
+            &conn,
+            &block.page_id,
+            request.new_parent_id.as_deref(),
+            request.after_block_id.as_deref(),
+        )?
+    };
 
     let now = Utc::now().to_rfc3339();
 
-    conn.execute(
-        "UPDATE blocks SET parent_id = ?, order_weight = ?, updated_at = ? WHERE id = ?",
-        params![&request.new_parent_id, new_order, &now, &request.id],
-    )
-    .map_err(|e| e.to_string())?;
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE blocks SET parent_id = ?, order_weight = ?, updated_at = ? WHERE id = ?",
+            params![&request.new_parent_id, new_order, &now, &request.id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
-    let moved_block = get_block_by_id(&conn, &request.id)?;
+    let moved_block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &request.id)?
+    };
 
     // Sync to markdown file
     sync_page_to_markdown_after_move(
-        &conn,
+        &conn_mutex,
         &workspace_path,
         &moved_block.page_id,
         &moved_block.id,
-    )?;
+    )
+    .await?;
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
@@ -960,37 +1014,55 @@ pub async fn indent_block(
     block_id: String,
 ) -> Result<Block, String> {
     let conn = open_workspace_db(&workspace_path)?;
-    let block = get_block_by_id(&conn, &block_id)?;
+    let conn_mutex = Mutex::new(conn);
+
+    let block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &block_id)?
+    };
 
     // Find previous sibling
-    let prev_sibling = find_previous_sibling(&conn, &block)
-        .map_err(|_| "Cannot indent: no previous sibling".to_string())?;
+    let prev_sibling = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        find_previous_sibling(&conn, &block)
+            .map_err(|_| "Cannot indent: no previous sibling".to_string())?
+    };
 
     // Calculate new order_weight as child of previous sibling
-    let new_order = calculate_new_order_weight(
-        &conn,
-        &block.page_id,
-        Some(&prev_sibling.id),
-        None, // Add at the end
-    )?;
+    let new_order = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        calculate_new_order_weight(
+            &conn,
+            &block.page_id,
+            Some(&prev_sibling.id),
+            None, // Add at the end
+        )?
+    };
 
     let now = Utc::now().to_rfc3339();
 
-    conn.execute(
-        "UPDATE blocks SET parent_id = ?, order_weight = ?, updated_at = ? WHERE id = ?",
-        params![&prev_sibling.id, new_order, &now, &block_id],
-    )
-    .map_err(|e| e.to_string())?;
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE blocks SET parent_id = ?, order_weight = ?, updated_at = ? WHERE id = ?",
+            params![&prev_sibling.id, new_order, &now, &block_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
-    let updated_block = get_block_by_id(&conn, &block_id)?;
+    let updated_block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &block_id)?
+    };
 
     // Sync to markdown file
     sync_page_to_markdown_after_move(
-        &conn,
+        &conn_mutex,
         &workspace_path,
         &updated_block.page_id,
         &updated_block.id,
-    )?;
+    )
+    .await?;
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
@@ -1006,40 +1078,58 @@ pub async fn outdent_block(
     block_id: String,
 ) -> Result<Block, String> {
     let conn = open_workspace_db(&workspace_path)?;
-    let block = get_block_by_id(&conn, &block_id)?;
+    let conn_mutex = Mutex::new(conn);
+
+    let block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &block_id)?
+    };
 
     let parent_id = block
         .parent_id
         .as_ref()
         .ok_or("Cannot outdent: already at root level".to_string())?;
 
-    let parent = get_block_by_id(&conn, parent_id)?;
+    let parent = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, parent_id)?
+    };
 
     // Calculate new order_weight as sibling of parent
-    let new_order = calculate_new_order_weight(
-        &conn,
-        &block.page_id,
-        parent.parent_id.as_deref(),
-        Some(parent_id),
-    )?;
+    let new_order = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        calculate_new_order_weight(
+            &conn,
+            &block.page_id,
+            parent.parent_id.as_deref(),
+            Some(parent_id),
+        )?
+    };
 
     let now = Utc::now().to_rfc3339();
 
-    conn.execute(
-        "UPDATE blocks SET parent_id = ?, order_weight = ?, updated_at = ? WHERE id = ?",
-        params![&parent.parent_id, new_order, &now, &block_id],
-    )
-    .map_err(|e| e.to_string())?;
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE blocks SET parent_id = ?, order_weight = ?, updated_at = ? WHERE id = ?",
+            params![&parent.parent_id, new_order, &now, &block_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
-    let updated_block = get_block_by_id(&conn, &block_id)?;
+    let updated_block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &block_id)?
+    };
 
     // Sync to markdown file
     sync_page_to_markdown_after_move(
-        &conn,
+        &conn_mutex,
         &workspace_path,
         &updated_block.page_id,
         &updated_block.id,
-    )?;
+    )
+    .await?;
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
@@ -1055,21 +1145,32 @@ pub async fn toggle_collapse(
     block_id: String,
 ) -> Result<Block, String> {
     let conn = open_workspace_db(&workspace_path)?;
-    let block = get_block_by_id(&conn, &block_id)?;
+    let conn_mutex = Mutex::new(conn);
+
+    let block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &block_id)?
+    };
 
     let now = Utc::now().to_rfc3339();
 
-    conn.execute(
-        "UPDATE blocks SET is_collapsed = ?, updated_at = ? WHERE id = ?",
-        params![(!block.is_collapsed) as i32, &now, &block_id],
-    )
-    .map_err(|e| e.to_string())?;
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE blocks SET is_collapsed = ?, updated_at = ? WHERE id = ?",
+            params![(!block.is_collapsed) as i32, &now, &block_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
-    let updated_block = get_block_by_id(&conn, &block_id)?;
+    let updated_block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &block_id)?
+    };
 
     // Sync to markdown file
     // Sync to markdown file (collapse state is not reflected in markdown)
-    sync_page_to_markdown(&conn, &workspace_path, &updated_block.page_id)?;
+    sync_page_to_markdown(&conn_mutex, &workspace_path, &updated_block.page_id).await?;
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
@@ -1086,32 +1187,58 @@ pub async fn merge_blocks(
     block_id: String,
     target_id: Option<String>,
 ) -> Result<Vec<Block>, String> {
-    let mut conn = open_workspace_db(&workspace_path)?;
+    let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
 
     // 1. Get current block
-    let block = get_block_by_id(&conn, &block_id)?;
-
-    // 2. Find target block (previous sibling or specified target)
-    let target_block = match target_id {
-        Some(tid) => {
-            let target = get_block_by_id(&conn, &tid)?;
-            if target.page_id != block.page_id {
-                return Err("Cannot merge blocks from different pages".to_string());
-            }
-            target
-        }
-        None => find_previous_sibling(&conn, &block)
-            .map_err(|_| "Cannot merge: no previous sibling".to_string())?,
+    let block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &block_id)?
     };
 
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    // 2. Find target block (previous sibling or specified target)
+    let target_block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        match target_id {
+            Some(tid) => {
+                let target = get_block_by_id(&conn, &tid)?;
+                if target.page_id != block.page_id {
+                    return Err("Cannot merge blocks from different pages".to_string());
+                }
+                target
+            }
+            None => find_previous_sibling(&conn, &block)
+                .map_err(|_| "Cannot merge: no previous sibling".to_string())?,
+        }
+    };
+
+    // Manual Transaction using conn_mutex
+    // NOTE: tx borrows conn mutably. If I use manual transaction, I must ensure order.
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute("BEGIN TRANSACTION", [])
+            .map_err(|e| e.to_string())?;
+    }
 
     // 3. Move all children of current block to target block
     // They should be appended to the end of target block's children
     let mut moved_child_ids = Vec::new();
+
+    // We need to query then update. With Mutex, we lock for query, then maybe lock for update.
+    // Inside transaction, it is safe as long as we hold lock or if DB is locked by transaction.
+    // SQLite transaction locks the DB file (or WAL).
+    // Rusqlite Connection is thread-safe (Send).
+    // If we drop lock between operations, another thread might try to use connection.
+    // But connection is owned by this command (inside Mutex). No one else has it.
+    // Wait, create_block command creates NEW connection.
+    // So no contention on `conn` instance.
+    // So dropping lock locally is fine.
+
     {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+
         // Get existing children of target block to find last order_weight
-        let last_child_weight: Option<f64> = tx
+        let last_child_weight: Option<f64> = conn
             .query_row(
                 "SELECT MAX(order_weight) FROM blocks WHERE parent_id = ?",
                 params![&target_block.id],
@@ -1121,7 +1248,7 @@ pub async fn merge_blocks(
             .flatten();
 
         // Get children of current block
-        let mut children_stmt = tx
+        let mut children_stmt = conn
             .prepare(
                 "SELECT id, order_weight FROM blocks WHERE parent_id = ? ORDER BY order_weight",
             )
@@ -1144,7 +1271,7 @@ pub async fn merge_blocks(
             let new_weight = fractional_index::calculate_middle(last_weight, None);
             last_weight = Some(new_weight);
 
-            tx.execute(
+            conn.execute(
                 "UPDATE blocks SET parent_id = ?, order_weight = ?, updated_at = ? WHERE id = ?",
                 params![&target_block.id, new_weight, &now, &child_id],
             )
@@ -1152,50 +1279,55 @@ pub async fn merge_blocks(
 
             moved_child_ids.push(child_id);
         }
-    }
 
-    // 4. Update target block content (append current block content)
-    let new_content = format!("{}{}", target_block.content, block.content);
-    let now = Utc::now().to_rfc3339();
+        // 4. Update target block content (append current block content)
+        let new_content = format!("{}{}", target_block.content, block.content);
 
-    tx.execute(
-        "UPDATE blocks SET content = ?, updated_at = ? WHERE id = ?",
-        params![&new_content, &now, &target_block.id],
-    )
-    .map_err(|e| e.to_string())?;
-
-    // 5. Delete current block (it is now empty and childless)
-    tx.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
+        conn.execute(
+            "UPDATE blocks SET content = ?, updated_at = ? WHERE id = ?",
+            params![&new_content, &now, &target_block.id],
+        )
         .map_err(|e| e.to_string())?;
 
-    tx.commit().map_err(|e| e.to_string())?;
+        // 5. Delete current block (it is now empty and childless)
+        conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
+            .map_err(|e| e.to_string())?;
+
+        conn.execute("COMMIT", []).map_err(|e| e.to_string())?;
+    }
 
     // 6. Sync to markdown (Full rewrite to be safe for complex structural changes)
-    // Re-open connection or use a new one because transaction consumes it?
-    // Actually rusqlite transaction commit consumes the transaction but leaves connection usable if we didn't consume it.
-    // But here `tx` borrows `conn` mutably. After commit, we can use `conn`.
-    sync_page_to_markdown(&conn, &workspace_path, &block.page_id)?;
+    sync_page_to_markdown(&conn_mutex, &workspace_path, &block.page_id).await?;
 
     // Return all changed blocks (merged block + moved children)
     let mut changed_blocks = Vec::new();
 
     // Updated target block (merged)
-    let updated_target = get_block_by_id(&conn, &target_block.id)?;
+    let updated_target = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        get_block_by_id(&conn, &target_block.id)?
+    };
 
     // Index wiki links for merged target block
-    wiki_link_index::index_block_links(
-        &conn,
-        &updated_target.id,
-        &updated_target.content,
-        &updated_target.page_id,
-    )
-    .map_err(|e| e.to_string())?;
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        wiki_link_index::index_block_links(
+            &conn,
+            &updated_target.id,
+            &updated_target.content,
+            &updated_target.page_id,
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
     changed_blocks.push(updated_target);
 
     // Moved children
     for child_id in moved_child_ids {
-        let child = get_block_by_id(&conn, &child_id)?;
+        let child = {
+            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+            get_block_by_id(&conn, &child_id)?
+        };
         changed_blocks.push(child);
     }
 
@@ -1503,12 +1635,20 @@ pub fn index_block_fts(
     page_id: &str,
     content: &str,
 ) -> Result<(), String> {
-    FtsService::index_block(conn, block_id, page_id, content)
+    conn.execute(
+        "INSERT OR REPLACE INTO blocks_fts (block_id, page_id, content, anchor_id, path_text)
+         VALUES (?, ?, ?, ?, ?)",
+        params![block_id, page_id, content, block_id, ""],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 /// Remove a block from the FTS5 index
 pub fn deindex_block_fts(conn: &Connection, block_id: &str) -> Result<(), String> {
-    FtsService::deindex_block(conn, block_id)
+    conn.execute("DELETE FROM blocks_fts WHERE block_id = ?", [block_id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1566,7 +1706,9 @@ mod tests {
                 block_type: None,
                 after_block_id: None,
             };
-            let b1 = create_block(path_str.clone(), req1).await.unwrap();
+            let b1 = create_block(tauri::AppHandle::default(), path_str.clone(), req1)
+                .await
+                .unwrap();
 
             // Verify content
             let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
@@ -1581,7 +1723,9 @@ mod tests {
                 block_type: None,
                 after_block_id: Some(b1.id.clone()),
             };
-            let b2 = create_block(path_str.clone(), req2).await.unwrap();
+            let b2 = create_block(tauri::AppHandle::default(), path_str.clone(), req2)
+                .await
+                .unwrap();
 
             // Verify content
             let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
@@ -1646,6 +1790,7 @@ mod tests {
             // - B1
             // - B2
             let b1 = create_block(
+                tauri::AppHandle::default(),
                 path_str.clone(),
                 CreateBlockRequest {
                     page_id: page_id.clone(),
@@ -1659,6 +1804,7 @@ mod tests {
             .unwrap();
             update_meta();
             let b2 = create_block(
+                tauri::AppHandle::default(),
                 path_str.clone(),
                 CreateBlockRequest {
                     page_id: page_id.clone(),
@@ -1673,7 +1819,9 @@ mod tests {
             update_meta();
 
             // 1. Indent B2 under B1
-            indent_block(path_str.clone(), b2.id.clone()).await.unwrap();
+            indent_block(tauri::AppHandle::default(), path_str.clone(), b2.id.clone())
+                .await
+                .unwrap();
             update_meta();
 
             let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();
@@ -1689,10 +1837,10 @@ mod tests {
                 .iter()
                 .position(|l| l.contains(&format!("ID::{}", b2.id)))
                 .unwrap();
-            assert!(lines[b2_m_idx].starts_with("    ID::")); // 4 spaces
+            assert!(lines[b2_m_idx].starts_with("    ID:: ")); // 4 spaces
 
             // 2. Outdent B2
-            outdent_block(path_str.clone(), b2.id.clone())
+            outdent_block(tauri::AppHandle::default(), path_str.clone(), b2.id.clone())
                 .await
                 .unwrap();
             update_meta();
@@ -1704,6 +1852,7 @@ mod tests {
 
             // 3. Move B1 after B2
             move_block(
+                tauri::AppHandle::default(),
                 path_str.clone(),
                 MoveBlockRequest {
                     id: b1.id.clone(),
@@ -1769,6 +1918,7 @@ mod tests {
             //   - Child1
             // - Parent2
             let p1 = create_block(
+                tauri::AppHandle::default(),
                 path_str.clone(),
                 CreateBlockRequest {
                     page_id: page_id.clone(),
@@ -1782,6 +1932,7 @@ mod tests {
             .unwrap();
             update_meta();
             let _c1 = create_block(
+                tauri::AppHandle::default(),
                 path_str.clone(),
                 CreateBlockRequest {
                     page_id: page_id.clone(),
@@ -1795,6 +1946,7 @@ mod tests {
             .unwrap();
             update_meta();
             let p2 = create_block(
+                tauri::AppHandle::default(),
                 path_str.clone(),
                 CreateBlockRequest {
                     page_id: page_id.clone(),
@@ -1810,6 +1962,7 @@ mod tests {
 
             // Move Parent1 (and Child1) under Parent2
             move_block(
+                tauri::AppHandle::default(),
                 path_str.clone(),
                 MoveBlockRequest {
                     id: p1.id.clone(),
@@ -1886,6 +2039,7 @@ mod tests {
             //   - Child2_1
             //   - Child2_2
             let b1 = create_block(
+                tauri::AppHandle::default(),
                 path_str.clone(),
                 CreateBlockRequest {
                     page_id: page_id.clone(),
@@ -1900,6 +2054,7 @@ mod tests {
             update_meta();
 
             let b2 = create_block(
+                tauri::AppHandle::default(),
                 path_str.clone(),
                 CreateBlockRequest {
                     page_id: page_id.clone(),
@@ -1914,6 +2069,7 @@ mod tests {
             update_meta();
 
             let c1 = create_block(
+                tauri::AppHandle::default(),
                 path_str.clone(),
                 CreateBlockRequest {
                     page_id: page_id.clone(),
@@ -1928,6 +2084,7 @@ mod tests {
             update_meta();
 
             let _c2 = create_block(
+                tauri::AppHandle::default(),
                 path_str.clone(),
                 CreateBlockRequest {
                     page_id: page_id.clone(),
@@ -1946,9 +2103,14 @@ mod tests {
             // - Block1 content: "AB"
             // - Block1 children: Child2_1, Child2_2
             // - Block2 deleted
-            merge_blocks(path_str.clone(), b2.id.clone(), None)
-                .await
-                .unwrap();
+            merge_blocks(
+                tauri::AppHandle::default(),
+                path_str.clone(),
+                b2.id.clone(),
+                None,
+            )
+            .await
+            .unwrap();
             update_meta();
 
             let content = fs::read_to_string(temp_dir.join(page_file)).unwrap();

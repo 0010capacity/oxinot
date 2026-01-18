@@ -1,5 +1,6 @@
 use std::path::Path;
-use std::process::Command;
+use tokio::fs;
+use tokio::process::Command;
 use tauri::command;
 
 #[derive(Debug, serde::Serialize)]
@@ -20,7 +21,7 @@ pub struct GitCommitResult {
 
 /// Initialize a git repository in the workspace
 #[command]
-pub fn git_init(workspace_path: String) -> Result<bool, String> {
+pub async fn git_init(workspace_path: String) -> Result<bool, String> {
     if workspace_path.is_empty() { return Err("workspace_path must not be empty".to_string()); }
     let path = Path::new(&workspace_path);
 
@@ -39,6 +40,7 @@ pub fn git_init(workspace_path: String) -> Result<bool, String> {
         .args(["init"])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to execute git init: {}", e))?;
 
     if !output.status.success() {
@@ -51,7 +53,8 @@ pub fn git_init(workspace_path: String) -> Result<bool, String> {
     // Create initial .gitignore
     let gitignore_path = path.join(".gitignore");
     if !gitignore_path.exists() {
-        std::fs::write(&gitignore_path, ".DS_Store\n.oxinot/\n")
+        fs::write(&gitignore_path, ".DS_Store\n.oxinot/\n")
+            .await
             .map_err(|e| format!("Failed to create .gitignore: {}", e))?;
     }
 
@@ -59,19 +62,21 @@ pub fn git_init(workspace_path: String) -> Result<bool, String> {
     let _ = Command::new("git")
         .args(["add", ".gitignore"])
         .current_dir(path)
-        .output();
+        .output()
+        .await;
 
     let _ = Command::new("git")
         .args(["commit", "-m", "Initial commit"])
         .current_dir(path)
-        .output();
+        .output()
+        .await;
 
     Ok(true)
 }
 
 /// Check if workspace is a git repository
 #[command]
-pub fn git_is_repo(workspace_path: String) -> Result<bool, String> {
+pub async fn git_is_repo(workspace_path: String) -> Result<bool, String> {
     if workspace_path.is_empty() { return Err("workspace_path must not be empty".to_string()); }
     let path = Path::new(&workspace_path);
     let git_dir = path.join(".git");
@@ -80,7 +85,7 @@ pub fn git_is_repo(workspace_path: String) -> Result<bool, String> {
 
 /// Get git status of the workspace
 #[command]
-pub fn git_status(workspace_path: String) -> Result<GitStatus, String> {
+pub async fn git_status(workspace_path: String) -> Result<GitStatus, String> {
     if workspace_path.is_empty() { return Err("workspace_path must not be empty".to_string()); }
     let path = Path::new(&workspace_path);
 
@@ -101,6 +106,7 @@ pub fn git_status(workspace_path: String) -> Result<GitStatus, String> {
         .args(["branch", "--show-current"])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to get current branch: {}", e))?;
 
     let current_branch = String::from_utf8_lossy(&branch_output.stdout)
@@ -112,6 +118,7 @@ pub fn git_status(workspace_path: String) -> Result<GitStatus, String> {
         .args(["status", "--porcelain"])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to get git status: {}", e))?;
 
     let status_text = String::from_utf8_lossy(&status_output.stdout);
@@ -120,7 +127,7 @@ pub fn git_status(workspace_path: String) -> Result<GitStatus, String> {
     let has_changes = !changed_files.is_empty();
 
     // Get remote URL
-    let remote_url = get_remote_url_internal(path);
+    let remote_url = get_remote_url_internal(path).await;
 
     Ok(GitStatus {
         is_repo,
@@ -132,11 +139,12 @@ pub fn git_status(workspace_path: String) -> Result<GitStatus, String> {
 }
 
 /// Get git remote URL (internal helper)
-fn get_remote_url_internal(path: &Path) -> Option<String> {
+async fn get_remote_url_internal(path: &Path) -> Option<String> {
     let output = Command::new("git")
         .args(["remote", "get-url", "origin"])
         .current_dir(path)
         .output()
+        .await
         .ok()?;
 
     if output.status.success() {
@@ -150,7 +158,7 @@ fn get_remote_url_internal(path: &Path) -> Option<String> {
 
 /// Get git remote URL
 #[command]
-pub fn git_get_remote_url(workspace_path: String) -> Result<Option<String>, String> {
+pub async fn git_get_remote_url(workspace_path: String) -> Result<Option<String>, String> {
     if workspace_path.is_empty() { return Err("workspace_path must not be empty".to_string()); }
     let path = Path::new(&workspace_path);
 
@@ -158,12 +166,12 @@ pub fn git_get_remote_url(workspace_path: String) -> Result<Option<String>, Stri
         return Err("Not a git repository".to_string());
     }
 
-    Ok(get_remote_url_internal(path))
+    Ok(get_remote_url_internal(path).await)
 }
 
 /// Set git remote URL
 #[command]
-pub fn git_set_remote_url(workspace_path: String, url: String) -> Result<String, String> {
+pub async fn git_set_remote_url(workspace_path: String, url: String) -> Result<String, String> {
     if workspace_path.is_empty() { return Err("workspace_path must not be empty".to_string()); }
     let path = Path::new(&workspace_path);
 
@@ -176,6 +184,7 @@ pub fn git_set_remote_url(workspace_path: String, url: String) -> Result<String,
         .args(["remote", "get-url", "origin"])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to check remote: {}", e))?;
 
     let args = if check_output.status.success() {
@@ -188,6 +197,7 @@ pub fn git_set_remote_url(workspace_path: String, url: String) -> Result<String,
         .args(&args)
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to set remote URL: {}", e))?;
 
     if !output.status.success() {
@@ -202,7 +212,7 @@ pub fn git_set_remote_url(workspace_path: String, url: String) -> Result<String,
 
 /// Remove git remote
 #[command]
-pub fn git_remove_remote(workspace_path: String) -> Result<String, String> {
+pub async fn git_remove_remote(workspace_path: String) -> Result<String, String> {
     if workspace_path.is_empty() { return Err("workspace_path must not be empty".to_string()); }
     let path = Path::new(&workspace_path);
 
@@ -214,6 +224,7 @@ pub fn git_remove_remote(workspace_path: String) -> Result<String, String> {
         .args(["remote", "remove", "origin"])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to remove remote: {}", e))?;
 
     if !output.status.success() {
@@ -229,7 +240,7 @@ pub fn git_remove_remote(workspace_path: String) -> Result<String, String> {
 
 /// Commit changes with a message
 #[command]
-pub fn git_commit(workspace_path: String, message: String) -> Result<GitCommitResult, String> {
+pub async fn git_commit(workspace_path: String, message: String) -> Result<GitCommitResult, String> {
     if workspace_path.is_empty() { return Err("workspace_path must not be empty".to_string()); }
     let path = Path::new(&workspace_path);
 
@@ -243,6 +254,7 @@ pub fn git_commit(workspace_path: String, message: String) -> Result<GitCommitRe
         .args(["add", "-A"])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to add changes: {}", e))?;
 
     if !add_output.status.success() {
@@ -261,6 +273,7 @@ pub fn git_commit(workspace_path: String, message: String) -> Result<GitCommitRe
         .args(["status", "--porcelain"])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to check status: {}", e))?;
 
     if status_output.stdout.is_empty() {
@@ -276,6 +289,7 @@ pub fn git_commit(workspace_path: String, message: String) -> Result<GitCommitRe
         .args(["commit", "-m", &message])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to commit: {}", e))?;
 
     if !commit_output.status.success() {
@@ -294,6 +308,7 @@ pub fn git_commit(workspace_path: String, message: String) -> Result<GitCommitRe
         .args(["rev-parse", "HEAD"])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to get commit hash: {}", e))?;
 
     let commit_hash = String::from_utf8_lossy(&hash_output.stdout)
@@ -309,7 +324,7 @@ pub fn git_commit(workspace_path: String, message: String) -> Result<GitCommitRe
 
 /// Push changes to remote
 #[command]
-pub fn git_push(workspace_path: String) -> Result<String, String> {
+pub async fn git_push(workspace_path: String) -> Result<String, String> {
     if workspace_path.is_empty() { return Err("workspace_path must not be empty".to_string()); }
     let path = Path::new(&workspace_path);
 
@@ -321,6 +336,7 @@ pub fn git_push(workspace_path: String) -> Result<String, String> {
         .args(["push"])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to push: {}", e))?;
 
     if !output.status.success() {
@@ -335,7 +351,7 @@ pub fn git_push(workspace_path: String) -> Result<String, String> {
 
 /// Pull changes from remote
 #[command]
-pub fn git_pull(workspace_path: String) -> Result<String, String> {
+pub async fn git_pull(workspace_path: String) -> Result<String, String> {
     if workspace_path.is_empty() { return Err("workspace_path must not be empty".to_string()); }
     let path = Path::new(&workspace_path);
 
@@ -347,6 +363,7 @@ pub fn git_pull(workspace_path: String) -> Result<String, String> {
         .args(["pull"])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to pull: {}", e))?;
 
     if !output.status.success() {
@@ -361,7 +378,7 @@ pub fn git_pull(workspace_path: String) -> Result<String, String> {
 
 /// Get git log (recent commits)
 #[command]
-pub fn git_log(workspace_path: String, limit: Option<usize>) -> Result<Vec<String>, String> {
+pub async fn git_log(workspace_path: String, limit: Option<usize>) -> Result<Vec<String>, String> {
     if workspace_path.is_empty() { return Err("workspace_path must not be empty".to_string()); }
     let path = Path::new(&workspace_path);
 
@@ -371,9 +388,10 @@ pub fn git_log(workspace_path: String, limit: Option<usize>) -> Result<Vec<Strin
 
     let limit_str = limit.unwrap_or(20).to_string();
     let output = Command::new("git")
-        .args(["log", "--oneline", &format!("-{}", limit_str)])
+        .args(["log", "--oneline", &format!("- বিধ{}", limit_str)])
         .current_dir(path)
         .output()
+        .await
         .map_err(|e| format!("Failed to get log: {}", e))?;
 
     if !output.status.success() {

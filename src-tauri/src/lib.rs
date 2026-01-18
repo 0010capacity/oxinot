@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::{Path, PathBuf};
+use tokio::fs as tokio_fs;
 
 pub mod commands;
 pub mod config;
@@ -60,19 +60,21 @@ async fn select_workspace(app: tauri::AppHandle) -> Result<Option<String>, Strin
 }
 
 #[tauri::command]
-fn read_directory(dir_path: String) -> Result<Vec<FileSystemItem>, String> {
+async fn read_directory(dir_path: String) -> Result<Vec<FileSystemItem>, String> {
     // Validate input - reject absolute paths and path traversal
     validate_no_path_traversal(&dir_path, "dir_path")?;
 
-    let entries = fs::read_dir(&dir_path).map_err(|e| format!("Error reading directory: {}", e))?;
+    let mut entries = tokio_fs::read_dir(&dir_path)
+        .await
+        .map_err(|e| format!("Error reading directory: {}", e))?;
 
     let mut items = Vec::new();
 
-    for entry in entries {
-        let entry = entry.map_err(|e| format!("Error reading entry: {}", e))?;
+    while let Ok(Some(entry)) = entries.next_entry().await {
         let path = entry.path();
         let metadata = entry
             .metadata()
+            .await
             .map_err(|e| format!("Error reading metadata: {}", e))?;
 
         let modified_time = metadata
@@ -106,24 +108,28 @@ fn read_directory(dir_path: String) -> Result<Vec<FileSystemItem>, String> {
 }
 
 #[tauri::command]
-fn read_file(file_path: String) -> Result<String, String> {
+async fn read_file(file_path: String) -> Result<String, String> {
     // Validate input - reject absolute paths and path traversal
     validate_no_path_traversal(&file_path, "file_path")?;
 
-    fs::read_to_string(&file_path).map_err(|e| format!("Error reading file: {}", e))
+    tokio_fs::read_to_string(&file_path)
+        .await
+        .map_err(|e| format!("Error reading file: {}", e))
 }
 
 #[tauri::command]
-fn write_file(file_path: String, content: String) -> Result<bool, String> {
+async fn write_file(file_path: String, content: String) -> Result<bool, String> {
     // Validate input - reject absolute paths and path traversal
     validate_no_path_traversal(&file_path, "file_path")?;
 
-    fs::write(&file_path, content).map_err(|e| format!("Error writing file: {}", e))?;
+    tokio_fs::write(&file_path, content)
+        .await
+        .map_err(|e| format!("Error writing file: {}", e))?;
     Ok(true)
 }
 
 #[tauri::command]
-fn create_file(dir_path: String, file_name: String) -> Result<String, String> {
+async fn create_file(dir_path: String, file_name: String) -> Result<String, String> {
     // Validate inputs - reject absolute paths and path traversal
     validate_no_path_traversal(&dir_path, "dir_path")?;
     validate_filename(&file_name)?;
@@ -135,55 +141,73 @@ fn create_file(dir_path: String, file_name: String) -> Result<String, String> {
     }
 
     let name_without_ext = file_name.trim_end_matches(".md");
-    let initial_content = format!("# {}\n\n", name_without_ext);
+    let initial_content = format!(
+        "# {}
 
-    fs::write(&file_path, initial_content).map_err(|e| format!("Error creating file: {}", e))?;
+",
+        name_without_ext
+    );
+
+    tokio_fs::write(&file_path, initial_content)
+        .await
+        .map_err(|e| format!("Error creating file: {}", e))?;
 
     Ok(file_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
-fn create_directory(parent_path: String, dir_name: String) -> Result<String, String> {
+async fn create_directory(parent_path: String, dir_name: String) -> Result<String, String> {
     // Validate inputs - reject absolute paths and path traversal
     validate_no_path_traversal(&parent_path, "parent_path")?;
     validate_filename(&dir_name)?;
 
     let dir_path = PathBuf::from(&parent_path).join(&dir_name);
 
-    fs::create_dir_all(&dir_path).map_err(|e| format!("Error creating directory: {}", e))?;
+    tokio_fs::create_dir_all(&dir_path)
+        .await
+        .map_err(|e| format!("Error creating directory: {}", e))?;
 
     // Create folder note
     let folder_note_path = dir_path.join(format!("{}.md", dir_name));
     let folder_note_content = format!(
-        "# {}\n\nThis is the folder note for {}.\n",
+        "# {}
+
+This is the folder note for {}.\n",
         dir_name, dir_name
     );
 
-    fs::write(&folder_note_path, folder_note_content)
+    tokio_fs::write(&folder_note_path, folder_note_content)
+        .await
         .map_err(|e| format!("Error creating folder note: {}", e))?;
 
     Ok(dir_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
-fn delete_path(target_path: String) -> Result<bool, String> {
+async fn delete_path(target_path: String) -> Result<bool, String> {
     // Validate input - reject absolute paths
     validate_no_path_traversal(&target_path, "target_path")?;
 
     let path = Path::new(&target_path);
-    let metadata = fs::metadata(path).map_err(|e| format!("Error getting path info: {}", e))?;
+    let metadata = tokio_fs::metadata(path)
+        .await
+        .map_err(|e| format!("Error getting path info: {}", e))?;
 
     if metadata.is_dir() {
-        fs::remove_dir_all(path).map_err(|e| format!("Error deleting directory: {}", e))?;
+        tokio_fs::remove_dir_all(path)
+            .await
+            .map_err(|e| format!("Error deleting directory: {}", e))?;
     } else {
-        fs::remove_file(path).map_err(|e| format!("Error deleting file: {}", e))?;
+        tokio_fs::remove_file(path)
+            .await
+            .map_err(|e| format!("Error deleting file: {}", e))?;
     }
 
     Ok(true)
 }
 
 #[tauri::command]
-fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bool, String> {
+async fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bool, String> {
     // Validate workspace path exists
     validate_no_path_traversal(&workspace_path, "workspace_path")?;
 
@@ -200,21 +224,24 @@ fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bo
         .replace('\\', "/");
 
     // Get all pages matching this path
-    let mut stmt = conn
-        .prepare("SELECT id FROM pages WHERE file_path = ? OR file_path LIKE ?")
-        .map_err(|e| e.to_string())?;
+    let page_ids: Vec<String> = {
+        let mut stmt = conn
+            .prepare("SELECT id FROM pages WHERE file_path = ? OR file_path LIKE ?")
+            .map_err(|e| e.to_string())?;
 
-    let page_ids: Vec<String> = stmt
-        .query_map(
-            [
-                &target_path_normalized,
-                &format!("{}/%", target_path_normalized),
-            ],
-            |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
+        let results: Vec<String> = stmt
+            .query_map(
+                [
+                    &target_path_normalized,
+                    &format!("{}/%", target_path_normalized),
+                ],
+                |row| row.get::<_, String>(0),
+            )
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        results
+    };
 
     // Start database transaction for atomicity
     conn.execute("BEGIN TRANSACTION", [])
@@ -232,19 +259,28 @@ fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bo
         })?;
     }
 
-    // Step 2: Delete from filesystem
+    // Step 2: Delete from filesystem (async block handled immediately)
     let path = Path::new(&target_path);
-    let delete_result = (|| -> Result<(), String> {
-        let metadata = fs::metadata(path).map_err(|e| format!("Error getting path info: {}", e))?;
+    // Since we can't easily use closure for async block capturing vars in this context without complex types,
+    // we just execute logic directly.
+
+    let delete_result = async {
+        let metadata = tokio_fs::metadata(path)
+            .await
+            .map_err(|e| format!("Error getting path info: {}", e))?;
 
         if metadata.is_dir() {
-            fs::remove_dir_all(path).map_err(|e| format!("Error deleting directory: {}", e))?;
+            tokio_fs::remove_dir_all(path)
+                .await
+                .map_err(|e| format!("Error deleting directory: {}", e))?;
         } else {
-            fs::remove_file(path).map_err(|e| format!("Error deleting file: {}", e))?;
+            tokio_fs::remove_file(path)
+                .await
+                .map_err(|e| format!("Error deleting file: {}", e))?;
         }
-
-        Ok(())
-    })();
+        Ok::<(), String>(())
+    }
+    .await;
 
     // Step 3: Handle result
     match delete_result {
@@ -276,7 +312,7 @@ fn delete_path_with_db(workspace_path: String, target_path: String) -> Result<bo
 }
 
 #[tauri::command]
-fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
+async fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
     // Validate inputs - reject absolute paths and path traversal
     validate_no_path_traversal(&old_path, "old_path")?;
     validate_filename(&new_name)?;
@@ -287,13 +323,15 @@ fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
         .ok_or_else(|| "Cannot get parent directory".to_string())?;
     let new_path = parent.join(&new_name);
 
-    fs::rename(old, &new_path).map_err(|e| format!("Error renaming: {}", e))?;
+    tokio_fs::rename(old, &new_path)
+        .await
+        .map_err(|e| format!("Error renaming: {}", e))?;
 
     Ok(new_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
-fn move_path(source_path: String, target_parent_path: String) -> Result<String, String> {
+async fn move_path(source_path: String, target_parent_path: String) -> Result<String, String> {
     // Validate inputs - reject absolute paths and path traversal
     validate_no_path_traversal(&source_path, "source_path")?;
     validate_no_path_traversal(&target_parent_path, "target_parent_path")?;
@@ -310,20 +348,24 @@ fn move_path(source_path: String, target_parent_path: String) -> Result<String, 
 
     let new_path = target_parent.join(file_name);
 
-    fs::rename(source, &new_path).map_err(|e| format!("Error moving: {}", e))?;
+    tokio_fs::rename(source, &new_path)
+        .await
+        .map_err(|e| format!("Error moving: {}", e))?;
 
     Ok(new_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
-fn convert_file_to_directory(file_path: String) -> Result<String, String> {
+async fn convert_file_to_directory(file_path: String) -> Result<String, String> {
     // Validate input - reject absolute paths and path traversal
     validate_no_path_traversal(&file_path, "file_path")?;
 
     let file = Path::new(&file_path);
 
     // Read the file content first
-    let content = fs::read_to_string(file).map_err(|e| format!("Error reading file: {}", e))?;
+    let content = tokio_fs::read_to_string(file)
+        .await
+        .map_err(|e| format!("Error reading file: {}", e))?;
 
     // Get the file name without extension
     let file_stem = file
@@ -337,25 +379,32 @@ fn convert_file_to_directory(file_path: String) -> Result<String, String> {
 
     // Create directory with the same name as the file (without .md)
     let dir_path = parent.join(file_stem);
-    fs::create_dir_all(&dir_path).map_err(|e| format!("Error creating directory: {}", e))?;
+    tokio_fs::create_dir_all(&dir_path)
+        .await
+        .map_err(|e| format!("Error creating directory: {}", e))?;
 
     // Move the content to a file inside the directory with the same name
     let new_file_path = dir_path.join(format!("{}.md", file_stem));
-    fs::write(&new_file_path, content).map_err(|e| format!("Error writing file: {}", e))?;
+    tokio_fs::write(&new_file_path, content)
+        .await
+        .map_err(|e| format!("Error writing file: {}", e))?;
 
     // Delete the original file
-    fs::remove_file(file).map_err(|e| format!("Error removing original file: {}", e))?;
+    tokio_fs::remove_file(file)
+        .await
+        .map_err(|e| format!("Error removing original file: {}", e))?;
 
     Ok(dir_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
-fn get_path_info(target_path: String) -> Result<PathInfo, String> {
+async fn get_path_info(target_path: String) -> Result<PathInfo, String> {
     // Validate input - reject absolute paths and path traversal
     validate_no_path_traversal(&target_path, "target_path")?;
 
-    let metadata =
-        fs::metadata(&target_path).map_err(|e| format!("Error getting path info: {}", e))?;
+    let metadata = tokio_fs::metadata(&target_path)
+        .await
+        .map_err(|e| format!("Error getting path info: {}", e))?;
 
     let modified_time = metadata
         .modified()
@@ -434,12 +483,14 @@ pub fn run() {
             // Page commands
             commands::page::get_pages,
             commands::page::create_page,
-            commands::page::update_page,
+            commands::page::update_page_title,
             commands::page::delete_page,
-            commands::page::move_page,
+            commands::page::get_page,
+            commands::page::get_page_tree,
             commands::page::convert_page_to_directory,
-            commands::page::debug_db_state,
-            commands::page::rewrite_wiki_links_for_page_path_change,
+            commands::page::move_page,
+            commands::page::convert_directory_to_file,
+            commands::page::reindex_page_markdown,
             // Workspace commands
             commands::workspace::initialize_workspace,
             commands::workspace::sync_workspace,
