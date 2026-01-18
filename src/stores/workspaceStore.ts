@@ -113,6 +113,9 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
             fileTree: items,
             workspaces,
           });
+
+          // Load pages after opening workspace
+          await usePageStore.getState().loadPages();
         } catch (err) {
           const errorMessage =
             err instanceof Error ? err.message : "Failed to open workspace";
