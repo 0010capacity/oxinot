@@ -134,6 +134,16 @@ const RecursivePageTreeItem = memo((props: RecursivePageTreeItemProps) => {
   const hasChildren = sortedChildrenIds.length > 0;
   const isCreatingChild = isCreating && creatingParentId === pageId;
 
+  // Log when creating child for debugging
+  if (isCreatingChild) {
+    console.log(
+      "[RecursivePageTreeItem] Rendering NewPageInput for parent:",
+      pageId,
+      "depth:",
+      depth + 1
+    );
+  }
+
   return (
     <MemoizedPageTreeItem
       page={page}
@@ -197,8 +207,14 @@ RecursivePageTreeItem.displayName = "RecursivePageTreeItem";
 
 export function FileTreeIndex() {
   const { t } = useTranslation();
-  const { loadPages, createPage, updatePageTitle, deletePage, movePage } =
-    usePageStore();
+  const {
+    loadPages,
+    createPage,
+    updatePageTitle,
+    deletePage,
+    movePage,
+    convertToDirectory,
+  } = usePageStore();
 
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const workspaceName = workspacePath?.split("/").pop() || "Workspace";
@@ -492,7 +508,10 @@ export function FileTreeIndex() {
 
   const handleCreatePage = useCallback<(title: string) => Promise<void>>(
     async (title: string) => {
-      if (!title.trim()) return;
+      if (!title.trim()) {
+        console.log("[FileTreeIndex] Empty title, ignoring");
+        return;
+      }
 
       setIsSubmitting(true);
       try {
@@ -501,6 +520,45 @@ export function FileTreeIndex() {
           title.trim(),
           "parent:",
           creatingParentId
+        );
+
+        // If creating a child, ensure parent is a directory first
+        if (creatingParentId) {
+          const parentPage =
+            usePageStore.getState().pagesById[creatingParentId];
+          console.log("[FileTreeIndex] Parent page:", parentPage);
+
+          if (parentPage && !parentPage.isDirectory) {
+            console.log(
+              "[FileTreeIndex] Converting parent to directory:",
+              creatingParentId
+            );
+            try {
+              await convertToDirectory(creatingParentId);
+              console.log("[FileTreeIndex] Parent converted successfully");
+              // Reload pages to get updated parent state
+              await loadPages();
+              console.log("[FileTreeIndex] Pages reloaded");
+            } catch (conversionError) {
+              console.error(
+                "[FileTreeIndex] Failed to convert parent to directory:",
+                conversionError
+              );
+              throw new Error(
+                "Failed to convert parent to directory: " +
+                  (conversionError instanceof Error
+                    ? conversionError.message
+                    : String(conversionError))
+              );
+            }
+          }
+        }
+
+        console.log(
+          "[FileTreeIndex] Calling createPage with title:",
+          title.trim(),
+          "parentId:",
+          creatingParentId || undefined
         );
         const newPageId = await createPage(
           title.trim(),
@@ -519,12 +577,16 @@ export function FileTreeIndex() {
           }));
         }
       } catch (error) {
-        console.error("Failed to create page:", error);
+        console.error("[FileTreeIndex] Failed to create page:", error);
+        alert(
+          "Failed to create page: " +
+            (error instanceof Error ? error.message : String(error))
+        );
       } finally {
         setIsSubmitting(false);
       }
     },
-    [creatingParentId, createPage]
+    [creatingParentId, createPage, convertToDirectory, loadPages]
   );
 
   const handleCancelCreate = useCallback(() => {
@@ -622,14 +684,22 @@ export function FileTreeIndex() {
   }, [pageToDelete, deletePage]);
 
   const handleAddChild = useCallback((parentId: string) => {
+    console.log(
+      "[FileTreeIndex] handleAddChild called with parentId:",
+      parentId
+    );
     setCreatingParentId(parentId);
     setIsCreating(true);
 
     // Expand parent when adding child
-    setCollapsed((prev) => ({
-      ...prev,
-      [parentId]: false,
-    }));
+    setCollapsed((prev) => {
+      const newCollapsed = {
+        ...prev,
+        [parentId]: false,
+      };
+      console.log("[FileTreeIndex] Setting collapsed state:", newCollapsed);
+      return newCollapsed;
+    });
   }, []);
 
   const handleToggleCollapse = useCallback((pageId: string) => {
