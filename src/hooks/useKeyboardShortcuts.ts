@@ -11,7 +11,12 @@ export interface KeyboardShortcutHandlers {
   onRedo?: () => void;
 }
 
-const isShortcutMatch = (e: KeyboardEvent, shortcut: Shortcut) => {
+const isShortcutMatch = (e: KeyboardEvent, shortcut: Shortcut | undefined) => {
+  // Guard against undefined or missing key property
+  if (!shortcut || !shortcut.key) {
+    return false;
+  }
+
   const isMod = e.metaKey || e.ctrlKey;
 
   // Check key (case-insensitive)

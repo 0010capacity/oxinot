@@ -44,6 +44,40 @@ export const useShortcutStore = create<ShortcutStore>()(
     }),
     {
       name: "shortcut-storage",
-    },
-  ),
+      merge: (persistedState, currentState) => {
+        // Safely merge persisted state with defaults
+        // This ensures that incomplete/corrupted data doesn't break the store
+        if (
+          persistedState &&
+          typeof persistedState === "object" &&
+          "shortcuts" in persistedState
+        ) {
+          const persistedShortcuts = persistedState.shortcuts as Record<
+            string,
+            unknown
+          >;
+          const mergedShortcuts = { ...DEFAULT_SHORTCUTS };
+
+          // Merge persisted shortcuts, validating they have required properties
+          for (const [key, shortcut] of Object.entries(persistedShortcuts)) {
+            if (
+              shortcut &&
+              typeof shortcut === "object" &&
+              "key" in shortcut &&
+              typeof (shortcut as Record<string, unknown>).key === "string"
+            ) {
+              mergedShortcuts[key] = shortcut as Shortcut;
+            }
+          }
+
+          return {
+            ...currentState,
+            shortcuts: mergedShortcuts,
+          };
+        }
+
+        return currentState;
+      },
+    }
+  )
 );
