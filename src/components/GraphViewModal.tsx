@@ -8,8 +8,11 @@ import {
   ActionIcon,
   Tooltip,
   SegmentedControl,
+  Slider,
+  Box,
+  Divider,
 } from "@mantine/core";
-import { IconLink, IconRefresh } from "@tabler/icons-react";
+import { IconLink, IconRefresh, IconZoomReset } from "@tabler/icons-react";
 import { useCallback, useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import * as d3 from "d3";
@@ -52,8 +55,17 @@ export function GraphViewModal({
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"full" | "page">("full");
   const [depth, setDepth] = useState<string>("2");
+
+  // Physics simulation parameters
+  const [chargeStrength, setChargeStrength] = useState(-300);
+  const [linkDistance, setLinkDistance] = useState(100);
+  const [collisionRadius, setCollisionRadius] = useState(40);
+
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const simulationRef = useRef<d3.Simulation<GraphNode, GraphEdge> | null>(
+    null
+  );
 
   const fetchGraphData = useCallback(async () => {
     if (!workspacePath) return;
@@ -132,6 +144,19 @@ export function GraphViewModal({
     }
   }, [opened, fetchGraphData]);
 
+  const handleResetZoom = useCallback(() => {
+    if (!svgRef.current) return;
+
+    const svg = d3.select(svgRef.current);
+    svg
+      .transition()
+      .duration(750)
+      .call(
+        (d3.zoom<SVGSVGElement, unknown>() as any).transform as any,
+        d3.zoomIdentity
+      );
+  }, []);
+
   useEffect(() => {
     if (!graphData || !svgRef.current || !containerRef.current) return;
 
@@ -146,7 +171,10 @@ export function GraphViewModal({
       .attr("width", width)
       .attr("height", height);
 
-    // Create simulation
+    // Create a group for zoomable content
+    const g = svg.append("g");
+
+    // Create simulation with current physics parameters
     const simulation = d3
       .forceSimulation<GraphNode>(graphData.nodes)
       .force(
@@ -156,15 +184,16 @@ export function GraphViewModal({
             graphData.edges as d3.SimulationLinkDatum<GraphNode>[]
           )
           .id((d) => d.id)
-          .distance(100)
+          .distance(linkDistance)
       )
-      .force("charge", d3.forceManyBody<GraphNode>().strength(-300))
+      .force("charge", d3.forceManyBody<GraphNode>().strength(chargeStrength))
       .force("center", d3.forceCenter<GraphNode>(width / 2, height / 2))
-      .force("collision", d3.forceCollide<GraphNode>().radius(40));
+      .force("collision", d3.forceCollide<GraphNode>().radius(collisionRadius));
+
+    simulationRef.current = simulation;
 
     // Create arrow markers
-    svg
-      .append("defs")
+    g.append("defs")
       .selectAll("marker")
       .data(["embed", "link"])
       .enter()
@@ -184,7 +213,7 @@ export function GraphViewModal({
       );
 
     // Create links
-    const links = svg
+    const links = g
       .selectAll("line")
       .data(graphData.edges)
       .enter()
@@ -200,7 +229,7 @@ export function GraphViewModal({
       .attr("opacity", 0.6);
 
     // Create nodes
-    const nodes = svg
+    const nodes = g
       .selectAll("circle")
       .data(graphData.nodes)
       .enter()
@@ -217,40 +246,34 @@ export function GraphViewModal({
           .drag<SVGCircleElement, GraphNode>()
           .on(
             "start",
-            (
-              event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>,
-              d
-            ) => {
+            (event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>) => {
               if (!event.active) simulation.alphaTarget(0.3).restart();
-              d.fx = d.x;
-              d.fy = d.y;
+              const node = event.subject;
+              node.fx = node.x;
+              node.fy = node.y;
             }
           )
           .on(
             "drag",
-            (
-              event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>,
-              d
-            ) => {
-              d.fx = event.x;
-              d.fy = event.y;
+            (event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>) => {
+              const node = event.subject;
+              node.fx = event.x;
+              node.fy = event.y;
             }
           )
           .on(
             "end",
-            (
-              event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>,
-              d
-            ) => {
+            (event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>) => {
               if (!event.active) simulation.alphaTarget(0);
-              d.fx = undefined;
-              d.fy = undefined;
+              const node = event.subject;
+              node.fx = undefined;
+              node.fy = undefined;
             }
           )
       );
 
     // Create labels
-    const labels = svg
+    const labels = g
       .selectAll("text")
       .data(graphData.nodes)
       .enter()
@@ -293,6 +316,13 @@ export function GraphViewModal({
         tooltip.style("visibility", "hidden");
       });
 
+    // Add zoom behavior
+    const zoom = d3.zoom<SVGSVGElement, unknown>().on("zoom", (event) => {
+      g.attr("transform", event.transform);
+    });
+
+    svg.call(zoom as any);
+
     simulation.on("tick", () => {
       links
         .attr("x1", (d) => {
@@ -321,7 +351,7 @@ export function GraphViewModal({
       tooltip.remove();
       simulation.stop();
     };
-  }, [graphData]);
+  }, [graphData, chargeStrength, linkDistance, collisionRadius]);
 
   return (
     <Modal
@@ -346,9 +376,24 @@ export function GraphViewModal({
         },
       }}
     >
-      <Stack gap="sm" h="100%" style={{ flex: 1 }}>
-        <Group justify="space-between" align="center">
-          <Group gap="xs">
+      <Group gap="md" h="100%" align="flex-start" style={{ flex: 1 }}>
+        {/* Left Panel - Physics Controls */}
+        <Box
+          style={{
+            width: "200px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+            paddingRight: "16px",
+            borderRight: "1px solid var(--color-border)",
+            overflow: "auto",
+            maxHeight: "100%",
+          }}
+        >
+          <Stack gap="xs">
+            <Text size="sm" fw={600}>
+              View
+            </Text>
             <SegmentedControl
               value={viewMode}
               onChange={(val) =>
@@ -363,6 +408,7 @@ export function GraphViewModal({
                 },
               ]}
               size="xs"
+              fullWidth
             />
 
             {viewMode === "page" && (
@@ -375,23 +421,105 @@ export function GraphViewModal({
                   { label: "3", value: "3" },
                 ]}
                 size="xs"
+                fullWidth
               />
             )}
+          </Stack>
+
+          <Divider />
+
+          <Stack gap="xs">
+            <Text size="sm" fw={600}>
+              Physics
+            </Text>
+
+            <Stack gap="0">
+              <Text size="xs" c="dimmed">
+                Repulsion
+              </Text>
+              <Slider
+                value={chargeStrength}
+                onChange={setChargeStrength}
+                min={-500}
+                max={0}
+                step={10}
+                marks={[
+                  { value: -500, label: "Strong" },
+                  { value: -250, label: "Med" },
+                  { value: 0, label: "None" },
+                ]}
+                size="xs"
+              />
+            </Stack>
+
+            <Stack gap="0">
+              <Text size="xs" c="dimmed">
+                Link Distance
+              </Text>
+              <Slider
+                value={linkDistance}
+                onChange={setLinkDistance}
+                min={30}
+                max={200}
+                step={5}
+                marks={[
+                  { value: 30, label: "Close" },
+                  { value: 115, label: "Med" },
+                  { value: 200, label: "Far" },
+                ]}
+                size="xs"
+              />
+            </Stack>
+
+            <Stack gap="0">
+              <Text size="xs" c="dimmed">
+                Collision
+              </Text>
+              <Slider
+                value={collisionRadius}
+                onChange={setCollisionRadius}
+                min={20}
+                max={80}
+                step={2}
+                marks={[
+                  { value: 20, label: "Tight" },
+                  { value: 50, label: "Med" },
+                  { value: 80, label: "Loose" },
+                ]}
+                size="xs"
+              />
+            </Stack>
+          </Stack>
+
+          <Divider />
+
+          <Group gap="xs">
+            <Tooltip label="Refresh graph" position="right">
+              <ActionIcon
+                onClick={fetchGraphData}
+                variant="subtle"
+                size="sm"
+                disabled={loading}
+                loading={loading}
+                flex={1}
+              >
+                <IconRefresh size={16} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Reset zoom" position="right">
+              <ActionIcon
+                onClick={handleResetZoom}
+                variant="subtle"
+                size="sm"
+                flex={1}
+              >
+                <IconZoomReset size={16} />
+              </ActionIcon>
+            </Tooltip>
           </Group>
+        </Box>
 
-          <Tooltip label="Refresh graph" position="left">
-            <ActionIcon
-              onClick={fetchGraphData}
-              variant="subtle"
-              size="sm"
-              disabled={loading}
-              loading={loading}
-            >
-              <IconRefresh size={16} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-
+        {/* Right Panel - Graph Canvas */}
         <div
           ref={containerRef}
           className={styles.container}
@@ -418,7 +546,7 @@ export function GraphViewModal({
             </Center>
           )}
         </div>
-      </Stack>
+      </Group>
     </Modal>
   );
 }
