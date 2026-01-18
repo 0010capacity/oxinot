@@ -291,15 +291,29 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
 
         // If moved away from a parent, refetch the old parent to reflect potential directory conversion
         if (oldParentId && oldParentId !== newParentId) {
+          console.log(
+            "[pageStore.movePage] Refetching old parent:",
+            oldParentId
+          );
           try {
             const oldParent = await invoke<PageData | null>("get_page", {
               workspacePath,
               request: { pageId: oldParentId },
             });
+            console.log("[pageStore.movePage] Old parent fetched:", oldParent);
             if (oldParent) {
+              console.log(
+                "[pageStore.movePage] Old parent before update:",
+                get().pagesById[oldParentId]
+              );
               set((state) => {
                 state.pagesById[oldParentId] = oldParent;
               });
+              console.log(
+                "[pageStore.movePage] Old parent after update:",
+                get().pagesById[oldParentId]
+              );
+              console.log("[pageStore.movePage] All pageIds:", get().pageIds);
             }
           } catch (error) {
             console.warn(
