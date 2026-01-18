@@ -51,8 +51,7 @@
           "x": 20,
           "y": 22
         },
-        "devtools": true,
-        "exitOnClose": false
+        "devtools": true
       }
     ],
     "security": {

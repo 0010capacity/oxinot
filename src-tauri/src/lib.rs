@@ -453,6 +453,16 @@ pub fn run() {
 
             Ok(())
         })
+        .on_window_event(|window, event| {
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::WindowEvent;
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    window.hide().ok();
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             select_workspace, // Renamed to avoid conflict
             read_directory,
