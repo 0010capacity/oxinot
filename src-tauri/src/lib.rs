@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use tauri::Manager;
 use tokio::fs as tokio_fs;
 
 pub mod commands;
@@ -434,7 +435,7 @@ async fn get_path_info(target_path: String) -> Result<PathInfo, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -542,6 +543,25 @@ pub fn run() {
             // Query commands
             commands::query::execute_query_macro,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    #[cfg(target_os = "macos")]
+    app.run(|app_handle, event| {
+        use tauri::RunEvent;
+
+        if let RunEvent::Reopen { .. } = event {
+            // Dock 아이콘 클릭 시 모든 숨겨진 창을 표시
+            let windows = app_handle.webview_windows();
+            for (_label, window) in windows {
+                if !window.is_visible().unwrap_or(false) {
+                    window.show().ok();
+                    window.set_focus().ok();
+                }
+            }
+        }
+    });
+
+    #[cfg(not(target_os = "macos"))]
+    app.run(|_app_handle, _event| {});
 }
