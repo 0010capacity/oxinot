@@ -17,6 +17,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { ErrorNotifications } from "./components/ErrorNotifications";
 import { FileTreeIndex } from "./components/FileTreeIndex";
 import { GitStatusIndicator } from "./components/GitStatusIndicator";
+import { GraphViewModal } from "./components/GraphViewModal";
 import { HelpModal } from "./components/HelpModal";
 import { MigrationDialog } from "./components/MigrationDialog";
 import { SearchModal } from "./components/SearchModal";
@@ -91,6 +92,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   const [searchOpened, setSearchOpened] = useState(false);
   const [helpOpened, setHelpOpened] = useState(false);
   const [commandPaletteOpened, setCommandPaletteOpened] = useState(false);
+  const [graphViewOpened, setGraphViewOpened] = useState(false);
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
@@ -187,6 +189,7 @@ function AppContent({ workspacePath }: AppContentProps) {
             onSearchClick={() => setSearchOpened(true)}
             onHelpClick={() => setHelpOpened(true)}
             onCommandPaletteClick={() => setCommandPaletteOpened(true)}
+            onGraphViewClick={() => setGraphViewOpened(true)}
           />
 
           {/* Main Content Panel */}
@@ -292,6 +295,14 @@ function AppContent({ workspacePath }: AppContentProps) {
           }
         }}
         t={t}
+      />
+
+      {/* Graph View Modal */}
+      <GraphViewModal
+        opened={graphViewOpened}
+        onClose={() => setGraphViewOpened(false)}
+        workspacePath={workspacePath}
+        currentPageId={currentPageId ?? undefined}
       />
 
       <Notifications />

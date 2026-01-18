@@ -1,6 +1,7 @@
 import { Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { IconPlus } from "@tabler/icons-react";
-import React, {
+import type React from "react";
+import {
   useEffect,
   useState,
   useCallback,
