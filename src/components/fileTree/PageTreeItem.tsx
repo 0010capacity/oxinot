@@ -37,6 +37,7 @@ function getPageBasename(title: string): string {
 interface PageTreeItemProps {
   page: PageData;
   depth: number;
+  childCount?: number;
   onEdit: (pageId: string) => void;
   onDelete: (pageId: string) => void;
   onAddChild: (parentId: string) => void;
@@ -57,6 +58,7 @@ interface PageTreeItemProps {
 export function PageTreeItem({
   page,
   depth,
+  childCount,
   onEdit,
   onDelete,
   onAddChild,
@@ -73,6 +75,8 @@ export function PageTreeItem({
   showIndentGuides = true,
   children,
 }: PageTreeItemProps) {
+  void childCount; // Suppress unused variable warning
+
   const openNote = useViewStore((state) => state.openNote);
   const selectPage = usePageStore((state) => state.selectPage);
   const loadPage = useBlockStore((state) => state.loadPage);

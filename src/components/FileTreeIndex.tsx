@@ -49,6 +49,7 @@ const MemoizedPageTreeItem = memo(PageTreeItem, (prev, next) => {
     prev.page.title === next.page.title &&
     prev.page.updatedAt === next.page.updatedAt &&
     prev.page.isDirectory === next.page.isDirectory &&
+    prev.childCount === next.childCount &&
     prev.depth === next.depth &&
     prev.isEditing === next.isEditing &&
     prev.editValue === next.editValue &&
@@ -561,6 +562,7 @@ export function FileTreeIndex() {
           <MemoizedPageTreeItem
             page={page}
             depth={depth}
+            childCount={children.length}
             onEdit={handleEditPage}
             onDelete={handleDeletePage}
             onAddChild={handleAddChild}
