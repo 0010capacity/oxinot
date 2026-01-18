@@ -1,6 +1,8 @@
 import { Button, Stack, Switch, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import { useTelemetryStore } from "../../stores/telemetryStore";
+import { analytics } from "../../utils/analytics";
 import type { AdvancedSettingsProps } from "./types";
 
 export function AdvancedSettings({
@@ -13,6 +15,17 @@ export function AdvancedSettings({
   optimizeDatabase,
 }: AdvancedSettingsProps) {
   const { t } = useTranslation();
+  const setTelemetryStoreEnabled = useTelemetryStore(
+    (state) => state.setEnabled
+  );
+
+  const handleTelemetryChange = (enabled: boolean) => {
+    setTelemetryEnabled(enabled);
+    setTelemetryStoreEnabled(enabled);
+    if (enabled) {
+      analytics.sessionStarted();
+    }
+  };
 
   return (
     <Stack gap="xl">
@@ -93,7 +106,7 @@ export function AdvancedSettings({
                     onClick={() => {
                       if (
                         window.confirm(
-                          t("settings.advanced.optimize_db_confirm"),
+                          t("settings.advanced.optimize_db_confirm")
                         )
                       ) {
                         optimizeDatabase();
@@ -125,7 +138,7 @@ export function AdvancedSettings({
                   description={t("settings.advanced.telemetry_desc")}
                   checked={telemetryEnabled}
                   onChange={(event) =>
-                    setTelemetryEnabled(event.currentTarget.checked)
+                    handleTelemetryChange(event.currentTarget.checked)
                   }
                 />
               </Stack>
