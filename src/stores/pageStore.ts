@@ -290,21 +290,9 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
 
         const toPath = updatedPage.filePath;
 
-        // Rewrite wiki links if path changed
-        // Convert "A/B/C.md" -> "A/B/C" because wikilinks use [[path/to/page]].
-        const fromTarget = fromPath?.toLowerCase().endsWith(".md")
-          ? fromPath.slice(0, -3)
-          : fromPath;
-        const toTarget = toPath?.toLowerCase().endsWith(".md")
-          ? toPath.slice(0, -3)
-          : toPath;
-
-        if (fromTarget && toTarget && fromTarget !== toTarget) {
-          await tauriAPI.rewriteWikiLinksForPagePathChange(
-            workspacePath,
-            fromTarget,
-            toTarget
-          );
+        // Reindex wiki links to update any references affected by the page move
+        if (fromPath !== toPath && fromPath && toPath) {
+          await tauriAPI.reindexWikiLinks(workspacePath);
 
           // Refresh current file if it's open
           const ws = useWorkspaceStore.getState();
