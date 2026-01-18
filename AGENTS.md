@@ -4,23 +4,53 @@
 - Modern markdown outliner built with Tauri + React + TypeScript
 - Block-based editing (Logseq-style) with file tree integration
 - Local-first with SQLite + filesystem
+- Production-ready open source application with auto-update support
 
 ## Tech Stack
 - Frontend: React 19, TypeScript, Mantine UI, Zustand, CodeMirror 6
 - Backend: Tauri 2, Rust, SQLite
 - Build: Vite
+- Graph visualization: D3.js
+- Internationalization: i18next
+- Icon library: Tabler Icons
+- Text processing: markdown-it, @lezer/markdown
 
 ## Repository Layout
 - `src/`: React frontend
   - `src/components/`: UI components
+    - `components/layout/`: Layout-specific components (TitleBar, PageContainer, etc.)
+    - `components/common/`: Reusable primitives (BulletPoint, CollapseToggle, etc.)
+    - `components/titleBar/`: Titlebar-specific controls
   - `src/outliner/`: Block editor implementation
+    - `BlockEditor.tsx`: Main editor component
+    - `BlockComponent.tsx`: Individual block rendering and interaction
+    - Markdown rendering and editing logic
   - `src/stores/`: Zustand state management
+    - `pageStore.ts`: Page/document state
+    - `blockStore.ts`: Block content state
+    - `viewStore.ts`: UI view state
+    - `workspaceStore.ts`: Workspace management
+    - `themeStore.ts`: Theme preferences (color variant, font settings)
   - `src/hooks/`: React hooks
+    - Custom hooks for workspace initialization, keyboard shortcuts, etc.
+  - `src/theme/`: Centralized theme system
+    - `ThemeProvider.tsx`: Theme provider component
+    - `schema.ts`: Theme type definitions
+    - `colors.ts`: Color variant definitions
+    - `tokens.ts`: Design tokens
+  - `src/styles/`: Global CSS
+    - `variables.css`: CSS custom properties (set dynamically by ThemeProvider)
+    - `base.css`: Base element styles
+    - `layout.css`: Layout utilities
+    - `components.css`: Component-specific styles
+    - `utilities.css`: Utility classes
   - `src/tauri-api.ts`: Tauri backend API wrapper
 - `src-tauri/`: Rust backend
   - `src-tauri/src/commands/`: Tauri commands
+    - `mod.rs`, `page.rs`, `block.rs`, `graph.rs`, etc.
   - `src-tauri/src/db/`: Database logic
   - `src-tauri/src/services/`: Business logic
+  - `src-tauri/src/models/`: Data type definitions
 - `.changeset/`: Changesets configuration for versioning
 
 ## Development Commands
@@ -28,7 +58,85 @@
 - Lint: `npm run lint`
 - Format: `npm run format`
 - Build app: `npm run tauri:build`
+- Sync versions: `npm run version:sync`
 - Do NOT run: `npm run dev`, `npm run tauri:dev` (long-running processes)
+
+## UI Component Theming Guidelines
+
+### CSS Variable System
+All visual styling must use CSS custom properties defined in the centralized theme system.
+**Never hardcode colors, spacing, typography, or other design values in component files.**
+
+#### Theme Architecture
+1. **Theme Definition** (`src/theme/`):
+   - `ThemeProvider.tsx`: Dynamically applies theme variables to document root
+   - `colors.ts`: Defines color variants (blue, purple, etc.)
+   - `schema.ts`: Defines theme structure and types
+   - `tokens.ts`: Core design tokens
+   
+2. **CSS Variables** (`src/styles/variables.css`):
+   - Fallback definitions for all theme variables
+   - Set dynamically at runtime by `ThemeProvider`
+   - Organized into categories: colors, spacing, typography, layout, transitions, shadows, z-index, opacity
+
+3. **Variable Categories**:
+   ```
+   Colors:          --color-bg-primary, --color-text-primary, --color-border-primary, etc.
+   Spacing:         --spacing-xs (4px), --spacing-sm (8px), --spacing-md (16px), etc.
+   Typography:      --font-family, --font-size-sm, --line-height-normal, etc.
+   Layout:          --layout-title-bar-height, --layout-indent-size, etc.
+   Transitions:     --transition-fast, --transition-normal, --transition-slow
+   Shadows:         --shadow-sm, --shadow-md, --shadow-lg
+   Opacity:         --opacity-disabled, --opacity-dimmed, --opacity-hover
+   Z-Index:         --z-index-modal, --z-index-toast, --z-index-dropdown
+   ```
+
+#### Using CSS Variables in Components
+- **Always use variables** instead of hardcoded values
+- Variables are accessed via `var(--variable-name)`
+- Example:
+  ```css
+  .my-component {
+    color: var(--color-text-primary);
+    background: var(--color-bg-secondary);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition-normal);
+  }
+  ```
+
+- For component-specific stylesheets:
+  ```typescript
+  // MyComponent.tsx
+  export function MyComponent() {
+    return <div className="my-component">Content</div>;
+  }
+  ```
+  
+  ```css
+  /* MyComponent.css */
+  .my-component {
+    color: var(--color-text-primary);
+    background: var(--color-bg-secondary);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-normal);
+  }
+  
+  .my-component:hover {
+    background: var(--color-interactive-hover);
+  }
+  ```
+
+#### Theme Variants
+- Users can change color variants (blue, purple, etc.) via settings
+- All color variables automatically update across the app
+- Font family and editor settings are user-configurable via themeStore
+
+#### Dark/Light Mode
+- Theme system automatically handles dark/light modes
+- No need to write separate dark mode styles
+- Mantine handles mode detection; CSS variables are set accordingly
 
 ## Work Principles
 - Commit per task (feature, bugfix, refactor)
@@ -45,6 +153,8 @@
 - Use Biome for formatting/linting
 - Performance: virtualization, memoization, debouncing
 - Zustand with immer for state updates
+- **CSS Variables**: All visual styling must use `--variable-name` from the theme system
+- **No inline styles with hardcoded values** - use CSS classes with variables instead
 
 ## Issue and Branch Workflow
 
@@ -374,6 +484,7 @@ Runs automatically with `npm run version`.
 - Extract PR number from gh pr create output: `PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')`
 - Branch protection enforces: PR required, CI must pass before merge
 - Labels are added via --label flag in gh issue create
+- **All UI styling must use CSS variables** - never hardcode colors or spacing in components
 
 ### Release (Fully Automated)
 - **Do NOT** manually run `npm run release` or create tags - this breaks the workflow
