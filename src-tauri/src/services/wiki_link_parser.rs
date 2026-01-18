@@ -1,5 +1,6 @@
 use crate::utils::path::normalize_page_path;
 use regex::Regex;
+use std::ops::Range;
 use std::sync::OnceLock;
 
 static WIKI_LINK_REGEX: OnceLock<Regex> = OnceLock::new();
@@ -21,10 +22,20 @@ pub struct ParsedLink {
 
 pub fn parse_wiki_links(content: &str) -> Vec<ParsedLink> {
     let mut links = Vec::new();
-    let masked_content = mask_code_blocks(content);
+    let ignored_ranges = get_ignored_ranges(content);
     let regex = get_wiki_link_regex();
 
-    for cap in regex.captures_iter(&masked_content) {
+    for cap in regex.captures_iter(content) {
+        let match_range = cap.get(0).unwrap().range();
+
+        // Check if the match starts inside an ignored range (code block)
+        if ignored_ranges
+            .iter()
+            .any(|r| r.contains(&match_range.start))
+        {
+            continue;
+        }
+
         let is_embed_str = cap.get(1).map_or("", |m| m.as_str());
         let inner_content = cap.get(2).map_or("", |m| m.as_str());
 
@@ -51,8 +62,8 @@ pub fn parse_wiki_links(content: &str) -> Vec<ParsedLink> {
         };
 
         if let Some(s) = suffix {
-            if s.starts_with('^') {
-                block_ref = Some(s[1..].to_string());
+            if let Some(stripped) = s.strip_prefix('^') {
+                block_ref = Some(stripped.to_string());
                 link_type = if is_embed {
                     "embed_block".to_string()
                 } else {
@@ -81,53 +92,47 @@ pub fn parse_wiki_links(content: &str) -> Vec<ParsedLink> {
     links
 }
 
-fn mask_code_blocks(content: &str) -> String {
-    let mut chars: Vec<char> = content.chars().collect();
-
+fn get_ignored_ranges(content: &str) -> Vec<Range<usize>> {
+    let mut ranges = Vec::new();
+    let bytes = content.as_bytes();
+    let len = bytes.len();
     let mut i = 0;
-    while i < chars.len() {
-        // Check for code block ```
-        if i + 2 < chars.len() && chars[i] == '`' && chars[i + 1] == '`' && chars[i + 2] == '`' {
-            let start = i;
-            i += 3;
-            // Find end
-            while i + 2 < chars.len() {
-                if chars[i] == '`' && chars[i + 1] == '`' && chars[i + 2] == '`' {
-                    i += 3; // Skip closing
-                    break;
-                }
-                chars[i] = ' ';
-                i += 1;
-            }
-            // Mask everything including delimiters to avoid false matches
-            for j in start..i {
-                if j < chars.len() {
-                    chars[j] = ' ';
-                }
-            }
-        } else if chars[i] == '`' {
-            // Inline code
-            let start = i;
-            i += 1;
-            while i < chars.len() {
-                if chars[i] == '`' {
+
+    while i < len {
+        if bytes[i] == b'`' {
+            if i + 2 < len && bytes[i + 1] == b'`' && bytes[i + 2] == b'`' {
+                // Fenced code block
+                let start = i;
+                i += 3;
+                // Find end
+                while i < len {
+                    if bytes[i] == b'`' && i + 2 < len && bytes[i + 1] == b'`' && bytes[i + 2] == b'`'
+                    {
+                        i += 3; // Include closing
+                        break;
+                    }
                     i += 1;
-                    break;
                 }
-                chars[i] = ' ';
+                ranges.push(start..i);
+            } else {
+                // Inline code
+                let start = i;
                 i += 1;
-            }
-            for j in start..i {
-                if j < chars.len() {
-                    chars[j] = ' ';
+                while i < len {
+                    if bytes[i] == b'`' {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
                 }
+                ranges.push(start..i);
             }
         } else {
             i += 1;
         }
     }
 
-    chars.into_iter().collect()
+    ranges
 }
 
 fn normalize_target_path(raw: &str) -> String {
