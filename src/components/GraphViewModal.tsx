@@ -342,7 +342,7 @@ export function GraphViewModal({
           padding: "16px",
           display: "flex",
           flexDirection: "column",
-          height: "85vh",
+          height: "70vh",
         },
       }}
     >
