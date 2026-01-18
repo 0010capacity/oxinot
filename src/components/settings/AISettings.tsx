@@ -1,8 +1,10 @@
 import {
   ActionIcon,
+  Autocomplete,
   Button,
   Card,
   Group,
+  Loader,
   PasswordInput,
   Select,
   Stack,
@@ -10,10 +12,11 @@ import {
   TextInput,
   Textarea,
 } from "@mantine/core";
-import { IconPlus, IconTrash, IconPencil, IconCheck, IconX } from "@tabler/icons-react";
+import { IconPlus, IconTrash, IconPencil, IconCheck, IconX, IconRefresh } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAISettingsStore, type AIProvider, type PromptTemplate } from "../../stores/aiSettingsStore";
+import { createAIProvider } from "../../services/ai/factory";
 
 interface AISettingsProps {
   matchesSearch: (text: string) => boolean;
@@ -42,6 +45,9 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
   const [editName, setEditName] = useState("");
   const [editContent, setEditContent] = useState("");
 
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+
   const providerOptions = [
     { value: "google", label: t("settings.ai.providers.google") },
     { value: "openai", label: t("settings.ai.providers.openai") },
@@ -49,6 +55,27 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
     { value: "ollama", label: t("settings.ai.providers.ollama") },
     { value: "custom", label: t("settings.ai.providers.custom") },
   ];
+
+  const fetchModels = async () => {
+    setIsLoadingModels(true);
+    try {
+      // Use factory to create temporary provider instance
+      const aiProvider = createAIProvider(provider, baseUrl);
+      const models = await aiProvider.getModels(baseUrl, apiKey);
+      if (models.length > 0) {
+        setAvailableModels(models);
+      }
+    } catch (error) {
+      console.error("Failed to fetch models:", error);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
+  // Clear available models when provider changes
+  useEffect(() => {
+    setAvailableModels([]);
+  }, [provider]);
 
   const handleAddTemplate = () => {
     if (!newTemplateName.trim() || !newTemplateContent.trim()) return;
@@ -121,12 +148,23 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                 />
               )}
 
-              <TextInput
+              <Autocomplete
                 label={t("settings.ai.model")}
                 description={t("settings.ai.model_desc")}
                 value={model}
-                onChange={(e) => setModel(e.currentTarget.value)}
+                onChange={setModel}
                 placeholder="gpt-4, gemini-pro, llama3..."
+                data={availableModels}
+                rightSection={
+                  <ActionIcon 
+                    variant="subtle" 
+                    onClick={fetchModels} 
+                    loading={isLoadingModels}
+                    title="Load available models"
+                  >
+                    {isLoadingModels ? <Loader size={16} /> : <IconRefresh size={16} />}
+                  </ActionIcon>
+                }
               />
             </>
           )}
