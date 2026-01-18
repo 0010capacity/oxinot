@@ -1,6 +1,5 @@
 import {
   Modal,
-  Stack,
   Group,
   Center,
   Loader,
@@ -11,6 +10,7 @@ import {
   Slider,
   Box,
   Divider,
+  Stack,
 } from "@mantine/core";
 import { IconLink, IconRefresh, IconZoomReset } from "@tabler/icons-react";
 import { useCallback, useEffect, useState, useRef } from "react";
@@ -66,6 +66,12 @@ export function GraphViewModal({
   const simulationRef = useRef<d3.Simulation<GraphNode, GraphEdge> | null>(
     null
   );
+  const tooltipRef = useRef<d3.Selection<
+    HTMLDivElement,
+    unknown,
+    HTMLElement,
+    unknown
+  > | null>(null);
 
   const fetchGraphData = useCallback(async () => {
     if (!workspacePath) return;
@@ -223,6 +229,7 @@ export function GraphViewModal({
           : "var(--color-text-secondary)"
       )
       .attr("opacity", 0.8)
+      .attr("class", styles.nodeCircle)
       .call(
         d3
           .drag<SVGCircleElement, GraphNode>()
@@ -254,35 +261,35 @@ export function GraphViewModal({
           )
       );
 
-    // Create labels
+    // Create labels (hidden by default, shown on hover)
     const labels = g
       .selectAll("text")
       .data(graphData.nodes)
       .enter()
       .append("text")
-      .attr("font-size", "11px")
+      .attr("class", styles.nodeLabel)
       .attr("fill", "var(--color-text-primary)")
       .attr("text-anchor", "middle")
       .attr("dy", "0.3em")
       .text((d) => d.label)
       .attr("pointer-events", "none");
 
-    // Add tooltip
+    // Create tooltip
     const tooltip = d3
       .select("body")
       .append("div")
-      .style("position", "absolute")
-      .style("padding", "4px 8px")
-      .style("background", "var(--color-bg-secondary)")
-      .style("border", "1px solid var(--color-border)")
-      .style("border-radius", "4px")
-      .style("font-size", "12px")
-      .style("pointer-events", "none")
-      .style("z-index", "1000")
-      .style("visibility", "hidden");
+      .attr("class", styles.tooltip);
+
+    tooltipRef.current = tooltip;
 
     nodes
       .on("mouseover", (_event: MouseEvent, d: GraphNode) => {
+        // Show label
+        labels.attr("class", (node) =>
+          node.id === d.id ? styles.nodeLabelVisible : styles.nodeLabel
+        );
+
+        // Show tooltip
         tooltip
           .style("visibility", "visible")
           .text(d.label)
@@ -295,6 +302,10 @@ export function GraphViewModal({
           .style("top", `${event.pageY + 10}px`);
       })
       .on("mouseout", () => {
+        // Hide label
+        labels.attr("class", styles.nodeLabel);
+
+        // Hide tooltip
         tooltip.style("visibility", "hidden");
       });
 
@@ -360,18 +371,7 @@ export function GraphViewModal({
     >
       <Group gap="md" h="100%" align="flex-start" style={{ flex: 1 }}>
         {/* Left Panel - Physics Controls */}
-        <Box
-          style={{
-            width: "200px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-            paddingRight: "16px",
-            borderRight: "1px solid var(--color-border)",
-            overflow: "auto",
-            maxHeight: "100%",
-          }}
-        >
+        <Box className={styles.controlPanel}>
           <Stack gap="xs">
             <Text size="sm" fw={600}>
               View
@@ -502,24 +502,13 @@ export function GraphViewModal({
         </Box>
 
         {/* Right Panel - Graph Canvas */}
-        <div
-          ref={containerRef}
-          className={styles.container}
-          style={{
-            flex: 1,
-            border: "1px solid var(--color-border)",
-            borderRadius: "8px",
-            overflow: "hidden",
-            position: "relative",
-            minHeight: 0,
-          }}
-        >
+        <div ref={containerRef} className={styles.container}>
           {loading ? (
             <Center h="100%">
               <Loader size="lg" />
             </Center>
           ) : graphData && graphData.nodes.length > 0 ? (
-            <svg ref={svgRef} style={{ width: "100%", height: "100%" }} />
+            <svg ref={svgRef} className={styles.canvas} />
           ) : (
             <Center h="100%">
               <Text c="dimmed" size="sm">
