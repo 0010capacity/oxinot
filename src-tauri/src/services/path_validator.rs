@@ -21,24 +21,20 @@ impl PathValidator {
     ///
     /// # Returns
     /// Ok(()) if path is within workspace, Err with message if outside
-    pub fn validate_absolute_path(&self, abs_path: &Path) -> Result<(), String> {
+    pub async fn validate_absolute_path(&self, abs_path: &Path) -> Result<(), String> {
         // Canonicalize workspace root to resolve symlinks and relative components
-        let canonical_root = self
-            .workspace_root
-            .canonicalize()
+        let canonical_root = std::fs::canonicalize(&self.workspace_root)
             .map_err(|e| format!("Failed to canonicalize workspace root: {}", e))?;
 
         // Try to canonicalize the path, but if it doesn't exist, validate the logical path
         let canonical_path = if abs_path.exists() {
-            abs_path
-                .canonicalize()
+            std::fs::canonicalize(abs_path)
                 .map_err(|e| format!("Failed to canonicalize path: {}", e))?
         } else {
             // For non-existent paths, canonicalize parent and append filename
             if let Some(parent) = abs_path.parent() {
                 if parent.exists() {
-                    let canonical_parent = parent
-                        .canonicalize()
+                    let canonical_parent = std::fs::canonicalize(parent)
                         .map_err(|e| format!("Failed to canonicalize parent: {}", e))?;
 
                     if let Some(filename) = abs_path.file_name() {
@@ -67,8 +63,7 @@ impl PathValidator {
 
                     // Canonicalize the existing ancestor
                     if current.exists() {
-                        let mut canonical = current
-                            .canonicalize()
+                        let mut canonical = std::fs::canonicalize(current)
                             .map_err(|e| format!("Failed to canonicalize ancestor: {}", e))?;
 
                         // Rebuild path with collected components
@@ -105,7 +100,7 @@ impl PathValidator {
     ///
     /// # Returns
     /// Ok(absolute_path) if valid, Err with message if invalid
-    pub fn validate_relative_path(&self, rel_path: &str) -> Result<PathBuf, String> {
+    pub async fn validate_relative_path(&self, rel_path: &str) -> Result<PathBuf, String> {
         // Check for path traversal attempts
         if rel_path.contains("..") {
             return Err("Path traversal (..) not allowed".to_string());
@@ -131,7 +126,7 @@ impl PathValidator {
         let abs_path = self.workspace_root.join(&path_buf);
 
         // Validate the resulting absolute path is within workspace
-        self.validate_absolute_path(&abs_path)?;
+        self.validate_absolute_path(&abs_path).await?;
 
         Ok(abs_path)
     }
@@ -143,9 +138,9 @@ impl PathValidator {
     ///
     /// # Returns
     /// Ok(relative_path) with forward slashes, Err if outside workspace
-    pub fn to_relative_path(&self, abs_path: &Path) -> Result<String, String> {
+    pub async fn to_relative_path(&self, abs_path: &Path) -> Result<String, String> {
         // Validate the path is within workspace first
-        self.validate_absolute_path(abs_path)?;
+        self.validate_absolute_path(abs_path).await?;
 
         // Strip workspace prefix
         let rel_path = abs_path
@@ -166,12 +161,12 @@ impl PathValidator {
     ///
     /// # Returns
     /// Ok(normalized_path) if valid, Err with message if invalid
-    pub fn validate_db_path(&self, path: &str) -> Result<String, String> {
+    pub async fn validate_db_path(&self, path: &str) -> Result<String, String> {
         // This validates and allows us to use it for database storage
-        let abs_path = self.validate_relative_path(path)?;
+        let abs_path = self.validate_relative_path(path).await?;
 
         // Return the normalized relative path
-        self.to_relative_path(&abs_path)
+        self.to_relative_path(&abs_path).await
     }
 
     /// Get the workspace root path
@@ -186,76 +181,81 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    #[test]
-    fn test_valid_relative_path() {
+    #[tokio::test]
+    async fn test_valid_relative_path() {
         let temp_dir = TempDir::new().unwrap();
         let validator = PathValidator::new(temp_dir.path());
 
-        let result = validator.validate_relative_path("test.md");
+        let result = validator.validate_relative_path("test.md").await;
         assert!(result.is_ok());
     }
 
-    #[test]
-    fn test_relative_path_with_subdirectories() {
+    #[tokio::test]
+    async fn test_relative_path_with_subdirectories() {
         let temp_dir = TempDir::new().unwrap();
         let validator = PathValidator::new(temp_dir.path());
 
-        let result = validator.validate_relative_path("subdir/test.md");
+        // We need to create directory for canonicalization to work on some platforms if strict
+        // But validate_absolute_path logic handles non-existent paths by logical check.
+        // However, canonicalize on parent needs parent to exist.
+        // TempDir exists. "subdir" doesn't.
+        // The logic falls back to parent canonicalization.
+        let result = validator.validate_relative_path("subdir/test.md").await;
         assert!(result.is_ok());
     }
 
-    #[test]
-    fn test_path_traversal_blocked() {
+    #[tokio::test]
+    async fn test_path_traversal_blocked() {
         let temp_dir = TempDir::new().unwrap();
         let validator = PathValidator::new(temp_dir.path());
 
-        let result = validator.validate_relative_path("../etc/passwd");
+        let result = validator.validate_relative_path("../etc/passwd").await;
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
             .contains("Path traversal (..) not allowed"));
     }
 
-    #[test]
-    fn test_absolute_path_rejected() {
+    #[tokio::test]
+    async fn test_absolute_path_rejected() {
         let temp_dir = TempDir::new().unwrap();
         let validator = PathValidator::new(temp_dir.path());
 
-        let result = validator.validate_relative_path("/etc/passwd");
+        let result = validator.validate_relative_path("/etc/passwd").await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Absolute paths not allowed"));
     }
 
-    #[test]
-    fn test_null_byte_rejected() {
+    #[tokio::test]
+    async fn test_null_byte_rejected() {
         let temp_dir = TempDir::new().unwrap();
         let validator = PathValidator::new(temp_dir.path());
 
-        let result = validator.validate_relative_path("test\0.md");
+        let result = validator.validate_relative_path("test\0.md").await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Null bytes"));
     }
 
-    #[test]
-    fn test_to_relative_path() {
+    #[tokio::test]
+    async fn test_to_relative_path() {
         let temp_dir = TempDir::new().unwrap();
         let validator = PathValidator::new(temp_dir.path());
 
         let abs_path = temp_dir.path().join("test.md");
-        let result = validator.to_relative_path(&abs_path);
+        let result = validator.to_relative_path(&abs_path).await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "test.md");
     }
 
-    #[test]
-    fn test_validate_absolute_path_outside_workspace() {
+    #[tokio::test]
+    async fn test_validate_absolute_path_outside_workspace() {
         let temp_dir = TempDir::new().unwrap();
         let validator = PathValidator::new(temp_dir.path());
 
         // Try to validate a path outside workspace
         let outside_path = PathBuf::from("/etc/passwd");
-        let result = validator.validate_absolute_path(&outside_path);
+        let result = validator.validate_absolute_path(&outside_path).await;
 
         assert!(result.is_err());
     }

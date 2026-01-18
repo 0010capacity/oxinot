@@ -1,6 +1,7 @@
 use rusqlite::Connection;
-use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use tokio::fs;
 
 use crate::models::page::Page;
 use crate::services::path_validator::PathValidator;
@@ -21,34 +22,31 @@ impl FileSyncService {
     }
 
     /// Compute workspace-relative path from absolute path.
-    ///
-    /// Uses PathValidator for safe path handling with sandboxing checks.
-    /// Converts path separators to forward slashes (/) for consistent storage.
-    ///
-    /// # Returns
-    /// Workspace-relative path with forward slash separators, or error if path is outside workspace.
-    fn compute_rel_path(&self, abs_path: &Path) -> Result<String, String> {
-        // Use PathValidator to ensure path is within workspace
-        self.path_validator.to_relative_path(abs_path)
+    async fn compute_rel_path(&self, abs_path: &Path) -> Result<String, String> {
+        self.path_validator.to_relative_path(abs_path).await
     }
 
     /// Get the file path for a page based on its hierarchy
-    /// Returns absolute path for filesystem operations
-    pub fn get_page_file_path(&self, conn: &Connection, page_id: &str) -> Result<PathBuf, String> {
-        let page = self.get_page_from_db(conn, page_id)?;
+    pub async fn get_page_file_path(
+        &self,
+        conn_mutex: &Mutex<Connection>,
+        page_id: &str,
+    ) -> Result<PathBuf, String> {
+        let page = self.get_page_from_db(conn_mutex, page_id)?;
 
         if let Some(file_path) = page.file_path {
-            // file_path in DB is workspace-relative; validate and convert to absolute
-            let abs_path = self.path_validator.validate_relative_path(&file_path)?;
+            let abs_path = self
+                .path_validator
+                .validate_relative_path(&file_path)
+                .await?;
             return Ok(abs_path);
         }
 
-        // Build path from hierarchy
         let mut path_parts = Vec::new();
         let mut current_id = Some(page_id.to_string());
 
         while let Some(id) = current_id {
-            let current_page = self.get_page_from_db(conn, &id)?;
+            let current_page = self.get_page_from_db(conn_mutex, &id)?;
             path_parts.push(current_page.title.clone());
             current_id = current_page.parent_id;
         }
@@ -57,14 +55,12 @@ impl FileSyncService {
 
         let mut full_path = self.workspace_path.clone();
 
-        // If page has children (is_directory), add as directory
         if page.is_directory {
             for part in &path_parts {
                 full_path = full_path.join(sanitize_filename(part));
             }
             Ok(full_path.join(format!("{}.md", sanitize_filename(&page.title))))
         } else {
-            // Regular file
             for part in &path_parts[..path_parts.len() - 1] {
                 full_path = full_path.join(sanitize_filename(part));
             }
@@ -73,332 +69,179 @@ impl FileSyncService {
     }
 
     /// Create a new page file
-    /// Returns workspace-relative path (P0 requirement)
-    pub fn create_page_file(
+    pub async fn create_page_file(
         &self,
-        conn: &Connection,
+        conn_mutex: &Mutex<Connection>,
         page_id: &str,
         _title: &str,
     ) -> Result<String, String> {
-        let abs_file_path = self.get_page_file_path(conn, page_id)?;
+        let abs_file_path = self.get_page_file_path(conn_mutex, page_id).await?;
 
-        // Ensure parent directory exists
         if let Some(parent) = abs_file_path.parent() {
             fs::create_dir_all(parent)
+                .await
                 .map_err(|e| format!("Failed to create parent directory: {}", e))?;
         }
 
-        // Create an empty file.
-        //
-        // Rationale:
-        // We previously wrote a "- {title}" bullet as "basic header", but the page title already
-        // lives in the pages table / UI header. Writing an initial bullet causes the parser to
-        // import a root block, and the editor may also create its own initial empty block on first
-        // open, resulting in duplicate/empty root bullets being persisted.
-        //
-        // Keeping the initial file empty prevents phantom empty root bullets from accumulating
-        // across open/close cycles.
-        fs::write(&abs_file_path, "").map_err(|e| format!("Failed to create file: {}", e))?;
+        fs::write(&abs_file_path, "")
+            .await
+            .map_err(|e| format!("Failed to create file: {}", e))?;
 
-        // Return relative path
-        self.compute_rel_path(&abs_file_path)
+        self.compute_rel_path(&abs_file_path).await
     }
 
     /// Rename a page file
-    /// Returns workspace-relative path (P0 requirement)
-    pub fn rename_page_file(
+    pub async fn rename_page_file(
         &self,
-        conn: &Connection,
+        conn_mutex: &Mutex<Connection>,
         page_id: &str,
         new_title: &str,
     ) -> Result<String, String> {
-        let page = self.get_page_from_db(conn, page_id)?;
-        // file_path in DB is relative; convert to absolute for filesystem ops
+        let page = self.get_page_from_db(conn_mutex, page_id)?;
+
         let old_abs_path = if let Some(fp) = &page.file_path {
             self.workspace_path.join(fp)
         } else {
-            self.get_page_file_path(conn, page_id)?
+            self.get_page_file_path(conn_mutex, page_id).await?
         };
 
-        // If old file doesn't exist, create it first
         if !old_abs_path.exists() {
-            // Ensure parent directory exists
             if let Some(parent) = old_abs_path.parent() {
                 fs::create_dir_all(parent)
+                    .await
                     .map_err(|e| format!("Failed to create parent directory: {}", e))?;
             }
-            // Create file with basic content
             let initial_content = format!("- {}\n", page.title);
             fs::write(&old_abs_path, initial_content)
+                .await
                 .map_err(|e| format!("Failed to create file: {}", e))?;
         }
 
         let parent = old_abs_path.parent().ok_or("Cannot get parent directory")?;
 
         if page.is_directory {
-            // Rename directory
             let old_dir = parent.join(old_abs_path.file_stem().ok_or("Invalid file name")?);
             let new_dir = parent.join(sanitize_filename(new_title));
 
             if old_dir.exists() {
                 fs::rename(&old_dir, &new_dir)
+                    .await
                     .map_err(|e| format!("Failed to rename directory: {}", e))?;
             }
 
-            // Rename the file inside
             let new_file_path = new_dir.join(format!("{}.md", sanitize_filename(new_title)));
             if old_abs_path.exists() {
                 let old_file_in_dir =
                     new_dir.join(old_abs_path.file_name().ok_or("Invalid file name")?);
                 if old_file_in_dir.exists() {
                     fs::rename(&old_file_in_dir, &new_file_path)
+                        .await
                         .map_err(|e| format!("Failed to rename file: {}", e))?;
                 }
             }
 
-            self.compute_rel_path(&new_file_path)
+            self.compute_rel_path(&new_file_path).await
         } else {
-            // Rename file only
             let new_path = parent.join(format!("{}.md", sanitize_filename(new_title)));
             fs::rename(&old_abs_path, &new_path)
+                .await
                 .map_err(|e| format!("Failed to rename file: {}", e))?;
 
-            self.compute_rel_path(&new_path)
+            self.compute_rel_path(&new_path).await
         }
     }
 
     /// Move a page to a new parent
     /// Returns workspace-relative path (P0 requirement)
-    pub fn move_page_file(
+    pub async fn move_page_file(
         &self,
-        conn: &Connection,
+        conn_mutex: &Mutex<Connection>,
         page_id: &str,
         new_parent_id: Option<&str>,
     ) -> Result<String, String> {
-        let page = self.get_page_from_db(conn, page_id)?;
+        let page = self.get_page_from_db(conn_mutex, page_id)?;
 
-        // Calculate new parent directory (absolute path)
+        let old_abs_path = if let Some(fp) = &page.file_path {
+            self.workspace_path.join(fp)
+        } else {
+            self.get_page_file_path(conn_mutex, page_id).await?
+        };
+
+        if !old_abs_path.exists() {
+            return Err("Source file does not exist".to_string());
+        }
+
         let new_parent_dir = if let Some(parent_id) = new_parent_id {
-            let parent_page = self.get_page_from_db(conn, parent_id)?;
-            let parent_file_path = self.get_page_file_path(conn, parent_id)?;
-
-            if parent_page.is_directory {
-                // For directory notes, the file path is DirName/DirName.md
-                // We want to put children directly in DirName/, not DirName/DirName/
-                parent_file_path
+            let parent_page = self.get_page_from_db(conn_mutex, parent_id)?;
+            if let Some(fp) = &parent_page.file_path {
+                self.workspace_path
+                    .join(fp)
                     .parent()
-                    .ok_or("Cannot get parent directory")?
-                    .to_path_buf()
+                    .map(|p| p.to_path_buf())
             } else {
-                // Convert parent to directory first
-                return Err("Parent page must be converted to directory first".to_string());
+                self.get_page_file_path(conn_mutex, parent_id)
+                    .await?
+                    .parent()
+                    .map(|p| p.to_path_buf())
             }
         } else {
-            self.workspace_path.clone()
+            Some(self.workspace_path.clone())
         };
 
-        // Validate target directory is within workspace
-        self.path_validator
-            .validate_absolute_path(&new_parent_dir)?;
+        let new_parent_dir = new_parent_dir.ok_or("Cannot determine new parent directory")?;
+        let new_abs_path = new_parent_dir.join(format!("{}.md", sanitize_filename(&page.title)));
 
-        // Ensure target directory exists
         fs::create_dir_all(&new_parent_dir)
-            .map_err(|e| format!("Failed to create target directory: {}", e))?;
+            .await
+            .map_err(|e| format!("Failed to create parent directory: {}", e))?;
 
-        if page.is_directory {
-            // Moving a directory note - move the entire folder structure
-            let old_abs_path = if let Some(fp) = &page.file_path {
-                self.path_validator.validate_relative_path(fp)?
-            } else {
-                self.get_page_file_path(conn, page_id)?
-            };
+        fs::rename(&old_abs_path, &new_abs_path)
+            .await
+            .map_err(|e| format!("Failed to move file: {}", e))?;
 
-            // For directory pages, the structure is:
-            // Page A/Page A.md (file)
-            // Page A/ (directory containing children)
-            // So the directory is the parent of the .md file
-            let old_dir = old_abs_path
-                .parent()
-                .ok_or("Cannot get parent directory")?
-                .to_path_buf();
-
-            if !old_dir.exists() {
-                return Err(format!("Directory does not exist: {:?}", old_dir));
-            }
-
-            // Move the entire directory
-            let dir_name = old_dir.file_name().ok_or("Invalid directory name")?;
-            let new_dir = new_parent_dir.join(dir_name);
-
-            // Validate new directory path
-            self.path_validator.validate_absolute_path(&new_dir)?;
-
-            fs::rename(&old_dir, &new_dir)
-                .map_err(|e| format!("Failed to move directory: {}", e))?;
-
-            // Return new file path inside moved directory (relative)
-            let new_file_path = new_dir.join(format!("{}.md", dir_name.to_string_lossy()));
-            self.compute_rel_path(&new_file_path)
-        } else {
-            // Moving a regular file
-            let old_abs_path = if let Some(fp) = &page.file_path {
-                self.path_validator.validate_relative_path(fp)?
-            } else {
-                self.get_page_file_path(conn, page_id)?
-            };
-
-            if !old_abs_path.exists() {
-                // Create file if it doesn't exist
-                if let Some(parent) = old_abs_path.parent() {
-                    fs::create_dir_all(parent)
-                        .map_err(|e| format!("Failed to create parent directory: {}", e))?;
-                }
-                let initial_content = format!("- {}\n", page.title);
-                fs::write(&old_abs_path, initial_content)
-                    .map_err(|e| format!("Failed to create file: {}", e))?;
-            }
-
-            let file_name = old_abs_path.file_name().ok_or("Invalid file name")?;
-            let new_path = new_parent_dir.join(file_name);
-
-            // Validate new file path
-            self.path_validator.validate_absolute_path(&new_path)?;
-
-            fs::rename(&old_abs_path, &new_path)
-                .map_err(|e| format!("Failed to move file: {}", e))?;
-
-            self.compute_rel_path(&new_path)
-        }
-    }
-
-    /// Convert a directory back to a regular file (when no children remain)
-    /// Returns workspace-relative path (P0 requirement)
-    pub fn convert_directory_to_file(
-        &self,
-        conn: &Connection,
-        page_id: &str,
-    ) -> Result<String, String> {
-        let page = self.get_page_from_db(conn, page_id)?;
-
-        if !page.is_directory {
-            return Err("Page is not a directory".to_string());
-        }
-
-        let old_abs_file_path = if let Some(fp) = &page.file_path {
-            self.workspace_path.join(fp)
-        } else {
-            self.get_page_file_path(conn, page_id)?
-        };
-
-        // The directory is the parent of the file
-        let dir_path = old_abs_file_path
-            .parent()
-            .ok_or("Cannot get directory path")?;
-
-        // Read content from the file inside directory
-        let content = if old_abs_file_path.exists() {
-            fs::read_to_string(&old_abs_file_path)
-                .map_err(|e| format!("Failed to read file: {}", e))?
-        } else {
-            format!("- {}\n", page.title)
-        };
-
-        // Create new file path (one level up, outside the directory)
-        let parent = dir_path.parent().ok_or("Cannot get parent directory")?;
-        let file_name = format!(
-            "{}.md",
-            dir_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .ok_or("Invalid directory name")?
-        );
-        let new_file_path = parent.join(file_name);
-
-        // Write content to new file location
-        fs::write(&new_file_path, content).map_err(|e| format!("Failed to write file: {}", e))?;
-
-        // Remove the directory and its contents
-        if dir_path.exists() {
-            fs::remove_dir_all(dir_path)
-                .map_err(|e| format!("Failed to remove directory: {}", e))?;
-        }
-
-        self.compute_rel_path(&new_file_path)
-    }
-
-    /// Convert a page file to a directory structure
-    /// Returns workspace-relative path (P0 requirement)
-    pub fn convert_page_to_directory(
-        &self,
-        conn: &Connection,
-        page_id: &str,
-    ) -> Result<String, String> {
-        let page = self.get_page_from_db(conn, page_id)?;
-        let old_abs_file_path = if let Some(fp) = &page.file_path {
-            self.workspace_path.join(fp)
-        } else {
-            self.get_page_file_path(conn, page_id)?
-        };
-
-        // Read existing content if file exists, otherwise use default
-        let content = if old_abs_file_path.exists() {
-            fs::read_to_string(&old_abs_file_path)
-                .map_err(|e| format!("Failed to read file: {}", e))?
-        } else {
-            format!("- {}\n", page.title)
-        };
-
-        let parent = old_abs_file_path
-            .parent()
-            .ok_or("Cannot get parent directory")?;
-        let file_stem = old_abs_file_path.file_stem().ok_or("Invalid file name")?;
-
-        // Create directory
-        let dir_path = parent.join(file_stem);
-        fs::create_dir_all(&dir_path).map_err(|e| format!("Failed to create directory: {}", e))?;
-
-        // Move content to file inside directory
-        let new_file_path = dir_path.join(format!("{}.md", file_stem.to_string_lossy()));
-        fs::write(&new_file_path, content).map_err(|e| format!("Failed to write file: {}", e))?;
-
-        // Remove old file if it exists
-        if old_abs_file_path.exists() {
-            fs::remove_file(&old_abs_file_path)
-                .map_err(|e| format!("Failed to remove old file: {}", e))?;
-        }
-
-        self.compute_rel_path(&new_file_path)
+        self.compute_rel_path(&new_abs_path).await
     }
 
     /// Delete a page file
-    pub fn delete_page_file(&self, conn: &Connection, page_id: &str) -> Result<(), String> {
-        let page = self.get_page_from_db(conn, page_id)?;
+    pub async fn delete_page_file(
+        &self,
+        conn_mutex: &Mutex<Connection>,
+        page_id: &str,
+    ) -> Result<(), String> {
+        let page = self.get_page_from_db(conn_mutex, page_id)?;
         let file_path = if let Some(fp) = &page.file_path {
             PathBuf::from(fp)
         } else {
-            self.get_page_file_path(conn, page_id)?
+            self.get_page_file_path(conn_mutex, page_id).await?
         };
 
-        if !file_path.exists() {
+        let abs_path = if file_path.is_absolute() {
+            file_path
+        } else {
+            self.workspace_path.join(&file_path)
+        };
+
+        if !abs_path.exists() {
             return Ok(()); // Already deleted
         }
 
         if page.is_directory {
-            // Delete directory and all contents
-            let dir_path = file_path
+            let dir_path = abs_path
                 .parent()
                 .ok_or("Cannot get parent")?
-                .join(file_path.file_stem().ok_or("Invalid name")?);
+                .join(abs_path.file_stem().ok_or("Invalid name")?);
 
             if dir_path.exists() {
                 fs::remove_dir_all(&dir_path)
+                    .await
                     .map_err(|e| format!("Failed to remove directory: {}", e))?;
             }
         }
 
-        // Delete the file
-        if file_path.exists() {
-            fs::remove_file(&file_path).map_err(|e| format!("Failed to remove file: {}", e))?;
+        if abs_path.exists() {
+            fs::remove_file(&abs_path)
+                .await
+                .map_err(|e| format!("Failed to remove file: {}", e))?;
         }
 
         Ok(())
@@ -422,7 +265,12 @@ impl FileSyncService {
     }
 
     // Helper: Get page from database
-    fn get_page_from_db(&self, conn: &Connection, page_id: &str) -> Result<Page, String> {
+    fn get_page_from_db(
+        &self,
+        conn_mutex: &Mutex<Connection>,
+        page_id: &str,
+    ) -> Result<Page, String> {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
         conn.query_row(
             "SELECT id, title, parent_id, file_path, is_directory, file_mtime, file_size, created_at, updated_at
              FROM pages WHERE id = ?",
@@ -442,6 +290,104 @@ impl FileSyncService {
             },
         )
         .map_err(|e| format!("Page not found: {}", e))
+    }
+
+    /// Convert a page file to a directory
+    pub async fn convert_page_to_directory(
+        &self,
+        conn_mutex: &Mutex<Connection>,
+        page_id: &str,
+    ) -> Result<String, String> {
+        let page = self.get_page_from_db(conn_mutex, page_id)?;
+        let old_abs_file_path = if let Some(fp) = &page.file_path {
+            self.workspace_path.join(fp)
+        } else {
+            self.get_page_file_path(conn_mutex, page_id).await?
+        };
+
+        let content = if old_abs_file_path.exists() {
+            fs::read_to_string(&old_abs_file_path)
+                .await
+                .map_err(|e| format!("Failed to read file: {}", e))?
+        } else {
+            format!("- {}\n", page.title)
+        };
+
+        let parent = old_abs_file_path
+            .parent()
+            .ok_or("Cannot get parent directory")?;
+        let file_stem = old_abs_file_path.file_stem().ok_or("Invalid file name")?;
+
+        let dir_path = parent.join(file_stem);
+        fs::create_dir_all(&dir_path)
+            .await
+            .map_err(|e| format!("Failed to create directory: {}", e))?;
+
+        let new_file_path = dir_path.join(format!("{}.md", file_stem.to_string_lossy()));
+        fs::write(&new_file_path, content)
+            .await
+            .map_err(|e| format!("Failed to write file: {}", e))?;
+
+        if old_abs_file_path.exists() {
+            fs::remove_file(&old_abs_file_path)
+                .await
+                .map_err(|e| format!("Failed to remove old file: {}", e))?;
+        }
+
+        self.compute_rel_path(&new_file_path).await
+    }
+
+    /// Convert a directory page to a file
+    pub async fn convert_directory_to_file(
+        &self,
+        conn_mutex: &Mutex<Connection>,
+        page_id: &str,
+    ) -> Result<String, String> {
+        let page = self.get_page_from_db(conn_mutex, page_id)?;
+
+        if !page.is_directory {
+            return Err("Page is not a directory".to_string());
+        }
+
+        let old_abs_file_path = if let Some(fp) = &page.file_path {
+            self.workspace_path.join(fp)
+        } else {
+            self.get_page_file_path(conn_mutex, page_id).await?
+        };
+
+        let dir_path = old_abs_file_path
+            .parent()
+            .ok_or("Cannot get directory path")?;
+
+        let content = if old_abs_file_path.exists() {
+            fs::read_to_string(&old_abs_file_path)
+                .await
+                .map_err(|e| format!("Failed to read file: {}", e))?
+        } else {
+            format!("- {}\n", page.title)
+        };
+
+        let parent = dir_path.parent().ok_or("Cannot get parent directory")?;
+        let file_name = format!(
+            "{}.md",
+            dir_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .ok_or("Invalid directory name")?
+        );
+        let new_file_path = parent.join(file_name);
+
+        fs::write(&new_file_path, content)
+            .await
+            .map_err(|e| format!("Failed to write file: {}", e))?;
+
+        if dir_path.exists() {
+            fs::remove_dir_all(dir_path)
+                .await
+                .map_err(|e| format!("Failed to remove directory: {}", e))?;
+        }
+
+        self.compute_rel_path(&new_file_path).await
     }
 }
 

@@ -1,57 +1,18 @@
 use chrono::Utc;
-use rusqlite::{named_params, Connection};
-
-use crate::commands::workspace::open_workspace_db;
+use rusqlite::{params, Connection};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Mutex;
 use uuid::Uuid;
 
-use crate::models::page::{CreatePageRequest, MovePageRequest, Page, UpdatePageRequest};
-use crate::services::{page_path_service, FileSyncService};
+use crate::commands::workspace::open_workspace_db;
+use crate::models::page::{CreatePageRequest, Page, UpdatePageRequest};
+use crate::services::file_sync::FileSyncService;
 use crate::utils::page_sync::sync_page_to_markdown;
 
-/// Get all pages
-#[tauri::command]
-pub async fn get_pages(workspace_path: String) -> Result<Vec<Page>, String> {
-    let conn = open_workspace_db(&workspace_path)?;
-
-    println!(
-        "[get_pages] Getting pages from workspace: {}",
-        workspace_path
-    );
-
-    let mut stmt = conn
-        .prepare(
-            "SELECT id, title, parent_id, file_path, is_directory, file_mtime, file_size, created_at, updated_at
-            FROM pages
-            ORDER BY created_at DESC",
-        )
-        .map_err(|e| e.to_string())?;
-
-    let pages = stmt
-        .query_map([], |row| {
-            let page = Page {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                parent_id: row.get(2)?,
-                file_path: row.get(3)?,
-                is_directory: row.get::<_, i32>(4)? != 0,
-                file_mtime: row.get(5)?,
-                file_size: row.get(6)?,
-                created_at: row.get(7)?,
-                updated_at: row.get(8)?,
-            };
-            println!(
-                "[get_pages] Found page: id={}, title={}, parent={:?}",
-                page.id, page.title, page.parent_id
-            );
-            Ok(page)
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
-
-    println!("[get_pages] Returning {} pages from DB", pages.len());
-
-    Ok(pages)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetPageRequest {
+    pub page_id: String,
 }
 
 /// Create a new page
@@ -61,310 +22,264 @@ pub async fn create_page(
     workspace_path: String,
     request: CreatePageRequest,
 ) -> Result<Page, String> {
-    let mut conn = open_workspace_db(&workspace_path)?;
-
+    let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
+    
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
 
-    println!(
-        "[create_page] Creating page: id={}, title={}, parent_id={:?}",
-        id, request.title, request.parent_id
-    );
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute("BEGIN TRANSACTION", []).map_err(|e| e.to_string())?;
+    }
 
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    // Check if parent page exists (if parent_id provided)
+    if let Some(parent_id) = &request.parent_id {
+        let count: i64 = {
+            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+            conn.query_row(
+                "SELECT COUNT(*) FROM pages WHERE id = ?",
+                [parent_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| "Failed to check parent page".to_string())?
+        };
 
-    tx.execute(
-        "INSERT INTO pages (id, title, parent_id, file_path, is_directory, created_at, updated_at)
-         VALUES (:id, :title, :parent_id, :file_path, 0, :created_at, :updated_at)",
-        named_params! {
-            ":id": &id,
-            ":title": &request.title,
-            ":parent_id": &request.parent_id,
-            ":file_path": &request.file_path,
-            ":created_at": &now,
-            ":updated_at": &now,
-        },
-    )
-    .map_err(|e| format!("Failed to insert page: {}", e))?;
+        if count == 0 {
+            {
+                let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+                let _ = conn.execute("ROLLBACK", []);
+            }
+            return Err("Parent page not found".to_string());
+        }
 
-    println!("[create_page] Page inserted into DB successfully (pending commit)");
+        // Check if parent is a directory (is_directory = 1)
+        let is_dir: bool = {
+            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+            conn.query_row(
+                "SELECT is_directory FROM pages WHERE id = ?",
+                [parent_id],
+                |row| Ok(row.get::<_, i32>(0)? != 0),
+            )
+            .map_err(|_| "Failed to check parent directory status".to_string())?
+        };
 
-    // Create file in file system (workspace_path is passed as parameter)
-    let file_sync = FileSyncService::new(workspace_path.clone());
-    
-    // Pass transaction to create_page_file (it derefs to Connection)
-    let file_path = match file_sync.create_page_file(&tx, &id, &request.title) {
+        if !is_dir {
+            {
+                let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+                let _ = conn.execute("ROLLBACK", []);
+            }
+            return Err(
+                "Parent page must be converted to a directory before adding children".to_string(),
+            );
+        }
+    }
+
+    // Insert into DB
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "INSERT INTO pages (id, title, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            params![&id, &request.title, &request.parent_id, &now, &now],
+        )
+        .map_err(|e| {
+            // Need to drop lock before returning error?
+            // Actually map_err consumes the error.
+            // We need to rollback.
+            // But we are inside lock scope.
+            // We can just return error string, and handle rollback via Drop? No, simple rollback logic.
+            // Simplified: if error, return it. Caller logic? No, I must rollback here.
+            // But I hold the lock.
+            // I can execute rollback here.
+            let _ = conn.execute("ROLLBACK", []);
+            format!("Failed to insert page: {}", e)
+        })?;
+    }
+
+    // Create file
+    let file_sync = FileSyncService::new(&workspace_path);
+    // Pass conn_mutex to create_page_file
+    let file_path = match file_sync.create_page_file(&conn_mutex, &id, &request.title).await {
         Ok(path) => path,
         Err(e) => {
-            // Transaction will be rolled back when tx is dropped on return
+            {
+                let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+                let _ = conn.execute("ROLLBACK", []);
+            }
             return Err(format!("Failed to create page file: {}", e));
         }
     };
 
-    // Update file_path in database
-    tx.execute(
-        "UPDATE pages SET file_path = :file_path WHERE id = :id",
-        named_params! {
-            ":file_path": &file_path,
-            ":id": &id,
-        },
-    )
-    .map_err(|e| e.to_string())?;
+    // Update file path in DB
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE pages SET file_path = ? WHERE id = ?",
+            params![file_path, id],
+        )
+        .map_err(|e| {
+            let _ = conn.execute("ROLLBACK", []);
+            format!("Failed to update page file path: {}", e)
+        })?;
 
-    println!("[create_page] File created at: {}", file_path);
-    println!("[create_page] Updated file_path in DB");
-
-    // Update page_paths for wiki link resolution
-    if let Err(e) = page_path_service::update_page_path(&tx, &id, &file_path) {
-        // Compensating transaction: Delete the created file
-        println!("[create_page] Update page path failed, deleting created file...");
-        let _ = file_sync.delete_page_file(&tx, &id);
-        return Err(format!("Failed to update page path: {}", e));
+        conn.execute("COMMIT", [])
+            .map_err(|e| format!("Failed to commit transaction: {}", e))?;
     }
 
-    // Commit the transaction
-    tx.commit().map_err(|e| format!("Failed to commit transaction: {}", e))?;
-    println!("[create_page] Transaction committed");
-
-    // Re-query the page from the connection (transaction is consumed)
-    let page = get_page_by_id(&conn, &id)?;
-    println!("[create_page] Returning page: {:?}", page);
+    // Re-query to get full page object
+    // get_page_internal needs to be updated to take Mutex or I unwrap it?
+    // I can just lock locally.
+    let new_page = get_page_internal(&conn_mutex, &id)?;
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
-    Ok(page)
+    Ok(new_page)
 }
 
-/// Update a page
+/// Get all pages
 #[tauri::command]
-pub async fn update_page(
+pub async fn get_pages(workspace_path: String) -> Result<Vec<Page>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, title, parent_id, file_path, is_directory, file_mtime, file_size, created_at, updated_at
+             FROM pages
+             WHERE is_deleted = 0
+             ORDER BY title",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let pages = stmt
+        .query_map([], |row| {
+            Ok(Page {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                parent_id: row.get(2)?,
+                file_path: row.get(3)?,
+                is_directory: row.get::<_, i32>(4)? != 0,
+                file_mtime: row.get(5)?,
+                file_size: row.get(6)?,
+                created_at: row.get(7)?,
+                updated_at: row.get(8)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(pages)
+}
+
+/// Update page title
+#[tauri::command]
+pub async fn update_page_title(
     app: tauri::AppHandle,
     workspace_path: String,
     request: UpdatePageRequest,
 ) -> Result<Page, String> {
     let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
     let now = Utc::now().to_rfc3339();
 
-    let page = get_page_by_id(&conn, &request.id)?;
-
-    // Use provided values or fall back to existing page data
-    let new_title = request.title.clone().unwrap_or_else(|| page.title.clone());
-    let new_parent_id = request.parent_id.or_else(|| page.parent_id.clone());
-    let new_file_path = request.file_path.clone().or_else(|| page.file_path.clone());
-
-    // If title changed, rename file AND rewrite all wiki-link references that point to this page's old path.
     if let Some(title) = &request.title {
-        if title != &page.title {
-            // Capture old wiki target (workspace-relative, without .md)
-            let old_path = page
-                .file_path
-                .clone()
-                .unwrap_or_else(|| format!("{}.md", page.title));
-            let from_target = old_path
-                .strip_suffix(".md")
-                .unwrap_or(old_path.as_str())
-                .to_string();
+        // Rename file first
+        let file_sync = FileSyncService::new(&workspace_path);
+        let new_file_path = file_sync
+            .rename_page_file(&conn_mutex, &request.id, title)
+            .await?;
 
-            let file_sync = FileSyncService::new(workspace_path.clone());
-            let new_path = file_sync
-                .rename_page_file(&conn, &request.id, title)
-                .map_err(|e| format!("Failed to rename page file: {}", e))?;
-
-            // Persist the page metadata changes
+        // Update DB
+        {
+            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
             conn.execute(
-                "UPDATE pages SET title = :title, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
-                named_params! {
-                    ":title": &new_title,
-                    ":file_path": &new_path,
-                    ":updated_at": &now,
-                    ":id": &request.id,
-                },
+                "UPDATE pages SET title = ?, file_path = ?, updated_at = ? WHERE id = ?",
+                params![title, new_file_path, now, request.id],
             )
             .map_err(|e| e.to_string())?;
-
-            // Compute new wiki target (workspace-relative, without .md)
-            let to_target = new_path
-                .strip_suffix(".md")
-                .unwrap_or(new_path.as_str())
-                .to_string();
-
-            // Rewrite referencing blocks in DB and sync affected pages back to markdown files (SoT = files).
-            // Note: This uses the existing targeted rewrite helper defined in this module.
-            rewrite_wiki_links_for_page_path_change(workspace_path.clone(), from_target, to_target)
-                .await?;
-
-            // Update page_paths for wiki link resolution with new path
-            page_path_service::update_page_path(&conn, &request.id, &new_path)
-                .map_err(|e| format!("Failed to update page path: {}", e))?;
-
-            // Ensure the renamed page's file reflects the rename (serializer may rely on the new file_path)
-            sync_page_to_markdown(&conn, &workspace_path, &request.id)?;
-
-            return get_page_by_id(&conn, &request.id);
         }
+
+        // Re-write file content to update title inside the file (if header is used)
+        // Or just ensure sync
+        sync_page_to_markdown(&conn_mutex, &workspace_path, &request.id).await?;
+    } else {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE pages SET updated_at = ? WHERE id = ?",
+            params![now, request.id],
+        )
+        .map_err(|e| e.to_string())?;
     }
-
-    conn.execute(
-        "UPDATE pages SET title = :title, parent_id = :parent_id, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
-        named_params! {
-            ":title": &new_title,
-            ":parent_id": &new_parent_id,
-            ":file_path": &new_file_path,
-            ":updated_at": &now,
-            ":id": &request.id
-        },
-    )
-    .map_err(|e| e.to_string())?;
-
-    // Always update page_paths if file_path exists (either from request or existing)
-    if let Some(ref path) = new_file_path {
-        page_path_service::update_page_path(&conn, &request.id, path)
-            .map_err(|e| format!("Failed to update page path: {}", e))?;
-    }
-
-    let page = get_page_by_id(&conn, &request.id)?;
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
-    Ok(page)
+    get_page_internal(&conn_mutex, &request.id)
 }
 
-/// Delete a page (and all its blocks)
+/// Delete a page
 #[tauri::command]
 pub async fn delete_page(
     app: tauri::AppHandle,
     workspace_path: String,
     page_id: String,
-) -> Result<bool, String> {
-    println!("[delete_page] Called with page_id: {}", page_id);
-
+) -> Result<String, String> {
     let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
 
-    // Get parent before deletion
-    let page = get_page_by_id(&conn, &page_id)?;
-    let parent_id = page.parent_id.clone();
-
-    println!("[delete_page] Found page to delete:");
-    println!("  - id: {}", page.id);
-    println!("  - title: {}", page.title);
-    println!("  - parent_id: {:?}", page.parent_id);
-    println!("  - file_path: {:?}", page.file_path);
-
-    // Log all pages before deletion
-    let all_pages_before: Vec<(String, String, Option<String>)> = conn
-        .prepare("SELECT id, title, parent_id FROM pages ORDER BY title")
-        .map_err(|e| e.to_string())?
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-            ))
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
-
-    println!("[delete_page] All pages before deletion:");
-    for (id, title, parent_id) in &all_pages_before {
-        println!("  - {} (title: {}, parent: {:?})", id, title, parent_id);
-    }
-
-    // Get children that will be deleted by CASCADE
-    let children: Vec<(String, String)> = conn
-        .prepare("SELECT id, title FROM pages WHERE parent_id = :parent_id")
-        .map_err(|e| e.to_string())?
-        .query_map(named_params! { ":parent_id": &page_id }, |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
-
-    if !children.is_empty() {
-        println!(
-            "[delete_page] WARNING: This page has {} children that will be CASCADE deleted:",
-            children.len()
-        );
-        for (child_id, child_title) in &children {
-            println!("  - {} (title: {})", child_id, child_title);
-        }
-    } else {
-        println!("[delete_page] This page has no children");
-    }
-
-    // Delete file from file system
-    println!("[delete_page] Deleting page file from filesystem...");
-    let file_sync = FileSyncService::new(workspace_path.clone());
-    file_sync
-        .delete_page_file(&conn, &page_id)
-        .map_err(|e| format!("Failed to delete page file: {}", e))?;
-    println!("[delete_page] Page file deleted successfully");
-
-    // CASCADE will automatically delete all blocks and child pages
-    println!("[delete_page] Executing DELETE FROM pages WHERE id = :id...");
-    let deleted_count = conn
-        .execute(
-            "DELETE FROM pages WHERE id = :id",
-            named_params! { ":id": &page_id },
+    // Check if page has children
+    let children_count: i64 = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
+            "SELECT COUNT(*) FROM pages WHERE parent_id = ?",
+            [&page_id],
+            |row| row.get(0),
         )
-        .map_err(|e| e.to_string())?;
-    println!(
-        "[delete_page] Deleted {} page(s) from database (CASCADE may delete more)",
-        deleted_count
-    );
-
-    // Log all pages after deletion
-    let all_pages_after: Vec<(String, String, Option<String>)> = conn
-        .prepare("SELECT id, title, parent_id FROM pages ORDER BY title")
         .map_err(|e| e.to_string())?
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-            ))
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
+    };
 
-    println!("[delete_page] All pages after deletion:");
-    for (id, title, parent_id) in &all_pages_after {
-        println!("  - {} (title: {}, parent: {:?})", id, title, parent_id);
+    if children_count > 0 {
+        return Err("Cannot delete page with children".to_string());
     }
 
-    let deleted_count_total = all_pages_before.len() - all_pages_after.len();
-    println!(
-        "[delete_page] Total pages deleted (including CASCADE): {}",
-        deleted_count_total
-    );
+    // Delete file
+    let file_sync = FileSyncService::new(&workspace_path);
+    file_sync.delete_page_file(&conn_mutex, &page_id).await?;
 
-    // Check if parent should be converted back to regular file
-    if let Some(pid) = parent_id {
-        println!(
-            "[delete_page] Checking if parent {} should be converted to file...",
-            pid
-        );
-        check_and_convert_to_file(&conn, &workspace_path, &pid)?;
+    // Delete from DB (Cascade will handle blocks, but we do it explicitly to be safe)
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM pages WHERE id = ?", [&page_id])
+            .map_err(|e| e.to_string())?;
     }
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
-    println!("[delete_page] Completed successfully");
-    Ok(true)
+    Ok(page_id)
 }
 
-// ============ Helper Functions ============
+/// Get a single page
+#[tauri::command]
+pub async fn get_page(
+    workspace_path: String,
+    request: GetPageRequest,
+) -> Result<Option<Page>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
+    match get_page_internal(&conn_mutex, &request.page_id) {
+        Ok(page) => Ok(Some(page)),
+        Err(_) => Ok(None),
+    }
+}
 
-fn get_page_by_id(conn: &Connection, id: &str) -> Result<Page, String> {
+// Internal helper to get page
+fn get_page_internal(conn_mutex: &Mutex<Connection>, page_id: &str) -> Result<Page, String> {
+    let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
     conn.query_row(
         "SELECT id, title, parent_id, file_path, is_directory, file_mtime, file_size, created_at, updated_at
-         FROM pages WHERE id = :id",
-        named_params! { ":id": id },
+         FROM pages WHERE id = ?",
+        [page_id],
         |row| {
             Ok(Page {
                 id: row.get(0)?,
@@ -379,229 +294,58 @@ fn get_page_by_id(conn: &Connection, id: &str) -> Result<Page, String> {
             })
         },
     )
-    .map_err(|e| format!("Page not found: {}", e))
+    .map_err(|e| e.to_string())
 }
 
-/// Move a page to a new parent
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PageTreeItem {
+    #[serde(flatten)]
+    pub page: Page,
+    pub children: Vec<PageTreeItem>,
+    pub depth: i32,
+}
+
 #[tauri::command]
-pub async fn move_page(
-    app: tauri::AppHandle,
-    workspace_path: String,
-    request: MovePageRequest,
-) -> Result<Page, String> {
-    println!("[move_page] Called with request:");
-    println!("  - id: {}", request.id);
-    println!("  - new_parent_id: {:?}", request.new_parent_id);
+pub async fn get_page_tree(workspace_path: String) -> Result<Vec<PageTreeItem>, String> {
+    let pages = get_pages(workspace_path).await?;
+    let mut tree: Vec<PageTreeItem> = Vec::new();
+    let mut page_map: HashMap<String, Vec<Page>> = HashMap::new();
 
-    let conn = open_workspace_db(&workspace_path)?;
-    let now = Utc::now().to_rfc3339();
-
-    // Log all pages before move
-    let all_pages_before: Vec<(String, String, Option<String>)> = conn
-        .prepare("SELECT id, title, parent_id FROM pages ORDER BY title")
-        .map_err(|e| e.to_string())?
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-            ))
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
-
-    println!("[move_page] All pages before move:");
-    for (id, title, parent_id) in &all_pages_before {
-        println!("  - {} (title: {}, parent: {:?})", id, title, parent_id);
+    // Group by parent_id
+    for page in pages {
+        let parent_id = page.parent_id.clone().unwrap_or_else(|| "root".to_string());
+        page_map.entry(parent_id).or_default().push(page);
     }
 
-    // Validate: cannot move to itself
-    if let Some(parent_id) = &request.new_parent_id {
-        println!("[move_page] Validating move to parent: {}", parent_id);
-
-        if parent_id == &request.id {
-            println!("[move_page] ERROR: Cannot move page to itself");
-            return Err("Cannot move page to itself".to_string());
-        }
-
-        // Validate: cannot move to its own descendant
-        if is_descendant(&conn, parent_id, &request.id)? {
-            println!("[move_page] ERROR: Cannot move page to its own descendant");
-            return Err("Cannot move page to its own descendant".to_string());
-        }
-
-        let parent = get_page_by_id(&conn, parent_id)?;
-        println!(
-            "[move_page] Parent page: {} (is_directory: {})",
-            parent.title, parent.is_directory
-        );
-        if !parent.is_directory {
-            // Convert parent to directory first
-            println!("[move_page] Converting parent to directory...");
-            let file_sync = FileSyncService::new(workspace_path.clone());
-            let new_path = file_sync
-                .convert_page_to_directory(&conn, parent_id)
-                .map_err(|e| format!("Failed to convert parent to directory: {}", e))?;
-
-            conn.execute(
-                "UPDATE pages SET is_directory = 1, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
-                named_params! {
-                    ":file_path": &new_path,
-                    ":updated_at": &now,
-                    ":id": parent_id,
-                },
-            )
-            .map_err(|e| e.to_string())?;
-            println!(
-                "[move_page] Parent converted to directory with path: {}",
-                new_path
-            );
+    // Build tree
+    if let Some(root_pages) = page_map.get("root") {
+        for page in root_pages {
+            tree.push(build_tree_recursive(page.clone(), &page_map, 0));
         }
     }
 
-    // Move file in file system
-    println!("[move_page] Moving file in filesystem...");
-    let file_sync = FileSyncService::new(workspace_path.clone());
-    let new_path = file_sync
-        .move_page_file(
-            &conn,
-            &request.id,
-            request.new_parent_id.as_ref().map(|s| s.as_str()),
-        )
-        .map_err(|e| format!("Failed to move page file: {}", e))?;
-    println!("[move_page] File moved to: {}", new_path);
-
-    // Get old parent before update
-    let page = get_page_by_id(&conn, &request.id)?;
-    let old_parent_id = page.parent_id.clone();
-    println!("[move_page] Current page state:");
-    println!("  - id: {}", page.id);
-    println!("  - title: {}", page.title);
-    println!("  - old parent_id: {:?}", old_parent_id);
-    println!("  - old file_path: {:?}", page.file_path);
-
-    // Update database
-    println!("[move_page] Updating database...");
-    conn.execute(
-        "UPDATE pages SET parent_id = :parent_id, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
-        named_params! {
-            ":parent_id": &request.new_parent_id,
-            ":file_path": &new_path,
-            ":updated_at": &now,
-            ":id": &request.id,
-        },
-    )
-    .map_err(|e| e.to_string())?;
-    println!("[move_page] Database updated successfully");
-
-    // Check if old parent should be converted back to regular file
-    if let Some(old_pid) = old_parent_id {
-        println!(
-            "[move_page] Checking if old parent {} should be converted back to file...",
-            old_pid
-        );
-        check_and_convert_to_file(&conn, &workspace_path, &old_pid)?;
-    }
-
-    let page = get_page_by_id(&conn, &request.id)?;
-    println!("[move_page] Final page state:");
-    println!("  - id: {}", page.id);
-    println!("  - title: {}", page.title);
-    println!("  - parent_id: {:?}", page.parent_id);
-    println!("  - file_path: {:?}", page.file_path);
-
-    // Log all pages after move
-    let all_pages_after: Vec<(String, String, Option<String>)> = conn
-        .prepare("SELECT id, title, parent_id FROM pages ORDER BY title")
-        .map_err(|e| e.to_string())?
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-            ))
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
-
-    println!("[move_page] All pages after move:");
-    for (id, title, parent_id) in &all_pages_after {
-        println!("  - {} (title: {}, parent: {:?})", id, title, parent_id);
-    }
-
-    // Emit workspace changed event for git monitoring
-    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
-
-    println!("[move_page] Move completed successfully");
-    Ok(page)
+    Ok(tree)
 }
 
-/// Check if target_id is a descendant of page_id
-fn is_descendant(conn: &Connection, target_id: &str, page_id: &str) -> Result<bool, String> {
-    let mut current_id = Some(target_id.to_string());
-
-    while let Some(id) = current_id {
-        let page = get_page_by_id(conn, &id)?;
-
-        if let Some(parent_id) = page.parent_id {
-            if parent_id == page_id {
-                return Ok(true);
-            }
-            current_id = Some(parent_id);
-        } else {
-            break;
+fn build_tree_recursive(
+    page: Page,
+    page_map: &HashMap<String, Vec<Page>>,
+    depth: i32,
+) -> PageTreeItem {
+    let mut children: Vec<PageTreeItem> = Vec::new();
+    if let Some(child_pages) = page_map.get(&page.id) {
+        for child in child_pages {
+            children.push(build_tree_recursive(child.clone(), page_map, depth + 1));
         }
     }
-
-    Ok(false)
+    PageTreeItem {
+        page,
+        children,
+        depth,
+    }
 }
 
-/// Check if page has children, and convert to regular file if not
-fn check_and_convert_to_file(
-    conn: &Connection,
-    workspace_path: &str,
-    page_id: &str,
-) -> Result<(), String> {
-    let parent = get_page_by_id(conn, page_id)?;
-
-    if !parent.is_directory {
-        return Ok(());
-    }
-
-    // Count children (exclude soft-deleted)
-    let child_count: i32 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM pages WHERE parent_id = :parent_id AND is_deleted = 0",
-            named_params! { ":parent_id": page_id },
-            |row| row.get(0),
-        )
-        .map_err(|e| format!("Failed to count children: {}", e))?;
-
-    // If no children remain, convert back to regular file
-    if child_count == 0 {
-        let file_sync = FileSyncService::new(workspace_path);
-        let new_path = file_sync
-            .convert_directory_to_file(conn, page_id)
-            .map_err(|e| format!("Failed to convert to file: {}", e))?;
-
-        let now = chrono::Utc::now().to_rfc3339();
-        conn.execute(
-            "UPDATE pages SET is_directory = 0, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
-            named_params! {
-                ":file_path": &new_path,
-                ":updated_at": &now,
-                ":id": page_id,
-            },
-        )
-        .map_err(|e| e.to_string())?;
-    }
-
-    Ok(())
-}
-
-/// Convert a page to directory (when adding first child)
+/// Convert a page to a directory (folder)
 #[tauri::command]
 pub async fn convert_page_to_directory(
     app: tauri::AppHandle,
@@ -609,286 +353,135 @@ pub async fn convert_page_to_directory(
     page_id: String,
 ) -> Result<Page, String> {
     let conn = open_workspace_db(&workspace_path)?;
-    let now = Utc::now().to_rfc3339();
+    let conn_mutex = Mutex::new(conn);
+    let file_sync = FileSyncService::new(&workspace_path);
 
     // Convert file to directory structure
-    let file_sync = FileSyncService::new(workspace_path.clone());
     let new_path = file_sync
-        .convert_page_to_directory(&conn, &page_id)
-        .map_err(|e| format!("Failed to convert to directory: {}", e))?;
+        .convert_page_to_directory(&conn_mutex, &page_id)
+        .await?;
 
-    // Update database
-    conn.execute(
-        "UPDATE pages SET is_directory = 1, file_path = :file_path, updated_at = :updated_at WHERE id = :id",
-        named_params! {
-            ":file_path": &new_path,
-            ":updated_at": &now,
-            ":id": &page_id,
-        },
-    )
-    .map_err(|e| e.to_string())?;
-
-    let page = get_page_by_id(&conn, &page_id)?;
+    // Update DB
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE pages SET is_directory = 1, file_path = ? WHERE id = ?",
+            params![new_path, page_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
-    Ok(page)
+    get_page_internal(&conn_mutex, &page_id)
 }
 
-/// Debug: Check database state
+/// Move a page to a new parent
 #[tauri::command]
-pub async fn debug_db_state(workspace_path: String) -> Result<String, String> {
-    let conn = open_workspace_db(&workspace_path)?;
-
-    let count: i32 = conn
-        .query_row("SELECT COUNT(*) FROM pages", [], |row| row.get(0))
-        .map_err(|e| e.to_string())?;
-
-    let mut stmt = conn
-        .prepare("SELECT id, title, file_path FROM pages ORDER BY created_at DESC LIMIT 5")
-        .map_err(|e| e.to_string())?;
-
-    let mut result = format!("Total pages in DB: {}\n\nRecent pages:\n", count);
-
-    let pages = stmt
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-            ))
-        })
-        .map_err(|e| e.to_string())?;
-
-    for (i, page) in pages.enumerate() {
-        let (id, title, file_path) = page.map_err(|e| e.to_string())?;
-        result.push_str(&format!(
-            "{}. {} (id: {}, path: {:?})\n",
-            i + 1,
-            title,
-            id,
-            file_path
-        ));
-    }
-
-    Ok(result)
-}
-
-/// Rewrite wiki links in blocks that reference a moved/renamed page.
-///
-/// Avoid mojibake by ONLY rewriting the wiki-link target inside `[[...]]` / `![[...]]`
-/// markers, and never re-encoding or otherwise altering unrelated unicode content.
-///
-/// This is a targeted update (no full-workspace scan):
-/// 1) Find blocks that contain `[[from_path]]` / `[[from_path|` / `[[from_path#` / `![[from_path...]]`
-/// 2) Rewrite only those blocks' `content` fields.
-///
-/// NOTE:
-/// - This updates the DB `blocks.content` only. If markdown files are authoritative,
-///   you should additionally sync the affected pages back to disk after this rewrite.
-#[tauri::command]
-pub async fn rewrite_wiki_links_for_page_path_change(
+pub async fn move_page(
+    app: tauri::AppHandle,
     workspace_path: String,
-    from_path: String,
-    to_path: String,
-) -> Result<i64, String> {
-    if from_path.trim().is_empty() || to_path.trim().is_empty() {
-        return Err("from_path/to_path must be non-empty".to_string());
-    }
-    if from_path == to_path {
-        return Ok(0);
-    }
+    page_id: String,
+    parent_id: Option<String>,
+) -> Result<Page, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
+    let file_sync = FileSyncService::new(&workspace_path);
 
-    let mut conn = open_workspace_db(&workspace_path)?;
-    let now = Utc::now().to_rfc3339();
-
-    // Optimize: Use wiki_links index to find blocks that reference the from_path.
-    // This avoids multiple LIKE queries on the blocks table.
-    // Wiki links index (idx_wiki_links_target_path) provides O(log n) lookup.
-    let mut candidate_ids: Vec<String> = {
-        let mut stmt = conn
-            .prepare("SELECT DISTINCT from_block_id FROM wiki_links WHERE target_path = :target_path")
-            .map_err(|e| e.to_string())?;
-
-        let rows = stmt
-            .query_map(named_params! { ":target_path": &from_path }, |row| row.get::<_, String>(0))
-            .map_err(|e| e.to_string())?;
-
-        let mut ids = Vec::new();
-        for id in rows {
-            ids.push(id.map_err(|e| e.to_string())?);
-        }
-        ids
-    };
-
-    // Also check for blocks with wiki links in content that might not be indexed yet.
-    // Use a single LIKE query instead of multiple patterns.
-    let content_pattern = format!("%[[{}%", from_path);
-    {
-        let mut stmt2 = conn
-            .prepare("SELECT id FROM blocks WHERE content LIKE :content_pattern AND id NOT IN (SELECT from_block_id FROM wiki_links WHERE target_path = :target_path)")
-            .map_err(|e| e.to_string())?;
-
-        let rows = stmt2
-            .query_map(named_params! { ":content_pattern": &content_pattern, ":target_path": &from_path }, |row| {
-                row.get::<_, String>(0)
-            })
-            .map_err(|e| e.to_string())?;
-
-        for id in rows {
-            let id = id.map_err(|e| e.to_string())?;
-            if !candidate_ids.contains(&id) {
-                candidate_ids.push(id);
+    // If moving to a parent, ensure parent is a directory
+    if let Some(pid) = &parent_id {
+        let parent = get_page_internal(&conn_mutex, pid)?;
+        if !parent.is_directory {
+            // Auto-convert parent to directory
+            let new_parent_path = file_sync
+                .convert_page_to_directory(&conn_mutex, pid)
+                .await?;
+            {
+                let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+                conn.execute(
+                    "UPDATE pages SET is_directory = 1, file_path = ? WHERE id = ?",
+                    params![new_parent_path, pid],
+                )
+                .map_err(|e| e.to_string())?;
             }
         }
     }
 
-    // Sort and deduplicate results
-    candidate_ids.sort();
-    candidate_ids.dedup();
-    let all_candidate_ids = candidate_ids;
+    // Move file
+    let new_path = file_sync
+        .move_page_file(&conn_mutex, &page_id, parent_id.as_deref())
+        .await?;
 
-    if all_candidate_ids.is_empty() {
-        return Ok(0);
-    }
-
-    // Track which pages were affected so we can sync them back to markdown files.
-    let mut touched_page_ids: Vec<String> = Vec::new();
-
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
-
-    let mut updated_count: i64 = 0;
-
-    for block_id in all_candidate_ids {
-        let (page_id, content): (String, String) = tx
-            .query_row(
-                "SELECT page_id, content FROM blocks WHERE id = :id",
-                named_params! { ":id": &block_id },
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .map_err(|e| e.to_string())?;
-
-        let updated = rewrite_wiki_link_targets_in_text(&content, &from_path, &to_path);
-        if updated == content {
-            continue;
-        }
-
-        tx.execute(
-            "UPDATE blocks SET content = :content, updated_at = :updated_at WHERE id = :id",
-            named_params! {
-                ":content": updated,
-                ":updated_at": &now,
-                ":id": &block_id,
-            },
+    // Update DB
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE pages SET parent_id = ?, file_path = ? WHERE id = ?",
+            params![parent_id, new_path, page_id],
         )
         .map_err(|e| e.to_string())?;
-
-        if !touched_page_ids.iter().any(|x| x == &page_id) {
-            touched_page_ids.push(page_id);
-        }
-
-        updated_count += 1;
     }
 
-    tx.commit().map_err(|e| e.to_string())?;
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
-    // SoT is filesystem markdown: persist the DB mutation back to disk immediately.
-    for page_id in touched_page_ids {
-        sync_page_to_markdown(&conn, &workspace_path, &page_id)?;
-    }
-
-    Ok(updated_count)
+    get_page_internal(&conn_mutex, &page_id)
 }
 
-/// Replace wiki-link targets in a block of markdown text, preserving aliases and anchors.
-///
-/// Rewrites only:
-/// - [[from]]      -> [[to]]
-/// - [[from|...]]  -> [[to|...]]
-/// - [[from#...]]  -> [[to#...]]
-/// - ![[from...]]  -> ![[to...]]
-fn rewrite_wiki_link_targets_in_text(input: &str, from: &str, to: &str) -> String {
-    // Byte-safe copy:
-    // - copy everything outside of wiki link markers verbatim (as bytes)
-    // - within a `[[...]]` or `![[...]]`, rewrite ONLY when the target matches `from`
-    //
-    // This avoids corrupting unrelated unicode content.
-    let mut out: Vec<u8> = Vec::with_capacity(input.len());
-    let bytes = input.as_bytes();
-    let from_bytes = from.as_bytes();
-    let to_bytes = to.as_bytes();
-    let mut i: usize = 0;
+/// Convert a directory back to a file (if no children)
+#[tauri::command]
+pub async fn convert_directory_to_file(
+    app: tauri::AppHandle,
+    workspace_path: String,
+    page_id: String,
+) -> Result<Page, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
 
-    while i < bytes.len() {
-        let is_embed =
-            bytes[i] == b'!' && i + 2 < bytes.len() && bytes[i + 1] == b'[' && bytes[i + 2] == b'[';
-        let is_link = bytes[i] == b'[' && i + 1 < bytes.len() && bytes[i + 1] == b'[';
+    // Check if directory has children
+    let children_count: i64 = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
+            "SELECT COUNT(*) FROM pages WHERE parent_id = ?",
+            [&page_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?
+    };
 
-        if !(is_embed || is_link) {
-            out.push(bytes[i]);
-            i += 1;
-            continue;
-        }
-
-        let start = i;
-        let open_len = if is_embed { 3 } else { 2 };
-        let mut j = i + open_len;
-
-        while j + 1 < bytes.len() {
-            if bytes[j] == b']' && bytes[j + 1] == b']' {
-                break;
-            }
-            j += 1;
-        }
-
-        if j + 1 >= bytes.len() {
-            // Unterminated marker; copy remainder as-is.
-            out.extend_from_slice(&bytes[start..]);
-            break;
-        }
-
-        // inner is bytes[(i+open_len)..j]
-        let inner_start = i + open_len;
-        let inner_end = j;
-
-        // Check whether inner starts with from and is followed by `]]` / `|` / `#`.
-        let mut did_replace = false;
-        if inner_end >= inner_start + from_bytes.len()
-            && &bytes[inner_start..(inner_start + from_bytes.len())] == from_bytes
-        {
-            let tail_start = inner_start + from_bytes.len();
-            let tail = &bytes[tail_start..inner_end];
-
-            let should_replace = tail.is_empty() || tail[0] == b'|' || tail[0] == b'#';
-            if should_replace {
-                // Write open marker bytes
-                out.extend_from_slice(&bytes[start..inner_start]);
-                // Write the new target bytes
-                out.extend_from_slice(to_bytes);
-                // Write the tail bytes
-                out.extend_from_slice(tail);
-                // Write closing "]]"
-                out.extend_from_slice(b"]]");
-                i = j + 2;
-                did_replace = true;
-            }
-        }
-
-        if did_replace {
-            continue;
-        }
-
-        // Default: copy through closing brackets unchanged.
-        out.extend_from_slice(&bytes[start..(j + 2)]);
-        i = j + 2;
+    if children_count > 0 {
+        return Err("Cannot convert directory with children to file".to_string());
     }
 
-    // Input was valid UTF-8; we only copied/replaced byte slices from/to UTF-8 strings.
-    // Converting back to String should be safe.
-    String::from_utf8(out).unwrap_or_else(|_| input.to_string())
+    let file_sync = FileSyncService::new(&workspace_path);
+    let new_path = file_sync
+        .convert_directory_to_file(&conn_mutex, &page_id)
+        .await?;
+
+    // Update DB
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE pages SET is_directory = 0, file_path = ? WHERE id = ?",
+            params![new_path, page_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    // Emit workspace changed event for git monitoring
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
+    get_page_internal(&conn_mutex, &page_id)
 }
 
-// NOTE: We intentionally do not sync pages back to markdown files here.
-// The authoritative source of truth should be clarified (DB vs filesystem) before adding
-// any automatic "DB -> markdown" writes in this command module.
+/// Manually trigger a re-sync of page markdown (for debugging or repair)
+#[tauri::command]
+pub async fn reindex_page_markdown(
+    workspace_path: String,
+    page_id: String,
+) -> Result<(), String> {
+    let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
+    sync_page_to_markdown(&conn_mutex, &workspace_path, &page_id).await
+}
