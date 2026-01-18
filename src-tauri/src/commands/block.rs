@@ -1187,58 +1187,38 @@ pub async fn merge_blocks(
     block_id: String,
     target_id: Option<String>,
 ) -> Result<Vec<Block>, String> {
-    let conn = open_workspace_db(&workspace_path)?;
-    let conn_mutex = Mutex::new(conn);
+    let mut conn = open_workspace_db(&workspace_path)?;
 
     // 1. Get current block
-    let block = {
-        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-        get_block_by_id(&conn, &block_id)?
-    };
+    let block = get_block_by_id(&conn, &block_id)?;
 
     // 2. Find target block (previous sibling or specified target)
-    let target_block = {
-        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-        match target_id {
-            Some(tid) => {
-                let target = get_block_by_id(&conn, &tid)?;
-                if target.page_id != block.page_id {
-                    return Err("Cannot merge blocks from different pages".to_string());
-                }
-                target
+    let target_block = match target_id {
+        Some(tid) => {
+            let target = get_block_by_id(&conn, &tid)?;
+            if target.page_id != block.page_id {
+                return Err("Cannot merge blocks from different pages".to_string());
             }
-            None => find_previous_sibling(&conn, &block)
-                .map_err(|_| "Cannot merge: no previous sibling".to_string())?,
+            target
         }
+        None => find_previous_sibling(&conn, &block)
+            .map_err(|_| "Cannot merge: no previous sibling".to_string())?,
     };
 
-    // Manual Transaction using conn_mutex
-    // NOTE: tx borrows conn mutably. If I use manual transaction, I must ensure order.
-    {
-        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-        conn.execute("BEGIN TRANSACTION", [])
-            .map_err(|e| e.to_string())?;
-    }
-
-    // 3. Move all children of current block to target block
-    // They should be appended to the end of target block's children
+    // Collect IDs for later use before transaction scope
     let mut moved_child_ids = Vec::new();
 
-    // We need to query then update. With Mutex, we lock for query, then maybe lock for update.
-    // Inside transaction, it is safe as long as we hold lock or if DB is locked by transaction.
-    // SQLite transaction locks the DB file (or WAL).
-    // Rusqlite Connection is thread-safe (Send).
-    // If we drop lock between operations, another thread might try to use connection.
-    // But connection is owned by this command (inside Mutex). No one else has it.
-    // Wait, create_block command creates NEW connection.
-    // So no contention on `conn` instance.
-    // So dropping lock locally is fine.
-
+    // Start RAII transaction - automatically rolls back on drop if not committed
     {
-        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| format!("Failed to start merge transaction: {}", e))?;
+
+        // 3. Move all children of current block to target block
+        // They should be appended to the end of target block's children
 
         // Get existing children of target block to find last order_weight
-        let last_child_weight: Option<f64> = conn
+        let last_child_weight: Option<f64> = tx
             .query_row(
                 "SELECT MAX(order_weight) FROM blocks WHERE parent_id = ?",
                 params![&target_block.id],
@@ -1247,20 +1227,23 @@ pub async fn merge_blocks(
             .ok()
             .flatten();
 
-        // Get children of current block
-        let mut children_stmt = conn
-            .prepare(
-                "SELECT id, order_weight FROM blocks WHERE parent_id = ? ORDER BY order_weight",
-            )
-            .map_err(|e| e.to_string())?;
+        // Get children of current block - use explicit loop to avoid statement lifetime issues
+        let mut children_rows: Vec<(String, f64)> = Vec::new();
+        {
+            let mut stmt = tx
+                .prepare(
+                    "SELECT id, order_weight FROM blocks WHERE parent_id = ? ORDER BY order_weight",
+                )
+                .map_err(|e| e.to_string())?;
 
-        let children_rows = children_stmt
-            .query_map([&block_id], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
-            })
-            .map_err(|e| e.to_string())?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| e.to_string())?;
+            let mut rows = stmt.query([&block_id]).map_err(|e| e.to_string())?;
+
+            while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+                let child_id: String = row.get(0).map_err(|e| e.to_string())?;
+                let order_weight: f64 = row.get(1).map_err(|e| e.to_string())?;
+                children_rows.push((child_id, order_weight));
+            }
+        }
 
         let now = Utc::now().to_rfc3339();
 
@@ -1271,7 +1254,7 @@ pub async fn merge_blocks(
             let new_weight = fractional_index::calculate_middle(last_weight, None);
             last_weight = Some(new_weight);
 
-            conn.execute(
+            tx.execute(
                 "UPDATE blocks SET parent_id = ?, order_weight = ?, updated_at = ? WHERE id = ?",
                 params![&target_block.id, new_weight, &now, &child_id],
             )
@@ -1283,34 +1266,36 @@ pub async fn merge_blocks(
         // 4. Update target block content (append current block content)
         let new_content = format!("{}{}", target_block.content, block.content);
 
-        conn.execute(
+        tx.execute(
             "UPDATE blocks SET content = ?, updated_at = ? WHERE id = ?",
             params![&new_content, &now, &target_block.id],
         )
         .map_err(|e| e.to_string())?;
 
         // 5. Delete current block (it is now empty and childless)
-        conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
+        tx.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
             .map_err(|e| e.to_string())?;
 
-        conn.execute("COMMIT", []).map_err(|e| e.to_string())?;
+        // Commit transaction - auto-rollback if any error occurs before this
+        tx.commit()
+            .map_err(|e| format!("Failed to commit merge transaction: {}", e))?;
     }
 
     // 6. Sync to markdown (Full rewrite to be safe for complex structural changes)
+    // Transaction is released, safe to await async operations now
+    let conn_mutex = Mutex::new(open_workspace_db(&workspace_path)?);
     sync_page_to_markdown(&conn_mutex, &workspace_path, &block.page_id).await?;
 
     // Return all changed blocks (merged block + moved children)
     let mut changed_blocks = Vec::new();
 
     // Updated target block (merged)
-    let updated_target = {
-        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-        get_block_by_id(&conn, &target_block.id)?
-    };
+    let conn = open_workspace_db(&workspace_path)?;
+    let updated_target = get_block_by_id(&conn, &target_block.id)?;
 
     // Index wiki links for merged target block
     {
-        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        let conn = open_workspace_db(&workspace_path)?;
         wiki_link_index::index_block_links(
             &conn,
             &updated_target.id,
@@ -1324,10 +1309,8 @@ pub async fn merge_blocks(
 
     // Moved children
     for child_id in moved_child_ids {
-        let child = {
-            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-            get_block_by_id(&conn, &child_id)?
-        };
+        let conn = open_workspace_db(&workspace_path)?;
+        let child = get_block_by_id(&conn, &child_id)?;
         changed_blocks.push(child);
     }
 

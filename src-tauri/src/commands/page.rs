@@ -28,111 +28,80 @@ pub async fn create_page(
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
 
+    // Use Transaction RAII for database operations
     {
-        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-        conn.execute("BEGIN TRANSACTION", [])
-            .map_err(|e| e.to_string())?;
-    }
+        let mut conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| format!("Failed to start transaction: {}", e))?;
 
-    // Check if parent page exists (if parent_id provided)
-    if let Some(parent_id) = &request.parent_id {
-        let count: i64 = {
-            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-            conn.query_row(
-                "SELECT COUNT(*) FROM pages WHERE id = ?",
-                [parent_id],
-                |row| row.get(0),
-            )
-            .map_err(|_| "Failed to check parent page".to_string())?
-        };
+        // Check if parent page exists (if parent_id provided)
+        if let Some(parent_id) = &request.parent_id {
+            let count: i64 = tx
+                .query_row(
+                    "SELECT COUNT(*) FROM pages WHERE id = ?",
+                    [parent_id],
+                    |row| row.get(0),
+                )
+                .map_err(|_| "Failed to check parent page".to_string())?;
 
-        if count == 0 {
-            {
-                let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-                let _ = conn.execute("ROLLBACK", []);
+            if count == 0 {
+                return Err("Parent page not found".to_string());
             }
-            return Err("Parent page not found".to_string());
+
+            // Check if parent is a directory (is_directory = 1)
+            let is_dir: bool = tx
+                .query_row(
+                    "SELECT is_directory FROM pages WHERE id = ?",
+                    [parent_id],
+                    |row| Ok(row.get::<_, i32>(0)? != 0),
+                )
+                .map_err(|_| "Failed to check parent directory status".to_string())?;
+
+            if !is_dir {
+                return Err(
+                    "Parent page must be converted to a directory before adding children"
+                        .to_string(),
+                );
+            }
         }
 
-        // Check if parent is a directory (is_directory = 1)
-        let is_dir: bool = {
-            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-            conn.query_row(
-                "SELECT is_directory FROM pages WHERE id = ?",
-                [parent_id],
-                |row| Ok(row.get::<_, i32>(0)? != 0),
-            )
-            .map_err(|_| "Failed to check parent directory status".to_string())?
-        };
-
-        if !is_dir {
-            {
-                let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-                let _ = conn.execute("ROLLBACK", []);
-            }
-            return Err(
-                "Parent page must be converted to a directory before adding children".to_string(),
-            );
-        }
-    }
-
-    // Insert into DB
-    {
-        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-        conn.execute(
+        // Insert into DB
+        tx.execute(
             "INSERT INTO pages (id, title, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
             params![&id, &request.title, &request.parent_id, &now, &now],
         )
-        .map_err(|e| {
-            // Need to drop lock before returning error?
-            // Actually map_err consumes the error.
-            // We need to rollback.
-            // But we are inside lock scope.
-            // We can just return error string, and handle rollback via Drop? No, simple rollback logic.
-            // Simplified: if error, return it. Caller logic? No, I must rollback here.
-            // But I hold the lock.
-            // I can execute rollback here.
-            let _ = conn.execute("ROLLBACK", []);
-            format!("Failed to insert page: {}", e)
-        })?;
+        .map_err(|e| format!("Failed to insert page: {}", e))?;
+
+        tx.commit()
+            .map_err(|e| format!("Failed to commit transaction: {}", e))?;
     }
 
-    // Create file
+    // Create file (outside transaction)
     let file_sync = FileSyncService::new(&workspace_path);
-    // Pass conn_mutex to create_page_file
-    let file_path = match file_sync
+    let file_path = file_sync
         .create_page_file(&conn_mutex, &id, &request.title)
         .await
-    {
-        Ok(path) => path,
-        Err(e) => {
-            {
-                let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-                let _ = conn.execute("ROLLBACK", []);
-            }
-            return Err(format!("Failed to create page file: {}", e));
-        }
-    };
+        .map_err(|e| format!("Failed to create page file: {}", e))?;
 
-    // Update file path in DB
+    // Update file path in DB (in a separate transaction)
     {
-        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-        conn.execute(
+        let mut conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| format!("Failed to start transaction: {}", e))?;
+
+        tx.execute(
             "UPDATE pages SET file_path = ? WHERE id = ?",
             params![file_path, id],
         )
-        .map_err(|e| {
-            let _ = conn.execute("ROLLBACK", []);
-            format!("Failed to update page file path: {}", e)
-        })?;
+        .map_err(|e| format!("Failed to update page file path: {}", e))?;
 
-        conn.execute("COMMIT", [])
+        tx.commit()
             .map_err(|e| format!("Failed to commit transaction: {}", e))?;
     }
 
     // Re-query to get full page object
-    // get_page_internal needs to be updated to take Mutex or I unwrap it?
-    // I can just lock locally.
     let new_page = get_page_internal(&conn_mutex, &id)?;
 
     // Emit workspace changed event for git monitoring
