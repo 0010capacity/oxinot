@@ -2,6 +2,7 @@ import { Box, Kbd, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { IconSearch } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCommandStore } from "../stores/commandStore";
+import { useDidUpdate } from "@mantine/hooks";
 
 interface CommandPaletteProps {
   opened: boolean;
@@ -45,14 +46,14 @@ export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
     });
   }, [commands, query]);
 
+  useDidUpdate(() => {
+    inputRef.current?.focus();
+  }, [opened]);
+
   useEffect(() => {
     if (opened) {
       setQuery("");
       setSelectedIndex(0);
-      // Focus input field after modal renders
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 0);
     }
   }, [opened]);
 

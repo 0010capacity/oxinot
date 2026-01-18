@@ -2,6 +2,7 @@ import { Box, Loader, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { IconFile, IconFolder, IconSearch } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDidUpdate } from "@mantine/hooks";
 import { type PageData, usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
@@ -70,16 +71,16 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
     [workspacePath]
   );
 
+  useDidUpdate(() => {
+    inputRef.current?.focus();
+  }, [opened]);
+
   useEffect(() => {
     if (opened) {
       setQuery("");
       setResults([]);
       setSelectedIndex(0);
       setCollapsed(new Set());
-      // Focus input field after modal renders
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 0);
     }
   }, [opened]);
 
