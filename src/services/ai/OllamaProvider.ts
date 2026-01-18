@@ -66,4 +66,17 @@ export class OllamaProvider implements IAIProvider {
     }
     return result;
   }
+
+  async getModels(baseUrl?: string): Promise<string[]> {
+    const url = `${(baseUrl || "http://localhost:11434").replace(/\/$/, "")}/api/tags`;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch Ollama models");
+      const data = await response.json();
+      return data.models?.map((m: any) => m.name) || [];
+    } catch (e) {
+      console.error("Failed to list Ollama models:", e);
+      return [];
+    }
+  }
 }

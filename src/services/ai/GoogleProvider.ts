@@ -47,4 +47,24 @@ export class GoogleProvider implements IAIProvider {
       throw e;
     }
   }
+
+  async getModels(_baseUrl?: string, apiKey?: string): Promise<string[]> {
+    if (!apiKey) return [];
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch Google models");
+      const data = await response.json();
+      // Google returns models like "models/gemini-1.5-flash". We might want to strip "models/" or keep it.
+      // Usually users just want the ID.
+      return data.models
+        ?.filter((m: any) => m.supportedGenerationMethods?.includes("generateContent"))
+        .map((m: any) => m.name.replace(/^models\//, ""))
+        .sort() || [];
+    } catch (e) {
+      console.error("Failed to list Google models:", e);
+      return [];
+    }
+  }
 }

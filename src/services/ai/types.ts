@@ -10,4 +10,5 @@ export interface IAIProvider {
   id: string;
   generateStream(request: AIRequest): AsyncGenerator<string, void, unknown>;
   generate(request: AIRequest): Promise<string>;
+  getModels(baseUrl?: string, apiKey?: string): Promise<string[]>;
 }
