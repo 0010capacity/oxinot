@@ -1,6 +1,6 @@
 [package]
 name = "oxinot"
-version = "0.19.0"
+version = "0.20.0"
 description = "Oxinot - A modern markdown outliner"
 authors = ["you"]
 license = ""
