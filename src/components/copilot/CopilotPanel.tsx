@@ -11,6 +11,7 @@ import {
   Menu,
   Box,
   LoadingOverlay,
+  Badge,
 } from "@mantine/core";
 import {
   IconArrowUp,
@@ -18,15 +19,25 @@ import {
   IconX,
   IconMaximize,
   IconMinimize,
+  IconReplace,
+  IconDownload,
+  IconTrash,
+  IconRefresh,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { useCopilotUiStore, type CopilotMode, type CopilotScope } from "../../stores/copilotUiStore";
 import { useAISettingsStore } from "../../stores/aiSettingsStore";
+import { createAIProvider } from "../../services/ai/factory";
+import { useBlockStore } from "../../stores/blockStore";
+import { useBlockUIStore } from "../../stores/blockUIStore";
+import { renderMarkdownToHtml } from "../../outliner/markdownRenderer";
+import { usePageStore } from "../../stores/pageStore";
 
 export function CopilotPanel() {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
   
   // Store state
   const isOpen = useCopilotUiStore((state) => state.isOpen);
@@ -43,10 +54,11 @@ export function CopilotPanel() {
   const setPreviewContent = useCopilotUiStore((state) => state.setPreviewContent);
   
   // Settings
-  const promptTemplates = useAISettingsStore((state) => state.promptTemplates);
+  const { provider, apiKey, baseUrl, model, promptTemplates } = useAISettingsStore();
 
   // Local state
   const [isExpanded, setIsExpanded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -54,32 +66,137 @@ export function CopilotPanel() {
     }
   }, [isOpen]);
 
-  const handleSend = () => {
+  // Auto-scroll to bottom of preview
+  useEffect(() => {
+    if (scrollViewportRef.current) {
+      scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
+    }
+  }, [previewContent]);
+
+  const gatherContext = (): { context: string; systemPrompt?: string } => {
+    const blockStore = useBlockStore.getState();
+    const uiStore = useBlockUIStore.getState();
+    const pageStore = usePageStore.getState();
+
+    let context = "";
+    let systemPrompt = "You are a helpful AI assistant integrated into a block-based outliner app.";
+
+    if (scope === "block") {
+      const focusedId = uiStore.focusedBlockId;
+      if (focusedId) {
+        const block = blockStore.blocksById[focusedId];
+        if (block) {
+          context = `Current Block Content:\n${block.content}`;
+          systemPrompt += " The user wants to edit or generate content based on the current block.";
+        }
+      }
+    } else if (scope === "selection") {
+      const selectedIds = uiStore.selectedBlockIds;
+      if (selectedIds.length > 0) {
+        const content = selectedIds
+          .map((id) => blockStore.blocksById[id]?.content)
+          .filter(Boolean)
+          .join("\n");
+        context = `Selected Blocks Content:\n${content}`;
+        systemPrompt += " The user wants to process the selected blocks.";
+      } else {
+        // Fallback to focused block if no selection
+        const focusedId = uiStore.focusedBlockId;
+        if (focusedId) {
+          const block = blockStore.blocksById[focusedId];
+          if (block) {
+            context = `Current Block Content:\n${block.content}`;
+          }
+        }
+      }
+    } else if (scope === "page") {
+      const pageId = blockStore.currentPageId;
+      if (pageId) {
+        const pageTitle = pageStore.pagesById[pageId]?.title || "Untitled";
+        // Simple context: just title for now to avoid huge context window issues
+        // In a real implementation, we would traverse the tree and collect content
+        context = `Page Title: ${pageTitle}\n(Page content context is limited for performance)`;
+        systemPrompt += " The user is asking about the current page.";
+      }
+    }
+
+    return { context, systemPrompt };
+  };
+
+  const handleSend = async () => {
     if (!inputValue.trim()) return;
     
-    // TODO: Implement actual AI call logic here
-    // For now, simulate streaming response
     setIsLoading(true);
     setPreviewContent("");
-    
-    const simulatedResponse = `This is a simulated response for "${inputValue}".\n\n- Point 1\n- Point 2\n- Point 3`;
-    let currentIndex = 0;
-    
-    const interval = setInterval(() => {
-      if (currentIndex < simulatedResponse.length) {
-        setPreviewContent(simulatedResponse.substring(0, currentIndex + 1));
-        currentIndex++;
-      } else {
-        clearInterval(interval);
-        setIsLoading(false);
+    setError(null);
+
+    try {
+      const aiProvider = createAIProvider(provider, apiKey, baseUrl);
+      const { context, systemPrompt } = gatherContext();
+      
+      const prompt = `${context}\n\nUser Request: ${inputValue}`;
+
+      const stream = aiProvider.generateStream({
+        prompt,
+        systemPrompt,
+        model,
+        apiKey,
+        baseUrl,
+      });
+
+      let fullContent = "";
+      for await (const chunk of stream) {
+        fullContent += chunk;
+        setPreviewContent(fullContent);
       }
-    }, 20);
+    } catch (err: any) {
+      console.error("AI Generation Error:", err);
+      setError(err.message || "Failed to generate response");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleApplyReplace = async () => {
+    const uiStore = useBlockUIStore.getState();
+    const blockStore = useBlockStore.getState();
+    const focusedId = uiStore.focusedBlockId;
+
+    if (!focusedId) return;
+
+    try {
+      await blockStore.updateBlockContent(focusedId, previewContent);
+      close();
+      setPreviewContent("");
+      setInputValue("");
+    } catch (e) {
+      console.error("Failed to apply changes:", e);
+      setError("Failed to apply changes");
+    }
+  };
+
+  const handleInsertBelow = async () => {
+    const uiStore = useBlockUIStore.getState();
+    const blockStore = useBlockStore.getState();
+    const focusedId = uiStore.focusedBlockId;
+
+    if (!focusedId) return;
+
+    try {
+      await blockStore.createBlock(focusedId, previewContent);
+      close();
+      setPreviewContent("");
+      setInputValue("");
+    } catch (e) {
+      console.error("Failed to insert block:", e);
+      setError("Failed to insert block");
     }
   };
 
@@ -103,8 +220,8 @@ export function CopilotPanel() {
         transform: "translateX(-50%)",
         width: "100%",
         maxWidth: "800px",
-        height: isExpanded ? "80vh" : "400px",
-        zIndex: 140, // Below CopilotButton (150)
+        height: isExpanded ? "80vh" : "500px",
+        zIndex: 140,
         display: "flex",
         flexDirection: "column",
         borderBottomLeftRadius: 0,
@@ -117,6 +234,9 @@ export function CopilotPanel() {
       {/* Header */}
       <Group justify="space-between" p="xs" style={{ borderBottom: "1px solid var(--color-border-primary)" }}>
         <Group gap="xs">
+          <Badge variant="light" color="violet" size="lg" leftSection={<IconArrowUp size={12} />}>
+            Copilot
+          </Badge>
           <SegmentedControl
             size="xs"
             value={mode}
@@ -149,26 +269,39 @@ export function CopilotPanel() {
       </Group>
 
       {/* Content Area */}
-      <Box style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+      <Box style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <LoadingOverlay visible={isLoading && !previewContent} zIndex={10} overlayProps={{ blur: 1 }} />
-        <ScrollArea h="100%" p="md">
+        
+        {error && (
+          <div style={{ padding: "12px", backgroundColor: "var(--mantine-color-red-1)", color: "var(--mantine-color-red-9)" }}>
+             <Text size="sm">{error}</Text>
+          </div>
+        )}
+
+        <ScrollArea h="100%" p="md" viewportRef={scrollViewportRef}>
           {previewContent ? (
-            <div style={{ whiteSpace: "pre-wrap", fontFamily: "var(--font-family)" }}>
-              <Text size="sm" fw={700} c="dimmed" mb="xs">
+            <div>
+              <Text size="xs" fw={700} c="dimmed" mb="xs" style={{ textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 {t("settings.ai.copilot.preview_title")}
               </Text>
-              <Text size="md">{previewContent}</Text>
+              <div 
+                className="markdown-preview"
+                style={{ fontSize: "15px", lineHeight: "1.6" }}
+                dangerouslySetInnerHTML={{ 
+                  __html: renderMarkdownToHtml(previewContent, { allowBlocks: true }) 
+                }} 
+              />
             </div>
           ) : (
-             <Stack align="center" justify="center" h="100%" style={{ opacity: 0.5 }}>
-               <Text size="sm">Ready to assist.</Text>
+             <Stack align="center" justify="center" h="100%" style={{ opacity: 0.5, minHeight: "200px" }}>
+               <Text size="sm" c="dimmed">Select a block and ask AI to edit or generate content.</Text>
              </Stack>
           )}
         </ScrollArea>
       </Box>
 
       {/* Footer / Input Area */}
-      <div style={{ padding: "12px", borderTop: "1px solid var(--color-border-primary)" }}>
+      <div style={{ padding: "12px", borderTop: "1px solid var(--color-border-primary)", backgroundColor: "var(--color-bg-secondary)" }}>
         <Stack gap="xs">
           <Group align="flex-end" gap="xs">
             <Menu shadow="md" width={200} position="bottom-start">
@@ -201,6 +334,7 @@ export function CopilotPanel() {
               minRows={1}
               maxRows={5}
               style={{ flex: 1 }}
+              disabled={isLoading}
             />
             
             <Button 
@@ -217,11 +351,41 @@ export function CopilotPanel() {
           </Group>
           
           {previewContent && !isLoading && (
-            <Group justify="flex-end">
-               <Button variant="default" size="xs" onClick={() => setPreviewContent("")}>
+            <Group justify="flex-end" pt="xs">
+               <Button 
+                 variant="subtle" 
+                 size="xs" 
+                 color="gray" 
+                 leftSection={<IconTrash size={14} />}
+                 onClick={() => setPreviewContent("")}
+               >
                  {t("settings.ai.copilot.actions.discard")}
                </Button>
-               <Button variant="light" size="xs" color="violet">
+               <Button 
+                 variant="light" 
+                 size="xs" 
+                 color="blue" 
+                 leftSection={<IconRefresh size={14} />}
+                 onClick={handleSend}
+               >
+                 {t("settings.ai.copilot.actions.retry")}
+               </Button>
+               <Button 
+                 variant="light" 
+                 size="xs" 
+                 color="teal" 
+                 leftSection={<IconDownload size={14} />}
+                 onClick={handleInsertBelow}
+               >
+                 Insert Below
+               </Button>
+               <Button 
+                 variant="filled" 
+                 size="xs" 
+                 color="violet"
+                 leftSection={<IconReplace size={14} />}
+                 onClick={handleApplyReplace}
+               >
                  {t("settings.ai.copilot.actions.apply")}
                </Button>
             </Group>
