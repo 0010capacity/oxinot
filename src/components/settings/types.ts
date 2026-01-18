@@ -116,3 +116,11 @@ export interface LanguageSettingsProps extends SettingsComponentProps {
   i18nLanguage: string;
   setLanguage: (lang: string | null) => void;
 }
+
+export interface SettingTabConfig {
+  id: string;
+  icon: React.ReactNode;
+  labelKey: string;
+  keywords: string[];
+  component: React.ReactNode;
+}
