@@ -1,4 +1,10 @@
-import { ActionIcon, Group, Text, TextInput, UnstyledButton } from "@mantine/core";
+import {
+  ActionIcon,
+  Group,
+  Text,
+  TextInput,
+  UnstyledButton,
+} from "@mantine/core";
 import {
   IconCheck,
   IconEdit,
@@ -222,7 +228,14 @@ export function PageTreeItem({
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           onMouseDown={(e) => {
+            console.log("[PageTreeItem] onMouseDown triggered", {
+              pageId: page.id,
+              button: e.button,
+              isEditing,
+              target: (e.target as HTMLElement).tagName,
+            });
             if (!isEditing && e.button === 0) {
+              console.log("[PageTreeItem] Calling onMouseDown handler");
               onMouseDown(e, page.id);
             }
           }}
@@ -268,26 +281,30 @@ export function PageTreeItem({
             }}
           >
             {/* Collapse/Expand Toggle */}
-            <CollapseToggle
-              isCollapsed={isCollapsed}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleCollapse(page.id);
-              }}
-              style={{
-                opacity: hasChildren
-                  ? isCollapsed
-                    ? "var(--opacity-disabled)"
-                    : isHovered
-                    ? "var(--opacity-dimmed)"
-                    : 0
-                  : 0,
-                visibility: hasChildren ? "visible" : "hidden",
-              }}
-            />
+            <div data-action-button="true">
+              <CollapseToggle
+                isCollapsed={isCollapsed}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleCollapse(page.id);
+                }}
+                style={{
+                  opacity: hasChildren
+                    ? isCollapsed
+                      ? "var(--opacity-disabled)"
+                      : isHovered
+                      ? "var(--opacity-dimmed)"
+                      : 0
+                    : 0,
+                  visibility: hasChildren ? "visible" : "hidden",
+                }}
+              />
+            </div>
 
             {/* Bullet Point */}
-            <BulletPoint onClick={handleBulletClick} />
+            <div data-action-button="true">
+              <BulletPoint onClick={handleBulletClick} />
+            </div>
 
             {/* Page Title or Edit Input */}
             {isEditing ? (
@@ -392,6 +409,7 @@ export function PageTreeItem({
                         onAddChild(page.id);
                       }}
                       title="Add child page"
+                      data-action-button="true"
                     >
                       <IconFolderPlus size={14} />
                     </ActionIcon>
@@ -403,6 +421,7 @@ export function PageTreeItem({
                         onEdit(page.id);
                       }}
                       title="Rename"
+                      data-action-button="true"
                     >
                       <IconEdit size={14} />
                     </ActionIcon>
@@ -423,6 +442,7 @@ export function PageTreeItem({
                         onDelete(page.id);
                       }}
                       title="Delete"
+                      data-action-button="true"
                     >
                       <IconX size={14} />
                     </ActionIcon>
