@@ -1,0 +1,8 @@
+---
+"oxinot": minor
+---
+
+- regenerate icon.icns for proper macOS app icon rendering (#451)
+- implement graph view API and modal UI (#452)
+- load pages after opening workspace to fix missing content (#455)
+- make entire subpage item clickable (#456)
