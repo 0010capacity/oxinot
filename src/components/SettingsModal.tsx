@@ -18,6 +18,7 @@ import {
   IconLanguage,
   IconList,
   IconPalette,
+  IconRobot,
   IconSearch,
   IconSettings,
   IconX,
@@ -34,6 +35,7 @@ import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import { type FontFamily, useThemeStore } from "../stores/themeStore";
 import { AboutSettings } from "./settings/AboutSettings";
 import { AdvancedSettings } from "./settings/AdvancedSettings";
+import { AISettings } from "./settings/AISettings";
 import { AppearanceSettings } from "./settings/AppearanceSettings";
 import { DailyNotesSettings } from "./settings/DailyNotesSettings";
 import { DatetimeSettings } from "./settings/DatetimeSettings";
@@ -485,6 +487,24 @@ export function SettingsModal({
           "toggle",
         ],
         component: <ShortcutsSettings matchesSearch={matchesSearch} />,
+      },
+      {
+        id: "ai",
+        icon: <IconRobot size={16} />,
+        labelKey: "settings.tabs.ai",
+        keywords: [
+          t("settings.ai.title"),
+          "copilot",
+          "gpt",
+          "gemini",
+          "claude",
+          "ollama",
+          "chat",
+          "model",
+          "api key",
+          "artificial intelligence",
+        ],
+        component: <AISettings matchesSearch={matchesSearch} />,
       },
       {
         id: "advanced",
