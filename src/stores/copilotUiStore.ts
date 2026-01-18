@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { v4 as uuidv4 } from "uuid";
 
 export type CopilotMode = "edit" | "generate" | "chat";
 export type CopilotScope = "block" | "selection" | "page";
@@ -65,7 +66,7 @@ export const useCopilotUiStore = create<CopilotUiStore>((set) => ({
     set((state) => ({
       chatMessages: [
         ...state.chatMessages,
-        { id: Date.now().toString(), role, content },
+        { id: uuidv4(), role, content },
       ],
     })),
 
