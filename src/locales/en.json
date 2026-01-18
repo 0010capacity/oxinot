@@ -82,6 +82,7 @@
       "homepage": "Homepage",
       "outliner": "Outliner",
       "version_control": "Version Control",
+      "ai": "AI Copilot",
       "shortcuts": "Shortcuts",
       "advanced": "Advanced",
       "about": "About",
@@ -198,6 +199,33 @@
       "push_pull_hint": "Push and pull buttons are available in the bottom-right corner",
       "remote_url_placeholder": "https://github.com/user/repo.git",
       "remove_remote_confirm": "Are you sure you want to remove the remote repository?"
+    },
+    "ai": {
+      "title": "AI Copilot",
+      "description": "Configure AI providers and prompt templates",
+      "provider": "AI Provider",
+      "provider_desc": "Select the AI service provider to use",
+      "api_key": "API Key",
+      "api_key_desc": "Enter your API key (stored locally)",
+      "base_url": "Base URL",
+      "base_url_desc": "Enter the base URL for the API (e.g., http://localhost:11434 for Ollama)",
+      "model": "Model Name",
+      "model_desc": "Enter the model name to use (e.g., gpt-4, gemini-pro, llama3)",
+      "templates": "Prompt Templates",
+      "templates_desc": "Manage custom prompt templates for quick access",
+      "add_template": "Add Template",
+      "template_name": "Template Name",
+      "template_content": "Template Content",
+      "template_name_placeholder": "e.g., Summarize",
+      "template_content_placeholder": "e.g., Summarize the following text...",
+      "no_templates": "No templates added yet",
+      "providers": {
+        "google": "Google Gemini",
+        "openai": "OpenAI",
+        "claude": "Anthropic Claude",
+        "ollama": "Ollama (Local)",
+        "custom": "Custom (OpenAI Compatible)"
+      }
     },
     "shortcuts": {
       "title": "Keyboard Shortcuts",
