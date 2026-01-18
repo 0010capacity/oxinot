@@ -373,14 +373,6 @@ export function FileTreeIndex() {
         );
         console.log("[FileTreeIndex] Page created with ID:", newPageId);
 
-        // Reload pages to update UI
-        console.log("[FileTreeIndex] Reloading pages...");
-        await loadPages();
-        console.log(
-          "[FileTreeIndex] Pages reloaded. Total pages:",
-          pages.length
-        );
-
         setIsCreating(false);
         setCreatingParentId(null);
 
@@ -397,7 +389,7 @@ export function FileTreeIndex() {
         setIsSubmitting(false);
       }
     },
-    [creatingParentId, createPage, loadPages, pages.length]
+    [creatingParentId, createPage, pages.length]
   );
 
   const handleCancelCreate = useCallback(() => {
@@ -421,13 +413,12 @@ export function FileTreeIndex() {
 
     try {
       await updatePageTitle(editingPageId, editValue.trim());
-      await loadPages();
       setEditingPageId(null);
       setEditValue("");
     } catch (error) {
       console.error("Failed to update page:", error);
     }
-  }, [editingPageId, editValue, updatePageTitle, loadPages]);
+  }, [editingPageId, editValue, updatePageTitle]);
 
   const handleEditCancel = useCallback(() => {
     setEditingPageId(null);
@@ -486,16 +477,14 @@ export function FileTreeIndex() {
         pageToDelete.id
       );
       await deletePage(pageToDelete.id);
-      console.log("[FileTreeIndex] deletePage completed, reloading pages...");
-      await loadPages();
-      console.log("[FileTreeIndex] Pages reloaded successfully");
+      console.log("[FileTreeIndex] deletePage completed successfully");
       setDeleteModalOpened(false);
       setPageToDelete(null);
     } catch (error) {
       console.error("[FileTreeIndex] Failed to delete page:", error);
       alert(`Failed to delete page: ${error}`);
     }
-  }, [pageToDelete, deletePage, loadPages]);
+  }, [pageToDelete, deletePage]);
 
   const handleAddChild = useCallback((parentId: string) => {
     setCreatingParentId(parentId);
