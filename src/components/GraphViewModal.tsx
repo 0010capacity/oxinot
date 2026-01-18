@@ -192,26 +192,6 @@ export function GraphViewModal({
 
     simulationRef.current = simulation;
 
-    // Create arrow markers
-    g.append("defs")
-      .selectAll("marker")
-      .data(["embed", "link"])
-      .enter()
-      .append("marker")
-      .attr("id", (d) => `arrow-${d}`)
-      .attr("markerWidth", 10)
-      .attr("markerHeight", 10)
-      .attr("refX", 25)
-      .attr("refY", 3)
-      .attr("orient", "auto")
-      .append("path")
-      .attr("d", "M0,-5L10,0L0,5")
-      .attr("fill", (d) =>
-        d === "embed"
-          ? "var(--color-text-secondary)"
-          : "var(--color-text-tertiary)"
-      );
-
     // Create links
     const links = g
       .selectAll("line")
@@ -225,7 +205,6 @@ export function GraphViewModal({
           : "var(--color-text-tertiary)"
       )
       .attr("stroke-width", (d) => (d.is_embed ? 2 : 1))
-      .attr("marker-end", (d) => `url(#arrow-${d.is_embed ? "embed" : "link"})`)
       .attr("opacity", 0.6);
 
     // Create nodes
