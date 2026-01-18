@@ -48,6 +48,25 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
+  const RECOMMENDED_MODELS: Record<string, string[]> = {
+    openai: ["o3", "o3-mini", "gpt-5.2-pro", "gpt-5.2-mini", "gpt-5.2-codex"],
+    claude: [
+      "claude-4-5-opus-20260101",
+      "claude-4-5-sonnet-20251022",
+      "claude-4-5-haiku-20251215",
+      "claude-3-7-sonnet-20250620",
+    ],
+    google: [
+      "gemini-3-pro",
+      "gemini-3-deepthink",
+      "gemini-3-flash",
+      "gemini-2.5-pro",
+      "gemini-2.5-flash",
+    ],
+    ollama: [],
+    custom: [],
+  };
+
   const providerOptions = [
     { value: "google", label: t("settings.ai.providers.google") },
     { value: "openai", label: t("settings.ai.providers.openai") },
@@ -59,12 +78,15 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
   const fetchModels = async () => {
     setIsLoadingModels(true);
     try {
-      // Use factory to create temporary provider instance
       const aiProvider = createAIProvider(provider, baseUrl);
       const models = await aiProvider.getModels(baseUrl, apiKey);
       if (models.length > 0) {
         console.log(`Successfully fetched ${models.length} models for ${provider}:`, models);
-        setAvailableModels(models);
+        // Filter out obviously experimental or non-text models for Google to reduce noise
+        const filtered = provider === "google" 
+          ? models.filter(m => !m.includes("-exp") && !m.includes("-image") && !m.includes("-robotics"))
+          : models;
+        setAvailableModels(filtered);
       } else {
         console.log(`No models found for ${provider}. Check your API key or Base URL.`);
       }
@@ -75,9 +97,10 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
     }
   };
 
-  // Clear available models when provider changes
+  // Sync available models when provider changes
   useEffect(() => {
-    setAvailableModels([]);
+    const recommended = RECOMMENDED_MODELS[provider] || [];
+    setAvailableModels(recommended);
   }, [provider]);
 
   const handleAddTemplate = () => {
@@ -156,14 +179,15 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                 description={t("settings.ai.model_desc")}
                 value={model}
                 onChange={setModel}
-                placeholder="gpt-4, gemini-pro, llama3..."
+                placeholder="Select a recommended model or type custom ID"
                 data={availableModels}
+                limit={20}
                 rightSection={
                   <ActionIcon 
                     variant="subtle" 
                     onClick={fetchModels} 
                     loading={isLoadingModels}
-                    title="Load available models"
+                    title="Fetch all available models from API"
                   >
                     {isLoadingModels ? <Loader size={16} /> : <IconRefresh size={16} />}
                   </ActionIcon>
