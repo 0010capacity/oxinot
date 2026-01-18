@@ -280,8 +280,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         // Incremental update: send request and update store with backend response
         const updatedPage = await invoke<PageData>("move_page", {
           workspacePath,
-          pageId: id,
-          parentId: newParentId,
+          request: { id, parentId: newParentId },
         });
 
         // Update store with complete page data from backend
