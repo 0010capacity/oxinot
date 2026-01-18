@@ -221,12 +221,16 @@ export function GraphViewModal({
       .enter()
       .append("circle")
       .attr("r", (d) => (d.node_type === "page" ? 8 : 5))
-      .attr("fill", (d) =>
-        d.node_type === "page"
-          ? "var(--color-interactive-hover)"
-          : "var(--color-text-secondary)"
-      )
-      .attr("opacity", 0.8)
+      .attr("fill", (d) => {
+        const isDark = window.matchMedia(
+          "(prefers-color-scheme: dark)"
+        ).matches;
+        if (d.node_type === "page") {
+          return isDark ? "#ffffff" : "#000000";
+        }
+        return isDark ? "#e0e0e0" : "#333333";
+      })
+      .attr("opacity", 1)
       .attr("class", styles.nodeCircle)
       .call(
         d3
@@ -406,15 +410,13 @@ export function GraphViewModal({
             )}
           </Stack>
 
-          <Divider />
-
-          <Stack gap="xs">
+          <Stack gap="lg">
             <Text size="sm" fw={600}>
               Physics
             </Text>
 
-            <Stack gap="0">
-              <Text size="xs" c="dimmed">
+            <Stack gap="md">
+              <Text size="xs" c="dimmed" className={styles.sliderLabel}>
                 Repulsion
               </Text>
               <Slider
@@ -429,11 +431,14 @@ export function GraphViewModal({
                   { value: 0, label: "None" },
                 ]}
                 size="xs"
+                styles={{
+                  markLabel: { fontSize: "8px" },
+                }}
               />
             </Stack>
 
-            <Stack gap="0">
-              <Text size="xs" c="dimmed">
+            <Stack gap="lg">
+              <Text size="xs" c="dimmed" className={styles.sliderLabel}>
                 Link Distance
               </Text>
               <Slider
@@ -448,11 +453,14 @@ export function GraphViewModal({
                   { value: 200, label: "Far" },
                 ]}
                 size="xs"
+                styles={{
+                  markLabel: { fontSize: "8px" },
+                }}
               />
             </Stack>
 
-            <Stack gap="0">
-              <Text size="xs" c="dimmed">
+            <Stack gap="lg">
+              <Text size="xs" c="dimmed" className={styles.sliderLabel}>
                 Collision
               </Text>
               <Slider
@@ -467,11 +475,12 @@ export function GraphViewModal({
                   { value: 80, label: "Loose" },
                 ]}
                 size="xs"
+                styles={{
+                  markLabel: { fontSize: "8px" },
+                }}
               />
             </Stack>
           </Stack>
-
-          <Divider />
 
           <Group gap="xs">
             <Tooltip label="Refresh graph" position="right">
