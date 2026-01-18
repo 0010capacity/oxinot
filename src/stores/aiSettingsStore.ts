@@ -10,11 +10,22 @@ export interface PromptTemplate {
   content: string;
 }
 
+export interface ProviderConfig {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+}
+
 interface AISettings {
   provider: AIProvider;
+  
+  // Current active values (synced with configs[provider])
   apiKey: string;
-  baseUrl: string; // Mainly for Ollama or Custom (e.g., "http://localhost:11434")
+  baseUrl: string; 
   model: string;
+  
+  // Per-provider configuration
+  configs: Record<AIProvider, ProviderConfig>;
   
   // Custom Prompt Templates
   promptTemplates: PromptTemplate[];
@@ -58,23 +69,80 @@ const DEFAULT_TEMPLATES: PromptTemplate[] = [
   },
 ];
 
+const DEFAULT_CONFIGS: Record<AIProvider, ProviderConfig> = {
+  google: { apiKey: "", baseUrl: "", model: "gemini-2.5-pro" },
+  openai: { apiKey: "", baseUrl: "https://api.openai.com/v1", model: "gpt-4o" },
+  claude: { apiKey: "", baseUrl: "https://api.anthropic.com", model: "claude-3-5-sonnet-20240620" },
+  ollama: { apiKey: "", baseUrl: "http://localhost:11434", model: "llama3" },
+  custom: { apiKey: "", baseUrl: "", model: "" },
+};
+
 const INITIAL_STATE: AISettings = {
   provider: "google",
-  apiKey: "",
-  baseUrl: "http://localhost:11434", // Default Ollama port
-  model: "gemini-1.5-flash",
+  apiKey: DEFAULT_CONFIGS.google.apiKey,
+  baseUrl: DEFAULT_CONFIGS.google.baseUrl,
+  model: DEFAULT_CONFIGS.google.model,
+  configs: DEFAULT_CONFIGS,
   promptTemplates: DEFAULT_TEMPLATES,
 };
 
 export const useAISettingsStore = createWithEqualityFn<AISettingsStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...INITIAL_STATE,
 
-      setProvider: (provider) => set({ provider }),
-      setApiKey: (apiKey) => set({ apiKey }),
-      setBaseUrl: (baseUrl) => set({ baseUrl }),
-      setModel: (model) => set({ model }),
+      setProvider: (newProvider) => {
+        const state = get();
+        // Save current values to the old provider config
+        const updatedConfigs = { ...state.configs };
+        updatedConfigs[state.provider] = {
+          apiKey: state.apiKey,
+          baseUrl: state.baseUrl,
+          model: state.model,
+        };
+
+        // Load values for the new provider (merge with defaults to ensure all fields exist)
+        const savedConfig = updatedConfigs[newProvider];
+        const defaultConfig = DEFAULT_CONFIGS[newProvider];
+        
+        const newConfig = {
+            apiKey: savedConfig?.apiKey ?? defaultConfig.apiKey,
+            baseUrl: savedConfig?.baseUrl ?? defaultConfig.baseUrl,
+            model: savedConfig?.model ?? defaultConfig.model,
+        };
+
+        set({
+          provider: newProvider,
+          configs: updatedConfigs,
+          apiKey: newConfig.apiKey,
+          baseUrl: newConfig.baseUrl,
+          model: newConfig.model,
+        });
+      },
+
+      setApiKey: (apiKey) => set((state) => ({ 
+        apiKey,
+        configs: {
+          ...state.configs,
+          [state.provider]: { ...state.configs[state.provider], apiKey }
+        }
+      })),
+
+      setBaseUrl: (baseUrl) => set((state) => ({ 
+        baseUrl,
+        configs: {
+          ...state.configs,
+          [state.provider]: { ...state.configs[state.provider], baseUrl }
+        }
+      })),
+
+      setModel: (model) => set((state) => ({ 
+        model,
+        configs: {
+          ...state.configs,
+          [state.provider]: { ...state.configs[state.provider], model }
+        }
+      })),
 
       addPromptTemplate: (name, content) =>
         set((state) => ({
@@ -102,11 +170,29 @@ export const useAISettingsStore = createWithEqualityFn<AISettingsStore>()(
       name: "ai-settings",
       partialize: (state) => ({
         provider: state.provider,
+        configs: state.configs,
+        // Also persist current values so they load correctly on startup without setProvider trigger
         apiKey: state.apiKey,
         baseUrl: state.baseUrl,
         model: state.model,
         promptTemplates: state.promptTemplates,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state && (!state.configs || Object.keys(state.configs).length === 0)) {
+          // Migration: Initialize configs if missing
+          const provider = state.provider || "google";
+          const configs = { ...DEFAULT_CONFIGS };
+          
+          // Assign whatever was in state (from old version) to the current provider
+          configs[provider] = {
+            apiKey: state.apiKey || "",
+            baseUrl: state.baseUrl || DEFAULT_CONFIGS[provider].baseUrl,
+            model: state.model || DEFAULT_CONFIGS[provider].model,
+          };
+          
+          state.configs = configs;
+        }
+      }
     }
   )
 );

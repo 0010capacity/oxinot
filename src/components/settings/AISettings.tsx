@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   PasswordInput,
   Select,
   Stack,
@@ -12,7 +11,7 @@ import {
   TextInput,
   Textarea,
 } from "@mantine/core";
-import { IconPlus, IconTrash, IconPencil, IconCheck, IconX, IconRefresh } from "@tabler/icons-react";
+import { IconPlus, IconTrash, IconPencil, IconCheck, IconX } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { useAISettingsStore, type AIProvider, type PromptTemplate } from "../../stores/aiSettingsStore";
@@ -46,7 +45,6 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
   const [editContent, setEditContent] = useState("");
 
   const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   const RECOMMENDED_MODELS: Record<string, string[]> = {
     openai: ["o3", "o3-mini", "gpt-5.2-pro", "gpt-5.2-mini", "gpt-5.2-codex"],
@@ -74,28 +72,6 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
     { value: "ollama", label: t("settings.ai.providers.ollama") },
     { value: "custom", label: t("settings.ai.providers.custom") },
   ];
-
-  const fetchModels = async () => {
-    setIsLoadingModels(true);
-    try {
-      const aiProvider = createAIProvider(provider, baseUrl);
-      const models = await aiProvider.getModels(baseUrl, apiKey);
-      if (models.length > 0) {
-        console.log(`Successfully fetched ${models.length} models for ${provider}:`, models);
-        // Filter out obviously experimental or non-text models for Google to reduce noise
-        const filtered = provider === "google" 
-          ? models.filter(m => !m.includes("-exp") && !m.includes("-image") && !m.includes("-robotics"))
-          : models;
-        setAvailableModels(filtered);
-      } else {
-        console.log(`No models found for ${provider}. Check your API key or Base URL.`);
-      }
-    } catch (error) {
-      console.error("Failed to fetch models:", error);
-    } finally {
-      setIsLoadingModels(false);
-    }
-  };
 
   // Sync available models when provider changes
   useEffect(() => {
@@ -182,16 +158,6 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                 placeholder="Select a recommended model or type custom ID"
                 data={availableModels}
                 limit={20}
-                rightSection={
-                  <ActionIcon 
-                    variant="subtle" 
-                    onClick={fetchModels} 
-                    loading={isLoadingModels}
-                    title="Fetch all available models from API"
-                  >
-                    {isLoadingModels ? <Loader size={16} /> : <IconRefresh size={16} />}
-                  </ActionIcon>
-                }
               />
             </>
           )}

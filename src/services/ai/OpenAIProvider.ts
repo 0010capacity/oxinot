@@ -93,27 +93,4 @@ export class OpenAIProvider implements IAIProvider {
     }
     return result;
   }
-
-  async getModels(baseUrl?: string, apiKey?: string): Promise<string[]> {
-    const rawUrl = baseUrl || this.defaultBaseUrl;
-    const cleanUrl = rawUrl.endsWith("/") ? rawUrl.slice(0, -1) : rawUrl;
-    const url = cleanUrl.endsWith("/v1") ? `${cleanUrl}/models` : `${cleanUrl}/v1/models`;
-
-    if (!apiKey) return [];
-
-    try {
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
-      
-      if (!response.ok) throw new Error("Failed to fetch OpenAI models");
-      
-      const data = await response.json();
-      // Filter for chat models usually, but returning all is safer for compatibility
-      return data.data?.map((m: any) => m.id).sort() || [];
-    } catch (e) {
-      console.error("Failed to list OpenAI models:", e);
-      return [];
-    }
-  }
 }
