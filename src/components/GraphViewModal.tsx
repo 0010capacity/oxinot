@@ -1,14 +1,15 @@
 import {
   Modal,
   Stack,
-  Text,
-  Select,
-  Button,
   Group,
   Center,
   Loader,
+  Text,
+  ActionIcon,
+  Tooltip,
+  SegmentedControl,
 } from "@mantine/core";
-import { IconNetwork } from "@tabler/icons-react";
+import { IconLink, IconRefresh } from "@tabler/icons-react";
 import { useCallback, useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import * as d3 from "d3";
@@ -214,20 +215,38 @@ export function GraphViewModal({
       .call(
         d3
           .drag<SVGCircleElement, GraphNode>()
-          .on("start", (event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>, d) => {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-          })
-          .on("drag", (event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>, d) => {
-            d.fx = event.x;
-            d.fy = event.y;
-          })
-          .on("end", (event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>, d) => {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = undefined;
-            d.fy = undefined;
-          })
+          .on(
+            "start",
+            (
+              event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>,
+              d
+            ) => {
+              if (!event.active) simulation.alphaTarget(0.3).restart();
+              d.fx = d.x;
+              d.fy = d.y;
+            }
+          )
+          .on(
+            "drag",
+            (
+              event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>,
+              d
+            ) => {
+              d.fx = event.x;
+              d.fy = event.y;
+            }
+          )
+          .on(
+            "end",
+            (
+              event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>,
+              d
+            ) => {
+              if (!event.active) simulation.alphaTarget(0);
+              d.fx = undefined;
+              d.fy = undefined;
+            }
+          )
       );
 
     // Create labels
@@ -310,54 +329,67 @@ export function GraphViewModal({
       onClose={onClose}
       title={
         <Group gap="xs">
-          <IconNetwork size={20} />
-          <Text fw={600}>Graph View</Text>
+          <IconLink size={20} />
+          <Text fw={600}>Graph</Text>
         </Group>
       }
-      size="xl"
+      size="90%"
       styles={{
-        content: { height: "80vh" },
+        header: {
+          borderBottom: "1px solid var(--color-border)",
+        },
+        body: {
+          padding: "16px",
+          display: "flex",
+          flexDirection: "column",
+          height: "85vh",
+        },
       }}
     >
-      <Stack gap="md" h="100%">
-        <Group>
-          <Select
-            label="View Mode"
-            value={viewMode}
-            onChange={(val) => setViewMode((val as "full" | "page") || "full")}
-            data={[
-              { value: "full", label: "Full Graph" },
-              {
-                value: "page",
-                label: "Current Page",
-                disabled: !currentPageId,
-              },
-            ]}
-            w={200}
-          />
-
-          {viewMode === "page" && (
-            <Select
-              label="Depth"
-              value={depth}
-              onChange={(val) => setDepth(val || "2")}
+      <Stack gap="sm" h="100%" style={{ flex: 1 }}>
+        <Group justify="space-between" align="center">
+          <Group gap="xs">
+            <SegmentedControl
+              value={viewMode}
+              onChange={(val) =>
+                setViewMode((val as "full" | "page") || "full")
+              }
               data={[
-                { value: "1", label: "1 Level" },
-                { value: "2", label: "2 Levels" },
-                { value: "3", label: "3 Levels" },
+                { label: "Full", value: "full" },
+                {
+                  label: "Current",
+                  value: "page",
+                  disabled: !currentPageId,
+                },
               ]}
-              w={150}
+              size="xs"
             />
-          )}
 
-          <Button
-            onClick={fetchGraphData}
-            variant="subtle"
-            size="xs"
-            disabled={loading}
-          >
-            Refresh
-          </Button>
+            {viewMode === "page" && (
+              <SegmentedControl
+                value={depth}
+                onChange={(val) => setDepth(val || "2")}
+                data={[
+                  { label: "1", value: "1" },
+                  { label: "2", value: "2" },
+                  { label: "3", value: "3" },
+                ]}
+                size="xs"
+              />
+            )}
+          </Group>
+
+          <Tooltip label="Refresh graph" position="left">
+            <ActionIcon
+              onClick={fetchGraphData}
+              variant="subtle"
+              size="sm"
+              disabled={loading}
+              loading={loading}
+            >
+              <IconRefresh size={16} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
 
         <div
@@ -369,6 +401,7 @@ export function GraphViewModal({
             borderRadius: "8px",
             overflow: "hidden",
             position: "relative",
+            minHeight: 0,
           }}
         >
           {loading ? (
@@ -379,7 +412,9 @@ export function GraphViewModal({
             <svg ref={svgRef} style={{ width: "100%", height: "100%" }} />
           ) : (
             <Center h="100%">
-              <Text c="dimmed">No graph data available</Text>
+              <Text c="dimmed" size="sm">
+                No graph data available
+              </Text>
             </Center>
           )}
         </div>

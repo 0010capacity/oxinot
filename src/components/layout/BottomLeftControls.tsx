@@ -9,7 +9,7 @@ import {
   IconHelp,
   IconHome,
   IconMoon,
-  IconNetwork,
+  IconLink,
   IconSearch,
   IconSettings,
   IconSun,
@@ -140,7 +140,7 @@ export function BottomLeftControls({
           onClick={onGraphViewClick}
           styles={iconButtonStyles}
         >
-          <IconNetwork size={16} />
+          <IconLink size={16} />
         </ActionIcon>
       </Tooltip>
 
