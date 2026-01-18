@@ -269,6 +269,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
       });
 
       const fromPath = page.filePath;
+      const oldParentId = page.parentId;
       const backup = { ...page };
 
       try {
@@ -287,6 +288,26 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         set((state) => {
           state.pagesById[id] = updatedPage;
         });
+
+        // If moved away from a parent, refetch the old parent to reflect potential directory conversion
+        if (oldParentId && oldParentId !== newParentId) {
+          try {
+            const oldParent = await invoke<PageData | null>("get_page", {
+              workspacePath,
+              request: { pageId: oldParentId },
+            });
+            if (oldParent) {
+              set((state) => {
+                state.pagesById[oldParentId] = oldParent;
+              });
+            }
+          } catch (error) {
+            console.warn(
+              "[pageStore.movePage] Failed to refresh old parent:",
+              error
+            );
+          }
+        }
 
         const toPath = updatedPage.filePath;
 
