@@ -23,7 +23,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { getVersion } from "@tauri-apps/api/app";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAdvancedSettingsStore } from "../stores/advancedSettingsStore";
@@ -42,6 +42,7 @@ import { HomepageSettings } from "./settings/HomepageSettings";
 import { LanguageSettings } from "./settings/LanguageSettings";
 import { OutlinerSettings } from "./settings/OutlinerSettings";
 import { ShortcutsSettings } from "./settings/ShortcutsSettings";
+import type { SettingTabConfig } from "./settings/types";
 import { ThemeSettings } from "./settings/ThemeSettings";
 
 const FONT_FAMILY_VALUES: FontFamily[] = [
@@ -236,132 +237,385 @@ export function SettingsModal({
   const setRemoteUrl = useGitStore((state) => state.setRemoteUrl);
   const removeRemote = useGitStore((state) => state.removeRemote);
 
-  const matchesSearch = (text: string) => {
-    if (!searchQuery.trim()) return true;
-    return text.toLowerCase().includes(searchQuery.toLowerCase());
-  };
+  const matchesSearch = useCallback(
+    (text: string) => {
+      if (!searchQuery.trim()) return true;
+      return text.toLowerCase().includes(searchQuery.toLowerCase());
+    },
+    [searchQuery]
+  );
 
-  const hasMatchInTab = (tabValue: string) => {
-    if (!searchQuery.trim()) return true;
+  const tabs: SettingTabConfig[] = useMemo(
+    () => [
+      {
+        id: "appearance",
+        icon: <IconAppWindow size={16} />,
+        labelKey: "settings.tabs.appearance",
+        keywords: [
+          t("settings.appearance.font_family"),
+          t("settings.appearance.editor_font_size"),
+          t("settings.appearance.editor_line_height"),
+          t("common.search_keywords.typography"),
+          "inter",
+          "system",
+          "roboto",
+          t("common.search_keywords.monospace"),
+          "preview",
+        ],
+        component: (
+          <AppearanceSettings
+            matchesSearch={matchesSearch}
+            fontFamily={fontFamily}
+            setFontFamily={setFontFamily}
+            getFontStack={getFontStack}
+            editorFontSize={editorFontSize}
+            setEditorFontSize={setEditorFontSize}
+            editorLineHeight={editorLineHeight}
+            setEditorLineHeight={setEditorLineHeight}
+            fontOptions={fontOptions}
+          />
+        ),
+      },
+      {
+        id: "language",
+        icon: <IconLanguage size={16} />,
+        labelKey: "settings.tabs.language",
+        keywords: [
+          t("settings.language.title"),
+          t("common.search_keywords.english"),
+          t("common.search_keywords.korean"),
+          t("common.search_keywords.locale"),
+        ],
+        component: (
+          <LanguageSettings
+            matchesSearch={matchesSearch}
+            language={language}
+            i18nLanguage={i18n.language}
+            setLanguage={setLanguage}
+          />
+        ),
+      },
+      {
+        id: "theme",
+        icon: <IconPalette size={16} />,
+        labelKey: "settings.tabs.theme",
+        keywords: [
+          t("settings.theme.color_mode"),
+          t("settings.theme.modes.light"),
+          t("settings.theme.modes.dark"),
+          t("settings.theme.modes.auto"),
+          t("settings.theme.color_variant"),
+          "accent",
+          t("settings.theme.variants.blue"),
+          t("settings.theme.variants.purple"),
+          t("settings.theme.variants.green"),
+          t("settings.theme.variants.amber"),
+        ],
+        component: (
+          <ThemeSettings
+            matchesSearch={matchesSearch}
+            colorScheme={colorScheme}
+            setColorScheme={(scheme) => {
+              if (
+                scheme === "light" ||
+                scheme === "dark" ||
+                scheme === "auto"
+              ) {
+                setColorScheme(scheme);
+              }
+            }}
+            colorVariant={colorVariant}
+            setColorVariant={setColorVariant}
+          />
+        ),
+      },
+      {
+        id: "datetime",
+        icon: <IconClock size={16} />,
+        labelKey: "settings.tabs.datetime",
+        keywords: [
+          t("settings.datetime.time_format"),
+          "24 hour",
+          "12 hour",
+          t("settings.datetime.date_order"),
+          t("settings.datetime.date_separator"),
+          "mdy",
+          "dmy",
+          "ymd",
+          "slash",
+          "hyphen",
+          "dot",
+          "clock",
+        ],
+        component: (
+          <DatetimeSettings
+            matchesSearch={matchesSearch}
+            timeFormat={timeFormat}
+            dateOrder={dateOrder}
+            dateSeparator={dateSeparator}
+            setTimeFormat={setTimeFormat}
+            setDateOrder={setDateOrder}
+            setDateSeparator={setDateSeparator}
+            timezone={timezone}
+            setTimezone={setTimezone}
+          />
+        ),
+      },
+      {
+        id: "daily",
+        icon: <IconCalendar size={16} />,
+        labelKey: "settings.tabs.daily_notes",
+        keywords: [t("settings.daily_notes.path"), "folder", "path", "daily"],
+        component: (
+          <DailyNotesSettings
+            matchesSearch={matchesSearch}
+            dailyNotesPath={dailyNotesPath}
+            setDailyNotesPath={setDailyNotesPath}
+            dailyNoteTemplateId={dailyNoteTemplateId}
+            setDailyNoteTemplateId={setDailyNoteTemplateId}
+            pagesById={pagesById}
+            pageIds={pageIds}
+          />
+        ),
+      },
+      {
+        id: "homepage",
+        icon: <IconHome size={16} />,
+        labelKey: "settings.tabs.homepage",
+        keywords: [
+          t("settings.homepage.type"),
+          t("settings.homepage.types.daily_note"),
+          t("settings.homepage.types.index"),
+          t("settings.homepage.types.custom_page"),
+          t("settings.homepage.custom_page"),
+          "start page",
+          "default",
+        ],
+        component: (
+          <HomepageSettings
+            matchesSearch={matchesSearch}
+            homepageType={homepageType}
+            setHomepageType={(type) =>
+              setHomepageType(type as "daily-note" | "index" | "custom-page")
+            }
+            customHomepageId={customHomepageId}
+            setCustomHomepageId={setCustomHomepageId}
+            pagesById={pagesById}
+            pageIds={pageIds}
+          />
+        ),
+      },
+      {
+        id: "outliner",
+        icon: <IconList size={16} />,
+        labelKey: "settings.tabs.outliner",
+        keywords: [
+          t("settings.outliner.indent_guides"),
+          t("settings.outliner.auto_expand"),
+          t("settings.outliner.block_count"),
+          t("settings.outliner.code_block_line_numbers"),
+          t("settings.outliner.indent_size"),
+          t("common.search_keywords.blocks"),
+          t("common.search_keywords.code_block"),
+          "line numbers",
+        ],
+        component: (
+          <OutlinerSettings
+            matchesSearch={matchesSearch}
+            showIndentGuides={showIndentGuides}
+            toggleIndentGuides={toggleIndentGuides}
+            autoExpandBlocks={autoExpandBlocks}
+            setAutoExpandBlocks={setAutoExpandBlocks}
+            showBlockCount={showBlockCount}
+            setShowBlockCount={setShowBlockCount}
+            showCodeBlockLineNumbers={showCodeBlockLineNumbers}
+            setShowCodeBlockLineNumbers={setShowCodeBlockLineNumbers}
+            indentSize={indentSize}
+            setIndentSize={setIndentSize}
+          />
+        ),
+      },
+      {
+        id: "git",
+        icon: <IconBrandGit size={16} />,
+        labelKey: "settings.tabs.version_control",
+        keywords: [
+          t("settings.git.title"),
+          t("common.search_keywords.git"),
+          t("common.search_keywords.repository"),
+          t("common.search_keywords.commit"),
+          t("settings.git.auto_commit"),
+          t("settings.git.remote_repo"),
+          t("common.search_keywords.push"),
+          t("common.search_keywords.pull"),
+          "interval",
+          "status",
+        ],
+        component: (
+          <GitSettings
+            matchesSearch={matchesSearch}
+            isGitRepo={isGitRepo}
+            hasGitChanges={hasGitChanges}
+            autoCommitEnabled={autoCommitEnabled}
+            setAutoCommitEnabled={setAutoCommitEnabled}
+            autoCommitInterval={autoCommitInterval}
+            setAutoCommitInterval={setAutoCommitInterval}
+            checkGitStatus={checkGitStatus}
+            gitCommit={gitCommit}
+            initGit={initGit}
+            remoteUrl={remoteUrl}
+            getRemoteUrl={getRemoteUrl}
+            setRemoteUrl={setRemoteUrl}
+            removeRemote={removeRemote}
+            workspacePath={workspacePath}
+          />
+        ),
+      },
+      {
+        id: "shortcuts",
+        icon: <IconKeyboard size={16} />,
+        labelKey: "settings.tabs.shortcuts",
+        keywords: [
+          t("settings.shortcuts.title"),
+          t("common.search_keywords.hotkey"),
+          t("settings.shortcuts.command_palette"),
+          t("settings.shortcuts.search"),
+          t("settings.shortcuts.toggle_index"),
+          "help",
+          "toggle",
+        ],
+        component: <ShortcutsSettings matchesSearch={matchesSearch} />,
+      },
+      {
+        id: "advanced",
+        icon: <IconSettings size={16} />,
+        labelKey: "settings.tabs.advanced",
+        keywords: [
+          t("settings.advanced.updates"),
+          "check updates",
+          t("settings.advanced.telemetry"),
+          t("settings.advanced.developer_options"),
+          "reset settings",
+          "danger",
+          "database",
+          "vacuum",
+          "optimize",
+          t("settings.advanced.vacuum_db_title"),
+          t("settings.advanced.optimize_db_title"),
+        ],
+        component: (
+          <AdvancedSettings
+            matchesSearch={matchesSearch}
+            telemetryEnabled={telemetryEnabled}
+            setTelemetryEnabled={setTelemetryEnabled}
+            resetAllSettings={resetAllSettings}
+            clearCache={clearCache}
+            vacuumDatabase={vacuumDatabase}
+            optimizeDatabase={optimizeDatabase}
+          />
+        ),
+      },
+      {
+        id: "about",
+        icon: <IconSettings size={16} />,
+        labelKey: "settings.tabs.about",
+        keywords: [
+          t("common.search_keywords.version"),
+          t("common.search_keywords.changelog"),
+          "oxinot",
+          "info",
+          "update",
+          t("settings.about.updates_title"),
+        ],
+        component: (
+          <AboutSettings
+            matchesSearch={matchesSearch}
+            appVersion={appVersion}
+          />
+        ),
+      },
+    ],
+    [
+      t,
+      matchesSearch,
+      fontFamily,
+      setFontFamily,
+      getFontStack,
+      editorFontSize,
+      setEditorFontSize,
+      editorLineHeight,
+      setEditorLineHeight,
+      fontOptions,
+      language,
+      i18n.language,
+      setLanguage,
+      colorScheme,
+      setColorScheme,
+      colorVariant,
+      setColorVariant,
+      timeFormat,
+      dateOrder,
+      dateSeparator,
+      setTimeFormat,
+      setDateOrder,
+      setDateSeparator,
+      timezone,
+      setTimezone,
+      dailyNotesPath,
+      setDailyNotesPath,
+      dailyNoteTemplateId,
+      setDailyNoteTemplateId,
+      pagesById,
+      pageIds,
+      homepageType,
+      setHomepageType,
+      customHomepageId,
+      setCustomHomepageId,
+      showIndentGuides,
+      toggleIndentGuides,
+      autoExpandBlocks,
+      setAutoExpandBlocks,
+      showBlockCount,
+      setShowBlockCount,
+      showCodeBlockLineNumbers,
+      setShowCodeBlockLineNumbers,
+      indentSize,
+      setIndentSize,
+      isGitRepo,
+      hasGitChanges,
+      autoCommitEnabled,
+      setAutoCommitEnabled,
+      autoCommitInterval,
+      setAutoCommitInterval,
+      checkGitStatus,
+      gitCommit,
+      initGit,
+      remoteUrl,
+      getRemoteUrl,
+      setRemoteUrl,
+      removeRemote,
+      workspacePath,
+      telemetryEnabled,
+      setTelemetryEnabled,
+      resetAllSettings,
+      clearCache,
+      vacuumDatabase,
+      optimizeDatabase,
+      appVersion,
+    ]
+  );
 
+  const filteredTabs = useMemo(() => {
+    if (!searchQuery.trim()) return tabs;
     const query = searchQuery.toLowerCase();
-
-    // Define searchable content for each tab
-    const tabContent: Record<string, string[]> = {
-      appearance: [
-        t("settings.appearance.font_family").toLowerCase(),
-        t("settings.appearance.editor_font_size").toLowerCase(),
-        t("settings.appearance.editor_line_height").toLowerCase(),
-        t("common.search_keywords.typography").toLowerCase(),
-        "inter",
-        "system",
-        "roboto",
-        t("common.search_keywords.monospace").toLowerCase(),
-        "preview",
-      ],
-      theme: [
-        t("settings.theme.color_mode").toLowerCase(),
-        t("settings.theme.modes.light").toLowerCase(),
-        t("settings.theme.modes.dark").toLowerCase(),
-        t("settings.theme.modes.auto").toLowerCase(),
-        t("settings.theme.color_variant").toLowerCase(),
-        "accent",
-        t("settings.theme.variants.blue").toLowerCase(),
-        t("settings.theme.variants.purple").toLowerCase(),
-        t("settings.theme.variants.green").toLowerCase(),
-        t("settings.theme.variants.amber").toLowerCase(),
-      ],
-      datetime: [
-        t("settings.datetime.time_format").toLowerCase(),
-        "24 hour",
-        "12 hour",
-        t("settings.datetime.date_order").toLowerCase(),
-        t("settings.datetime.date_separator").toLowerCase(),
-        "mdy",
-        "dmy",
-        "ymd",
-        "slash",
-        "hyphen",
-        "dot",
-        "clock",
-      ],
-      daily: [
-        t("settings.daily_notes.path").toLowerCase(),
-        "folder",
-        "path",
-        "daily",
-      ],
-      homepage: [
-        t("settings.homepage.type").toLowerCase(),
-        t("settings.homepage.types.daily_note").toLowerCase(),
-        t("settings.homepage.types.index").toLowerCase(),
-        t("settings.homepage.types.custom_page").toLowerCase(),
-        t("settings.homepage.custom_page").toLowerCase(),
-        "start page",
-        "default",
-      ],
-      outliner: [
-        t("settings.outliner.indent_guides").toLowerCase(),
-        t("settings.outliner.auto_expand").toLowerCase(),
-        t("settings.outliner.block_count").toLowerCase(),
-        t("settings.outliner.code_block_line_numbers").toLowerCase(),
-        t("settings.outliner.indent_size").toLowerCase(),
-        t("common.search_keywords.blocks").toLowerCase(),
-        t("common.search_keywords.code_block").toLowerCase(),
-        "line numbers",
-      ],
-      git: [
-        t("settings.git.title").toLowerCase(),
-        t("common.search_keywords.git").toLowerCase(),
-        t("common.search_keywords.repository").toLowerCase(),
-        t("common.search_keywords.commit").toLowerCase(),
-        t("settings.git.auto_commit").toLowerCase(),
-        t("settings.git.remote_repo").toLowerCase(),
-        t("common.search_keywords.push").toLowerCase(),
-        t("common.search_keywords.pull").toLowerCase(),
-        "interval",
-        "status",
-      ],
-      shortcuts: [
-        t("settings.shortcuts.title").toLowerCase(),
-        t("common.search_keywords.hotkey").toLowerCase(),
-        t("settings.shortcuts.command_palette").toLowerCase(),
-        t("settings.shortcuts.search").toLowerCase(),
-        t("settings.shortcuts.toggle_index").toLowerCase(),
-        "help",
-        "toggle",
-      ],
-      advanced: [
-        t("settings.advanced.updates").toLowerCase(),
-        "check updates",
-        t("settings.advanced.telemetry").toLowerCase(),
-        t("settings.advanced.developer_options").toLowerCase(),
-        "reset settings",
-        "danger",
-        "database",
-        "vacuum",
-        "optimize",
-        t("settings.advanced.vacuum_db_title").toLowerCase(),
-        t("settings.advanced.optimize_db_title").toLowerCase(),
-      ],
-      about: [
-        t("common.search_keywords.version").toLowerCase(),
-        t("common.search_keywords.changelog").toLowerCase(),
-        "oxinot",
-        "info",
-        "update",
-        t("settings.about.updates_title").toLowerCase(),
-      ],
-      language: [
-        t("settings.language.title").toLowerCase(),
-        t("common.search_keywords.english").toLowerCase(),
-        t("common.search_keywords.korean").toLowerCase(),
-        t("common.search_keywords.locale").toLowerCase(),
-      ],
-    };
-
-    return tabContent[tabValue]?.some((item) => item.includes(query)) ?? false;
-  };
+    return tabs.filter((tab) => {
+      const label = t(tab.labelKey).toLowerCase();
+      if (label.includes(query)) return true;
+      return tab.keywords.some((keyword) =>
+        keyword.toLowerCase().includes(query)
+      );
+    });
+  }, [tabs, searchQuery, t]);
 
   return (
     <Modal
@@ -430,247 +684,32 @@ export function SettingsModal({
               w="100%"
             />
 
-            {searchQuery.trim() &&
-              !Object.values({
-                appearance: hasMatchInTab("appearance"),
-                language: hasMatchInTab("language"),
-                theme: hasMatchInTab("theme"),
-                datetime: hasMatchInTab("datetime"),
-                daily: hasMatchInTab("daily"),
-                homepage: hasMatchInTab("homepage"),
-                outliner: hasMatchInTab("outliner"),
-                git: hasMatchInTab("git"),
-                shortcuts: hasMatchInTab("shortcuts"),
-                advanced: hasMatchInTab("advanced"),
-                about: hasMatchInTab("about"),
-              }).some((v) => v) && (
-                <div className={styles.noResultsContainer}>
-                  <p className={styles.noResultsText}>
-                    {t("settings.search_active")}
-                  </p>
-                </div>
-              )}
+            {searchQuery.trim() && filteredTabs.length === 0 && (
+              <div className={styles.noResultsContainer}>
+                <p className={styles.noResultsText}>
+                  {t("settings.search_active")}
+                </p>
+              </div>
+            )}
 
-            {hasMatchInTab("appearance") && (
+            {filteredTabs.map((tab) => (
               <Tabs.Tab
-                value="appearance"
-                leftSection={<IconAppWindow size={16} />}
+                key={tab.id}
+                value={tab.id}
+                leftSection={tab.icon}
               >
-                {t("settings.tabs.appearance")}
+                {t(tab.labelKey)}
               </Tabs.Tab>
-            )}
-
-            {hasMatchInTab("language") && (
-              <Tabs.Tab
-                value="language"
-                leftSection={<IconLanguage size={16} />}
-              >
-                {t("settings.tabs.language")}
-              </Tabs.Tab>
-            )}
-
-            {hasMatchInTab("theme") && (
-              <Tabs.Tab value="theme" leftSection={<IconPalette size={16} />}>
-                {t("settings.tabs.theme")}
-              </Tabs.Tab>
-            )}
-
-            {hasMatchInTab("datetime") && (
-              <Tabs.Tab value="datetime" leftSection={<IconClock size={16} />}>
-                {t("settings.tabs.datetime")}
-              </Tabs.Tab>
-            )}
-
-            {hasMatchInTab("daily") && (
-              <Tabs.Tab value="daily" leftSection={<IconCalendar size={16} />}>
-                {t("settings.tabs.daily_notes")}
-              </Tabs.Tab>
-            )}
-
-            {hasMatchInTab("homepage") && (
-              <Tabs.Tab value="homepage" leftSection={<IconHome size={16} />}>
-                {t("settings.tabs.homepage")}
-              </Tabs.Tab>
-            )}
-
-            {hasMatchInTab("outliner") && (
-              <Tabs.Tab value="outliner" leftSection={<IconList size={16} />}>
-                {t("settings.tabs.outliner")}
-              </Tabs.Tab>
-            )}
-
-            {hasMatchInTab("git") && (
-              <Tabs.Tab value="git" leftSection={<IconBrandGit size={16} />}>
-                {t("settings.tabs.version_control")}
-              </Tabs.Tab>
-            )}
-
-            {hasMatchInTab("shortcuts") && (
-              <Tabs.Tab
-                value="shortcuts"
-                leftSection={<IconKeyboard size={16} />}
-              >
-                {t("settings.tabs.shortcuts")}
-              </Tabs.Tab>
-            )}
-
-            {hasMatchInTab("advanced") && (
-              <Tabs.Tab
-                value="advanced"
-                leftSection={<IconSettings size={16} />}
-              >
-                {t("settings.tabs.advanced")}
-              </Tabs.Tab>
-            )}
-
-            {hasMatchInTab("about") && (
-              <Tabs.Tab value="about" leftSection={<IconSettings size={16} />}>
-                {t("settings.tabs.about")}
-              </Tabs.Tab>
-            )}
+            ))}
           </Stack>
         </Tabs.List>
 
         <div className={styles.contentWrapper}>
-          <Tabs.Panel value="appearance">
-            <AppearanceSettings
-              matchesSearch={matchesSearch}
-              fontFamily={fontFamily}
-              setFontFamily={setFontFamily}
-              getFontStack={getFontStack}
-              editorFontSize={editorFontSize}
-              setEditorFontSize={setEditorFontSize}
-              editorLineHeight={editorLineHeight}
-              setEditorLineHeight={setEditorLineHeight}
-              fontOptions={fontOptions}
-            />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="language">
-            <LanguageSettings
-              matchesSearch={matchesSearch}
-              language={language}
-              i18nLanguage={i18n.language}
-              setLanguage={setLanguage}
-            />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="theme">
-            <ThemeSettings
-              matchesSearch={matchesSearch}
-              colorScheme={colorScheme}
-              setColorScheme={(scheme) => {
-                if (
-                  scheme === "light" ||
-                  scheme === "dark" ||
-                  scheme === "auto"
-                ) {
-                  setColorScheme(scheme);
-                }
-              }}
-              colorVariant={colorVariant}
-              setColorVariant={setColorVariant}
-            />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="datetime">
-            <DatetimeSettings
-              matchesSearch={matchesSearch}
-              timeFormat={timeFormat}
-              dateOrder={dateOrder}
-              dateSeparator={dateSeparator}
-              setTimeFormat={setTimeFormat}
-              setDateOrder={setDateOrder}
-              setDateSeparator={setDateSeparator}
-              timezone={timezone}
-              setTimezone={setTimezone}
-            />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="daily">
-            <DailyNotesSettings
-              matchesSearch={matchesSearch}
-              dailyNotesPath={dailyNotesPath}
-              setDailyNotesPath={setDailyNotesPath}
-              dailyNoteTemplateId={dailyNoteTemplateId}
-              setDailyNoteTemplateId={setDailyNoteTemplateId}
-              pagesById={pagesById}
-              pageIds={pageIds}
-            />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="homepage">
-            <HomepageSettings
-              matchesSearch={matchesSearch}
-              homepageType={homepageType}
-              setHomepageType={(type) =>
-                setHomepageType(type as "daily-note" | "index" | "custom-page")
-              }
-              customHomepageId={customHomepageId}
-              setCustomHomepageId={setCustomHomepageId}
-              pagesById={pagesById}
-              pageIds={pageIds}
-            />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="outliner">
-            <OutlinerSettings
-              matchesSearch={matchesSearch}
-              showIndentGuides={showIndentGuides}
-              toggleIndentGuides={toggleIndentGuides}
-              autoExpandBlocks={autoExpandBlocks}
-              setAutoExpandBlocks={setAutoExpandBlocks}
-              showBlockCount={showBlockCount}
-              setShowBlockCount={setShowBlockCount}
-              showCodeBlockLineNumbers={showCodeBlockLineNumbers}
-              setShowCodeBlockLineNumbers={setShowCodeBlockLineNumbers}
-              indentSize={indentSize}
-              setIndentSize={setIndentSize}
-            />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="git">
-            <GitSettings
-              matchesSearch={matchesSearch}
-              isGitRepo={isGitRepo}
-              hasGitChanges={hasGitChanges}
-              autoCommitEnabled={autoCommitEnabled}
-              setAutoCommitEnabled={setAutoCommitEnabled}
-              autoCommitInterval={autoCommitInterval}
-              setAutoCommitInterval={setAutoCommitInterval}
-              checkGitStatus={checkGitStatus}
-              gitCommit={gitCommit}
-              initGit={initGit}
-              remoteUrl={remoteUrl}
-              getRemoteUrl={getRemoteUrl}
-              setRemoteUrl={setRemoteUrl}
-              removeRemote={removeRemote}
-              workspacePath={workspacePath}
-            />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="shortcuts">
-            <ShortcutsSettings matchesSearch={matchesSearch} />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="advanced">
-            <AdvancedSettings
-              matchesSearch={matchesSearch}
-              telemetryEnabled={telemetryEnabled}
-              setTelemetryEnabled={setTelemetryEnabled}
-              resetAllSettings={resetAllSettings}
-              clearCache={clearCache}
-              vacuumDatabase={vacuumDatabase}
-              optimizeDatabase={optimizeDatabase}
-            />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="about">
-            <AboutSettings
-              matchesSearch={matchesSearch}
-              appVersion={appVersion}
-            />
-          </Tabs.Panel>
+          {tabs.map((tab) => (
+            <Tabs.Panel key={tab.id} value={tab.id}>
+              {tab.component}
+            </Tabs.Panel>
+          ))}
         </div>
       </Tabs>
     </Modal>
