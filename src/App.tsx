@@ -47,18 +47,107 @@ import { useCoreCommands } from "./hooks/useCoreCommands";
 import { ThemeProvider } from "./theme/ThemeProvider";
 
 function WorkspaceSelector() {
-  const { selectWorkspace, openWorkspace, getWorkspaces } = useWorkspaceStore();
+  const {
+    selectWorkspace,
+    openWorkspace,
+    getWorkspaces,
+    workspacePath,
+    error,
+    clearError,
+    removeWorkspace,
+  } = useWorkspaceStore();
+  const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
     const workspaces = getWorkspaces();
-    if (workspaces.length > 0) {
+    if (workspaces.length > 0 && !workspacePath) {
       // Auto-open last workspace
-      openWorkspace(workspaces[0].path);
-    } else {
+      setIsRetrying(true);
+      openWorkspace(workspaces[0].path)
+        .catch(() => {
+          // If opening fails, remove invalid workspace and try next one
+          removeWorkspace(workspaces[0].path);
+          if (workspaces.length > 1) {
+            return openWorkspace(workspaces[1].path);
+          }
+          // If no more workspaces, open file picker
+          selectWorkspace();
+        })
+        .finally(() => setIsRetrying(false));
+    } else if (workspaces.length === 0 && !workspacePath) {
       // No workspaces, open file picker
       selectWorkspace();
     }
-  }, [selectWorkspace, openWorkspace, getWorkspaces]);
+  }, [
+    selectWorkspace,
+    openWorkspace,
+    getWorkspaces,
+    workspacePath,
+    removeWorkspace,
+  ]);
+
+  const handleRetry = () => {
+    clearError();
+    const workspaces = getWorkspaces();
+    if (workspaces.length > 0) {
+      setIsRetrying(true);
+      openWorkspace(workspaces[0].path).finally(() => setIsRetrying(false));
+    }
+  };
+
+  const handleSelectDifferent = () => {
+    clearError();
+    selectWorkspace();
+  };
+
+  if (error) {
+    return (
+      <Container size="xs" py="xl">
+        <Stack align="center" gap="lg" style={{ marginTop: "25vh" }}>
+          <Text size="sm" fw={500} c="red">
+            Failed to open workspace
+          </Text>
+          <Text size="xs" c="dimmed" ta="center">
+            {error}
+          </Text>
+          <Stack gap="sm" style={{ width: "100%" }}>
+            <button
+              type="button"
+              onClick={handleRetry}
+              disabled={isRetrying}
+              style={{
+                padding: "8px 16px",
+                backgroundColor: "var(--color-interactive-primary)",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: isRetrying ? "not-allowed" : "pointer",
+                opacity: isRetrying ? 0.6 : 1,
+              }}
+            >
+              {isRetrying ? "Retrying..." : "Retry"}
+            </button>
+            <button
+              type="button"
+              onClick={handleSelectDifferent}
+              disabled={isRetrying}
+              style={{
+                padding: "8px 16px",
+                backgroundColor: "var(--color-bg-secondary)",
+                color: "var(--color-text-primary)",
+                border: "1px solid var(--color-border-primary)",
+                borderRadius: "4px",
+                cursor: isRetrying ? "not-allowed" : "pointer",
+                opacity: isRetrying ? 0.6 : 1,
+              }}
+            >
+              Select Different Workspace
+            </button>
+          </Stack>
+        </Stack>
+      </Container>
+    );
+  }
 
   return (
     <Container size="xs" py="xl">
@@ -78,7 +167,7 @@ interface AppContentProps {
 function AppContent({ workspacePath }: AppContentProps) {
   const { t } = useTranslation();
 
-  const { selectWorkspace } = useWorkspaceStore();
+  const { selectWorkspace, clearError } = useWorkspaceStore();
   const currentPageId = usePageStore((state) => state.currentPageId);
   const createPage = usePageStore((state) => state.createPage);
   const loadPages = usePageStore((state) => state.loadPages);
@@ -169,6 +258,7 @@ function AppContent({ workspacePath }: AppContentProps) {
 
   const handleMigrationCancelWithWorkspace = () => {
     handleMigrationCancel();
+    clearError();
     selectWorkspace();
   };
 
