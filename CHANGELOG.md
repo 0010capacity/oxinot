@@ -1,5 +1,107 @@
 # oxinot
 
+## 0.16.0
+
+### Minor Changes
+
+- ad7da70: - remove loading UI from page navigation
+  - migrate file I/O to tokio::fs for non-blocking async operations (#442)
+  - restore page tree drag-and-drop functionality
+  - replace page store full reload with incremental updates
+  - correct movePage command parameters
+  - use reindexWikiLinks instead of missing command
+  - remove loadPages call after drag-and-drop move
+  - replace page store full reload with incremental updates (#445)
+  - remove loadPages calls after page mutations
+  - auto-convert empty directories to regular pages after move
+  - refetch old parent after move to update UI
+  - correct get_page request field name (pageId -> page_id)
+  - add isDirectory to memo comparison for proper re-rendering
+  - also refetch new parent after move to update isDirectory
+  - add childCount to memo comparison
+- 64feb32: - remove loading UI from page navigation
+  - migrate file I/O to tokio::fs for non-blocking async operations (#442)
+  - restore page tree drag-and-drop functionality
+- 64feb32: - remove loading UI from page navigation
+  - migrate file I/O to tokio::fs for non-blocking async operations (#442)
+  - restore page tree drag-and-drop functionality
+- f39fe41: - remove loading UI from page navigation
+  - migrate file I/O to tokio::fs for non-blocking async operations (#442)
+  - restore page tree drag-and-drop functionality
+  - replace page store full reload with incremental updates
+  - correct movePage command parameters
+  - use reindexWikiLinks instead of missing command
+  - remove loadPages call after drag-and-drop move
+  - replace page store full reload with incremental updates (#445)
+  - remove loadPages calls after page mutations
+  - auto-convert empty directories to regular pages after move
+  - refetch old parent after move to update UI
+  - correct get_page request field name (pageId -> page_id)
+  - add isDirectory to memo comparison for proper re-rendering
+  - also refetch new parent after move to update isDirectory
+  - add childCount to memo comparison
+- f39fe41: - remove loading UI from page navigation
+  - migrate file I/O to tokio::fs for non-blocking async operations (#442)
+  - restore page tree drag-and-drop functionality
+  - replace page store full reload with incremental updates
+  - correct movePage command parameters
+  - use reindexWikiLinks instead of missing command
+  - remove loadPages call after drag-and-drop move
+  - replace page store full reload with incremental updates (#445)
+  - remove loadPages calls after page mutations
+  - auto-convert empty directories to regular pages after move
+  - refetch old parent after move to update UI
+  - correct get_page request field name (pageId -> page_id)
+  - add isDirectory to memo comparison for proper re-rendering
+  - also refetch new parent after move to update isDirectory
+  - add childCount to memo comparison
+- 7e68567: - replace native confirm with Mantine Modal for workspace deletion
+  - optimize query execution to solve N+1 problem
+  - implement fractional index rebalancing
+  - optimize wiki link reindexing with batch resolution
+  - add keyboard navigation to file tree items
+  - correct WAL mode PRAGMA execution
+  - correct WAL mode PRAGMA execution in open_workspace_db
+  - implement advanced FTS5 full-text search with ranking (#436)
+  - implement multi-block selection and batch operations
+  - implement Shift+Arrow key selection at document level
+  - revert block-row to div to fix nested button issue
+  - improve keyboard selection and click behavior
+  - remove draftRef usage to prevent hook errors
+  - remove useMemo call inside commitDraft function
+  - enhance multi-block selection UX
+  - enable Shift+Click without prior Ctrl selection
+  - support cross-depth range selection
+  - use fixed anchor for Shift+Arrow keyboard selection
+  - enable cross-depth keyboard navigation with Shift+Arrow
+  - propagate blockOrder to all child components
+  - clear selection on arrow key navigation without Shift
+  - implement multi-block copy with markdown formatting
+  - fix text selection copy in context menu
+- 64feb32: - remove loading UI from page navigation
+  - migrate file I/O to tokio::fs for non-blocking async operations (#442)
+  - restore page tree drag-and-drop functionality
+  - replace page store full reload with incremental updates (#445)
+- ad7da70: - remove loading UI from page navigation
+  - migrate file I/O to tokio::fs for non-blocking async operations (#442)
+  - restore page tree drag-and-drop functionality
+  - replace page store full reload with incremental updates
+  - correct movePage command parameters
+  - use reindexWikiLinks instead of missing command
+  - remove loadPages call after drag-and-drop move
+  - replace page store full reload with incremental updates (#445)
+  - remove loadPages calls after page mutations
+  - auto-convert empty directories to regular pages after move
+  - refetch old parent after move to update UI
+  - correct get_page request field name (pageId -> page_id)
+  - add isDirectory to memo comparison for proper re-rendering
+  - also refetch new parent after move to update isDirectory
+  - add childCount to memo comparison
+
+### Patch Changes
+
+- 64feb32: - remove loading UI from page navigation
+
 ## 0.15.0
 
 ### Minor Changes
