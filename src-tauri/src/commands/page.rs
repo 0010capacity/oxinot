@@ -1,5 +1,5 @@
 use chrono::Utc;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -27,78 +27,74 @@ pub async fn create_page(
 
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
+    let file_sync = FileSyncService::new(&workspace_path);
 
-    // Use Transaction RAII for database operations
-    {
-        let mut conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-        let tx = conn
-            .transaction()
-            .map_err(|e| format!("Failed to start transaction: {}", e))?;
+    // 1. Check parent page validity (Read-only transaction)
+    if let Some(parent_id) = &request.parent_id {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        let is_dir: Option<bool> = conn
+            .query_row(
+                "SELECT is_directory FROM pages WHERE id = ?",
+                [parent_id],
+                |row| Ok(row.get::<_, i32>(0)? != 0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
 
-        // Check if parent page exists (if parent_id provided)
-        if let Some(parent_id) = &request.parent_id {
-            let count: i64 = tx
-                .query_row(
-                    "SELECT COUNT(*) FROM pages WHERE id = ?",
-                    [parent_id],
-                    |row| row.get(0),
-                )
-                .map_err(|_| "Failed to check parent page".to_string())?;
-
-            if count == 0 {
-                return Err("Parent page not found".to_string());
-            }
-
-            // Check if parent is a directory (is_directory = 1)
-            let is_dir: bool = tx
-                .query_row(
-                    "SELECT is_directory FROM pages WHERE id = ?",
-                    [parent_id],
-                    |row| Ok(row.get::<_, i32>(0)? != 0),
-                )
-                .map_err(|_| "Failed to check parent directory status".to_string())?;
-
-            if !is_dir {
+        match is_dir {
+            Some(true) => { /* Parent exists and is a directory - OK */ }
+            Some(false) => {
                 return Err(
                     "Parent page must be converted to a directory before adding children"
                         .to_string(),
                 );
             }
+            None => return Err("Parent page not found".to_string()),
         }
-
-        // Insert into DB
-        tx.execute(
-            "INSERT INTO pages (id, title, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-            params![&id, &request.title, &request.parent_id, &now, &now],
-        )
-        .map_err(|e| format!("Failed to insert page: {}", e))?;
-
-        tx.commit()
-            .map_err(|e| format!("Failed to commit transaction: {}", e))?;
     }
 
-    // Create file (outside transaction)
-    let file_sync = FileSyncService::new(&workspace_path);
-    let file_path = file_sync
-        .create_page_file(&conn_mutex, &id, &request.title)
+    // 2. Prepare and create file (No DB lock held during I/O)
+    // prepare_new_page_file calls get_page_file_path which acquires a read lock on DB
+    // but the actual FS write happens after the lock is released inside prepare_new_page_file?
+    // Wait, prepare_new_page_file implementation:
+    //   get_page_file_path(conn_mutex) <- locks DB
+    //   fs::create_dir_all / fs::write <- No lock
+    // So this is good.
+    let (abs_path, rel_path) = file_sync
+        .prepare_new_page_file(&conn_mutex, request.parent_id.as_deref(), &request.title)
         .await
         .map_err(|e| format!("Failed to create page file: {}", e))?;
 
-    // Update file path in DB (in a separate transaction)
-    {
+    // 3. Insert into DB (Write transaction)
+    // If this fails, we must delete the created file to maintain consistency.
+    let insert_result = {
         let mut conn = conn_mutex.lock().map_err(|e| e.to_string())?;
         let tx = conn
             .transaction()
             .map_err(|e| format!("Failed to start transaction: {}", e))?;
 
-        tx.execute(
-            "UPDATE pages SET file_path = ? WHERE id = ?",
-            params![file_path, id],
-        )
-        .map_err(|e| format!("Failed to update page file path: {}", e))?;
+        let res = tx.execute(
+            "INSERT INTO pages (id, title, parent_id, file_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            params![&id, &request.title, &request.parent_id, &rel_path, &now, &now],
+        );
 
-        tx.commit()
-            .map_err(|e| format!("Failed to commit transaction: {}", e))?;
+        match res {
+            Ok(_) => {
+                tx.commit().map_err(|e| format!("Failed to commit transaction: {}", e))
+            }
+            Err(e) => Err(format!("Failed to insert page: {}", e)),
+        }
+    };
+
+    if let Err(e) = insert_result {
+        // Rollback: Delete the created file
+        if abs_path.exists() {
+            let _ = tokio::fs::remove_file(&abs_path).await;
+            // If parent dir was created and empty, should we remove it?
+            // Complex to determine if we just created it.
+            // For now, leaving empty dir is less harmful than leaving orphaned file.
+        }
+        return Err(e);
     }
 
     // Re-query to get full page object
