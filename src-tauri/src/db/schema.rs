@@ -82,7 +82,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS blocks_fts USING fts5(
     content,
     anchor_id,
     path_text,
-    tokenize = 'unicode61'
+    tokenize = 'trigram'
 );
 
 -- NOTE: SQLite virtual tables (including FTS5) may not be indexed with CREATE INDEX.
@@ -145,6 +145,22 @@ CREATE INDEX IF NOT EXISTS idx_wiki_links_type ON wiki_links(link_type);
 
 /// Initialize the database schema
 pub fn init_schema(conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
+    // Check if blocks_fts uses old tokenizer (unicode61) and drop it if necessary to migrate to trigram
+    let needs_migration = conn
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE name = 'blocks_fts' AND type = 'table'",
+            [],
+            |row| {
+                let sql: String = row.get(0)?;
+                Ok(sql.contains("tokenize = 'unicode61'"))
+            },
+        )
+        .unwrap_or(false);
+
+    if needs_migration {
+        conn.execute("DROP TABLE IF EXISTS blocks_fts", [])?;
+    }
+
     conn.execute_batch(SCHEMA_SQL)?;
     Ok(())
 }
