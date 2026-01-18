@@ -222,9 +222,9 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
 
     // Combined regex to match bold, italic, and code
     const regex = /\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`/g;
-    let match;
 
-    while ((match = regex.exec(text)) !== null) {
+    let match = regex.exec(text);
+    while (match !== null) {
       // Add text before the match
       if (match.index > lastIndex) {
         parts.push(text.substring(lastIndex, match.index));
@@ -264,6 +264,7 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
       }
 
       lastIndex = regex.lastIndex;
+      match = regex.exec(text);
     }
 
     // Add remaining text
@@ -275,43 +276,43 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
   };
 
   const renderContent = (text: string) => {
-    return text.split("\n").map((line, idx) => {
+    return text.split("\n").map((line) => {
+      const key = `${line}-${Math.random()}`;
       if (line.startsWith("• ")) {
         return (
           <div
-            key={idx}
+            key={key}
             style={{ marginBottom: "0.5rem", paddingLeft: "1rem" }}
           >
             {parseMarkdown(line.substring(2))}
           </div>
         );
       }
-      if (line.startsWith("1. ") || /^\d+\. /.test(line)) {
-        const content = line.replace(/^\d+\.\s+/, "");
+      if (line.startsWith("  • ")) {
         return (
           <div
-            key={idx}
+            key={key}
             style={{ marginBottom: "0.5rem", paddingLeft: "1rem" }}
           >
-            {parseMarkdown(content)}
+            {parseMarkdown(line.substring(4))}
           </div>
         );
       }
-      if (line.startsWith("  - ")) {
+      if (line.startsWith("    • ")) {
         return (
           <div
-            key={idx}
+            key={key}
             style={{ marginBottom: "0.25rem", paddingLeft: "2.5rem" }}
           >
-            {parseMarkdown(line.trim().substring(2))}
+            {parseMarkdown(line.substring(6))}
           </div>
         );
       }
       if (line.trim() === "") {
-        return <div key={idx} style={{ height: "0.5rem" }} />;
+        return <div key={key} style={{ height: "0.5rem" }} />;
       }
       return (
-        <div key={idx} style={{ marginBottom: "0.5rem" }}>
+        <div key={key} style={{ marginBottom: "0.5rem" }}>
           {parseMarkdown(line)}
         </div>
       );
@@ -364,36 +365,34 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
             </div>
 
             {/* Main Sections */}
-            {sections.map((section, idx) => (
-              <div key={idx} style={{ marginBottom: "2rem" }}>
+            {sections.map((section) => (
+              <div key={section.title} style={{ marginBottom: "2rem" }}>
                 <h2
                   style={{
-                    fontSize: "1.4rem",
+                    fontSize: "1.25rem",
                     fontWeight: 600,
                     marginBottom: "1rem",
-                    color: "var(--color-text-primary)",
-                    borderBottom: "1px solid var(--color-border-secondary)",
-                    paddingBottom: "0.5rem",
+                    marginTop: "1.5rem",
                   }}
                 >
                   {section.title}
                 </h2>
 
-                {section.subsections.map((subsection, subIdx) => (
-                  <div key={subIdx} style={{ marginBottom: "1.5rem" }}>
+                {section.subsections.map((subsection) => (
+                  <div
+                    key={subsection.title}
+                    style={{ marginBottom: "1.5rem" }}
+                  >
                     <h3
                       style={{
-                        fontSize: "1.1rem",
+                        fontSize: "1rem",
                         fontWeight: 600,
-                        marginBottom: "0.75rem",
-                        color: "var(--color-text-secondary)",
+                        marginBottom: "0.5rem",
                       }}
                     >
                       {subsection.title}
                     </h3>
-                    <div style={{ paddingLeft: "0.5rem" }}>
-                      {renderContent(subsection.content)}
-                    </div>
+                    {renderContent(subsection.content)}
                   </div>
                 ))}
               </div>
