@@ -52,6 +52,9 @@ interface PageTreeItemProps {
   draggedPageId: string | null;
   dragOverPageId: string | null;
   showIndentGuides?: boolean;
+  isCreating?: boolean;
+  creatingParentId?: string | null;
+  isSubmitting?: boolean;
   children?: React.ReactNode;
 }
 

@@ -62,7 +62,10 @@ const MemoizedPageTreeItem = memo(PageTreeItem, (prev, next) => {
     prev.collapsed[prev.page.id] === next.collapsed[next.page.id] &&
     prev.draggedPageId === next.draggedPageId &&
     prev.dragOverPageId === next.dragOverPageId &&
-    prev.showIndentGuides === next.showIndentGuides
+    prev.showIndentGuides === next.showIndentGuides &&
+    prev.isCreating === next.isCreating &&
+    prev.creatingParentId === next.creatingParentId &&
+    prev.isSubmitting === next.isSubmitting
   );
 });
 
@@ -164,6 +167,9 @@ const RecursivePageTreeItem = memo(
         draggedPageId={draggedPageId}
         dragOverPageId={dragOverPageId}
         showIndentGuides={showIndentGuides}
+        isCreating={isCreating}
+        creatingParentId={creatingParentId}
+        isSubmitting={isSubmitting}
       >
         {hasChildren &&
           sortedChildrenIds.map((childId) => (
@@ -214,7 +220,7 @@ const RecursivePageTreeItem = memo(
       prev.isSubmitting === next.isSubmitting &&
       prev.editingPageId === next.editingPageId &&
       prev.editValue === next.editValue &&
-      prev.collapsed === next.collapsed &&
+      prev.collapsed[prev.pageId] === next.collapsed[next.pageId] &&
       prev.draggedPageId === next.draggedPageId &&
       prev.dragOverPageId === next.dragOverPageId &&
       prev.showIndentGuides === next.showIndentGuides
