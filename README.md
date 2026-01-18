@@ -2,7 +2,7 @@
 
 A modern markdown outliner application built with Tauri, React, and TypeScript. This production-ready app combines block-based editing (inspired by Logseq) with an innovative file tree integration system for seamless document organization and navigation.
 
-**Current Version**: 0.16.0 | **License**: GNU GPLv3 | **Status**: Production & Open Source
+**License**: GNU GPLv3 | **Status**: Production & Open Source
 
 ## 🌟 Features
 
