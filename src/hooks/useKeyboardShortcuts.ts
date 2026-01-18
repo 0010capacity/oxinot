@@ -6,6 +6,7 @@ export interface KeyboardShortcutHandlers {
   onSettings?: () => void;
   onHelp?: () => void;
   onSearch?: () => void;
+  onNewPage?: () => void;
   onToggleIndex?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
@@ -77,6 +78,16 @@ export const useKeyboardShortcuts = (handlers: KeyboardShortcutHandlers) => {
       if (handlers.onSearch && isShortcutMatch(e, shortcuts.search)) {
         e.preventDefault();
         handlers.onSearch();
+      }
+      // New Page
+      if (
+        handlers.onNewPage &&
+        (shortcuts.new_page
+          ? isShortcutMatch(e, shortcuts.new_page)
+          : isShortcutMatch(e, { id: "new_page", key: "n", modKey: true }))
+      ) {
+        e.preventDefault();
+        handlers.onNewPage();
       }
       // Toggle Index
       if (

@@ -80,11 +80,13 @@ function AppContent({ workspacePath }: AppContentProps) {
 
   const { selectWorkspace } = useWorkspaceStore();
   const currentPageId = usePageStore((state) => state.currentPageId);
+  const createPage = usePageStore((state) => state.createPage);
+  const loadPages = usePageStore((state) => state.loadPages);
   const pagesById = usePageStore((state) => state.pagesById);
   const pageIds = usePageStore((state) => state.pageIds);
   const viewMode = useViewMode();
   const breadcrumb = useBreadcrumb();
-  const { showIndex, setWorkspaceName } = useViewStore();
+  const { showIndex, setWorkspaceName, showPage } = useViewStore();
 
   const fontFamily = useThemeStore((state) => state.fontFamily);
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
@@ -131,6 +133,15 @@ function AppContent({ workspacePath }: AppContentProps) {
     onSearch: () => {
       setCommandPaletteOpened(false);
       setSearchOpened((prev) => !prev);
+    },
+    onNewPage: async () => {
+      try {
+        const pageId = await createPage("Untitled");
+        await loadPages();
+        showPage(pageId);
+      } catch (error) {
+        console.error("Failed to create page:", error);
+      }
     },
     onToggleIndex: () => showIndex(),
     onUndo: () => useBlockStore.temporal.getState().undo(),

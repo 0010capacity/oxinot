@@ -23,6 +23,7 @@ export const DEFAULT_SHORTCUTS: Record<string, Shortcut> = {
   settings: { id: "settings", key: ",", modKey: true },
   help: { id: "help", key: "?", modKey: true },
   search: { id: "search", key: "p", modKey: true },
+  new_page: { id: "new_page", key: "n", modKey: true },
   toggle_index: { id: "toggle_index", key: "\\", modKey: true },
   undo: { id: "undo", key: "z", modKey: true },
   redo: { id: "redo", key: "z", modKey: true, shiftKey: true },
