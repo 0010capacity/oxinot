@@ -93,11 +93,13 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
 
       return (
         <div key={node.id}>
-          <div
+          <button
+            type="button"
             className="page-tree-item"
             style={{
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
             }}
+            onClick={() => handlePageClick(node.id)}
           >
             {/* Collapse toggle */}
             {hasChildren ? (
@@ -116,16 +118,14 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
             <BulletPoint type="default" />
 
             {/* Title */}
-            <button
-              type="button"
-              onClick={() => handlePageClick(node.id)}
+            <div
               className={`page-tree-item-title ${
                 node.isDirectory ? "directory" : ""
               }`}
             >
               {node.title}
-            </button>
-          </div>
+            </div>
+          </button>
 
           {/* Render children recursively */}
           {hasChildren && !isCollapsed && (
