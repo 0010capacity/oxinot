@@ -528,6 +528,7 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
     decorations: DecorationSet;
     private isComposing = false;
     private lastSyntaxTree: Tree | null = null;
+    private destroyed = false;
 
     // CM will attach the view to plugin instances; declare for TS.
     view!: EditorView;
@@ -554,6 +555,7 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
 
       // Let the DOM/selection settle after composition commits.
       requestAnimationFrame(() => {
+        if (this.destroyed) return;
         try {
           this.decorations = buildDecorations(this.view);
           this.lastSyntaxTree = syntaxTree(this.view.state);
@@ -593,6 +595,7 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
     }
 
     destroy() {
+      this.destroyed = true;
       try {
         this.view.dom.removeEventListener(
           "compositionstart",
