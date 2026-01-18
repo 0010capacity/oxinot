@@ -48,6 +48,7 @@ const MemoizedPageTreeItem = memo(PageTreeItem, (prev, next) => {
     prev.page.id === next.page.id &&
     prev.page.title === next.page.title &&
     prev.page.updatedAt === next.page.updatedAt &&
+    prev.page.isDirectory === next.page.isDirectory &&
     prev.depth === next.depth &&
     prev.isEditing === next.isEditing &&
     prev.editValue === next.editValue &&
