@@ -55,7 +55,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const hasChildren = childIds.length > 0;
     const focusedBlockId = useFocusedBlockId();
     const showIndentGuides = useOutlinerSettingsStore(
-      (state) => state.showIndentGuides,
+      (state) => state.showIndentGuides
     );
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
@@ -64,21 +64,21 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
     const splitBlockAtCursor = useBlockStore(
-      (state) => state.splitBlockAtCursor,
+      (state) => state.splitBlockAtCursor
     );
     const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const targetCursorPosition = useTargetCursorPosition();
     const setFocusedBlock = useBlockUIStore((state) => state.setFocusedBlock);
     const clearTargetCursorPosition = useBlockUIStore(
-      (state) => state.clearTargetCursorPosition,
+      (state) => state.clearTargetCursorPosition
     );
     const toggleBlockSelection = useBlockUIStore(
-      (state) => state.toggleBlockSelection,
+      (state) => state.toggleBlockSelection
     );
     const selectBlockRange = useBlockUIStore((state) => state.selectBlockRange);
     const selectedBlockIds = useBlockUIStore((state) => state.selectedBlockIds);
     const lastSelectedBlockId = useBlockUIStore(
-      (state) => state.lastSelectedBlockId,
+      (state) => state.lastSelectedBlockId
     );
     const isSelected = selectedBlockIds.includes(blockId);
 
@@ -125,7 +125,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
       // Filter blockOrder to maintain display order
       const orderedBlocks = blockOrder.filter((id) =>
-        targetBlocks.includes(id),
+        targetBlocks.includes(id)
       );
 
       const blocksById = useBlockStore.getState().blocksById;
@@ -265,7 +265,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     }, [
       t,
       blockId,
-      block.content,
       indentBlock,
       outdentBlock,
       createBlock,
@@ -321,7 +320,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           ],
         },
       ],
-      [t],
+      [t]
     );
 
     // Cleanup timeout on unmount
@@ -704,7 +703,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           editorRef.current?.focus();
         }
       },
-      [blockId, hasChildren, setFocusedBlock],
+      [blockId, hasChildren, setFocusedBlock]
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
@@ -720,7 +719,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         }
         handleContentChange(value);
       },
-      [handleContentChange],
+      [handleContentChange]
     );
 
     const keybindings: KeyBinding[] = useMemo(() => {
@@ -1021,6 +1020,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }}
         >
           {indentGuide}
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: Selection via mouse is the primary UX; keyboard navigation is handled by collapse button and arrow keys */}
           <div
             className="block-row"
             style={{
@@ -1211,5 +1211,5 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         </div>
       </ContextMenu>
     );
-  },
+  }
 );

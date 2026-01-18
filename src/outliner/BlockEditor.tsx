@@ -64,7 +64,6 @@ export function BlockEditor({
 
   // Register block editor commands
   useBlockEditorCommands({
-    pageId,
     onClose: undefined,
   });
 
