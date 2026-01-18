@@ -503,6 +503,18 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
 export const usePage = (id: string) =>
   usePageStore((state) => state.pagesById[id]);
 
+export const usePageChildrenIds = (parentId: string | null) =>
+  usePageStore((state) => {
+    // This is expensive if we iterate all pages every time
+    // But since we are inside a selector, it runs on every store update
+    // We can optimize this by maintaining a parent->children map in store if needed
+    // For now, let's just filter
+    return state.pageIds.filter((id) => {
+      const page = state.pagesById[id];
+      return page && (page.parentId ?? null) === parentId;
+    });
+  });
+
 export const usePageIds = () => usePageStore((state) => state.pageIds);
 
 export const useCurrentPageId = () =>
