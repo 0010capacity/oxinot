@@ -1,3 +1,4 @@
+import { fetch } from "@tauri-apps/plugin-http";
 import type { AIRequest, IAIProvider } from "./types";
 
 export class GoogleProvider implements IAIProvider {

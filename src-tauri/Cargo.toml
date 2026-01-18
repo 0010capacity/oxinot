@@ -37,3 +37,4 @@ thiserror = "1.0"
 rand = "0.8"
 tokio = { version = "1.49.0", features = ["fs", "io-util", "process"] }
 async-recursion = "1.1.1"
+tauri-plugin-http = "2.5.6"
