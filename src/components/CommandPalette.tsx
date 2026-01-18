@@ -1,8 +1,7 @@
 import { Box, Kbd, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { IconSearch } from "@tabler/icons-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCommandStore } from "../stores/commandStore";
-import { useDidUpdate } from "@mantine/hooks";
 
 interface CommandPaletteProps {
   opened: boolean;
@@ -12,7 +11,6 @@ interface CommandPaletteProps {
 export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const registeredCommands = useCommandStore((state) => state.commands);
 
@@ -45,10 +43,6 @@ export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
       return labelMatch || descMatch || keywordMatch || categoryMatch;
     });
   }, [commands, query]);
-
-  useDidUpdate(() => {
-    inputRef.current?.focus();
-  }, [opened]);
 
   useEffect(() => {
     if (opened) {
@@ -96,7 +90,7 @@ export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
     >
       <Stack gap="md">
         <TextInput
-          ref={inputRef}
+          data-autofocus
           placeholder="Type a command or search..."
           leftSection={<IconSearch size={16} />}
           value={query}

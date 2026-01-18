@@ -1,8 +1,7 @@
 import { Box, Loader, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { IconFile, IconFolder, IconSearch } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useDidUpdate } from "@mantine/hooks";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { type PageData, usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
@@ -33,7 +32,6 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const inputRef = useRef<HTMLInputElement>(null);
   const setCurrentPageId = usePageStore((state) => state.setCurrentPageId);
   const showPage = useViewStore((state) => state.showPage);
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
@@ -70,10 +68,6 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
     },
     [workspacePath]
   );
-
-  useDidUpdate(() => {
-    inputRef.current?.focus();
-  }, [opened]);
 
   useEffect(() => {
     if (opened) {
@@ -422,7 +416,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
     >
       <Stack gap="md">
         <TextInput
-          ref={inputRef}
+          data-autofocus
           placeholder="Search pages and blocks..."
           leftSection={<IconSearch size={16} />}
           rightSection={isSearching ? <Loader size="xs" /> : null}
