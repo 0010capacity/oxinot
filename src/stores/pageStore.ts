@@ -298,7 +298,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
           try {
             const oldParent = await invoke<PageData | null>("get_page", {
               workspacePath,
-              request: { pageId: oldParentId },
+              request: { page_id: oldParentId },
             });
             console.log("[pageStore.movePage] Old parent fetched:", oldParent);
             if (oldParent) {
