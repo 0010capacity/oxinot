@@ -62,7 +62,10 @@ const MemoizedPageTreeItem = memo(PageTreeItem, (prev, next) => {
     prev.collapsed[prev.page.id] === next.collapsed[next.page.id] &&
     prev.draggedPageId === next.draggedPageId &&
     prev.dragOverPageId === next.dragOverPageId &&
-    prev.showIndentGuides === next.showIndentGuides
+    prev.showIndentGuides === next.showIndentGuides &&
+    prev.isCreating === next.isCreating &&
+    prev.creatingParentId === next.creatingParentId &&
+    prev.isSubmitting === next.isSubmitting
   );
 });
 
@@ -92,113 +95,151 @@ interface RecursivePageTreeItemProps {
   showIndentGuides: boolean;
 }
 
-const RecursivePageTreeItem = memo((props: RecursivePageTreeItemProps) => {
-  const {
-    pageId,
-    depth,
-    isCreating,
-    creatingParentId,
-    handleCreatePage,
-    handleCancelCreate,
-    isSubmitting,
-    onEdit,
-    onDelete,
-    onAddChild,
-    onMouseDown,
-    editingPageId,
-    editValue,
-    onEditChange,
-    onEditSubmit,
-    onEditCancel,
-    collapsed,
-    onToggleCollapse,
-    draggedPageId,
-    dragOverPageId,
-    showIndentGuides,
-  } = props;
+const RecursivePageTreeItem = memo(
+  (props: RecursivePageTreeItemProps) => {
+    const {
+      pageId,
+      depth,
+      isCreating,
+      creatingParentId,
+      handleCreatePage,
+      handleCancelCreate,
+      isSubmitting,
+      onEdit,
+      onDelete,
+      onAddChild,
+      onMouseDown,
+      editingPageId,
+      editValue,
+      onEditChange,
+      onEditSubmit,
+      onEditCancel,
+      collapsed,
+      onToggleCollapse,
+      draggedPageId,
+      dragOverPageId,
+      showIndentGuides,
+    } = props;
 
-  const page = usePage(pageId);
-  const childrenIds = usePageChildrenIds(pageId);
-  const pagesById = usePageStore((state) => state.pagesById);
+    const page = usePage(pageId);
+    const childrenIds = usePageChildrenIds(pageId);
+    const pagesById = usePageStore((state) => state.pagesById);
 
-  const sortedChildrenIds = useMemo(() => {
-    return [...childrenIds].sort((a, b) => {
-      const titleA = pagesById[a]?.title || "";
-      const titleB = pagesById[b]?.title || "";
-      return titleA.localeCompare(titleB);
-    });
-  }, [childrenIds, pagesById]);
+    const sortedChildrenIds = useMemo(() => {
+      return [...childrenIds].sort((a, b) => {
+        const titleA = pagesById[a]?.title || "";
+        const titleB = pagesById[b]?.title || "";
+        return titleA.localeCompare(titleB);
+      });
+    }, [childrenIds, pagesById]);
 
-  if (!page) return null;
+    if (!page) return null;
 
-  const hasChildren = sortedChildrenIds.length > 0;
-  const isCreatingChild = isCreating && creatingParentId === pageId;
+    const hasChildren = sortedChildrenIds.length > 0;
+    const isCreatingChild = isCreating && creatingParentId === pageId;
 
-  return (
-    <MemoizedPageTreeItem
-      page={page}
-      depth={depth}
-      childCount={sortedChildrenIds.length}
-      isEditing={editingPageId === pageId}
-      onEdit={onEdit}
-      onDelete={onDelete}
-      onAddChild={onAddChild}
-      onMouseDown={onMouseDown}
-      editValue={editValue}
-      onEditChange={onEditChange}
-      onEditSubmit={onEditSubmit}
-      onEditCancel={onEditCancel}
-      collapsed={collapsed}
-      onToggleCollapse={onToggleCollapse}
-      draggedPageId={draggedPageId}
-      dragOverPageId={dragOverPageId}
-      showIndentGuides={showIndentGuides}
-    >
-      {hasChildren &&
-        sortedChildrenIds.map((childId) => (
-          <RecursivePageTreeItem
-            key={childId}
-            pageId={childId}
+    // Log when creating child for debugging
+    if (isCreatingChild) {
+      console.log(
+        "[RecursivePageTreeItem] Rendering NewPageInput for parent:",
+        pageId,
+        "depth:",
+        depth + 1
+      );
+    }
+
+    return (
+      <MemoizedPageTreeItem
+        page={page}
+        depth={depth}
+        childCount={sortedChildrenIds.length}
+        isEditing={editingPageId === pageId}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onAddChild={onAddChild}
+        onMouseDown={onMouseDown}
+        editValue={editValue}
+        onEditChange={onEditChange}
+        onEditSubmit={onEditSubmit}
+        onEditCancel={onEditCancel}
+        collapsed={collapsed}
+        onToggleCollapse={onToggleCollapse}
+        draggedPageId={draggedPageId}
+        dragOverPageId={dragOverPageId}
+        showIndentGuides={showIndentGuides}
+        isCreating={isCreating}
+        creatingParentId={creatingParentId}
+        isSubmitting={isSubmitting}
+      >
+        {hasChildren &&
+          sortedChildrenIds.map((childId) => (
+            <RecursivePageTreeItem
+              key={childId}
+              pageId={childId}
+              depth={depth + 1}
+              isCreating={isCreating}
+              creatingParentId={creatingParentId}
+              handleCreatePage={handleCreatePage}
+              handleCancelCreate={handleCancelCreate}
+              isSubmitting={isSubmitting}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onAddChild={onAddChild}
+              onMouseDown={onMouseDown}
+              editingPageId={editingPageId}
+              editValue={editValue}
+              onEditChange={onEditChange}
+              onEditSubmit={onEditSubmit}
+              onEditCancel={onEditCancel}
+              collapsed={collapsed}
+              onToggleCollapse={onToggleCollapse}
+              draggedPageId={draggedPageId}
+              dragOverPageId={dragOverPageId}
+              showIndentGuides={showIndentGuides}
+            />
+          ))}
+        {isCreatingChild && (
+          <NewPageInput
             depth={depth + 1}
-            isCreating={isCreating}
-            creatingParentId={creatingParentId}
-            handleCreatePage={handleCreatePage}
-            handleCancelCreate={handleCancelCreate}
+            onSubmit={handleCreatePage}
+            onCancel={handleCancelCreate}
             isSubmitting={isSubmitting}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onAddChild={onAddChild}
-            onMouseDown={onMouseDown}
-            editingPageId={editingPageId}
-            editValue={editValue}
-            onEditChange={onEditChange}
-            onEditSubmit={onEditSubmit}
-            onEditCancel={onEditCancel}
-            collapsed={collapsed}
-            onToggleCollapse={onToggleCollapse}
-            draggedPageId={draggedPageId}
-            dragOverPageId={dragOverPageId}
-            showIndentGuides={showIndentGuides}
           />
-        ))}
-      {isCreatingChild && (
-        <NewPageInput
-          depth={depth + 1}
-          onSubmit={handleCreatePage}
-          onCancel={handleCancelCreate}
-          isSubmitting={isSubmitting}
-        />
-      )}
-    </MemoizedPageTreeItem>
-  );
-});
+        )}
+      </MemoizedPageTreeItem>
+    );
+  },
+  (prev, next) => {
+    // Custom comparison to prevent unnecessary re-renders
+    // but allow re-renders when isCreating or creatingParentId changes
+    return (
+      prev.pageId === next.pageId &&
+      prev.depth === next.depth &&
+      prev.isCreating === next.isCreating &&
+      prev.creatingParentId === next.creatingParentId &&
+      prev.isSubmitting === next.isSubmitting &&
+      prev.editingPageId === next.editingPageId &&
+      prev.editValue === next.editValue &&
+      prev.collapsed[prev.pageId] === next.collapsed[next.pageId] &&
+      prev.draggedPageId === next.draggedPageId &&
+      prev.dragOverPageId === next.dragOverPageId &&
+      prev.showIndentGuides === next.showIndentGuides
+    );
+  }
+);
 
 RecursivePageTreeItem.displayName = "RecursivePageTreeItem";
 
 export function FileTreeIndex() {
   const { t } = useTranslation();
-  const { loadPages, createPage, updatePageTitle, deletePage, movePage } =
-    usePageStore();
+  const {
+    loadPages,
+    createPage,
+    updatePageTitle,
+    deletePage,
+    movePage,
+    convertToDirectory,
+  } = usePageStore();
 
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const workspaceName = workspacePath?.split("/").pop() || "Workspace";
@@ -492,7 +533,12 @@ export function FileTreeIndex() {
 
   const handleCreatePage = useCallback<(title: string) => Promise<void>>(
     async (title: string) => {
-      if (!title.trim()) return;
+      if (!title.trim()) {
+        console.log("[FileTreeIndex] Empty title, ignoring");
+        setIsCreating(false);
+        setCreatingParentId(null);
+        return;
+      }
 
       setIsSubmitting(true);
       try {
@@ -502,14 +548,54 @@ export function FileTreeIndex() {
           "parent:",
           creatingParentId
         );
+
+        // If creating a child, ensure parent is a directory first
+        if (creatingParentId) {
+          const parentPage =
+            usePageStore.getState().pagesById[creatingParentId];
+          console.log("[FileTreeIndex] Parent page:", parentPage);
+
+          if (parentPage && !parentPage.isDirectory) {
+            console.log(
+              "[FileTreeIndex] Converting parent to directory:",
+              creatingParentId
+            );
+            try {
+              await convertToDirectory(creatingParentId);
+              console.log("[FileTreeIndex] Parent converted successfully");
+            } catch (conversionError) {
+              console.error(
+                "[FileTreeIndex] Failed to convert parent to directory:",
+                conversionError
+              );
+              setIsSubmitting(false);
+              alert(
+                "Failed to convert parent to directory: " +
+                  (conversionError instanceof Error
+                    ? conversionError.message
+                    : String(conversionError))
+              );
+              return;
+            }
+          }
+        }
+
+        console.log(
+          "[FileTreeIndex] Calling createPage with title:",
+          title.trim(),
+          "parentId:",
+          creatingParentId || undefined
+        );
         const newPageId = await createPage(
           title.trim(),
           creatingParentId || undefined
         );
         console.log("[FileTreeIndex] Page created with ID:", newPageId);
 
+        // Clean up state immediately
         setIsCreating(false);
         setCreatingParentId(null);
+        setIsSubmitting(false);
 
         // Expand parent if creating child
         if (creatingParentId) {
@@ -519,17 +605,24 @@ export function FileTreeIndex() {
           }));
         }
       } catch (error) {
-        console.error("Failed to create page:", error);
-      } finally {
+        console.error("[FileTreeIndex] Failed to create page:", error);
         setIsSubmitting(false);
+        setIsCreating(false);
+        setCreatingParentId(null);
+        alert(
+          "Failed to create page: " +
+            (error instanceof Error ? error.message : String(error))
+        );
       }
     },
-    [creatingParentId, createPage]
+    [creatingParentId, createPage, convertToDirectory]
   );
 
   const handleCancelCreate = useCallback(() => {
+    console.log("[FileTreeIndex] Canceling create");
     setIsCreating(false);
     setCreatingParentId(null);
+    setIsSubmitting(false);
   }, []);
 
   const handleEditPage = useCallback(
@@ -622,14 +715,22 @@ export function FileTreeIndex() {
   }, [pageToDelete, deletePage]);
 
   const handleAddChild = useCallback((parentId: string) => {
+    console.log(
+      "[FileTreeIndex] handleAddChild called with parentId:",
+      parentId
+    );
     setCreatingParentId(parentId);
     setIsCreating(true);
 
     // Expand parent when adding child
-    setCollapsed((prev) => ({
-      ...prev,
-      [parentId]: false,
-    }));
+    setCollapsed((prev) => {
+      const newCollapsed = {
+        ...prev,
+        [parentId]: false,
+      };
+      console.log("[FileTreeIndex] Setting collapsed state:", newCollapsed);
+      return newCollapsed;
+    });
   }, []);
 
   const handleToggleCollapse = useCallback((pageId: string) => {
