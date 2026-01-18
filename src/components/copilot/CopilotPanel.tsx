@@ -71,7 +71,7 @@ export function CopilotPanel() {
     if (scrollViewportRef.current) {
       scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
     }
-  }, [previewContent]);
+  });
 
   const gatherContext = (): { context: string; systemPrompt?: string } => {
     const blockStore = useBlockStore.getState();
@@ -131,7 +131,7 @@ export function CopilotPanel() {
     setError(null);
 
     try {
-      const aiProvider = createAIProvider(provider, apiKey, baseUrl);
+      const aiProvider = createAIProvider(provider, baseUrl);
       const { context, systemPrompt } = gatherContext();
       
       const prompt = `${context}\n\nUser Request: ${inputValue}`;
@@ -149,9 +149,10 @@ export function CopilotPanel() {
         fullContent += chunk;
         setPreviewContent(fullContent);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("AI Generation Error:", err);
-      setError(err.message || "Failed to generate response");
+      const errorMessage = err instanceof Error ? err.message : "Failed to generate response";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

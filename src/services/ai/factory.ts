@@ -6,7 +6,6 @@ import { OpenAIProvider } from "./OpenAIProvider";
 
 export function createAIProvider(
   type: AIProviderType,
-  apiKey: string,
   baseUrl: string
 ): IAIProvider {
   switch (type) {

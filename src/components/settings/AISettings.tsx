@@ -9,7 +9,6 @@ import {
   Text,
   TextInput,
   Textarea,
-  Tooltip,
 } from "@mantine/core";
 import { IconPlus, IconTrash, IconPencil, IconCheck, IconX } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";

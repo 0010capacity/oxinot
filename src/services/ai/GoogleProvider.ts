@@ -20,7 +20,7 @@ export class GoogleProvider implements IAIProvider {
     const model = request.model || "gemini-1.5-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${request.apiKey}`;
     
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       contents: [{ role: "user", parts: [{ text: request.prompt }] }],
     };
     
