@@ -1,5 +1,16 @@
 # oxinot
 
+## 0.20.1
+
+### Patch Changes
+
+- a45b229: - update CSP to allow Firebase and analytics
+  - update CSP to allow Firebase and analytics (#483)
+- 59ff8b6: - handle workspace loading errors and add recovery options
+- a45b229: - handle workspace loading errors and add recovery options
+- a45b229: - update CSP to allow Firebase and analytics
+  - update CSP to allow Firebase and analytics (#483)
+
 ## 0.20.0
 
 ### Minor Changes
