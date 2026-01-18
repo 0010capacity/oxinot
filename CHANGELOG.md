@@ -1,5 +1,49 @@
 # oxinot
 
+## 0.22.0
+
+### Minor Changes
+
+- 6f0a35f: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+- 8decf7a: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+- 6f0a35f: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+- 6f0a35f: - implement native dock icon click behavior
+  - fix update_page command name to update_page_title
+  - implement native dock icon click behavior (#490)
+  - auto-convert parent to directory when adding child page
+  - improve child page creation with proper state management
+  - fix ghost input persisting after page creation
+
 ## 0.21.0
 
 ### Minor Changes
