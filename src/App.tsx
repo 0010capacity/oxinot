@@ -30,6 +30,8 @@ import { Updater } from "./components/Updater";
 import { SnowEffect } from "./components/SnowEffect";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 import { BlockEditor } from "./outliner/BlockEditor";
+import { CopilotButton } from "./components/copilot/CopilotButton";
+import { CopilotPanel } from "./components/copilot/CopilotPanel";
 
 import { usePageStore } from "./stores/pageStore";
 import { useBlockStore } from "./stores/blockStore";
@@ -312,6 +314,9 @@ function AppContent({ workspacePath }: AppContentProps) {
             }}
             onGraphViewClick={() => setGraphViewOpened(true)}
           />
+
+          <CopilotButton />
+          <CopilotPanel />
 
           {/* Main Content Panel */}
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
