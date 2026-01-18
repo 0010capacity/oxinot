@@ -1,7 +1,7 @@
 import { Box, Loader, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { IconFile, IconFolder, IconSearch } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type PageData, usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
@@ -32,6 +32,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const inputRef = useRef<HTMLInputElement>(null);
   const setCurrentPageId = usePageStore((state) => state.setCurrentPageId);
   const showPage = useViewStore((state) => state.showPage);
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
@@ -66,7 +67,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
         setIsSearching(false);
       }
     },
-    [workspacePath],
+    [workspacePath]
   );
 
   useEffect(() => {
@@ -75,6 +76,10 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
       setResults([]);
       setSelectedIndex(0);
       setCollapsed(new Set());
+      // Focus input field after modal renders
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
     }
   }, [opened]);
 
@@ -100,7 +105,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
     const flattenTree = (
       parentId: string | null,
       depth: number,
-      result: FlatPageItem[] = [],
+      result: FlatPageItem[] = []
     ): FlatPageItem[] => {
       const children = buildTree(parentId);
       for (const page of children) {
@@ -416,13 +421,13 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
     >
       <Stack gap="md">
         <TextInput
+          ref={inputRef}
           placeholder="Search pages and blocks..."
           leftSection={<IconSearch size={16} />}
           rightSection={isSearching ? <Loader size="xs" /> : null}
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
           onKeyDown={handleKeyDown}
-          autoFocus
           styles={{
             input: {
               fontSize: "0.95rem",

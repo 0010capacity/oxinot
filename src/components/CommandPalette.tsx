@@ -1,6 +1,6 @@
 import { Box, Kbd, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { IconSearch } from "@tabler/icons-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useCommandStore } from "../stores/commandStore";
 
 interface CommandPaletteProps {
@@ -11,6 +11,7 @@ interface CommandPaletteProps {
 export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const registeredCommands = useCommandStore((state) => state.commands);
 
@@ -37,7 +38,7 @@ export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
       const labelMatch = cmd.label.toLowerCase().includes(lowerQuery);
       const descMatch = cmd.description?.toLowerCase().includes(lowerQuery);
       const keywordMatch = cmd.keywords?.some((kw) =>
-        kw.toLowerCase().includes(lowerQuery),
+        kw.toLowerCase().includes(lowerQuery)
       );
       const categoryMatch = cmd.category?.toLowerCase().includes(lowerQuery);
       return labelMatch || descMatch || keywordMatch || categoryMatch;
@@ -48,6 +49,10 @@ export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
     if (opened) {
       setQuery("");
       setSelectedIndex(0);
+      // Focus input field after modal renders
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
     }
   }, [opened]);
 
@@ -61,7 +66,7 @@ export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIndex((prev) =>
-        Math.min(prev + 1, filteredCommands.length - 1),
+        Math.min(prev + 1, filteredCommands.length - 1)
       );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -90,12 +95,12 @@ export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
     >
       <Stack gap="md">
         <TextInput
+          ref={inputRef}
           placeholder="Type a command or search..."
           leftSection={<IconSearch size={16} />}
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
           onKeyDown={handleKeyDown}
-          autoFocus
           styles={{
             input: {
               fontSize: "0.95rem",
