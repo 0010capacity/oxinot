@@ -46,7 +46,7 @@ export class LinkHandler extends BaseHandler {
 
     // Hide opening bracket [
     decorations.push(
-      createHiddenMarker(node.from, node.from + 1, context.isEditMode)
+      createHiddenMarker(node.from, node.from + 1, context.isEditMode),
     );
 
     // Style the link text
@@ -54,7 +54,7 @@ export class LinkHandler extends BaseHandler {
       createStyledText(textStart, textEnd, {
         className: "cm-link-text",
         style: getLinkStyle(),
-      })
+      }),
     );
 
     // Hide ]( between text and URL
@@ -65,11 +65,11 @@ export class LinkHandler extends BaseHandler {
       decorations.push(
         createStyledText(urlStart, urlEnd, {
           className: "cm-link-url",
-        })
+        }),
       );
     } else {
       decorations.push(
-        createHiddenMarker(urlStart, urlEnd, context.isEditMode)
+        createHiddenMarker(urlStart, urlEnd, context.isEditMode),
       );
     }
 

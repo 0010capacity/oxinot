@@ -180,7 +180,7 @@ export function GitSettings({
                         value={autoCommitInterval}
                         onChange={(value) =>
                           setAutoCommitInterval(
-                            typeof value === "number" ? value : 5
+                            typeof value === "number" ? value : 5,
                           )
                         }
                         min={1}

@@ -40,7 +40,7 @@ export function useDebouncedBlockUpdate(blockId: string) {
       timerRef.current = setTimeout(() => {
         if (pendingContentRef.current !== undefined) {
           const currentBlockId = resolveBlockId();
-          
+
           // Access the current version of updateBlockContent
           const currentUpdateBlockContent =
             useBlockStore.getState().updateBlockContent;
@@ -50,7 +50,7 @@ export function useDebouncedBlockUpdate(blockId: string) {
       }, DEBOUNCE_MS);
     },
     // Empty dependency array - blockId changes handled via ref
-    [resolveBlockId]
+    [resolveBlockId],
   );
 
   const flushUpdate = useCallback(() => {

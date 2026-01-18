@@ -1,10 +1,4 @@
-import {
-  ActionIcon,
-  Button,
-  Group,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { ActionIcon, Button, Group, Stack, Text } from "@mantine/core";
 import { IconRotateClockwise } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -90,7 +84,14 @@ function ShortcutRow({
   }, [isRecording, onUpdate]);
 
   return (
-    <Group justify="space-between" p="xs" style={{ borderRadius: "var(--radius-sm)", backgroundColor: "var(--color-bg-tertiary)" }}>
+    <Group
+      justify="space-between"
+      p="xs"
+      style={{
+        borderRadius: "var(--radius-sm)",
+        backgroundColor: "var(--color-bg-tertiary)",
+      }}
+    >
       <Text size="sm" fw={500}>
         {label}
       </Text>
@@ -164,7 +165,12 @@ export function ShortcutsSettings({ matchesSearch }: ShortcutsSettingsProps) {
         </Stack>
 
         <Group mt="xl">
-          <Button variant="light" color="red" size="xs" onClick={resetShortcuts}>
+          <Button
+            variant="light"
+            color="red"
+            size="xs"
+            onClick={resetShortcuts}
+          >
             Reset All Shortcuts
           </Button>
         </Group>

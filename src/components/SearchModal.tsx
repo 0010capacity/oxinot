@@ -243,9 +243,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
                     ? "var(--color-interactive-selected)"
                     : "transparent",
                   border: `1px solid ${
-                    isSelected
-                      ? "var(--color-border-secondary)"
-                      : "transparent"
+                    isSelected ? "var(--color-border-secondary)" : "transparent"
                   }`,
                   transition: "all 0.15s ease",
                   display: "flex",

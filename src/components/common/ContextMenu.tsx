@@ -65,7 +65,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         setOpenMenuId(null);
       }
     },
-    [menuId, openMenuId, setOpenMenuId]
+    [menuId, openMenuId, setOpenMenuId],
   );
 
   // Save selection on mousedown before browser can change it
@@ -87,7 +87,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             };
             console.log(
               "[ContextMenu] Saved selection on mousedown:",
-              savedSelectionRef.current.text
+              savedSelectionRef.current.text,
             );
             return;
           }
@@ -121,14 +121,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           "[ContextMenu] hasSelection:",
           hasSelection,
           "text:",
-          savedSelection.text
+          savedSelection.text,
         );
       }
 
       console.log("[ContextMenu] Final hasSelection:", hasSelection);
       console.log(
         "[ContextMenu] textSelectionSections available:",
-        !!textSelectionSections
+        !!textSelectionSections,
       );
 
       // If text is actually selected and we have textSelectionSections, use those
@@ -148,7 +148,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       setCoords({ x: e.clientX, y: e.clientY });
       setOpenMenuId(menuId);
     },
-    [sections, textSelectionSections, menuId, setOpenMenuId]
+    [sections, textSelectionSections, menuId, setOpenMenuId],
   );
 
   if (disabled) {

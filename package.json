@@ -54,6 +54,7 @@
     "react-i18next": "^16.5.2",
     "react-virtuoso": "^4.18.1",
     "uuid": "^13.0.0",
+    "zundo": "^2.3.0",
     "zustand": "^4.4.7"
   },
   "devDependencies": {

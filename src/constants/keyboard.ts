@@ -186,8 +186,8 @@ export function matchesShortcut(
     Meta?: boolean;
     shift?: boolean;
     alt?: boolean;
-  // allow any for dynamic modifier keys
-  [key: string]: boolean | string | undefined;
+    // allow any for dynamic modifier keys
+    [key: string]: boolean | string | undefined;
   },
 ): boolean {
   const key = event.key.toLowerCase();

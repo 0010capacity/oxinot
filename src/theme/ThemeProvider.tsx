@@ -46,7 +46,7 @@ function ThemeSynchronizer({ children }: { children: ReactNode }) {
     const setCssVariables = (
       element: HTMLElement,
       prefix: string,
-      obj: Record<string, unknown>
+      obj: Record<string, unknown>,
     ) => {
       for (const key in obj) {
         if (Object.prototype.hasOwnProperty.call(obj, key)) {
@@ -60,7 +60,7 @@ function ThemeSynchronizer({ children }: { children: ReactNode }) {
             setCssVariables(
               element,
               cssVarName,
-              value as Record<string, unknown>
+              value as Record<string, unknown>,
             );
           } else {
             let cssValue = value;
@@ -80,7 +80,7 @@ function ThemeSynchronizer({ children }: { children: ReactNode }) {
     root.style.setProperty("--font-family", appTheme.typography.fontFamily);
     root.style.setProperty(
       "--font-family-mono",
-      appTheme.typography.monoFontFamily
+      appTheme.typography.monoFontFamily,
     );
     setCssVariables(root, "--font-size", appTheme.typography.fontSize);
     setCssVariables(root, "--line-height", appTheme.typography.lineHeight);
@@ -129,7 +129,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
           string,
           string,
           string,
-          string
+          string,
         ],
       },
       fontFamily: tempTheme.typography.fontFamily,

@@ -69,7 +69,7 @@ export async function toggleCollapseBlocks(blockIds: string[]): Promise<void> {
  */
 export async function changeBlockType(
   blockIds: string[],
-  newType: "bullet" | "code" | "fence"
+  newType: "bullet" | "code" | "fence",
 ): Promise<void> {
   if (blockIds.length === 0) return;
 
@@ -84,7 +84,7 @@ export async function changeBlockType(
  * Copy selected block IDs to clipboard (for linking)
  */
 export async function copyBlockIdsToClipboard(
-  blockIds: string[]
+  blockIds: string[],
 ): Promise<void> {
   if (blockIds.length === 0) return;
 

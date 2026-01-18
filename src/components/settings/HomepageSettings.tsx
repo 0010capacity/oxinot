@@ -34,7 +34,7 @@ export function HomepageSettings({
                 onChange={(value) => {
                   if (value)
                     setHomepageType(
-                      value as "daily-note" | "index" | "custom-page"
+                      value as "daily-note" | "index" | "custom-page",
                     );
                 }}
                 data={[

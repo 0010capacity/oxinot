@@ -8,10 +8,7 @@ interface CommandPaletteProps {
   onClose: () => void;
 }
 
-export function CommandPalette({
-  opened,
-  onClose,
-}: CommandPaletteProps) {
+export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -23,11 +20,11 @@ export function CommandPalette({
       const catA = a.category || "";
       const catB = b.category || "";
       if (catA !== catB) return catA.localeCompare(catB);
-      
+
       const orderA = a.order ?? 100;
       const orderB = b.order ?? 100;
       if (orderA !== orderB) return orderA - orderB;
-      
+
       return a.label.localeCompare(b.label);
     });
   }, [registeredCommands]);
@@ -163,7 +160,13 @@ export function CommandPalette({
                       {command.icon}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "baseline",
+                          gap: "8px",
+                        }}
+                      >
                         <Text
                           size="sm"
                           style={{

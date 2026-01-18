@@ -30,6 +30,7 @@ import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 import { BlockEditor } from "./outliner/BlockEditor";
 
 import { usePageStore } from "./stores/pageStore";
+import { useBlockStore } from "./stores/blockStore";
 import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useTranslation } from "react-i18next";
@@ -123,6 +124,8 @@ function AppContent({ workspacePath }: AppContentProps) {
     onHelp: () => setHelpOpened(true),
     onSearch: () => setSearchOpened(true),
     onToggleIndex: () => showIndex(),
+    onUndo: () => useBlockStore.temporal.getState().undo(),
+    onRedo: () => useBlockStore.temporal.getState().redo(),
   });
 
   // Apply saved font, size, and line height settings on mount and when they change
@@ -134,11 +137,11 @@ function AppContent({ workspacePath }: AppContentProps) {
     }
     document.documentElement.style.setProperty(
       "--editor-font-size",
-      `${editorFontSize}px`
+      `${editorFontSize}px`,
     );
     document.documentElement.style.setProperty(
       "--editor-line-height",
-      `${editorLineHeight}`
+      `${editorLineHeight}`,
     );
   }, [fontFamily, editorFontSize, editorLineHeight, getFontStack]);
 

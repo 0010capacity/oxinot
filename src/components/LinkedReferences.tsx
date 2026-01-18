@@ -46,7 +46,7 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
       } catch (err) {
         console.error("[LinkedReferences] Failed to fetch backlinks:", err);
         setError(
-          err instanceof Error ? err.message : "Failed to load backlinks"
+          err instanceof Error ? err.message : "Failed to load backlinks",
         );
       } finally {
         setIsLoading(false);
@@ -87,7 +87,7 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
 
   const backlinkCount = backlinks.reduce(
     (sum, group) => sum + group.blocks.length,
-    0
+    0,
   );
   const pageCount = backlinks.length;
 

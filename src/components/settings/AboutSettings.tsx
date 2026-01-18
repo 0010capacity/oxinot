@@ -1,11 +1,4 @@
-import {
-  Badge,
-  Button,
-  Group,
-  Progress,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { Badge, Button, Group, Progress, Stack, Text } from "@mantine/core";
 import { IconDownload } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useUpdaterStore } from "../../stores/updaterStore";
@@ -71,10 +64,10 @@ export function AboutSettings({ appVersion }: AboutSettingsProps) {
               const error = useUpdaterStore((state) => state.error);
               const progress = useUpdaterStore((state) => state.progress);
               const checkForUpdates = useUpdaterStore(
-                (state) => state.checkForUpdates
+                (state) => state.checkForUpdates,
               );
               const installUpdate = useUpdaterStore(
-                (state) => state.installUpdate
+                (state) => state.installUpdate,
               );
 
               if (status === "checking") {

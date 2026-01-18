@@ -18,7 +18,7 @@ export interface UseQueryMacroReturn extends UseQueryMacroState {
  */
 export function useQueryMacro(
   macroString: string,
-  workspacePath: string
+  workspacePath: string,
 ): UseQueryMacroReturn {
   const [state, setState] = useState<UseQueryMacroState>({
     results: [],
@@ -45,7 +45,7 @@ export function useQueryMacro(
       // Execute query via Tauri
       const result = await tauriAPI.executeQueryMacro(
         workspacePath,
-        macroString
+        macroString,
       );
 
       if (result.error) {
@@ -66,8 +66,8 @@ export function useQueryMacro(
         err instanceof QueryParseError
           ? `Parse error: ${err.message}`
           : err instanceof Error
-          ? err.message
-          : "Unknown error";
+            ? err.message
+            : "Unknown error";
 
       setState({
         results: [],

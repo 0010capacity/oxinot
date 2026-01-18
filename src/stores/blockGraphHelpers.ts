@@ -9,7 +9,7 @@ import type { BlockData } from "./blockStore";
 export function getInsertBelowTarget(
   currentId: string,
   blocksById: Record<string, BlockData>,
-  childrenMap: Record<string, string[]>
+  childrenMap: Record<string, string[]>,
 ): { parentId: string | null; afterBlockId: string | null } {
   const currentBlock = blocksById[currentId];
   const hasChildren = (childrenMap[currentId] ?? []).length > 0;
@@ -40,7 +40,7 @@ export function updateChildrenMap(
   childrenMap: Record<string, string[]>,
   blocksById: Record<string, BlockData>,
   updatedBlocks: BlockData[],
-  deletedBlockIds: string[] = []
+  deletedBlockIds: string[] = [],
 ): void {
   const affectedParentIds = new Set<string>();
 
@@ -51,7 +51,7 @@ export function updateChildrenMap(
       const parentKey = block.parentId ?? "root";
       if (childrenMap[parentKey]) {
         childrenMap[parentKey] = childrenMap[parentKey].filter(
-          (cid) => cid !== id
+          (cid) => cid !== id,
         );
         affectedParentIds.add(parentKey);
       }
@@ -71,7 +71,7 @@ export function updateChildrenMap(
         // Parent changed: remove from old parent
         if (childrenMap[oldParentKey]) {
           childrenMap[oldParentKey] = childrenMap[oldParentKey].filter(
-            (cid) => cid !== block.id
+            (cid) => cid !== block.id,
           );
           affectedParentIds.add(oldParentKey);
         }
@@ -109,7 +109,9 @@ export function updateChildrenMap(
 
   // 3. Re-sort children for affected parents
   // Create a temporary map of updated weights for faster lookup during sort
-  const updatedWeights = new Map(updatedBlocks.map((b) => [b.id, b.orderWeight]));
+  const updatedWeights = new Map(
+    updatedBlocks.map((b) => [b.id, b.orderWeight]),
+  );
 
   for (const parentKey of affectedParentIds) {
     const list = childrenMap[parentKey];
@@ -160,7 +162,7 @@ export function findNextBlockInOrder(
   currentId: string,
   blocksById: Record<string, BlockData>,
   childrenMap: Record<string, string[]>,
-  visibleCollapsedSet?: Set<string>
+  visibleCollapsedSet?: Set<string>,
 ): string | null {
   const children = childrenMap[currentId] ?? [];
   const isCollapsed = blocksById[currentId]?.isCollapsed ?? false;
@@ -202,7 +204,7 @@ export function findNextBlockInOrder(
 export function findPreviousBlockInOrder(
   currentId: string,
   blocksById: Record<string, BlockData>,
-  childrenMap: Record<string, string[]>
+  childrenMap: Record<string, string[]>,
 ): string | null {
   const currentBlock = blocksById[currentId];
   const parentId = currentBlock?.parentId ?? null;

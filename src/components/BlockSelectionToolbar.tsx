@@ -37,7 +37,7 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
   const isDark = computedColorScheme === "dark";
   const selectedBlockIds = useBlockUIStore((state) => state.selectedBlockIds);
   const clearSelectedBlocks = useBlockUIStore(
-    (state) => state.clearSelectedBlocks
+    (state) => state.clearSelectedBlocks,
   );
 
   const canIndent = batchOps.canIndentBlocks(selectedBlockIds);

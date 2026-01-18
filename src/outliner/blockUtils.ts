@@ -153,7 +153,7 @@ export function getBlockPath(block: Block): Block[] {
 
 export function getPreviousBlock(
   blocks: Block[],
-  currentId: string
+  currentId: string,
 ): Block | null {
   const flat = flattenBlocks(blocks);
   const index = flat.findIndex((b) => b.id === currentId);
@@ -233,7 +233,7 @@ export function getVisibleDescendantCount(block: Block): number {
  */
 export function blocksToMarkdown(
   blocks: Block[],
-  includeCollapsed = true
+  includeCollapsed = true,
 ): string {
   if (!Array.isArray(blocks)) {
     debug.error("blocksToMarkdown: blocks is not an array", blocks);

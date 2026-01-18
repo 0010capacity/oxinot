@@ -50,6 +50,6 @@ export const useAppSettingsStore = createWithEqualityFn<AppSettingsStore>()(
     }),
     {
       name: "app-settings",
-    }
-  )
+    },
+  ),
 );

@@ -141,12 +141,12 @@ export function FileTreeIndex() {
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const workspaceName = workspacePath?.split("/").pop() || "Workspace";
   const showIndentGuides = useOutlinerSettingsStore(
-    (state) => state.showIndentGuides
+    (state) => state.showIndentGuides,
   );
 
   // Use single selector to ensure atomic updates
   const pages = usePageStore((state) =>
-    state.pageIds.map((id) => state.pagesById[id]).filter(Boolean)
+    state.pageIds.map((id) => state.pagesById[id]).filter(Boolean),
   );
 
   const [isCreating, setIsCreating] = useState(false);
@@ -209,10 +209,10 @@ export function FileTreeIndex() {
       // Find element under cursor
       const elements = document.elementsFromPoint(e.clientX, e.clientY);
       const pageElement = elements.find((el) =>
-        el.getAttribute("data-page-id")
+        el.getAttribute("data-page-id"),
       );
       const dropZone = elements.find(
-        (el) => el.getAttribute("data-drop-zone") === "root"
+        (el) => el.getAttribute("data-drop-zone") === "root",
       );
 
       let dragOverPageId: string | null = null;
@@ -274,7 +274,7 @@ export function FileTreeIndex() {
         if (dragOverPageId === "root") {
           // Move to root level
           console.log(
-            `[FileTreeIndex.handleMouseUp] Moving ${draggedPageId} to root`
+            `[FileTreeIndex.handleMouseUp] Moving ${draggedPageId} to root`,
           );
           console.log(
             "[FileTreeIndex.handleMouseUp] Pages state BEFORE movePage:",
@@ -282,14 +282,14 @@ export function FileTreeIndex() {
               id: p.id,
               title: p.title,
               parentId: p.parentId,
-            }))
+            })),
           );
 
           movePageRef
             .current(draggedPageId, null)
             .then(() => {
               console.log(
-                "[FileTreeIndex.handleMouseUp] Page moved to root successfully"
+                "[FileTreeIndex.handleMouseUp] Page moved to root successfully",
               );
 
               const finalPage =
@@ -304,7 +304,7 @@ export function FileTreeIndex() {
               const errorMessage = String(error);
               console.error(
                 "[FileTreeIndex.handleMouseUp] Failed to move page:",
-                error
+                error,
               );
 
               // Silently ignore validation errors (invalid move operations)
@@ -313,7 +313,7 @@ export function FileTreeIndex() {
                 errorMessage.includes("Cannot move page to its own descendant")
               ) {
                 console.log(
-                  "[FileTreeIndex.handleMouseUp] Invalid move operation ignored"
+                  "[FileTreeIndex.handleMouseUp] Invalid move operation ignored",
                 );
                 return;
               }
@@ -323,7 +323,7 @@ export function FileTreeIndex() {
             });
         } else if (dragOverPageId && draggedPageId !== dragOverPageId) {
           console.log(
-            `[FileTreeIndex.handleMouseUp] Dropping ${draggedPageId} on ${dragOverPageId}`
+            `[FileTreeIndex.handleMouseUp] Dropping ${draggedPageId} on ${dragOverPageId}`,
           );
           console.log("[FileTreeIndex.handleMouseUp] Target page:", {
             id: targetPage?.id,
@@ -335,14 +335,14 @@ export function FileTreeIndex() {
               id: p.id,
               title: p.title,
               parentId: p.parentId,
-            }))
+            })),
           );
 
           movePageRef
             .current(draggedPageId, dragOverPageId)
             .then(() => {
               console.log(
-                "[FileTreeIndex.handleMouseUp] Page moved successfully"
+                "[FileTreeIndex.handleMouseUp] Page moved successfully",
               );
 
               const finalPage =
@@ -362,7 +362,7 @@ export function FileTreeIndex() {
               const errorMessage = String(error);
               console.error(
                 "[FileTreeIndex.handleMouseUp] Failed to move page:",
-                error
+                error,
               );
 
               // Silently ignore validation errors (invalid move operations)
@@ -371,7 +371,7 @@ export function FileTreeIndex() {
                 errorMessage.includes("Cannot move page to its own descendant")
               ) {
                 console.log(
-                  "[FileTreeIndex.handleMouseUp] Invalid move operation ignored"
+                  "[FileTreeIndex.handleMouseUp] Invalid move operation ignored",
                 );
                 return;
               }
@@ -381,12 +381,12 @@ export function FileTreeIndex() {
             });
         } else {
           console.log(
-            "[FileTreeIndex.handleMouseUp] Invalid drop target, no action taken"
+            "[FileTreeIndex.handleMouseUp] Invalid drop target, no action taken",
           );
         }
       } else {
         console.log(
-          "[FileTreeIndex.handleMouseUp] No draggedPageId, no action taken"
+          "[FileTreeIndex.handleMouseUp] No draggedPageId, no action taken",
         );
       }
 
@@ -438,11 +438,11 @@ export function FileTreeIndex() {
           "[FileTreeIndex] Creating page:",
           title.trim(),
           "parent:",
-          creatingParentId
+          creatingParentId,
         );
         const newPageId = await createPage(
           title.trim(),
-          creatingParentId || undefined
+          creatingParentId || undefined,
         );
         console.log("[FileTreeIndex] Page created with ID:", newPageId);
 
@@ -462,7 +462,7 @@ export function FileTreeIndex() {
         setIsSubmitting(false);
       }
     },
-    [creatingParentId, createPage, pages.length]
+    [creatingParentId, createPage, pages.length],
   );
 
   const handleCancelCreate = useCallback(() => {
@@ -478,7 +478,7 @@ export function FileTreeIndex() {
         setEditValue(page.title);
       }
     },
-    [pages]
+    [pages],
   );
 
   const handleEditSubmit = useCallback(async () => {
@@ -502,7 +502,7 @@ export function FileTreeIndex() {
     (pageId: string) => {
       console.log(
         "[FileTreeIndex] handleDeletePage called with pageId:",
-        pageId
+        pageId,
       );
       const page = pages.find((p) => p.id === pageId);
       if (!page) {
@@ -523,13 +523,13 @@ export function FileTreeIndex() {
           id: p.id,
           title: p.title,
           parentId: p.parentId,
-        }))
+        })),
       );
 
       setPageToDelete(page);
       setDeleteModalOpened(true);
     },
-    [pages]
+    [pages],
   );
 
   const confirmDeletePage = useCallback(async () => {
@@ -547,7 +547,7 @@ export function FileTreeIndex() {
     try {
       console.log(
         "[FileTreeIndex] Calling deletePage with id:",
-        pageToDelete.id
+        pageToDelete.id,
       );
       await deletePage(pageToDelete.id);
       console.log("[FileTreeIndex] deletePage completed successfully");
@@ -640,7 +640,7 @@ export function FileTreeIndex() {
       descendants.map((p) => ({
         id: p.id,
         title: p.title,
-      }))
+      })),
     );
 
     return descendants;

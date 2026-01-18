@@ -124,4 +124,4 @@ export function GitStatusIndicator({ workspacePath }: GitStatusIndicatorProps) {
       )}
     </div>
   );
-};
+}

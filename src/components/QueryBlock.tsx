@@ -55,7 +55,7 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
       // Execute query via Tauri
       const result = await tauriAPI.executeQueryMacro(
         workspacePath,
-        macroString
+        macroString,
       );
 
       if (result.error) {
@@ -76,8 +76,8 @@ const QueryBlock: React.FC<QueryBlockProps> = ({
         err instanceof QueryParseError
           ? `Parse error: ${err.message}`
           : err instanceof Error
-          ? err.message
-          : "Unknown error";
+            ? err.message
+            : "Unknown error";
 
       setState((prev) => ({
         ...prev,

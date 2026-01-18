@@ -85,7 +85,7 @@ export interface GitSettingsProps extends SettingsComponentProps {
   checkGitStatus: (workspacePath: string) => Promise<void>;
   gitCommit: (
     workspacePath: string,
-    message: string
+    message: string,
   ) => Promise<GitCommitResult>;
   initGit: (workspacePath: string) => Promise<boolean>;
   remoteUrl: string | null;

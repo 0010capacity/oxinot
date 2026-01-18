@@ -128,7 +128,7 @@ export function PageTreeItem({
         ],
       },
     ],
-    [page.id, page.title, page.parentId, onAddChild, onEdit, onDelete, t]
+    [page.id, page.title, page.parentId, onAddChild, onEdit, onDelete, t],
   );
 
   const handlePageClick = async (e: React.MouseEvent) => {
@@ -202,7 +202,7 @@ export function PageTreeItem({
 
   const moveFocus = (direction: number) => {
     const buttons = Array.from(
-      document.querySelectorAll(".page-tree-item-button")
+      document.querySelectorAll(".page-tree-item-button"),
     ) as HTMLElement[];
     const currentIndex = buttons.indexOf(document.activeElement as HTMLElement);
     if (currentIndex !== -1) {
@@ -297,8 +297,8 @@ export function PageTreeItem({
                     ? isCollapsed
                       ? "var(--opacity-disabled)"
                       : isHovered
-                      ? "var(--opacity-dimmed)"
-                      : 0
+                        ? "var(--opacity-dimmed)"
+                        : 0
                     : 0,
                   visibility: hasChildren ? "visible" : "hidden",
                 }}
@@ -441,7 +441,7 @@ export function PageTreeItem({
                             id: page.id,
                             title: page.title,
                             parentId: page.parentId,
-                          }
+                          },
                         );
                         onDelete(page.id);
                       }}

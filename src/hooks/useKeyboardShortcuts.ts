@@ -7,9 +7,16 @@ export interface KeyboardShortcutHandlers {
   onHelp?: () => void;
   onSearch?: () => void;
   onToggleIndex?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
-const isShortcutMatch = (e: KeyboardEvent, shortcut: Shortcut) => {
+const isShortcutMatch = (e: KeyboardEvent, shortcut: Shortcut | undefined) => {
+  // Guard against undefined or missing key property
+  if (!shortcut || !shortcut.key) {
+    return false;
+  }
+
   const isMod = e.metaKey || e.ctrlKey;
 
   // Check key (case-insensitive)
@@ -49,7 +56,10 @@ export const useKeyboardShortcuts = (handlers: KeyboardShortcutHandlers) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Command Palette
-      if (handlers.onCommandPalette && isShortcutMatch(e, shortcuts.command_palette)) {
+      if (
+        handlers.onCommandPalette &&
+        isShortcutMatch(e, shortcuts.command_palette)
+      ) {
         e.preventDefault();
         handlers.onCommandPalette();
       }
@@ -69,9 +79,22 @@ export const useKeyboardShortcuts = (handlers: KeyboardShortcutHandlers) => {
         handlers.onSearch();
       }
       // Toggle Index
-      if (handlers.onToggleIndex && isShortcutMatch(e, shortcuts.toggle_index)) {
+      if (
+        handlers.onToggleIndex &&
+        isShortcutMatch(e, shortcuts.toggle_index)
+      ) {
         e.preventDefault();
         handlers.onToggleIndex();
+      }
+      // Undo
+      if (handlers.onUndo && isShortcutMatch(e, shortcuts.undo)) {
+        e.preventDefault();
+        handlers.onUndo();
+      }
+      // Redo
+      if (handlers.onRedo && isShortcutMatch(e, shortcuts.redo)) {
+        e.preventDefault();
+        handlers.onRedo();
       }
     };
 

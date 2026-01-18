@@ -129,7 +129,7 @@ export function Breadcrumb({
 
         const isLast = index === zoomPath.length - 1;
         const displayText = truncateText(
-          block.content || t("common.untitled_block")
+          block.content || t("common.untitled_block"),
         );
 
         return (
