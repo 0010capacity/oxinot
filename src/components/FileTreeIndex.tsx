@@ -216,13 +216,7 @@ export function FileTreeIndex() {
             .current(draggedPageId, null)
             .then(() => {
               console.log(
-                "[FileTreeIndex.handleMouseUp] movePage completed, now calling loadPages..."
-              );
-              return loadPagesRef.current();
-            })
-            .then(() => {
-              console.log(
-                "[FileTreeIndex.handleMouseUp] loadPages completed, checking final state..."
+                "[FileTreeIndex.handleMouseUp] Page moved to root successfully"
               );
 
               const finalPage =
@@ -232,10 +226,6 @@ export function FileTreeIndex() {
                 title: finalPage?.title,
                 parentId: finalPage?.parentId,
               });
-
-              console.log(
-                "[FileTreeIndex.handleMouseUp] Page moved to root successfully"
-              );
             })
             .catch((error) => {
               const errorMessage = String(error);
@@ -279,13 +269,7 @@ export function FileTreeIndex() {
             .current(draggedPageId, dragOverPageId)
             .then(() => {
               console.log(
-                "[FileTreeIndex.handleMouseUp] movePage completed, now calling loadPages..."
-              );
-              return loadPagesRef.current();
-            })
-            .then(() => {
-              console.log(
-                "[FileTreeIndex.handleMouseUp] loadPages completed, checking final state..."
+                "[FileTreeIndex.handleMouseUp] Page moved successfully"
               );
 
               const finalPage =
@@ -300,9 +284,6 @@ export function FileTreeIndex() {
                 ...prev,
                 [dragOverPageId]: false,
               }));
-              console.log(
-                "[FileTreeIndex.handleMouseUp] Page moved successfully"
-              );
             })
             .catch((error) => {
               const errorMessage = String(error);

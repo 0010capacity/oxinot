@@ -35,5 +35,5 @@ pub struct UpdatePageRequest {
 #[serde(rename_all = "camelCase")]
 pub struct MovePageRequest {
     pub id: String,
-    pub new_parent_id: Option<String>,
+    pub parent_id: Option<String>,
 }

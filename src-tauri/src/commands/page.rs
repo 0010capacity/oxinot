@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use uuid::Uuid;
 
 use crate::commands::workspace::open_workspace_db;
-use crate::models::page::{CreatePageRequest, Page, UpdatePageRequest};
+use crate::models::page::{CreatePageRequest, MovePageRequest, Page, UpdatePageRequest};
 use crate::services::file_sync::FileSyncService;
 use crate::utils::page_sync::sync_page_to_markdown;
 
@@ -24,13 +24,14 @@ pub async fn create_page(
 ) -> Result<Page, String> {
     let conn = open_workspace_db(&workspace_path)?;
     let conn_mutex = Mutex::new(conn);
-    
+
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
 
     {
         let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-        conn.execute("BEGIN TRANSACTION", []).map_err(|e| e.to_string())?;
+        conn.execute("BEGIN TRANSACTION", [])
+            .map_err(|e| e.to_string())?;
     }
 
     // Check if parent page exists (if parent_id provided)
@@ -99,7 +100,10 @@ pub async fn create_page(
     // Create file
     let file_sync = FileSyncService::new(&workspace_path);
     // Pass conn_mutex to create_page_file
-    let file_path = match file_sync.create_page_file(&conn_mutex, &id, &request.title).await {
+    let file_path = match file_sync
+        .create_page_file(&conn_mutex, &id, &request.title)
+        .await
+    {
         Ok(path) => path,
         Err(e) => {
             {
@@ -382,15 +386,14 @@ pub async fn convert_page_to_directory(
 pub async fn move_page(
     app: tauri::AppHandle,
     workspace_path: String,
-    page_id: String,
-    parent_id: Option<String>,
+    request: MovePageRequest,
 ) -> Result<Page, String> {
     let conn = open_workspace_db(&workspace_path)?;
     let conn_mutex = Mutex::new(conn);
     let file_sync = FileSyncService::new(&workspace_path);
 
     // If moving to a parent, ensure parent is a directory
-    if let Some(pid) = &parent_id {
+    if let Some(pid) = &request.parent_id {
         let parent = get_page_internal(&conn_mutex, pid)?;
         if !parent.is_directory {
             // Auto-convert parent to directory
@@ -410,7 +413,7 @@ pub async fn move_page(
 
     // Move file
     let new_path = file_sync
-        .move_page_file(&conn_mutex, &page_id, parent_id.as_deref())
+        .move_page_file(&conn_mutex, &request.id, request.parent_id.as_deref())
         .await?;
 
     // Update DB
@@ -418,7 +421,7 @@ pub async fn move_page(
         let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
         conn.execute(
             "UPDATE pages SET parent_id = ?, file_path = ? WHERE id = ?",
-            params![parent_id, new_path, page_id],
+            params![request.parent_id, new_path, request.id],
         )
         .map_err(|e| e.to_string())?;
     }
@@ -426,7 +429,7 @@ pub async fn move_page(
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
-    get_page_internal(&conn_mutex, &page_id)
+    get_page_internal(&conn_mutex, &request.id)
 }
 
 /// Convert a directory back to a file (if no children)
@@ -477,10 +480,7 @@ pub async fn convert_directory_to_file(
 
 /// Manually trigger a re-sync of page markdown (for debugging or repair)
 #[tauri::command]
-pub async fn reindex_page_markdown(
-    workspace_path: String,
-    page_id: String,
-) -> Result<(), String> {
+pub async fn reindex_page_markdown(workspace_path: String, page_id: String) -> Result<(), String> {
     let conn = open_workspace_db(&workspace_path)?;
     let conn_mutex = Mutex::new(conn);
     sync_page_to_markdown(&conn_mutex, &workspace_path, &page_id).await

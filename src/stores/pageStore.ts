@@ -137,8 +137,12 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         request: { title, parentId: parentId || null },
       });
 
-      // Don't manually update store - let loadPages handle it
-      // This prevents race conditions and ensures consistency
+      // Incremental update: add new page directly to store
+      set((state) => {
+        state.pagesById[newPage.id] = newPage;
+        state.pageIds.push(newPage.id);
+      });
+
       return newPage.id;
     },
 
@@ -146,14 +150,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
       const page = get().pagesById[id];
       if (!page) return;
 
-      const previousTitle = page.title;
-
-      set((state) => {
-        if (state.pagesById[id]) {
-          state.pagesById[id].title = title;
-          state.pagesById[id].updatedAt = new Date().toISOString();
-        }
-      });
+      const backup = { ...page };
 
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
@@ -161,15 +158,20 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
           throw new Error("No workspace selected");
         }
 
-        await invoke("update_page", {
+        // Incremental update: get updated page from backend
+        const updatedPage = await invoke<PageData>("update_page", {
           workspacePath,
           request: { id, title },
         });
-      } catch (error) {
+
+        // Update store with backend response
         set((state) => {
-          if (state.pagesById[id]) {
-            state.pagesById[id].title = previousTitle;
-          }
+          state.pagesById[id] = updatedPage;
+        });
+      } catch (error) {
+        // Rollback on error
+        set((state) => {
+          state.pagesById[id] = backup;
         });
         throw error;
       }
@@ -190,17 +192,10 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         parentId: page.parentId,
       });
 
-      // Log all pages before deletion
-      const allPages = get().pageIds.map((pid) => ({
-        id: pid,
-        title: get().pagesById[pid]?.title,
-        parentId: get().pagesById[pid]?.parentId,
-      }));
-      console.log("[pageStore] All pages before deletion:", allPages);
-
       const backup = { ...page };
       const backupIndex = get().pageIds.indexOf(id);
 
+      // Optimistic update: remove from store immediately
       set((state) => {
         delete state.pagesById[id];
         state.pageIds = state.pageIds.filter((pid) => pid !== id);
@@ -222,19 +217,9 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         console.log(
           "[pageStore] Tauri delete_page command completed successfully"
         );
-
-        // Log all pages after deletion
-        const remainingPages = get().pageIds.map((pid) => ({
-          id: pid,
-          title: get().pagesById[pid]?.title,
-          parentId: get().pagesById[pid]?.parentId,
-        }));
-        console.log(
-          "[pageStore] Remaining pages after deletion:",
-          remainingPages
-        );
       } catch (error) {
         console.error("[pageStore] Error deleting page, rolling back:", error);
+        // Rollback on error
         set((state) => {
           state.pagesById[backup.id] = backup;
           state.pageIds.splice(backupIndex, 0, backup.id);
@@ -283,21 +268,8 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         filePath: page.filePath,
       });
 
-      const previousParentId = page.parentId;
       const fromPath = page.filePath;
-
-      // Optimistic update
-      console.log("[pageStore.movePage] Applying optimistic update...");
-      set((state) => {
-        if (state.pagesById[id]) {
-          state.pagesById[id].parentId = newParentId || undefined;
-          state.pagesById[id].updatedAt = new Date().toISOString();
-        }
-      });
-      console.log(
-        "[pageStore.movePage] Optimistic update applied. New parentId:",
-        get().pagesById[id]?.parentId
-      );
+      const backup = { ...page };
 
       try {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
@@ -305,84 +277,38 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
           throw new Error("No workspace selected");
         }
 
-        console.log("[pageStore.movePage] Invoking Tauri move_page command...");
+        // Incremental update: send request and update store with backend response
         const updatedPage = await invoke<PageData>("move_page", {
           workspacePath,
-          request: { id, newParentId },
+          request: { id, parentId: newParentId },
         });
-        console.log(
-          "[pageStore.movePage] Tauri command completed. Backend returned:",
-          {
-            id: updatedPage.id,
-            title: updatedPage.title,
-            parentId: updatedPage.parentId,
-            filePath: updatedPage.filePath,
-            updatedAt: updatedPage.updatedAt,
-          }
-        );
 
-        // Keep page store in sync with backend-returned filePath/updatedAt
-        console.log(
-          "[pageStore.movePage] Syncing store with backend response..."
-        );
+        // Update store with complete page data from backend
         set((state) => {
-          const current = state.pagesById[id];
-          if (current) {
-            state.pagesById[id] = {
-              ...current,
-              parentId: updatedPage.parentId,
-              filePath: updatedPage.filePath,
-              updatedAt: updatedPage.updatedAt,
-            };
-          }
+          state.pagesById[id] = updatedPage;
         });
-        console.log(
-          "[pageStore.movePage] Store synced. Final state:",
-          get().pagesById[id]
-        );
 
         const toPath = updatedPage.filePath;
 
-        // Targeted rewrite in DB (blocks) using backlink/indexed lookup.
-        // Convert "A/B/C.md" -> "A/B/C" because wikilinks use [[path/to/page]].
-        const fromTarget = fromPath?.toLowerCase().endsWith(".md")
-          ? fromPath.slice(0, -3)
-          : fromPath;
-        const toTarget = toPath?.toLowerCase().endsWith(".md")
-          ? toPath.slice(0, -3)
-          : toPath;
+        // Reindex wiki links to update any references affected by the page move
+        if (fromPath !== toPath && fromPath && toPath) {
+          await tauriAPI.reindexWikiLinks(workspacePath);
 
-        if (fromTarget && toTarget && fromTarget !== toTarget) {
-          await tauriAPI.rewriteWikiLinksForPagePathChange(
-            workspacePath,
-            fromTarget,
-            toTarget
-          );
-
-          // If current editor buffer has old target, refresh by re-opening current file.
-          // (Keeps UI consistent without scanning the whole workspace.)
+          // Refresh current file if it's open
           const ws = useWorkspaceStore.getState();
           if (ws.currentFile) {
             await ws.openFile(ws.currentFile);
           }
         }
-
-        console.log("[pageStore.movePage] Move completed successfully");
       } catch (error) {
-        console.error("[pageStore.movePage] Error during move:", error);
-        console.log(
-          "[pageStore.movePage] Rolling back to previous parentId:",
-          previousParentId
+        console.error(
+          "[pageStore.movePage] Error during move, rolling back:",
+          error
         );
+        // Rollback on error
         set((state) => {
-          if (state.pagesById[id]) {
-            state.pagesById[id].parentId = previousParentId;
-          }
+          state.pagesById[id] = backup;
         });
-        console.log(
-          "[pageStore.movePage] Rollback complete. Current parentId:",
-          get().pagesById[id]?.parentId
-        );
         throw error;
       }
     },
@@ -394,26 +320,19 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         return;
       }
 
-      await invoke("convert_page_to_directory", {
+      // Incremental update: get the updated page from backend
+      const updatedPage = await invoke<PageData>("convert_page_to_directory", {
         workspacePath,
         pageId: id,
       });
 
-      // Reload pages to reflect the change (icon update etc)
-      await get().loadPages();
-
-      // Also update file tree if it's open
-      // We can dispatch a custom event or rely on file system watcher if implemented
-      // For now, let's trigger a refresh via window event that FileTreeView listens to
-      window.dispatchEvent(new CustomEvent("oxinot:file-tree-refresh"));
-
-      // Update the page object in store to reflect is_directory = true
+      // Update store with the backend response
       set((state) => {
-        const page = state.pagesById[id];
-        if (page) {
-          state.pagesById[id] = { ...page, isDirectory: true };
-        }
+        state.pagesById[id] = updatedPage;
       });
+
+      // Trigger file tree refresh
+      window.dispatchEvent(new CustomEvent("oxinot:file-tree-refresh"));
     },
 
     // ============ Path-based Navigation ============
