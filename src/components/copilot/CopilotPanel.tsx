@@ -12,6 +12,7 @@ import {
   LoadingOverlay,
   Badge,
   Loader,
+  Portal,
 } from "@mantine/core";
 import {
   IconArrowUp,
@@ -330,11 +331,13 @@ export function CopilotPanel() {
     >
       {/* Mention Autocomplete */}
       {mentionAutocomplete?.show && (
-        <MentionAutocomplete
-          query={mentionAutocomplete.query}
-          onSelect={handleMentionSelect}
-          position={mentionAutocomplete.position}
-        />
+        <Portal>
+          <MentionAutocomplete
+            query={mentionAutocomplete.query}
+            onSelect={handleMentionSelect}
+            position={mentionAutocomplete.position}
+          />
+        </Portal>
       )}
 
       {/* Tool Approval Modals */}
