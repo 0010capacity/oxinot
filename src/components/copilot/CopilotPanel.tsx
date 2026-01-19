@@ -359,21 +359,15 @@ export function CopilotPanel() {
                 onChange={(val) => setMode(val as CopilotMode)}
                 data={[
                   {
-                    label: `${t("settings.ai.copilot.mode.edit")} [${
-                      isMac ? "Opt" : "Alt"
-                    }+1]`,
+                    label: `${t("settings.ai.copilot.mode.edit")} [1]`,
                     value: "edit",
                   },
                   {
-                    label: `${t("settings.ai.copilot.mode.generate")} [${
-                      isMac ? "Opt" : "Alt"
-                    }+2]`,
+                    label: `${t("settings.ai.copilot.mode.generate")} [2]`,
                     value: "generate",
                   },
                   {
-                    label: `${t("settings.ai.copilot.mode.chat")} [${
-                      isMac ? "Opt" : "Alt"
-                    }+3]`,
+                    label: `${t("settings.ai.copilot.mode.chat")} [3]`,
                     value: "chat",
                   },
                 ]}
@@ -391,21 +385,15 @@ export function CopilotPanel() {
                 onChange={(val) => setScope(val as CopilotScope)}
                 data={[
                   {
-                    label: `${t("settings.ai.copilot.scope.block")} [${
-                      isMac ? "Opt" : "Alt"
-                    }+4]`,
+                    label: `${t("settings.ai.copilot.scope.block")} [4]`,
                     value: "block",
                   },
                   {
-                    label: `${t("settings.ai.copilot.scope.selection")} [${
-                      isMac ? "Opt" : "Alt"
-                    }+5]`,
+                    label: `${t("settings.ai.copilot.scope.selection")} [5]`,
                     value: "selection",
                   },
                   {
-                    label: `${t("settings.ai.copilot.scope.page")} [${
-                      isMac ? "Opt" : "Alt"
-                    }+6]`,
+                    label: `${t("settings.ai.copilot.scope.page")} [6]`,
                     value: "page",
                   },
                 ]}
