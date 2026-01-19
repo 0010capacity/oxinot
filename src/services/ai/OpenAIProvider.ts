@@ -4,8 +4,6 @@ import { toolsToAIFunctions } from "./tools/utils";
 
 export class OpenAIProvider implements IAIProvider {
   id = "openai";
-  
-  // Allow overriding default Base URL for compatible services (like Groq, DeepSeek, etc)
   private defaultBaseUrl = "https://api.openai.com/v1";
 
   constructor(id?: string, baseUrl?: string) {
@@ -18,30 +16,28 @@ export class OpenAIProvider implements IAIProvider {
     const baseUrl = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
     const url = baseUrl.endsWith("/v1") ? `${baseUrl}/chat/completions` : `${baseUrl}/v1/chat/completions`;
 
-    // Build messages array
+    // 1. Build initial messages
     const messages: any[] = [];
-
-    // 1. System Prompt
     if (request.systemPrompt) {
       messages.push({ role: "system", content: request.systemPrompt });
     }
-
-    // 2. Chat History (exclude UI-system messages)
     if (request.history) {
       request.history.forEach(msg => {
-        if (msg.role === "user" || msg.role === "assistant") {
-          messages.push({ role: msg.role, content: msg.content });
-        }
+        // Map history roles
+        messages.push({ role: msg.role, content: msg.content });
       });
     }
-
-    // 3. Current User Prompt
     messages.push({ role: "user", content: request.prompt });
 
-    // Convert tools to OpenAI function format
     const functions = request.tools ? toolsToAIFunctions(request.tools) : undefined;
 
-    try {
+    // 2. Loop for potential multiple tool calls
+    let loopCount = 0;
+    const MAX_LOOPS = 5;
+
+    while (loopCount < MAX_LOOPS) {
+      loopCount++;
+      
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -52,7 +48,7 @@ export class OpenAIProvider implements IAIProvider {
           model: request.model,
           messages,
           functions,
-          function_call: request.tools && request.tools.length > 0 ? "auto" : undefined,
+          function_call: functions ? "auto" : undefined,
           stream: true,
         }),
       });
@@ -62,18 +58,16 @@ export class OpenAIProvider implements IAIProvider {
         throw new Error(`OpenAI API error (${response.status}): ${errorText}`);
       }
 
-      if (!response.body) {
-        throw new Error("No response body");
-      }
+      if (!response.body) throw new Error("No response body");
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
       
-      // State for function calling
       let currentFunctionName = "";
       let currentFunctionArgs = "";
       let isCallingFunction = false;
+      let fullAssistantContent = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -81,15 +75,13 @@ export class OpenAIProvider implements IAIProvider {
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
-        
-        // Keep the last partial line in the buffer
         buffer = lines.pop() || "";
 
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed || !trimmed.startsWith("data: ")) continue;
           
-          const data = trimmed.slice(6); // Remove "data: " prefix
+          const data = trimmed.slice(6);
           if (data === "[DONE]") continue;
 
           try {
@@ -97,71 +89,70 @@ export class OpenAIProvider implements IAIProvider {
             const delta = json.choices?.[0]?.delta;
             const finishReason = json.choices?.[0]?.finish_reason;
 
-            // Handle text content
             if (delta?.content) {
+              fullAssistantContent += delta.content;
               yield { type: "text", content: delta.content };
             }
 
-            // Handle function call
             if (delta?.function_call) {
               isCallingFunction = true;
-              if (delta.function_call.name) {
-                currentFunctionName = delta.function_call.name;
-              }
-              if (delta.function_call.arguments) {
-                currentFunctionArgs += delta.function_call.arguments;
-              }
+              if (delta.function_call.name) currentFunctionName = delta.function_call.name;
+              if (delta.function_call.arguments) currentFunctionArgs += delta.function_call.arguments;
             }
 
-            // If function call is complete (finish_reason is function_call or stop)
-            if (isCallingFunction && (finishReason === "function_call" || finishReason === "stop")) {
-               try {
-                 const args = JSON.parse(currentFunctionArgs || "{}");
-                 
-                 yield {
-                   type: "tool_call",
-                   toolCall: {
-                     id: json.id || "call_unknown",
-                     name: currentFunctionName,
-                     arguments: args,
-                   },
-                 };
-
-                 if (request.onToolCall) {
-                   const result = await request.onToolCall(currentFunctionName, args);
-                   yield {
-                     type: "tool_result",
-                     toolResult: result,
-                   };
-                 }
-               } catch (e) {
-                 console.error("Failed to parse function args or execute tool:", e);
-                 yield { type: "error", error: "Failed to execute tool" };
-               }
+            // Function Call detected and turn ended
+            if (finishReason === "function_call" || (isCallingFunction && finishReason === "stop")) {
+               const args = JSON.parse(currentFunctionArgs || "{}");
                
-               // Reset state
-               isCallingFunction = false;
-               currentFunctionName = "";
-               currentFunctionArgs = "";
-            }
+               yield {
+                 type: "tool_call",
+                 toolCall: { id: json.id || `call_${Date.now()}`, name: currentFunctionName, arguments: args },
+               };
 
+               if (request.onToolCall) {
+                 // Important: Push the assistant's call to history before the result
+                 messages.push({
+                   role: "assistant", 
+                   content: null,
+                   function_call: { name: currentFunctionName, arguments: currentFunctionArgs } 
+                 });
+
+                 const result = await request.onToolCall(currentFunctionName, args);
+                 
+                 yield { type: "tool_result", toolResult: result };
+
+                 // Push tool result to history
+                 messages.push({
+                   role: "function", 
+                   name: currentFunctionName, 
+                   content: JSON.stringify(result) 
+                 });
+
+                 // Continue the outer while loop to get AI's response to the tool result
+                 isCallingFunction = false;
+                 gotoNextTurn: break; 
+               }
+            }
+            
+            if (finishReason === "stop" && !isCallingFunction) {
+                // Final text response received
+                return;
+            }
           } catch (e) {
-            console.error("Failed to parse OpenAI chunk:", data, e);
+            console.error("Parse error:", e);
           }
         }
       }
-    } catch (error) {
-      console.error("OpenAI generation failed:", error);
-      yield { type: "error", error: error instanceof Error ? error.message : "Unknown error" };
+      
+      // If we finished the inner loop without a function call, we're done
+      if (!isCallingFunction) break;
     }
   }
 
   async generate(request: AIRequest): Promise<string> {
     let result = "";
     for await (const chunk of this.generateStream(request)) {
-      if (chunk.type === "text" && chunk.content) {
-        result += chunk.content;
-      }
+      if (chunk.type === "text" && chunk.content) result += chunk.content;
     }
     return result;
   }
