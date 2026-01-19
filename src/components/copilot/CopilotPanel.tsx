@@ -240,9 +240,13 @@ export function CopilotPanel() {
       // This ensures 'history' only contains past conversation turns
       const pastMessages = allMessages.slice(0, -2);
 
-      // Filter out system messages (tool logs) and map to AI provider format (without id)
+      // Filter out system messages (tool logs) and empty messages, then map to AI provider format (without id)
       const historyForAI = pastMessages
-        .filter((msg) => msg.role === "user" || msg.role === "assistant")
+        .filter(
+          (msg) =>
+            (msg.role === "user" || msg.role === "assistant") &&
+            msg.content.trim() !== ""
+        )
         .map((msg) => ({
           role: msg.role,
           content: msg.content,
