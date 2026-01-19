@@ -12,6 +12,7 @@ import {
   Box,
   LoadingOverlay,
   Badge,
+  Loader,
 } from "@mantine/core";
 import {
   IconArrowUp,
@@ -28,7 +29,11 @@ import {
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
-import { useCopilotUiStore, type CopilotMode, type CopilotScope } from "../../stores/copilotUiStore";
+import {
+  useCopilotUiStore,
+  type CopilotMode,
+  type CopilotScope,
+} from "../../stores/copilotUiStore";
 import { useAISettingsStore } from "../../stores/aiSettingsStore";
 import { createAIProvider } from "../../services/ai/factory";
 import { useBlockStore } from "../../stores/blockStore";
@@ -40,7 +45,7 @@ export function CopilotPanel() {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
-  
+
   // Store state
   const isOpen = useCopilotUiStore((state) => state.isOpen);
   const close = useCopilotUiStore((state) => state.close);
@@ -53,16 +58,23 @@ export function CopilotPanel() {
   const isLoading = useCopilotUiStore((state) => state.isLoading);
   const previewContent = useCopilotUiStore((state) => state.previewContent);
   const setIsLoading = useCopilotUiStore((state) => state.setIsLoading);
-  const setPreviewContent = useCopilotUiStore((state) => state.setPreviewContent);
-  
+  const setPreviewContent = useCopilotUiStore(
+    (state) => state.setPreviewContent
+  );
+
   // Chat State
   const chatMessages = useCopilotUiStore((state) => state.chatMessages);
   const addChatMessage = useCopilotUiStore((state) => state.addChatMessage);
-  const updateLastChatMessage = useCopilotUiStore((state) => state.updateLastChatMessage);
-  const clearChatMessages = useCopilotUiStore((state) => state.clearChatMessages);
+  const updateLastChatMessage = useCopilotUiStore(
+    (state) => state.updateLastChatMessage
+  );
+  const clearChatMessages = useCopilotUiStore(
+    (state) => state.clearChatMessages
+  );
 
   // Settings
-  const { provider, apiKey, baseUrl, model, promptTemplates } = useAISettingsStore();
+  const { provider, apiKey, baseUrl, model, promptTemplates } =
+    useAISettingsStore();
 
   // Local state
   const [isExpanded, setIsExpanded] = useState(false);
@@ -77,9 +89,49 @@ export function CopilotPanel() {
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollViewportRef.current) {
-      scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
+      scrollViewportRef.current.scrollTop =
+        scrollViewportRef.current.scrollHeight;
     }
   }, [previewContent, chatMessages]);
+
+  // Keyboard shortcuts for mode and scope selection
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (!e.altKey) return;
+
+      const key = e.key;
+
+      // Mode shortcuts (Alt+1, Alt+2, Alt+3)
+      if (key === "1") {
+        e.preventDefault();
+        setMode("edit");
+      } else if (key === "2") {
+        e.preventDefault();
+        setMode("generate");
+      } else if (key === "3") {
+        e.preventDefault();
+        setMode("chat");
+      }
+      // Scope shortcuts (Alt+4, Alt+5, Alt+6)
+      else if (key === "4") {
+        e.preventDefault();
+        setScope("block");
+      } else if (key === "5") {
+        e.preventDefault();
+        setScope("selection");
+      } else if (key === "6") {
+        e.preventDefault();
+        setScope("page");
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, [isOpen, setMode, setScope]);
 
   const gatherContext = (): { context: string; systemPrompt?: string } => {
     const blockStore = useBlockStore.getState();
@@ -87,7 +139,8 @@ export function CopilotPanel() {
     const pageStore = usePageStore.getState();
 
     let context = "";
-    let systemPrompt = "You are a helpful AI assistant integrated into a block-based outliner app.";
+    let systemPrompt =
+      "You are a helpful AI assistant integrated into a block-based outliner app.";
 
     if (scope === "block") {
       const focusedId = uiStore.focusedBlockId;
@@ -95,7 +148,8 @@ export function CopilotPanel() {
         const block = blockStore.blocksById[focusedId];
         if (block) {
           context = `Current Block Content:\n${block.content}`;
-          systemPrompt += " The user wants to edit or generate content based on the current block.";
+          systemPrompt +=
+            " The user wants to edit or generate content based on the current block.";
         }
       }
     } else if (scope === "selection") {
@@ -130,7 +184,7 @@ export function CopilotPanel() {
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;
-    
+
     const currentInput = inputValue;
     setInputValue("");
     setError(null);
@@ -147,11 +201,11 @@ export function CopilotPanel() {
     try {
       const aiProvider = createAIProvider(provider, baseUrl);
       const { context, systemPrompt } = gatherContext();
-      
+
       let prompt = "";
       if (mode === "chat") {
         // Include chat history context if possible, but for MVP just context + input
-        // Or simple history concat? 
+        // Or simple history concat?
         // Let's stick to context + current input for now to avoid token limits with huge history
         prompt = `${context}\n\nUser: ${currentInput}`;
       } else {
@@ -177,7 +231,8 @@ export function CopilotPanel() {
       }
     } catch (err: unknown) {
       console.error("AI Generation Error:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to generate response";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to generate response";
       setError(errorMessage);
       if (mode === "chat") {
         updateLastChatMessage(`Error: ${errorMessage}`);
@@ -199,9 +254,10 @@ export function CopilotPanel() {
     const blockStore = useBlockStore.getState();
     const focusedId = uiStore.focusedBlockId;
 
-    const contentToApply = mode === "chat" 
-      ? chatMessages[chatMessages.length - 1]?.content 
-      : previewContent;
+    const contentToApply =
+      mode === "chat"
+        ? chatMessages[chatMessages.length - 1]?.content
+        : previewContent;
 
     if (!focusedId || !contentToApply) return;
 
@@ -222,9 +278,10 @@ export function CopilotPanel() {
     const blockStore = useBlockStore.getState();
     const focusedId = uiStore.focusedBlockId;
 
-    const contentToApply = mode === "chat" 
-      ? chatMessages[chatMessages.length - 1]?.content 
-      : previewContent;
+    const contentToApply =
+      mode === "chat"
+        ? chatMessages[chatMessages.length - 1]?.content
+        : previewContent;
 
     if (!focusedId || !contentToApply) return;
 
@@ -272,9 +329,18 @@ export function CopilotPanel() {
       }}
     >
       {/* Header */}
-      <Group justify="space-between" p="xs" style={{ borderBottom: "1px solid var(--color-border-primary)" }}>
+      <Group
+        justify="space-between"
+        p="xs"
+        style={{ borderBottom: "1px solid var(--color-border-primary)" }}
+      >
         <Group gap="xs">
-          <Badge variant="light" color="violet" size="lg" leftSection={<IconArrowUp size={12} />}>
+          <Badge
+            variant="light"
+            color="violet"
+            size="lg"
+            leftSection={<IconArrowUp size={12} />}
+          >
             Copilot
           </Badge>
           <SegmentedControl
@@ -282,9 +348,18 @@ export function CopilotPanel() {
             value={mode}
             onChange={(val) => setMode(val as CopilotMode)}
             data={[
-              { label: t("settings.ai.copilot.mode.edit"), value: "edit" },
-              { label: t("settings.ai.copilot.mode.generate"), value: "generate" },
-              { label: t("settings.ai.copilot.mode.chat"), value: "chat" },
+              {
+                label: `${t("settings.ai.copilot.mode.edit")} [1]`,
+                value: "edit",
+              },
+              {
+                label: `${t("settings.ai.copilot.mode.generate")} [2]`,
+                value: "generate",
+              },
+              {
+                label: `${t("settings.ai.copilot.mode.chat")} [3]`,
+                value: "chat",
+              },
             ]}
           />
           <SegmentedControl
@@ -292,15 +367,32 @@ export function CopilotPanel() {
             value={scope}
             onChange={(val) => setScope(val as CopilotScope)}
             data={[
-              { label: t("settings.ai.copilot.scope.block"), value: "block" },
-              { label: t("settings.ai.copilot.scope.selection"), value: "selection" },
-              { label: t("settings.ai.copilot.scope.page"), value: "page" },
+              {
+                label: `${t("settings.ai.copilot.scope.block")} [4]`,
+                value: "block",
+              },
+              {
+                label: `${t("settings.ai.copilot.scope.selection")} [5]`,
+                value: "selection",
+              },
+              {
+                label: `${t("settings.ai.copilot.scope.page")} [6]`,
+                value: "page",
+              },
             ]}
           />
         </Group>
         <Group gap="xs">
-          <ActionIcon size="sm" variant="subtle" onClick={() => setIsExpanded(!isExpanded)}>
-            {isExpanded ? <IconMinimize size={16} /> : <IconMaximize size={16} />}
+          <ActionIcon
+            size="sm"
+            variant="subtle"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? (
+              <IconMinimize size={16} />
+            ) : (
+              <IconMaximize size={16} />
+            )}
           </ActionIcon>
           <ActionIcon size="sm" variant="subtle" color="gray" onClick={close}>
             <IconX size={16} />
@@ -309,12 +401,30 @@ export function CopilotPanel() {
       </Group>
 
       {/* Content Area */}
-      <Box style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        <LoadingOverlay visible={isLoading && mode !== "chat" && !previewContent} zIndex={10} overlayProps={{ blur: 1 }} />
-        
+      <Box
+        style={{
+          flex: 1,
+          position: "relative",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <LoadingOverlay
+          visible={isLoading && mode !== "chat" && !previewContent}
+          zIndex={10}
+          overlayProps={{ blur: 1 }}
+        />
+
         {error && (
-          <div style={{ padding: "12px", backgroundColor: "var(--mantine-color-red-1)", color: "var(--mantine-color-red-9)" }}>
-             <Text size="sm">{error}</Text>
+          <div
+            style={{
+              padding: "12px",
+              backgroundColor: "var(--mantine-color-red-1)",
+              color: "var(--mantine-color-red-9)",
+            }}
+          >
+            <Text size="sm">{error}</Text>
           </div>
         )}
 
@@ -322,65 +432,118 @@ export function CopilotPanel() {
           {mode === "chat" ? (
             <Stack gap="md">
               {chatMessages.length === 0 && (
-                <Stack align="center" justify="center" h="200px" style={{ opacity: 0.5 }}>
+                <Stack
+                  align="center"
+                  justify="center"
+                  h="200px"
+                  style={{ opacity: 0.5 }}
+                >
                   <IconRobot size={48} stroke={1.5} />
-                  <Text size="sm" c="dimmed">Ask me anything about your notes.</Text>
+                  <Text size="sm" c="dimmed">
+                    Ask me anything about your notes.
+                  </Text>
                 </Stack>
               )}
               {chatMessages.map((msg) => (
-                <Group key={msg.id} align="flex-start" wrap="nowrap" justify={msg.role === "user" ? "flex-end" : "flex-start"}>
+                <Group
+                  key={msg.id}
+                  align="flex-start"
+                  wrap="nowrap"
+                  justify={msg.role === "user" ? "flex-end" : "flex-start"}
+                >
                   {msg.role === "assistant" && (
-                    <ActionIcon variant="light" color="violet" radius="xl" size="sm" mt={4}>
+                    <ActionIcon
+                      variant="light"
+                      color="violet"
+                      radius="xl"
+                      size="sm"
+                      mt={4}
+                    >
                       <IconRobot size={14} />
                     </ActionIcon>
                   )}
                   <Paper
                     p="sm"
                     radius="md"
-                    bg={msg.role === "user" ? "var(--color-interactive-primary)" : "var(--color-bg-secondary)"}
-                    c={msg.role === "user" ? "white" : "var(--color-text-primary)"}
+                    bg={
+                      msg.role === "user"
+                        ? "var(--color-interactive-primary)"
+                        : "var(--color-bg-secondary)"
+                    }
+                    c={
+                      msg.role === "user"
+                        ? "white"
+                        : "var(--color-text-primary)"
+                    }
                     style={{ maxWidth: "85%" }}
                   >
-                    <div 
+                    <div
                       className="markdown-preview"
                       style={{ fontSize: "14px", lineHeight: "1.5" }}
-                      dangerouslySetInnerHTML={{ 
-                        __html: renderMarkdownToHtml(msg.content, { allowBlocks: true }) 
-                      }} 
+                      dangerouslySetInnerHTML={{
+                        __html: renderMarkdownToHtml(msg.content, {
+                          allowBlocks: true,
+                        }),
+                      }}
                     />
                   </Paper>
                   {msg.role === "user" && (
-                    <ActionIcon variant="filled" color="gray" radius="xl" size="sm" mt={4}>
+                    <ActionIcon
+                      variant="filled"
+                      color="gray"
+                      radius="xl"
+                      size="sm"
+                      mt={4}
+                    >
                       <IconUser size={14} />
                     </ActionIcon>
                   )}
                 </Group>
               ))}
-              {isLoading && chatMessages[chatMessages.length - 1]?.role === "user" && (
-                 <Group align="center" gap="xs" ml="xs">
-                   <Loader size="xs" type="dots" />
-                 </Group>
-              )}
+              {isLoading &&
+                chatMessages[chatMessages.length - 1]?.role === "user" && (
+                  <Group align="center" gap="xs" ml="xs">
+                    <Loader size="xs" type="dots" />
+                  </Group>
+                )}
             </Stack>
           ) : (
             <>
               {previewContent ? (
                 <div>
-                  <Text size="xs" fw={700} c="dimmed" mb="xs" style={{ textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <Text
+                    size="xs"
+                    fw={700}
+                    c="dimmed"
+                    mb="xs"
+                    style={{
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
                     {t("settings.ai.copilot.preview_title")}
                   </Text>
-                  <div 
+                  <div
                     className="markdown-preview"
                     style={{ fontSize: "15px", lineHeight: "1.6" }}
-                    dangerouslySetInnerHTML={{ 
-                      __html: renderMarkdownToHtml(previewContent, { allowBlocks: true }) 
-                    }} 
+                    dangerouslySetInnerHTML={{
+                      __html: renderMarkdownToHtml(previewContent, {
+                        allowBlocks: true,
+                      }),
+                    }}
                   />
                 </div>
               ) : (
-                 <Stack align="center" justify="center" h="100%" style={{ opacity: 0.5, minHeight: "200px" }}>
-                   <Text size="sm" c="dimmed">Select a block and ask AI to edit or generate content.</Text>
-                 </Stack>
+                <Stack
+                  align="center"
+                  justify="center"
+                  h="100%"
+                  style={{ opacity: 0.5, minHeight: "200px" }}
+                >
+                  <Text size="sm" c="dimmed">
+                    Select a block and ask AI to edit or generate content.
+                  </Text>
+                </Stack>
               )}
             </>
           )}
@@ -388,7 +551,13 @@ export function CopilotPanel() {
       </Box>
 
       {/* Footer / Input Area */}
-      <div style={{ padding: "12px", borderTop: "1px solid var(--color-border-primary)", backgroundColor: "var(--color-bg-secondary)" }}>
+      <div
+        style={{
+          padding: "12px",
+          borderTop: "1px solid var(--color-border-primary)",
+          backgroundColor: "var(--color-bg-secondary)",
+        }}
+      >
         <Stack gap="xs">
           <Group align="flex-end" gap="xs">
             <Menu shadow="md" width={200} position="bottom-start">
@@ -401,7 +570,10 @@ export function CopilotPanel() {
                 <Menu.Label>{t("settings.ai.templates")}</Menu.Label>
                 {promptTemplates.length > 0 ? (
                   promptTemplates.map((t) => (
-                    <Menu.Item key={t.id} onClick={() => handleTemplateSelect(t.content)}>
+                    <Menu.Item
+                      key={t.id}
+                      onClick={() => handleTemplateSelect(t.content)}
+                    >
                       {t.name}
                     </Menu.Item>
                   ))
@@ -410,7 +582,7 @@ export function CopilotPanel() {
                 )}
               </Menu.Dropdown>
             </Menu>
-            
+
             <Textarea
               ref={inputRef}
               placeholder={t("settings.ai.copilot.placeholder")}
@@ -423,11 +595,11 @@ export function CopilotPanel() {
               style={{ flex: 1 }}
               disabled={isLoading && mode !== "chat"} // Allow typing in chat while loading? No, simple MVP block it.
             />
-            
-            <Button 
-              size="md" 
-              variant="filled" 
-              color="violet" 
+
+            <Button
+              size="md"
+              variant="filled"
+              color="violet"
               onClick={handleSend}
               loading={isLoading}
               disabled={!inputValue.trim()}
@@ -436,52 +608,55 @@ export function CopilotPanel() {
               <IconArrowUp size={18} />
             </Button>
           </Group>
-          
-          {(previewContent || (mode === "chat" && chatMessages.length > 0)) && !isLoading && (
-            <Group justify="flex-end" pt="xs">
-               <Button 
-                 variant="subtle" 
-                 size="xs" 
-                 color="gray" 
-                 leftSection={<IconTrash size={14} />}
-                 onClick={() => {
-                   if (mode === "chat") clearChatMessages();
-                   else setPreviewContent("");
-                 }}
-               >
-                 {mode === "chat" ? "Clear Chat" : t("settings.ai.copilot.actions.discard")}
-               </Button>
-               {mode !== "chat" && (
-                 <Button 
-                   variant="light" 
-                   size="xs" 
-                   color="blue" 
-                   leftSection={<IconRefresh size={14} />}
-                   onClick={handleSend}
-                 >
-                   {t("settings.ai.copilot.actions.retry")}
-                 </Button>
-               )}
-               <Button 
-                 variant="light" 
-                 size="xs" 
-                 color="teal" 
-                 leftSection={<IconDownload size={14} />}
-                 onClick={handleInsertBelow}
-               >
-                 Insert Below
-               </Button>
-               <Button 
-                 variant="filled" 
-                 size="xs" 
-                 color="violet"
-                 leftSection={<IconReplace size={14} />}
-                 onClick={handleApplyReplace}
-               >
-                 {t("settings.ai.copilot.actions.apply")}
-               </Button>
-            </Group>
-          )}
+
+          {(previewContent || (mode === "chat" && chatMessages.length > 0)) &&
+            !isLoading && (
+              <Group justify="flex-end" pt="xs">
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  color="gray"
+                  leftSection={<IconTrash size={14} />}
+                  onClick={() => {
+                    if (mode === "chat") clearChatMessages();
+                    else setPreviewContent("");
+                  }}
+                >
+                  {mode === "chat"
+                    ? "Clear Chat"
+                    : t("settings.ai.copilot.actions.discard")}
+                </Button>
+                {mode !== "chat" && (
+                  <Button
+                    variant="light"
+                    size="xs"
+                    color="blue"
+                    leftSection={<IconRefresh size={14} />}
+                    onClick={handleSend}
+                  >
+                    {t("settings.ai.copilot.actions.retry")}
+                  </Button>
+                )}
+                <Button
+                  variant="light"
+                  size="xs"
+                  color="teal"
+                  leftSection={<IconDownload size={14} />}
+                  onClick={handleInsertBelow}
+                >
+                  Insert Below
+                </Button>
+                <Button
+                  variant="filled"
+                  size="xs"
+                  color="violet"
+                  leftSection={<IconReplace size={14} />}
+                  onClick={handleApplyReplace}
+                >
+                  {t("settings.ai.copilot.actions.apply")}
+                </Button>
+              </Group>
+            )}
         </Stack>
       </div>
     </Paper>
