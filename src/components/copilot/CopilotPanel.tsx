@@ -293,17 +293,21 @@ export function CopilotPanel() {
           fullContent += chunk.content;
           updateLastChatMessage(fullContent);
         } else if (chunk.type === "tool_call") {
+          console.log("[Copilot] Tool call:", chunk.toolCall?.name);
           addChatMessage("system", `Calling tool: ${chunk.toolCall?.name}`);
         } else if (chunk.type === "tool_result") {
+          console.log("[Copilot] Tool result:", chunk.toolResult);
           addChatMessage(
             "system",
             `Tool result: ${JSON.stringify(chunk.toolResult)}`
           );
         } else if (chunk.type === "error") {
+          console.log("[Copilot] Error:", chunk.error);
           setError(chunk.error || "Unknown error");
           updateLastChatMessage(`Error: ${chunk.error}`);
         }
       }
+      console.log("[Copilot] Final response:", fullContent);
     } catch (err: unknown) {
       console.error("AI Generation Error:", err);
       const errorMessage =
