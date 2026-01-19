@@ -10,6 +10,21 @@ export class ClaudeProvider implements IAIProvider {
     const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/messages`;
 
+    // Build messages array
+    const messages: any[] = [];
+
+    // Chat History (exclude UI-system messages)
+    if (request.history) {
+      request.history.forEach(msg => {
+        if (msg.role === "user" || msg.role === "assistant") {
+          messages.push({ role: msg.role, content: msg.content });
+        }
+      });
+    }
+
+    // Current User Prompt
+    messages.push({ role: "user", content: request.prompt });
+
     const claudeTools = request.tools?.map(tool => {
       const aiFunc = toolToAIFunction(tool);
       return {
@@ -31,7 +46,7 @@ export class ClaudeProvider implements IAIProvider {
           model: request.model || "claude-3-sonnet-20240229",
           max_tokens: 4096,
           system: request.systemPrompt,
-          messages: [{ role: "user", content: request.prompt }],
+          messages,
           tools: claudeTools && claudeTools.length > 0 ? claudeTools : undefined,
           stream: true,
         }),

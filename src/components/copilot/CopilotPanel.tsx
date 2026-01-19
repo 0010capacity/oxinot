@@ -169,6 +169,39 @@ export function CopilotPanel() {
     return contextString;
   };
 
+  const gatherHints = (): { hint: string; systemPrompt?: string } => {
+    const blockStore = useBlockStore.getState();
+    const uiStore = useBlockUIStore.getState();
+    const pageStore = usePageStore.getState();
+
+    let hint = "";
+    const systemPrompt =
+      "You are a helpful AI assistant integrated into a block-based outliner app. " +
+      "You can view, create, update, and delete blocks using tools. " +
+      "Always use tools when the user asks to modify the document. " +
+      "You can also use tools to read context if not provided. " +
+      "The user may reference blocks or pages using @ syntax. " +
+      "If the user refers to 'current block', 'this block', or 'here' without a mention, use the ID from the provided 'Current focused block' context. " +
+      "If the user refers to 'current page' or 'this page', use the ID from the 'current page' context. " +
+      "Relevant context is provided below.";
+
+    const focusedId = uiStore.focusedBlockId;
+    if (focusedId) {
+      const block = blockStore.blocksById[focusedId];
+      if (block) {
+        hint = `Current focused block content: "${block.content}" (ID: ${focusedId})`;
+      }
+    }
+
+    const pageId = blockStore.currentPageId;
+    if (pageId) {
+      const pageTitle = pageStore.pagesById[pageId]?.title || "Untitled";
+      hint += `\nYou are currently on page "${pageTitle}" (ID: ${pageId})`;
+    }
+
+    return { hint, systemPrompt };
+  };
+
   const handleSend = async () => {
     if (!inputValue.trim()) return;
 
@@ -177,6 +210,7 @@ export function CopilotPanel() {
     setError(null);
     setIsLoading(true);
 
+    // Add message to UI
     addChatMessage("user", currentInput);
     addChatMessage("assistant", ""); 
 
@@ -184,28 +218,24 @@ export function CopilotPanel() {
       const aiProvider = createAIProvider(provider, baseUrl);
       
       const resolvedContext = resolveContextFromMentions(currentInput);
+      const { hint, systemPrompt } = gatherHints();
       
-          const systemPrompt =
-            "You are a helpful AI assistant integrated into a block-based outliner app. " +
-            "You can view, create, update, and delete blocks using tools. " +
-            "Always use tools when the user asks to modify the document. " +
-            "You can also use tools to read context if not provided. " +
-            "The user may reference blocks or pages using @ syntax. " +
-            "If the user refers to 'current block', 'this block', or 'here' without a mention, use the ID from the provided 'Current focused block' context. " +
-            "If the user refers to 'current page' or 'this page', use the ID from the 'current page' context. " +
-            "Relevant context is provided below.";
-      const prompt = resolvedContext 
-        ? `User Request: ${currentInput}\n\n--- Context Resolved from Mentions ---\n${resolvedContext}` 
-        : currentInput;
+      let finalPrompt = currentInput;
+      if (resolvedContext) {
+        finalPrompt = `User Request: ${currentInput}\n\n--- Context Resolved from Mentions ---\n${resolvedContext}`;
+      } else if (hint) {
+        finalPrompt = `${hint}\n\nUser Request: ${currentInput}`;
+      }
 
       const allTools = toolRegistry.getAll();
 
       const stream = aiProvider.generateStream({
-        prompt,
+        prompt: finalPrompt,
         systemPrompt,
         model,
         apiKey,
         baseUrl,
+        history: chatMessages, // Pass previous history (excluding currently added ones due to closure)
         tools: allTools,
         onToolCall: async (toolName, params) => {
           console.log(`AI called tool: ${toolName}`, params);

@@ -18,13 +18,25 @@ export class OpenAIProvider implements IAIProvider {
     const baseUrl = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
     const url = baseUrl.endsWith("/v1") ? `${baseUrl}/chat/completions` : `${baseUrl}/v1/chat/completions`;
 
-    const messages = [
-      { role: "user", content: request.prompt },
-    ];
-    
+    // Build messages array
+    const messages: any[] = [];
+
+    // 1. System Prompt
     if (request.systemPrompt) {
-      messages.unshift({ role: "system", content: request.systemPrompt });
+      messages.push({ role: "system", content: request.systemPrompt });
     }
+
+    // 2. Chat History (exclude UI-system messages)
+    if (request.history) {
+      request.history.forEach(msg => {
+        if (msg.role === "user" || msg.role === "assistant") {
+          messages.push({ role: msg.role, content: msg.content });
+        }
+      });
+    }
+
+    // 3. Current User Prompt
+    messages.push({ role: "user", content: request.prompt });
 
     // Convert tools to OpenAI function format
     const functions = request.tools ? toolsToAIFunctions(request.tools) : undefined;
