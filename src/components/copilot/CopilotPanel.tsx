@@ -247,7 +247,7 @@ export function CopilotPanel() {
       const pastMessages = allMessages.slice(0, -2);
 
       // Filter out system messages (tool logs) and empty messages, then map to AI provider format (without id)
-      const historyForAI = pastMessages
+      let historyForAI = pastMessages
         .filter(
           (msg) =>
             (msg.role === "user" || msg.role === "assistant") &&
@@ -257,6 +257,12 @@ export function CopilotPanel() {
           role: msg.role,
           content: msg.content,
         }));
+
+      // Limit history to last 20 messages (10 turns) to prevent excessive token usage
+      const MAX_HISTORY_MESSAGES = 20;
+      if (historyForAI.length > MAX_HISTORY_MESSAGES) {
+        historyForAI = historyForAI.slice(-MAX_HISTORY_MESSAGES);
+      }
 
       console.log("[Copilot] All messages:", allMessages.length);
       console.log("[Copilot] Past messages:", pastMessages.length);
@@ -301,6 +307,11 @@ export function CopilotPanel() {
         if (chunk.type === "text" && chunk.content) {
           fullContent += chunk.content;
           updateLastChatMessage(fullContent);
+          // Auto-scroll during streaming
+          if (scrollViewportRef.current) {
+            scrollViewportRef.current.scrollTop =
+              scrollViewportRef.current.scrollHeight;
+          }
         } else if (chunk.type === "tool_call") {
           console.log("[Copilot] Tool call:", chunk.toolCall?.name);
           addChatMessage("system", `Calling tool: ${chunk.toolCall?.name}`);
