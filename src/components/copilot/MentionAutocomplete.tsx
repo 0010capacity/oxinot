@@ -9,6 +9,7 @@ export interface MentionSuggestion {
   uuid?: string;
   label: string;
   preview?: string;
+  insertText: string;
 }
 
 interface Props {
@@ -33,34 +34,35 @@ export function MentionAutocomplete({ query, onSelect, position }: Props) {
     if ('selection'.startsWith(lowerQuery)) {
       results.push({
         type: 'keyword',
-        label: '@selection',
-        preview: 'Reference current selection',
+        label: 'Current Selection',
+        insertText: '@selection',
+        preview: 'Reference currently selected blocks',
       });
     }
 
     if ('current'.startsWith(lowerQuery)) {
       results.push({
         type: 'keyword',
-        label: '@current',
-        preview: 'Reference focused block',
+        label: 'Current Block',
+        insertText: '@current',
+        preview: 'Reference the currently focused block',
       });
     }
 
     // Search pages
-    Object.values(pagesById).forEach(page => {
+    for (const page of Object.values(pagesById)) {
       if (page.title.toLowerCase().includes(lowerQuery)) {
         results.push({
           type: 'page',
           uuid: page.id,
           label: page.title,
-          preview: `@page:${page.id}`,
+          insertText: `@page:${page.id}`,
+          preview: 'Page Reference',
         });
       }
-    });
+    }
 
     // Search blocks (limit to 10)
-    // Note: iterating all blocks might be slow in large workspaces.
-    // For now, this is client-side filtering. In future, use FTS via Tauri command.
     let blockCount = 0;
     for (const block of Object.values(blocksById)) {
       if (blockCount >= 10) break;
@@ -69,7 +71,8 @@ export function MentionAutocomplete({ query, onSelect, position }: Props) {
           type: 'block',
           uuid: block.id,
           label: block.content.slice(0, 50),
-          preview: `@block:${block.id}`,
+          insertText: `@block:${block.id}`,
+          preview: 'Block Reference',
         });
         blockCount++;
       }
@@ -121,7 +124,7 @@ export function MentionAutocomplete({ query, onSelect, position }: Props) {
       <Stack gap="xs">
         {suggestions.map((suggestion, index) => (
           <div
-            key={suggestion.preview || suggestion.label}
+            key={suggestion.insertText}
             onClick={() => onSelect(suggestion)}
             style={{
               padding: '8px',

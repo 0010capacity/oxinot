@@ -12,7 +12,6 @@ import {
   LoadingOverlay,
   Badge,
   Loader,
-  Portal,
 } from "@mantine/core";
 import {
   IconArrowUp,
@@ -37,7 +36,7 @@ import { useBlockStore } from "../../stores/blockStore";
 import { useBlockUIStore } from "../../stores/blockUIStore";
 import { renderMarkdownToHtml } from "../../outliner/markdownRenderer";
 import { usePageStore } from "../../stores/pageStore";
-import { isTypingMention } from "../../services/ai/mentions/parser";
+import { isTypingMention, parseMentions } from "../../services/ai/mentions/parser";
 import { MentionAutocomplete, type MentionSuggestion } from "./MentionAutocomplete";
 import { toolRegistry } from "../../services/ai/tools/registry";
 import { executeTool } from "../../services/ai/tools/executor";
@@ -114,33 +113,59 @@ export function CopilotPanel() {
     }
   }, [chatMessages]);
 
-  const gatherHints = (): { hint: string; systemPrompt?: string } => {
+  const resolveContextFromMentions = (text: string): string => {
+    const mentions = parseMentions(text);
     const blockStore = useBlockStore.getState();
     const uiStore = useBlockUIStore.getState();
     const pageStore = usePageStore.getState();
+    
+    let contextString = "";
+    const processedIds = new Set<string>();
 
-    let hint = "";
-    const systemPrompt =
-      "You are a helpful AI assistant integrated into a block-based outliner app. " +
-      "You can view, create, update, and delete blocks using tools. " +
-      "Always use tools when the user asks to modify the document. " +
-      "You can also use tools to read context if not provided.";
-
-    const focusedId = uiStore.focusedBlockId;
-    if (focusedId) {
-      const block = blockStore.blocksById[focusedId];
-      if (block) {
-        hint = `Current focused block content: "${block.content}" (ID: ${focusedId})`;
+    for (const m of mentions) {
+      if (m.type === 'current') {
+        const focusedId = uiStore.focusedBlockId;
+        if (focusedId && !processedIds.has(focusedId)) {
+          const block = blockStore.blocksById[focusedId];
+          if (block) {
+            contextString += `\n[Context: Current Focused Block]\n${block.content}\n`;
+            processedIds.add(focusedId);
+          }
+        }
+      } else if (m.type === 'selection') {
+        const selectedIds = uiStore.selectedBlockIds;
+        if (selectedIds.length > 0) {
+          contextString += `\n[Context: Selected Blocks]\n`;
+          for (const id of selectedIds) {
+            if (!processedIds.has(id)) {
+              const block = blockStore.blocksById[id];
+              if (block) {
+                contextString += `- ${block.content}\n`;
+                processedIds.add(id);
+              }
+            }
+          }
+        }
+      } else if (m.type === 'block' && m.uuid) {
+        if (!processedIds.has(m.uuid)) {
+          const block = blockStore.blocksById[m.uuid];
+          if (block) {
+            contextString += `\n[Context: Block ${m.uuid}]\n${block.content}\n`;
+            processedIds.add(m.uuid);
+          }
+        }
+      } else if (m.type === 'page' && m.uuid) {
+        if (!processedIds.has(m.uuid)) {
+          const page = pageStore.pagesById[m.uuid];
+          if (page) {
+            contextString += `\n[Context: Page "${page.title}"]\n(Page ID: ${m.uuid})\n`;
+            processedIds.add(m.uuid);
+          }
+        }
       }
     }
-
-    const pageId = blockStore.currentPageId;
-    if (pageId) {
-      const pageTitle = pageStore.pagesById[pageId]?.title || "Untitled";
-      hint += `\nYou are currently on page "${pageTitle}" (ID: ${pageId})`;
-    }
-
-    return { hint, systemPrompt };
+    
+    return contextString;
   };
 
   const handleSend = async () => {
@@ -156,8 +181,19 @@ export function CopilotPanel() {
 
     try {
       const aiProvider = createAIProvider(provider, baseUrl);
-      const { hint, systemPrompt } = gatherHints();
-      const prompt = hint ? `${hint}\n\nUser Request: ${currentInput}` : currentInput;
+      
+      const resolvedContext = resolveContextFromMentions(currentInput);
+      
+      const systemPrompt =
+        "You are a helpful AI assistant integrated into a block-based outliner app. " +
+        "You can view, create, update, and delete blocks using tools. " +
+        "Always use tools when the user asks to modify the document. " +
+        "The user may reference blocks or pages using @ syntax. " +
+        "Relevant context from these references is provided below.";
+
+      const prompt = resolvedContext 
+        ? `User Request: ${currentInput}\n\n--- Context Resolved from Mentions ---\n${resolvedContext}` 
+        : currentInput;
 
       const allTools = toolRegistry.getAll();
 
@@ -296,7 +332,8 @@ export function CopilotPanel() {
     const match = beforeCursor.match(/@([\w:]*)$/);
     if (match) {
         const triggerStart = match.index!;
-        const newBeforeCursor = beforeCursor.slice(0, triggerStart) + (suggestion.preview || suggestion.label) + ' ';
+        // Use insertText instead of preview/label
+        const newBeforeCursor = beforeCursor.slice(0, triggerStart) + suggestion.insertText + ' ';
         const newValue = newBeforeCursor + afterCursor;
         
         setInputValue(newValue);
@@ -331,13 +368,11 @@ export function CopilotPanel() {
     >
       {/* Mention Autocomplete */}
       {mentionAutocomplete?.show && (
-        <Portal>
-          <MentionAutocomplete
-            query={mentionAutocomplete.query}
-            onSelect={handleMentionSelect}
-            position={mentionAutocomplete.position}
-          />
-        </Portal>
+        <MentionAutocomplete
+          query={mentionAutocomplete.query}
+          onSelect={handleMentionSelect}
+          position={mentionAutocomplete.position}
+        />
       )}
 
       {/* Tool Approval Modals */}
