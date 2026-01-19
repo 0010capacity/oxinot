@@ -21,10 +21,11 @@ export const createBlockTool: Tool = {
 
   async execute(params, context): Promise<ToolResult> {
     try {
-      let pageId: string;
-      let parentBlockId: string;
+      let pageId: string | undefined;
+      let parentBlockId: string | undefined;
 
       // 1. Try to get parent as a block first
+      let isBlock = false;
       try {
         const parentBlock = await invoke<any>("get_block", {
           workspacePath: context.workspacePath,
@@ -33,16 +34,21 @@ export const createBlockTool: Tool = {
           },
         });
 
-        if (parentBlock) {
+        if (parentBlock && parentBlock.block) {
           // It's a block - use it directly
           pageId = parentBlock.block.page_id;
           parentBlockId = params.parentUuid;
-        } else {
-          throw new Error("Not a block");
+          isBlock = true;
         }
-      } catch {
+      } catch (error) {
+        // Failed to get as block - will try as page ID below
+        console.log("[createBlockTool] Not a block, trying as page ID:", error);
+      }
+
+      if (!isBlock) {
         // 2. Not a block - try as page ID and find root block
         pageId = params.parentUuid;
+        console.log("[createBlockTool] Treating as page ID:", pageId);
 
         // Get all blocks for this page to find root
         const blocks = await invoke<any>("get_page_blocks", {
@@ -73,7 +79,15 @@ export const createBlockTool: Tool = {
         }
       }
 
-      // 3. Create the block
+      // 3. Ensure we have both pageId and parentBlockId
+      if (!pageId || !parentBlockId) {
+        return {
+          success: false,
+          error: "Failed to determine page or parent block ID",
+        };
+      }
+
+      // 4. Create the block
       const newBlock = await invoke<any>("create_block", {
         workspacePath: context.workspacePath,
         request: {
