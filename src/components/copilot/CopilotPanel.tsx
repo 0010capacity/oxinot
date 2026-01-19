@@ -13,6 +13,7 @@ import {
   LoadingOverlay,
   Badge,
   Loader,
+  Tooltip,
 } from "@mantine/core";
 import {
   IconArrowUp,
@@ -40,6 +41,10 @@ import { useBlockStore } from "../../stores/blockStore";
 import { useBlockUIStore } from "../../stores/blockUIStore";
 import { renderMarkdownToHtml } from "../../outliner/markdownRenderer";
 import { usePageStore } from "../../stores/pageStore";
+
+const isMac =
+  typeof navigator !== "undefined" &&
+  navigator.platform.toUpperCase().indexOf("MAC") >= 0;
 
 export function CopilotPanel() {
   const { t } = useTranslation();
@@ -343,44 +348,70 @@ export function CopilotPanel() {
           >
             Copilot
           </Badge>
-          <SegmentedControl
-            size="xs"
-            value={mode}
-            onChange={(val) => setMode(val as CopilotMode)}
-            data={[
-              {
-                label: `${t("settings.ai.copilot.mode.edit")} [1]`,
-                value: "edit",
-              },
-              {
-                label: `${t("settings.ai.copilot.mode.generate")} [2]`,
-                value: "generate",
-              },
-              {
-                label: `${t("settings.ai.copilot.mode.chat")} [3]`,
-                value: "chat",
-              },
-            ]}
-          />
-          <SegmentedControl
-            size="xs"
-            value={scope}
-            onChange={(val) => setScope(val as CopilotScope)}
-            data={[
-              {
-                label: `${t("settings.ai.copilot.scope.block")} [4]`,
-                value: "block",
-              },
-              {
-                label: `${t("settings.ai.copilot.scope.selection")} [5]`,
-                value: "selection",
-              },
-              {
-                label: `${t("settings.ai.copilot.scope.page")} [6]`,
-                value: "page",
-              },
-            ]}
-          />
+          <Tooltip
+            label={`${isMac ? "Opt" : "Alt"}+1-3 to switch modes`}
+            position="bottom"
+          >
+            <div>
+              <SegmentedControl
+                size="xs"
+                value={mode}
+                onChange={(val) => setMode(val as CopilotMode)}
+                data={[
+                  {
+                    label: `${t("settings.ai.copilot.mode.edit")} [${
+                      isMac ? "Opt" : "Alt"
+                    }+1]`,
+                    value: "edit",
+                  },
+                  {
+                    label: `${t("settings.ai.copilot.mode.generate")} [${
+                      isMac ? "Opt" : "Alt"
+                    }+2]`,
+                    value: "generate",
+                  },
+                  {
+                    label: `${t("settings.ai.copilot.mode.chat")} [${
+                      isMac ? "Opt" : "Alt"
+                    }+3]`,
+                    value: "chat",
+                  },
+                ]}
+              />
+            </div>
+          </Tooltip>
+          <Tooltip
+            label={`${isMac ? "Opt" : "Alt"}+4-6 to switch scope`}
+            position="bottom"
+          >
+            <div>
+              <SegmentedControl
+                size="xs"
+                value={scope}
+                onChange={(val) => setScope(val as CopilotScope)}
+                data={[
+                  {
+                    label: `${t("settings.ai.copilot.scope.block")} [${
+                      isMac ? "Opt" : "Alt"
+                    }+4]`,
+                    value: "block",
+                  },
+                  {
+                    label: `${t("settings.ai.copilot.scope.selection")} [${
+                      isMac ? "Opt" : "Alt"
+                    }+5]`,
+                    value: "selection",
+                  },
+                  {
+                    label: `${t("settings.ai.copilot.scope.page")} [${
+                      isMac ? "Opt" : "Alt"
+                    }+6]`,
+                    value: "page",
+                  },
+                ]}
+              />
+            </div>
+          </Tooltip>
         </Group>
         <Group gap="xs">
           <ActionIcon
