@@ -174,36 +174,35 @@ export function CopilotPanel() {
     return contextString;
   };
 
-  const gatherHints = (): { hint: string; systemPrompt?: string } => {
+  const gatherHints = (): string => {
     const blockStore = useBlockStore.getState();
     const uiStore = useBlockUIStore.getState();
     const pageStore = usePageStore.getState();
 
-    let hint = "";
-    const systemPrompt =
+    let systemPrompt =
       "You are an AI assistant integrated into 'Oxinot', a block-based outliner app.\n" +
       "CRITICAL RULE: When the user asks to create, write, add, insert, update, or delete content, you MUST use the provided tools to perform the action directly in the document.\n" +
       "DO NOT just generate text in the chat. For example, if the user says 'Write 5 blocks about ABC', you must call 'create_block' tool 5 times.\n" +
       "Context about the current focus and page is provided below.\n" +
       "- If user says 'current block' or 'here', use the focused block ID.\n" +
       "- If user says 'current page', use the current page ID.\n" +
-      "- If no parent is specified for creation, use the focused block as parent, or the page root if no focus.";
+      "- If no parent is specified for creation, use the focused block as parent, or the page root if no focus.\n\n";
 
     const focusedId = uiStore.focusedBlockId;
     if (focusedId) {
       const block = blockStore.blocksById[focusedId];
       if (block) {
-        hint = `Current focused block content: "${block.content}" (ID: ${focusedId})`;
+        systemPrompt += `Current focused block content: "${block.content}" (ID: ${focusedId})\n`;
       }
     }
 
     const pageId = blockStore.currentPageId;
     if (pageId) {
       const pageTitle = pageStore.pagesById[pageId]?.title || "Untitled";
-      hint += `\nYou are currently on page "${pageTitle}" (ID: ${pageId})`;
+      systemPrompt += `You are currently on page "${pageTitle}" (ID: ${pageId})\n`;
     }
 
-    return { hint, systemPrompt };
+    return systemPrompt;
   };
 
   const handleSend = async () => {
@@ -222,13 +221,11 @@ export function CopilotPanel() {
       const aiProvider = createAIProvider(provider, baseUrl);
 
       const resolvedContext = resolveContextFromMentions(currentInput);
-      const { hint, systemPrompt } = gatherHints();
+      let systemPrompt = gatherHints();
 
       let finalPrompt = currentInput;
       if (resolvedContext) {
-        finalPrompt = `User Request: ${currentInput}\n\n--- Context Resolved from Mentions ---\n${resolvedContext}`;
-      } else if (hint) {
-        finalPrompt = `${hint}\n\nUser Request: ${currentInput}`;
+        systemPrompt += `\n--- Context Resolved from Mentions ---\n${resolvedContext}`;
       }
 
       const allTools = toolRegistry.getAll();
@@ -255,6 +252,7 @@ export function CopilotPanel() {
       console.log("[Copilot] All messages:", allMessages.length);
       console.log("[Copilot] Past messages:", pastMessages.length);
       console.log("[Copilot] History for AI:", historyForAI);
+      console.log("[Copilot] System prompt:", systemPrompt);
       console.log("[Copilot] Current prompt:", finalPrompt);
 
       const stream = aiProvider.generateStream({
