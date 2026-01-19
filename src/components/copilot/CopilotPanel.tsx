@@ -213,6 +213,15 @@ export function CopilotPanel() {
     setError(null);
     setIsLoading(true);
 
+    // Track page context before sending
+    const pageStore = usePageStore.getState();
+    const blockStore = useBlockStore.getState();
+    const currentPageId = blockStore.currentPageId;
+    if (currentPageId) {
+      const pageTitle = pageStore.pagesById[currentPageId]?.title || "Untitled";
+      useCopilotUiStore.getState().updatePageContext(currentPageId, pageTitle);
+    }
+
     // Add message to UI
     addChatMessage("user", currentInput);
     addChatMessage("assistant", "");
