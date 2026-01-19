@@ -1,5 +1,6 @@
 import { fetch } from "@tauri-apps/plugin-http";
-import type { AIRequest, IAIProvider } from "./types";
+import type { AIRequest, IAIProvider, StreamChunk } from "./types";
+import { toolsToAIFunctions } from "./tools/utils";
 
 export class OpenAIProvider implements IAIProvider {
   id = "openai";
@@ -12,7 +13,7 @@ export class OpenAIProvider implements IAIProvider {
     if (baseUrl) this.defaultBaseUrl = baseUrl;
   }
 
-  async *generateStream(request: AIRequest): AsyncGenerator<string, void, unknown> {
+  async *generateStream(request: AIRequest): AsyncGenerator<StreamChunk, void, unknown> {
     const rawBaseUrl = request.baseUrl || this.defaultBaseUrl;
     const baseUrl = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
     const url = baseUrl.endsWith("/v1") ? `${baseUrl}/chat/completions` : `${baseUrl}/v1/chat/completions`;
@@ -25,6 +26,9 @@ export class OpenAIProvider implements IAIProvider {
       messages.unshift({ role: "system", content: request.systemPrompt });
     }
 
+    // Convert tools to OpenAI function format
+    const functions = request.tools ? toolsToAIFunctions(request.tools) : undefined;
+
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -35,6 +39,8 @@ export class OpenAIProvider implements IAIProvider {
         body: JSON.stringify({
           model: request.model,
           messages,
+          functions,
+          function_call: request.tools && request.tools.length > 0 ? "auto" : undefined,
           stream: true,
         }),
       });
@@ -51,6 +57,11 @@ export class OpenAIProvider implements IAIProvider {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      
+      // State for function calling
+      let currentFunctionName = "";
+      let currentFunctionArgs = "";
+      let isCallingFunction = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -67,14 +78,61 @@ export class OpenAIProvider implements IAIProvider {
           if (!trimmed || !trimmed.startsWith("data: ")) continue;
           
           const data = trimmed.slice(6); // Remove "data: " prefix
-          if (data === "[DONE]") return;
+          if (data === "[DONE]") continue;
 
           try {
             const json = JSON.parse(data);
-            const content = json.choices?.[0]?.delta?.content;
-            if (content) {
-              yield content;
+            const delta = json.choices?.[0]?.delta;
+            const finishReason = json.choices?.[0]?.finish_reason;
+
+            // Handle text content
+            if (delta?.content) {
+              yield { type: "text", content: delta.content };
             }
+
+            // Handle function call
+            if (delta?.function_call) {
+              isCallingFunction = true;
+              if (delta.function_call.name) {
+                currentFunctionName = delta.function_call.name;
+              }
+              if (delta.function_call.arguments) {
+                currentFunctionArgs += delta.function_call.arguments;
+              }
+            }
+
+            // If function call is complete (finish_reason is function_call or stop)
+            if (isCallingFunction && (finishReason === "function_call" || finishReason === "stop")) {
+               try {
+                 const args = JSON.parse(currentFunctionArgs || "{}");
+                 
+                 yield {
+                   type: "tool_call",
+                   toolCall: {
+                     id: json.id || "call_unknown",
+                     name: currentFunctionName,
+                     arguments: args,
+                   },
+                 };
+
+                 if (request.onToolCall) {
+                   const result = await request.onToolCall(currentFunctionName, args);
+                   yield {
+                     type: "tool_result",
+                     toolResult: result,
+                   };
+                 }
+               } catch (e) {
+                 console.error("Failed to parse function args or execute tool:", e);
+                 yield { type: "error", error: "Failed to execute tool" };
+               }
+               
+               // Reset state
+               isCallingFunction = false;
+               currentFunctionName = "";
+               currentFunctionArgs = "";
+            }
+
           } catch (e) {
             console.error("Failed to parse OpenAI chunk:", data, e);
           }
@@ -82,14 +140,16 @@ export class OpenAIProvider implements IAIProvider {
       }
     } catch (error) {
       console.error("OpenAI generation failed:", error);
-      throw error;
+      yield { type: "error", error: error instanceof Error ? error.message : "Unknown error" };
     }
   }
 
   async generate(request: AIRequest): Promise<string> {
     let result = "";
     for await (const chunk of this.generateStream(request)) {
-      result += chunk;
+      if (chunk.type === "text" && chunk.content) {
+        result += chunk.content;
+      }
     }
     return result;
   }

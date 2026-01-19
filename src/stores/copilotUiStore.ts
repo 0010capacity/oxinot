@@ -6,7 +6,7 @@ export type CopilotScope = "block" | "selection" | "page";
 
 export interface ChatMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
 }
 
@@ -35,7 +35,7 @@ interface CopilotUiStore {
   setOriginalContent: (content: string | null) => void;
   
   // Chat Actions
-  addChatMessage: (role: "user" | "assistant", content: string) => void;
+  addChatMessage: (role: "user" | "assistant" | "system", content: string) => void;
   updateLastChatMessage: (content: string) => void;
   clearChatMessages: () => void;
   

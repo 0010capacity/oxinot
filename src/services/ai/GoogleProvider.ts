@@ -1,19 +1,23 @@
 import { fetch } from "@tauri-apps/plugin-http";
-import type { AIRequest, IAIProvider } from "./types";
+import type { AIRequest, IAIProvider, StreamChunk } from "./types";
 
 export class GoogleProvider implements IAIProvider {
   id = "google";
 
   // MVP: Fake streaming for Google until proper JSON stream parser is added
-  async *generateStream(request: AIRequest): AsyncGenerator<string, void, unknown> {
-    const text = await this.generate(request);
-    
-    // Simulate chunks for UX consistency
-    const chunkSize = 10;
-    for (let i = 0; i < text.length; i += chunkSize) {
-      yield text.slice(i, i + chunkSize);
-      // Tiny delay to allow UI updates
-      await new Promise(r => setTimeout(r, 5));
+  async *generateStream(request: AIRequest): AsyncGenerator<StreamChunk, void, unknown> {
+    try {
+      const text = await this.generate(request);
+      
+      // Simulate chunks for UX consistency
+      const chunkSize = 10;
+      for (let i = 0; i < text.length; i += chunkSize) {
+        yield { type: "text", content: text.slice(i, i + chunkSize) };
+        // Tiny delay to allow UI updates
+        await new Promise(r => setTimeout(r, 5));
+      }
+    } catch (error) {
+      yield { type: "error", error: error instanceof Error ? error.message : "Unknown error" };
     }
   }
 

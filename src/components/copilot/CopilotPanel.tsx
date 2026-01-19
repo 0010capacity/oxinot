@@ -41,6 +41,14 @@ import { useBlockStore } from "../../stores/blockStore";
 import { useBlockUIStore } from "../../stores/blockUIStore";
 import { renderMarkdownToHtml } from "../../outliner/markdownRenderer";
 import { usePageStore } from "../../stores/pageStore";
+import { isTypingMention } from "../../services/ai/mentions/parser";
+import { MentionAutocomplete, type MentionSuggestion } from "./MentionAutocomplete";
+import { toolRegistry } from "../../services/ai/tools/registry";
+import { executeTool } from "../../services/ai/tools/executor";
+import { blockTools } from "../../services/ai/tools/block";
+import { useWorkspaceStore } from "../../stores/workspaceStore";
+import { useToolApprovalStore } from "../../stores/toolApprovalStore";
+import { ToolApprovalModal } from "./ToolApprovalModal";
 
 const isMac =
   typeof navigator !== "undefined" &&
@@ -77,6 +85,11 @@ export function CopilotPanel() {
     (state) => state.clearChatMessages
   );
 
+  // Tool Approval State
+  const pendingCalls = useToolApprovalStore(state => state.pendingCalls);
+  const approve = useToolApprovalStore(state => state.approve);
+  const deny = useToolApprovalStore(state => state.deny);
+
   // Settings
   const { provider, apiKey, baseUrl, model, promptTemplates } =
     useAISettingsStore();
@@ -84,6 +97,24 @@ export function CopilotPanel() {
   // Local state
   const [isExpanded, setIsExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Mention Autocomplete State
+  const [mentionAutocomplete, setMentionAutocomplete] = useState<{ 
+    show: boolean;
+    query: string;
+    position: { top: number; left: number };
+  } | null>(null);
+
+  // Register tools
+  useEffect(() => {
+    try {
+      if (!toolRegistry.has("get_block")) {
+        toolRegistry.registerMany(blockTools);
+      }
+    } catch (e) {
+      console.warn("Tools already registered or error:", e);
+    }
+  }, []);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -108,7 +139,6 @@ export function CopilotPanel() {
 
       const key = e.key;
 
-      // Mode shortcuts (Alt+1, Alt+2, Alt+3)
       if (key === "1") {
         e.preventDefault();
         setMode("edit");
@@ -118,9 +148,7 @@ export function CopilotPanel() {
       } else if (key === "3") {
         e.preventDefault();
         setMode("chat");
-      }
-      // Scope shortcuts (Alt+4, Alt+5, Alt+6)
-      else if (key === "4") {
+      } else if (key === "4") {
         e.preventDefault();
         setScope("block");
       } else if (key === "5") {
@@ -195,10 +223,9 @@ export function CopilotPanel() {
     setError(null);
     setIsLoading(true);
 
-    // If Chat Mode: Add user message immediately
     if (mode === "chat") {
       addChatMessage("user", currentInput);
-      addChatMessage("assistant", ""); // Placeholder for stream
+      addChatMessage("assistant", ""); 
     } else {
       setPreviewContent("");
     }
@@ -210,16 +237,16 @@ export function CopilotPanel() {
       let systemPrompt = "";
 
       if (mode === "chat") {
-        // Chat mode: pure conversation without context
         prompt = currentInput;
         systemPrompt =
           "You are a helpful AI assistant integrated into a block-based outliner app.";
       } else {
-        // Edit/Generate modes: include context based on scope
         const { context, systemPrompt: ctxSystemPrompt } = gatherContext();
         prompt = `${context}\n\nUser Request: ${currentInput}`;
         systemPrompt = ctxSystemPrompt || "";
       }
+
+      const allTools = toolRegistry.getAll();
 
       const stream = aiProvider.generateStream({
         prompt,
@@ -227,15 +254,49 @@ export function CopilotPanel() {
         model,
         apiKey,
         baseUrl,
+        tools: allTools,
+        onToolCall: async (toolName, params) => {
+          console.log(`AI called tool: ${toolName}`, params);
+          
+          const workspacePath = useWorkspaceStore.getState().workspacePath;
+          if (!workspacePath) {
+             throw new Error("No workspace path available");
+          }
+
+          const context = {
+            workspacePath,
+            currentPageId: useBlockStore.getState().currentPageId || undefined,
+            focusedBlockId: useBlockUIStore.getState().focusedBlockId || undefined,
+            selectedBlockIds: useBlockUIStore.getState().selectedBlockIds,
+          };
+
+          const result = await executeTool(toolName, params, context);
+          return result;
+        },
       });
 
       let fullContent = "";
       for await (const chunk of stream) {
-        fullContent += chunk;
-        if (mode === "chat") {
-          updateLastChatMessage(fullContent);
-        } else {
-          setPreviewContent(fullContent);
+        if (chunk.type === "text" && chunk.content) {
+          fullContent += chunk.content;
+          if (mode === "chat") {
+            updateLastChatMessage(fullContent);
+          } else {
+            setPreviewContent(fullContent);
+          }
+        } else if (chunk.type === "tool_call") {
+           if (mode === "chat") {
+             addChatMessage("system", `Calling tool: ${chunk.toolCall?.name}`);
+           }
+        } else if (chunk.type === "tool_result") {
+           if (mode === "chat") {
+             addChatMessage("system", `Tool result: ${JSON.stringify(chunk.toolResult)}`);
+           }
+        } else if (chunk.type === "error") {
+           setError(chunk.error || "Unknown error");
+           if (mode === "chat") {
+             updateLastChatMessage(`Error: ${chunk.error}`);
+           }
         }
       }
     } catch (err: unknown) {
@@ -252,6 +313,10 @@ export function CopilotPanel() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (mentionAutocomplete?.show && e.key === 'Enter') {
+      return;
+    }
+    
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -313,6 +378,46 @@ export function CopilotPanel() {
     }
   };
 
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+
+    const cursorPos = inputRef.current?.selectionStart || value.length;
+    const typingMention = isTypingMention(value, cursorPos);
+
+    if (typingMention) {
+      const rect = inputRef.current?.getBoundingClientRect();
+      if (rect) {
+        setMentionAutocomplete({
+          show: true,
+          query: typingMention.query,
+          position: {
+            top: rect.top - 200, 
+            left: rect.left,
+          },
+        });
+      }
+    } else {
+      setMentionAutocomplete(null);
+    }
+  };
+
+  const handleMentionSelect = (suggestion: MentionSuggestion) => {
+    const cursorPos = inputRef.current?.selectionStart || inputValue.length;
+    const beforeCursor = inputValue.slice(0, cursorPos);
+    const afterCursor = inputValue.slice(cursorPos);
+
+    const match = beforeCursor.match(/@([\w:]*)$/);
+    if (match) {
+        const triggerStart = match.index!;
+        const newBeforeCursor = beforeCursor.slice(0, triggerStart) + (suggestion.preview || suggestion.label) + ' ';
+        const newValue = newBeforeCursor + afterCursor;
+        
+        setInputValue(newValue);
+        setMentionAutocomplete(null);
+        inputRef.current?.focus();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -337,6 +442,25 @@ export function CopilotPanel() {
         transition: "height 0.3s ease",
       }}
     >
+      {/* Mention Autocomplete */}
+      {mentionAutocomplete?.show && (
+        <MentionAutocomplete
+          query={mentionAutocomplete.query}
+          onSelect={handleMentionSelect}
+          position={mentionAutocomplete.position}
+        />
+      )}
+
+      {/* Tool Approval Modals */}
+      {pendingCalls.map(call => (
+        <ToolApprovalModal
+          key={call.id}
+          toolCall={call}
+          onApprove={() => approve(call.id)}
+          onDeny={() => deny(call.id)}
+        />
+      ))}
+
       {/* Header */}
       <Group
         justify="space-between"
@@ -477,7 +601,13 @@ export function CopilotPanel() {
                   key={msg.id}
                   align="flex-start"
                   wrap="nowrap"
-                  justify={msg.role === "user" ? "flex-end" : "flex-start"}
+                  justify={
+                    msg.role === "user"
+                      ? "flex-end"
+                      : msg.role === "system"
+                        ? "center"
+                        : "flex-start"
+                  }
                 >
                   {msg.role === "assistant" && (
                     <ActionIcon
@@ -490,24 +620,42 @@ export function CopilotPanel() {
                       <IconRobot size={14} />
                     </ActionIcon>
                   )}
+                  {msg.role === "system" && (
+                    <Badge variant="outline" color="gray" size="xs" mt={8}>
+                      System
+                    </Badge>
+                  )}
                   <Paper
                     p="sm"
                     radius="md"
                     bg={
                       msg.role === "user"
                         ? "var(--color-interactive-primary)"
-                        : "var(--color-bg-secondary)"
+                        : msg.role === "system"
+                          ? "transparent"
+                          : "var(--color-bg-secondary)"
                     }
                     c={
                       msg.role === "user"
                         ? "white"
                         : "var(--color-text-primary)"
                     }
-                    style={{ maxWidth: "85%" }}
+                    style={{
+                      maxWidth: "85%",
+                      border:
+                        msg.role === "system"
+                          ? "1px dashed var(--color-border-primary)"
+                          : "none",
+                    }}
                   >
                     <div
                       className="markdown-preview"
-                      style={{ fontSize: "14px", lineHeight: "1.5" }}
+                      style={{
+                        fontSize: msg.role === "system" ? "12px" : "14px",
+                        lineHeight: "1.5",
+                        fontStyle:
+                          msg.role === "system" ? "italic" : "normal",
+                      }}
                       dangerouslySetInnerHTML={{
                         __html: renderMarkdownToHtml(msg.content, {
                           allowBlocks: true,
@@ -578,7 +726,6 @@ export function CopilotPanel() {
         </ScrollArea>
       </Box>
 
-      {/* Footer / Input Area */}
       <div
         style={{
           padding: "12px",
@@ -615,13 +762,13 @@ export function CopilotPanel() {
               ref={inputRef}
               placeholder={t("settings.ai.copilot.placeholder")}
               value={inputValue}
-              onChange={(e) => setInputValue(e.currentTarget.value)}
+              onChange={(e) => handleInputChange(e.currentTarget.value)}
               onKeyDown={handleKeyDown}
               autosize
               minRows={1}
               maxRows={5}
               style={{ flex: 1 }}
-              disabled={isLoading && mode !== "chat"} // Allow typing in chat while loading? No, simple MVP block it.
+              disabled={isLoading && mode !== "chat"}
             />
 
             <Button
