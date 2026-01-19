@@ -185,13 +185,15 @@ export function CopilotPanel() {
       
       const resolvedContext = resolveContextFromMentions(currentInput);
       
-      const systemPrompt =
-        "You are a helpful AI assistant integrated into a block-based outliner app. " +
-        "You can view, create, update, and delete blocks using tools. " +
-        "Always use tools when the user asks to modify the document. " +
-        "The user may reference blocks or pages using @ syntax. " +
-        "Relevant context from these references is provided below.";
-
+          const systemPrompt =
+            "You are a helpful AI assistant integrated into a block-based outliner app. " +
+            "You can view, create, update, and delete blocks using tools. " +
+            "Always use tools when the user asks to modify the document. " +
+            "You can also use tools to read context if not provided. " +
+            "The user may reference blocks or pages using @ syntax. " +
+            "If the user refers to 'current block', 'this block', or 'here' without a mention, use the ID from the provided 'Current focused block' context. " +
+            "If the user refers to 'current page' or 'this page', use the ID from the 'current page' context. " +
+            "Relevant context is provided below.";
       const prompt = resolvedContext 
         ? `User Request: ${currentInput}\n\n--- Context Resolved from Mentions ---\n${resolvedContext}` 
         : currentInput;
