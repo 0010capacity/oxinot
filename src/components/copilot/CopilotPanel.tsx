@@ -318,9 +318,14 @@ export function CopilotPanel() {
           }
         } else if (chunk.type === "tool_call") {
           console.log("[Copilot] Tool call:", chunk.toolCall?.name);
+          console.log("[Copilot] Tool call params:", chunk.toolCall?.arguments);
           addChatMessage("system", `Calling tool: ${chunk.toolCall?.name}`);
         } else if (chunk.type === "tool_result") {
           console.log("[Copilot] Tool result:", chunk.toolResult);
+          console.log(
+            "[Copilot] Tool result stringified:",
+            JSON.stringify(chunk.toolResult, null, 2)
+          );
           addChatMessage(
             "system",
             `Tool result: ${JSON.stringify(chunk.toolResult)}`
