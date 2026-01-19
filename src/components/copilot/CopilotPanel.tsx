@@ -379,7 +379,11 @@ export function CopilotPanel() {
             </div>
           </Tooltip>
           <Tooltip
-            label={`${isMac ? "Opt" : "Alt"}+4-6 to switch scope`}
+            label={
+              mode === "chat"
+                ? "Scope not used in Chat mode"
+                : `${isMac ? "Opt" : "Alt"}+4-6 to switch scope`
+            }
             position="bottom"
           >
             <div>
@@ -387,6 +391,7 @@ export function CopilotPanel() {
                 size="xs"
                 value={scope}
                 onChange={(val) => setScope(val as CopilotScope)}
+                disabled={mode === "chat"}
                 data={[
                   {
                     label: `${t("settings.ai.copilot.scope.block")} [4]`,
