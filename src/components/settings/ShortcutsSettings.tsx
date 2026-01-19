@@ -137,6 +137,7 @@ export function ShortcutsSettings({ matchesSearch }: ShortcutsSettingsProps) {
     { id: "settings", label: t("common.settings") },
     { id: "help", label: t("settings.shortcuts.help") },
     { id: "toggle_index", label: t("settings.shortcuts.toggle_index") },
+    { id: "toggle_copilot", label: t("settings.shortcuts.toggle_copilot") },
   ];
 
   return (

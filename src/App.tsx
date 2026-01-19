@@ -32,6 +32,7 @@ import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 import { BlockEditor } from "./outliner/BlockEditor";
 import { CopilotButton } from "./components/copilot/CopilotButton";
 import { CopilotPanel } from "./components/copilot/CopilotPanel";
+import { useCopilotUiStore } from "./stores/copilotUiStore";
 
 import { usePageStore } from "./stores/pageStore";
 import { useBlockStore } from "./stores/blockStore";
@@ -237,6 +238,7 @@ function AppContent({ workspacePath }: AppContentProps) {
     },
     onGoHome: () => showIndex(),
     onToggleIndex: () => showIndex(),
+    onToggleCopilot: () => useCopilotUiStore.getState().toggle(),
     onUndo: () => useBlockStore.temporal.getState().undo(),
     onRedo: () => useBlockStore.temporal.getState().redo(),
   });
