@@ -248,6 +248,11 @@ export function CopilotPanel() {
           content: msg.content,
         }));
 
+      console.log("[Copilot] All messages:", allMessages.length);
+      console.log("[Copilot] Past messages:", pastMessages.length);
+      console.log("[Copilot] History for AI:", historyForAI);
+      console.log("[Copilot] Current prompt:", finalPrompt);
+
       const stream = aiProvider.generateStream({
         prompt: finalPrompt,
         systemPrompt,
