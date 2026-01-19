@@ -28,17 +28,21 @@ import {
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
-import {
-  useCopilotUiStore,
-} from "../../stores/copilotUiStore";
+import { useCopilotUiStore } from "../../stores/copilotUiStore";
 import { useAISettingsStore } from "../../stores/aiSettingsStore";
 import { createAIProvider } from "../../services/ai/factory";
 import { useBlockStore } from "../../stores/blockStore";
 import { useBlockUIStore } from "../../stores/blockUIStore";
 import { renderMarkdownToHtml } from "../../outliner/markdownRenderer";
 import { usePageStore } from "../../stores/pageStore";
-import { isTypingMention, parseMentions } from "../../services/ai/mentions/parser";
-import { MentionAutocomplete, type MentionSuggestion } from "./MentionAutocomplete";
+import {
+  isTypingMention,
+  parseMentions,
+} from "../../services/ai/mentions/parser";
+import {
+  MentionAutocomplete,
+  type MentionSuggestion,
+} from "./MentionAutocomplete";
 import { toolRegistry } from "../../services/ai/tools/registry";
 import { executeTool } from "../../services/ai/tools/executor";
 import { blockTools } from "../../services/ai/tools/block";
@@ -70,9 +74,9 @@ export function CopilotPanel() {
   );
 
   // Tool Approval State
-  const pendingCalls = useToolApprovalStore(state => state.pendingCalls);
-  const approve = useToolApprovalStore(state => state.approve);
-  const deny = useToolApprovalStore(state => state.deny);
+  const pendingCalls = useToolApprovalStore((state) => state.pendingCalls);
+  const approve = useToolApprovalStore((state) => state.approve);
+  const deny = useToolApprovalStore((state) => state.deny);
 
   // Settings
   const { provider, apiKey, baseUrl, model, promptTemplates } =
@@ -83,7 +87,7 @@ export function CopilotPanel() {
   const [error, setError] = useState<string | null>(null);
 
   // Mention Autocomplete State
-  const [mentionAutocomplete, setMentionAutocomplete] = useState<{ 
+  const [mentionAutocomplete, setMentionAutocomplete] = useState<{
     show: boolean;
     query: string;
     position: { top: number; left: number };
@@ -107,6 +111,7 @@ export function CopilotPanel() {
   }, [isOpen]);
 
   // Auto-scroll to bottom
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Need full chatMessages to trigger scroll on content updates
   useEffect(() => {
     if (scrollViewportRef.current) {
       scrollViewportRef.current.scrollTop =
@@ -119,12 +124,12 @@ export function CopilotPanel() {
     const blockStore = useBlockStore.getState();
     const uiStore = useBlockUIStore.getState();
     const pageStore = usePageStore.getState();
-    
+
     let contextString = "";
     const processedIds = new Set<string>();
 
     for (const m of mentions) {
-      if (m.type === 'current') {
+      if (m.type === "current") {
         const focusedId = uiStore.focusedBlockId;
         if (focusedId && !processedIds.has(focusedId)) {
           const block = blockStore.blocksById[focusedId];
@@ -133,10 +138,10 @@ export function CopilotPanel() {
             processedIds.add(focusedId);
           }
         }
-      } else if (m.type === 'selection') {
+      } else if (m.type === "selection") {
         const selectedIds = uiStore.selectedBlockIds;
         if (selectedIds.length > 0) {
-          contextString += `\n[Context: Selected Blocks]\n`;
+          contextString += "\n[Context: Selected Blocks]\n";
           for (const id of selectedIds) {
             if (!processedIds.has(id)) {
               const block = blockStore.blocksById[id];
@@ -147,7 +152,7 @@ export function CopilotPanel() {
             }
           }
         }
-      } else if (m.type === 'block' && m.uuid) {
+      } else if (m.type === "block" && m.uuid) {
         if (!processedIds.has(m.uuid)) {
           const block = blockStore.blocksById[m.uuid];
           if (block) {
@@ -155,7 +160,7 @@ export function CopilotPanel() {
             processedIds.add(m.uuid);
           }
         }
-      } else if (m.type === 'page' && m.uuid) {
+      } else if (m.type === "page" && m.uuid) {
         if (!processedIds.has(m.uuid)) {
           const page = pageStore.pagesById[m.uuid];
           if (page) {
@@ -165,7 +170,7 @@ export function CopilotPanel() {
         }
       }
     }
-    
+
     return contextString;
   };
 
@@ -211,14 +216,14 @@ export function CopilotPanel() {
 
     // Add message to UI
     addChatMessage("user", currentInput);
-    addChatMessage("assistant", ""); 
+    addChatMessage("assistant", "");
 
     try {
       const aiProvider = createAIProvider(provider, baseUrl);
-      
+
       const resolvedContext = resolveContextFromMentions(currentInput);
       const { hint, systemPrompt } = gatherHints();
-      
+
       let finalPrompt = currentInput;
       if (resolvedContext) {
         finalPrompt = `User Request: ${currentInput}\n\n--- Context Resolved from Mentions ---\n${resolvedContext}`;
@@ -230,15 +235,18 @@ export function CopilotPanel() {
 
       // Get fresh history from store state
       const allMessages = useCopilotUiStore.getState().chatMessages;
-      
+
       // Exclude the last two messages we just added (Current User Prompt + Assistant Placeholder)
       // This ensures 'history' only contains past conversation turns
       const pastMessages = allMessages.slice(0, -2);
 
-      // Filter out system messages (tool logs) from history to keep context clean for AI
-      const historyForAI = pastMessages.filter(
-        (msg) => msg.role === "user" || msg.role === "assistant"
-      );
+      // Filter out system messages (tool logs) and map to AI provider format (without id)
+      const historyForAI = pastMessages
+        .filter((msg) => msg.role === "user" || msg.role === "assistant")
+        .map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        }));
 
       const stream = aiProvider.generateStream({
         prompt: finalPrompt,
@@ -250,16 +258,17 @@ export function CopilotPanel() {
         tools: allTools,
         onToolCall: async (toolName, params) => {
           console.log(`AI called tool: ${toolName}`, params);
-          
+
           const workspacePath = useWorkspaceStore.getState().workspacePath;
           if (!workspacePath) {
-             throw new Error("No workspace path available");
+            throw new Error("No workspace path available");
           }
 
           const context = {
             workspacePath,
             currentPageId: useBlockStore.getState().currentPageId || undefined,
-            focusedBlockId: useBlockUIStore.getState().focusedBlockId || undefined,
+            focusedBlockId:
+              useBlockUIStore.getState().focusedBlockId || undefined,
             selectedBlockIds: useBlockUIStore.getState().selectedBlockIds,
           };
 
@@ -274,12 +283,15 @@ export function CopilotPanel() {
           fullContent += chunk.content;
           updateLastChatMessage(fullContent);
         } else if (chunk.type === "tool_call") {
-           addChatMessage("system", `Calling tool: ${chunk.toolCall?.name}`);
+          addChatMessage("system", `Calling tool: ${chunk.toolCall?.name}`);
         } else if (chunk.type === "tool_result") {
-           addChatMessage("system", `Tool result: ${JSON.stringify(chunk.toolResult)}`);
+          addChatMessage(
+            "system",
+            `Tool result: ${JSON.stringify(chunk.toolResult)}`
+          );
         } else if (chunk.type === "error") {
-           setError(chunk.error || "Unknown error");
-           updateLastChatMessage(`Error: ${chunk.error}`);
+          setError(chunk.error || "Unknown error");
+          updateLastChatMessage(`Error: ${chunk.error}`);
         }
       }
     } catch (err: unknown) {
@@ -294,10 +306,10 @@ export function CopilotPanel() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (mentionAutocomplete?.show && e.key === 'Enter') {
+    if (mentionAutocomplete?.show && e.key === "Enter") {
       return;
     }
-    
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -358,7 +370,7 @@ export function CopilotPanel() {
           show: true,
           query: typingMention.query,
           position: {
-            top: rect.top - 200, 
+            top: rect.top - 200,
             left: rect.left,
           },
         });
@@ -374,15 +386,17 @@ export function CopilotPanel() {
     const afterCursor = inputValue.slice(cursorPos);
 
     const match = beforeCursor.match(/@([\w:]*)$/);
-    if (match) {
-        const triggerStart = match.index!;
-        // Use insertText instead of preview/label
-        const newBeforeCursor = beforeCursor.slice(0, triggerStart) + suggestion.insertText + ' ';
-        const newValue = newBeforeCursor + afterCursor;
-        
-        setInputValue(newValue);
-        setMentionAutocomplete(null);
-        inputRef.current?.focus();
+    if (match && match.index !== undefined) {
+      const triggerStart = match.index;
+      // Use insertText instead of preview/label
+      const newBeforeCursor = `${beforeCursor.slice(0, triggerStart)}${
+        suggestion.insertText
+      } `;
+      const newValue = newBeforeCursor + afterCursor;
+
+      setInputValue(newValue);
+      setMentionAutocomplete(null);
+      inputRef.current?.focus();
     }
   };
 
@@ -422,7 +436,7 @@ export function CopilotPanel() {
       )}
 
       {/* Tool Approval Modals */}
-      {pendingCalls.map(call => (
+      {pendingCalls.map((call) => (
         <ToolApprovalModal
           key={call.id}
           toolCall={call}
@@ -520,8 +534,8 @@ export function CopilotPanel() {
                   msg.role === "user"
                     ? "flex-end"
                     : msg.role === "system"
-                      ? "center"
-                      : "flex-start"
+                    ? "center"
+                    : "flex-start"
                 }
               >
                 {msg.role === "assistant" && (
@@ -547,13 +561,11 @@ export function CopilotPanel() {
                     msg.role === "user"
                       ? "var(--color-interactive-primary)"
                       : msg.role === "system"
-                        ? "transparent"
-                        : "var(--color-bg-secondary)"
+                      ? "transparent"
+                      : "var(--color-bg-secondary)"
                   }
                   c={
-                    msg.role === "user"
-                      ? "white"
-                      : "var(--color-text-primary)"
+                    msg.role === "user" ? "white" : "var(--color-text-primary)"
                   }
                   style={{
                     maxWidth: "85%",
@@ -568,8 +580,7 @@ export function CopilotPanel() {
                     style={{
                       fontSize: msg.role === "system" ? "12px" : "14px",
                       lineHeight: "1.5",
-                      fontStyle:
-                        msg.role === "system" ? "italic" : "normal",
+                      fontStyle: msg.role === "system" ? "italic" : "normal",
                     }}
                     dangerouslySetInnerHTML={{
                       __html: renderMarkdownToHtml(msg.content, {
