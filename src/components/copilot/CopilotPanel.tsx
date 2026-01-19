@@ -205,16 +205,20 @@ export function CopilotPanel() {
 
     try {
       const aiProvider = createAIProvider(provider, baseUrl);
-      const { context, systemPrompt } = gatherContext();
 
       let prompt = "";
+      let systemPrompt = "";
+
       if (mode === "chat") {
-        // Include chat history context if possible, but for MVP just context + input
-        // Or simple history concat?
-        // Let's stick to context + current input for now to avoid token limits with huge history
-        prompt = `${context}\n\nUser: ${currentInput}`;
+        // Chat mode: pure conversation without context
+        prompt = currentInput;
+        systemPrompt =
+          "You are a helpful AI assistant integrated into a block-based outliner app.";
       } else {
+        // Edit/Generate modes: include context based on scope
+        const { context, systemPrompt: ctxSystemPrompt } = gatherContext();
         prompt = `${context}\n\nUser Request: ${currentInput}`;
+        systemPrompt = ctxSystemPrompt || "";
       }
 
       const stream = aiProvider.generateStream({
