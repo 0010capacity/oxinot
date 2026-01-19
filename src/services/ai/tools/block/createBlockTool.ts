@@ -21,11 +21,82 @@ export const createBlockTool: Tool = {
 
   async execute(params, context): Promise<ToolResult> {
     try {
-      let pageId: string | undefined;
-      let parentBlockId: string | undefined;
+      let pageId: string;
+      let parentBlockId: string;
 
-      // 1. Try to get parent as a block first
-      let isBlock = false;
+      // First, always try to get blocks for the UUID as if it's a page ID
+      // This handles the common case where AI sends page ID
+      try {
+        console.log(
+          "[createBlockTool] Checking if UUID is page ID:",
+          params.parentUuid
+        );
+        const blocks = await invoke<any>("get_page_blocks", {
+          workspacePath: context.workspacePath,
+          pageId: params.parentUuid,
+        });
+
+        // If we got blocks, it's a page ID
+        if (blocks && Array.isArray(blocks)) {
+          pageId = params.parentUuid;
+          console.log(
+            "[createBlockTool] UUID is a page ID, found",
+            blocks.length,
+            "blocks"
+          );
+
+          if (blocks.length === 0) {
+            // No blocks yet - create root block first
+            console.log("[createBlockTool] Creating root block for empty page");
+            const rootBlock = await invoke<any>("create_block", {
+              workspacePath: context.workspacePath,
+              request: {
+                page_id: pageId,
+                parent_id: null,
+                content: "",
+              },
+            });
+            parentBlockId = rootBlock.id;
+          } else {
+            // Find root block (block with no parent)
+            const rootBlock = blocks.find((b: any) => !b.parent_id);
+            if (rootBlock) {
+              parentBlockId = rootBlock.id;
+              console.log("[createBlockTool] Using root block:", parentBlockId);
+            } else {
+              // Use first block as fallback
+              parentBlockId = blocks[0].id;
+              console.log(
+                "[createBlockTool] No root block found, using first block:",
+                parentBlockId
+              );
+            }
+          }
+
+          // Create the block with the found parent
+          const newBlock = await invoke<any>("create_block", {
+            workspacePath: context.workspacePath,
+            request: {
+              page_id: pageId,
+              parent_id: parentBlockId,
+              content: params.content,
+            },
+          });
+
+          return {
+            success: true,
+            data: { uuid: newBlock.id, content: params.content },
+          };
+        }
+      } catch (pageError) {
+        // Not a page ID, try as block ID
+        console.log(
+          "[createBlockTool] Not a page ID, trying as block ID:",
+          pageError
+        );
+      }
+
+      // If page ID approach failed, try as block ID
       try {
         const parentBlock = await invoke<any>("get_block", {
           workspacePath: context.workspacePath,
@@ -35,71 +106,33 @@ export const createBlockTool: Tool = {
         });
 
         if (parentBlock && parentBlock.block) {
-          // It's a block - use it directly
+          console.log("[createBlockTool] UUID is a block ID");
           pageId = parentBlock.block.page_id;
           parentBlockId = params.parentUuid;
-          isBlock = true;
-        }
-      } catch (error) {
-        // Failed to get as block - will try as page ID below
-        console.log("[createBlockTool] Not a block, trying as page ID:", error);
-      }
 
-      if (!isBlock) {
-        // 2. Not a block - try as page ID and find root block
-        pageId = params.parentUuid;
-        console.log("[createBlockTool] Treating as page ID:", pageId);
-
-        // Get all blocks for this page to find root
-        const blocks = await invoke<any>("get_page_blocks", {
-          workspacePath: context.workspacePath,
-          pageId: pageId,
-        });
-
-        if (!blocks || blocks.length === 0) {
-          // No blocks yet - create root block first
-          const rootBlock = await invoke<any>("create_block", {
+          // Create the block
+          const newBlock = await invoke<any>("create_block", {
             workspacePath: context.workspacePath,
             request: {
               page_id: pageId,
-              parent_id: null,
-              content: "",
+              parent_id: parentBlockId,
+              content: params.content,
             },
           });
-          parentBlockId = rootBlock.id;
-        } else {
-          // Find root block (block with no parent)
-          const rootBlock = blocks.find((b: any) => !b.parent_id);
-          if (rootBlock) {
-            parentBlockId = rootBlock.id;
-          } else {
-            // Use first block as fallback
-            parentBlockId = blocks[0].id;
-          }
+
+          return {
+            success: true,
+            data: { uuid: newBlock.id, content: params.content },
+          };
         }
+      } catch (blockError) {
+        console.log("[createBlockTool] Failed to get as block:", blockError);
       }
 
-      // 3. Ensure we have both pageId and parentBlockId
-      if (!pageId || !parentBlockId) {
-        return {
-          success: false,
-          error: "Failed to determine page or parent block ID",
-        };
-      }
-
-      // 4. Create the block
-      const newBlock = await invoke<any>("create_block", {
-        workspacePath: context.workspacePath,
-        request: {
-          page_id: pageId,
-          parent_id: parentBlockId,
-          content: params.content,
-        },
-      });
-
+      // Both approaches failed
       return {
-        success: true,
-        data: { uuid: newBlock.id, content: params.content },
+        success: false,
+        error: `UUID ${params.parentUuid} is neither a valid page ID nor a block ID`,
       };
     } catch (error) {
       return {
