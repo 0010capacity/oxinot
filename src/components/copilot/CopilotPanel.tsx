@@ -46,6 +46,7 @@ import {
 import { toolRegistry } from "../../services/ai/tools/registry";
 import { executeTool } from "../../services/ai/tools/executor";
 import { blockTools } from "../../services/ai/tools/block";
+import { pageTools } from "../../services/ai/tools/page";
 import { useWorkspaceStore } from "../../stores/workspaceStore";
 import { useToolApprovalStore } from "../../stores/toolApprovalStore";
 import { ToolApprovalModal } from "./ToolApprovalModal";
@@ -98,6 +99,9 @@ export function CopilotPanel() {
     try {
       if (!toolRegistry.has("get_block")) {
         toolRegistry.registerMany(blockTools);
+      }
+      if (!toolRegistry.has("open_page")) {
+        toolRegistry.registerMany(pageTools);
       }
     } catch (e) {
       console.warn("Tools already registered or error:", e);

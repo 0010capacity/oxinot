@@ -1,9 +1,9 @@
-import type { z } from 'zod';
+import type { z } from "zod";
 
 /**
  * Tool parameter schema using Zod for validation
  */
-export type ToolParameterSchema = z.ZodObject<any>;
+export type ToolParameterSchema = z.ZodTypeAny;
 
 /**
  * Tool definition that AI can invoke
@@ -19,7 +19,10 @@ export interface Tool {
   parameters: ToolParameterSchema;
 
   /** Execute the tool with validated parameters */
-  execute: <T = any>(params: any, context: ToolContext) => Promise<ToolResult<T>>;
+  execute: <T = any>(
+    params: any,
+    context: ToolContext
+  ) => Promise<ToolResult<T>>;
 
   /** Optional: Whether this tool requires user approval before execution */
   requiresApproval?: boolean;
@@ -42,11 +45,11 @@ export interface ToolResult<T = any> {
  * Tool categories for organization
  */
 export enum ToolCategory {
-  BLOCK = 'block',
-  PAGE = 'page',
-  SEARCH = 'search',
-  SELECTION = 'selection',
-  METADATA = 'metadata',
+  BLOCK = "block",
+  PAGE = "page",
+  SEARCH = "search",
+  SELECTION = "selection",
+  METADATA = "metadata",
 }
 
 /**
