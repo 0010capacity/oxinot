@@ -228,12 +228,17 @@ export function CopilotPanel() {
 
       const allTools = toolRegistry.getAll();
 
-      // Get fresh history from store state to avoid closure staleness
-      // Filter out the message we just added (current input) to avoid duplication if the provider appends prompt
-      // Also filter out system messages (tool logs) for clean context
-      const currentHistory = useCopilotUiStore.getState().chatMessages
-        .filter(msg => msg.content !== currentInput) // Exclude current prompt
-        .filter(msg => msg.role === "user" || msg.role === "assistant");
+      // Get fresh history from store state
+      const allMessages = useCopilotUiStore.getState().chatMessages;
+      
+      // Exclude the last two messages we just added (Current User Prompt + Assistant Placeholder)
+      // This ensures 'history' only contains past conversation turns
+      const pastMessages = allMessages.slice(0, -2);
+
+      // Filter out system messages (tool logs) from history to keep context clean for AI
+      const historyForAI = pastMessages.filter(
+        (msg) => msg.role === "user" || msg.role === "assistant"
+      );
 
       const stream = aiProvider.generateStream({
         prompt: finalPrompt,
@@ -241,7 +246,7 @@ export function CopilotPanel() {
         model,
         apiKey,
         baseUrl,
-        history: currentHistory, // Use fresh, filtered history
+        history: historyForAI,
         tools: allTools,
         onToolCall: async (toolName, params) => {
           console.log(`AI called tool: ${toolName}`, params);
