@@ -5,7 +5,9 @@ import { toolToAIFunction } from "./tools/utils";
 export class ClaudeProvider implements IAIProvider {
   id = "claude";
 
-  async *generateStream(request: AIRequest): AsyncGenerator<StreamChunk, void, unknown> {
+  async *generateStream(
+    request: AIRequest
+  ): AsyncGenerator<StreamChunk, void, unknown> {
     const baseUrl = request.baseUrl || "https://api.anthropic.com/v1";
     const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/messages`;
@@ -13,13 +15,13 @@ export class ClaudeProvider implements IAIProvider {
     // 1. Build initial messages
     const messages: any[] = [];
     if (request.history) {
-      request.history.forEach(msg => {
+      request.history.forEach((msg) => {
         messages.push({ role: msg.role, content: msg.content });
       });
     }
     messages.push({ role: "user", content: request.prompt });
 
-    const claudeTools = request.tools?.map(tool => {
+    const claudeTools = request.tools?.map((tool) => {
       const aiFunc = toolToAIFunction(tool);
       return {
         name: aiFunc.name,
@@ -33,7 +35,17 @@ export class ClaudeProvider implements IAIProvider {
 
     while (loopCount < MAX_LOOPS) {
       loopCount++;
-      
+
+      console.log("[ClaudeProvider] Sending to API:");
+      console.log(
+        "  System prompt:",
+        request.systemPrompt?.substring(0, 100) + "..."
+      );
+      console.log("  Messages:", messages.length);
+      messages.forEach((msg, i) => {
+        console.log(`    [${i}] ${msg.role}: ${msg.content}`);
+      });
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -46,7 +58,8 @@ export class ClaudeProvider implements IAIProvider {
           max_tokens: 4096,
           system: request.systemPrompt,
           messages,
-          tools: claudeTools && claudeTools.length > 0 ? claudeTools : undefined,
+          tools:
+            claudeTools && claudeTools.length > 0 ? claudeTools : undefined,
           stream: true,
         }),
       });
@@ -61,7 +74,7 @@ export class ClaudeProvider implements IAIProvider {
 
       const decoder = new TextDecoder();
       let buffer = "";
-      
+
       let currentToolId = "";
       let currentToolName = "";
       let currentToolInput = "";
@@ -79,68 +92,95 @@ export class ClaudeProvider implements IAIProvider {
         for (const line of lines) {
           if (!line.trim() || !line.startsWith("data: ")) continue;
           const data = line.slice(6);
-          
+
           try {
             const json = JSON.parse(data);
-            
-            if (json.type === "content_block_delta" && json.delta?.type === "text_delta") {
+
+            if (
+              json.type === "content_block_delta" &&
+              json.delta?.type === "text_delta"
+            ) {
               assistantContent += json.delta.text;
               yield { type: "text", content: json.delta.text };
             }
 
-            if (json.type === "content_block_start" && json.content_block?.type === "tool_use") {
+            if (
+              json.type === "content_block_start" &&
+              json.content_block?.type === "tool_use"
+            ) {
               currentToolId = json.content_block.id;
               currentToolName = json.content_block.name;
               currentToolInput = "";
               hasToolCall = true;
             }
 
-            if (json.type === "content_block_delta" && json.delta?.type === "input_json_delta") {
+            if (
+              json.type === "content_block_delta" &&
+              json.delta?.type === "input_json_delta"
+            ) {
               currentToolInput += json.delta.partial_json;
             }
 
             if (json.type === "message_stop") {
-               if (hasToolCall) {
-                  // Finalize the last tool call
-                  try {
-                    const args = JSON.parse(currentToolInput || "{}");
-                    yield {
-                      type: "tool_call",
-                      toolCall: { id: currentToolId, name: currentToolName, arguments: args },
-                    };
+              if (hasToolCall) {
+                // Finalize the last tool call
+                try {
+                  const args = JSON.parse(currentToolInput || "{}");
+                  yield {
+                    type: "tool_call",
+                    toolCall: {
+                      id: currentToolId,
+                      name: currentToolName,
+                      arguments: args,
+                    },
+                  };
 
-                    if (request.onToolCall) {
-                      // Claude history: Assistant turn with tool_use blocks
-                      messages.push({
-                        role: "assistant",
-                        content: [
-                          { type: "text", text: assistantContent },
-                          { type: "tool_use", id: currentToolId, name: currentToolName, input: args }
-                        ]
-                      });
+                  if (request.onToolCall) {
+                    // Claude history: Assistant turn with tool_use blocks
+                    messages.push({
+                      role: "assistant",
+                      content: [
+                        { type: "text", text: assistantContent },
+                        {
+                          type: "tool_use",
+                          id: currentToolId,
+                          name: currentToolName,
+                          input: args,
+                        },
+                      ],
+                    });
 
-                      const result = await request.onToolCall(currentToolName, args);
-                      yield { type: "tool_result", toolResult: result };
+                    const result = await request.onToolCall(
+                      currentToolName,
+                      args
+                    );
+                    yield { type: "tool_result", toolResult: result };
 
-                      // Claude history: User turn with tool_result block
-                      messages.push({
-                        role: "user",
-                        content: [
-                          { type: "tool_result", tool_use_id: currentToolId, content: JSON.stringify(result) }
-                        ]
-                      });
+                    // Claude history: User turn with tool_result block
+                    messages.push({
+                      role: "user",
+                      content: [
+                        {
+                          type: "tool_result",
+                          tool_use_id: currentToolId,
+                          content: JSON.stringify(result),
+                        },
+                      ],
+                    });
 
-                      gotoNextTurn: break; // Break inner loop to continue outer while loop
-                    }
-                  } catch (e) { console.error("Claude tool err:", e); }
-               } else {
-                 return; // No more tools, text response complete
-               }
+                    gotoNextTurn: break; // Break inner loop to continue outer while loop
+                  }
+                } catch (e) {
+                  console.error("Claude tool err:", e);
+                }
+              } else {
+                return; // No more tools, text response complete
+              }
             }
           } catch (e) {}
         }
       }
-      
+
       if (!hasToolCall) break;
     }
   }
