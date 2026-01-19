@@ -119,7 +119,7 @@ export class GoogleProvider implements IAIProvider {
           function_declarations: functions.map((fn) => ({
             name: fn.name,
             description: fn.description,
-            parameters: fn.parameters,
+            parameters: this.cleanSchemaForGemini(fn.parameters),
           })),
         },
       ];
@@ -172,5 +172,64 @@ export class GoogleProvider implements IAIProvider {
       }
     }
     return result;
+  }
+
+  private cleanSchemaForGemini(schema: any): any {
+    if (!schema || typeof schema !== "object") {
+      return schema;
+    }
+
+    const cleaned: any = {};
+
+    // Only keep fields that Gemini supports
+    if (schema.type) cleaned.type = schema.type;
+    if (schema.description) cleaned.description = schema.description;
+    if (schema.enum) cleaned.enum = schema.enum;
+    if (schema.format) cleaned.format = schema.format;
+
+    // Handle properties recursively
+    if (schema.properties) {
+      cleaned.properties = {};
+      for (const [key, value] of Object.entries(schema.properties)) {
+        cleaned.properties[key] = this.cleanSchemaForGemini(value);
+      }
+    }
+
+    // Handle items (for arrays)
+    if (schema.items) {
+      cleaned.items = this.cleanSchemaForGemini(schema.items);
+    }
+
+    // Handle anyOf (union types) - convert to first option for simplicity
+    if (schema.anyOf && Array.isArray(schema.anyOf)) {
+      // Gemini doesn't support anyOf, so we need to flatten
+      // Take all properties from all schemas
+      const allProps: any = {};
+      const allRequired: string[] = [];
+
+      for (const subSchema of schema.anyOf) {
+        if (subSchema.properties) {
+          Object.assign(allProps, subSchema.properties);
+        }
+        if (subSchema.required) {
+          allRequired.push(...subSchema.required);
+        }
+      }
+
+      if (Object.keys(allProps).length > 0) {
+        cleaned.type = "object";
+        cleaned.properties = {};
+        for (const [key, value] of Object.entries(allProps)) {
+          cleaned.properties[key] = this.cleanSchemaForGemini(value);
+        }
+        if (allRequired.length > 0) {
+          cleaned.required = [...new Set(allRequired)];
+        }
+      }
+    } else if (schema.required) {
+      cleaned.required = schema.required;
+    }
+
+    return cleaned;
   }
 }
