@@ -237,6 +237,9 @@
       "copilot": {
         "button_tooltip": "AI Copilot",
         "placeholder": "Ask AI to edit or generate text...",
+        "input": {
+          "placeholder": "Ask anything... (/ for templates, @ for context)"
+        },
         "mode": {
           "label": "Mode",
           "edit": "Edit",

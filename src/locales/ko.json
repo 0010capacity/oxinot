@@ -237,6 +237,9 @@
       "copilot": {
         "button_tooltip": "AI 코파일럿",
         "placeholder": "AI에게 텍스트 편집 또는 생성을 요청하세요...",
+        "input": {
+          "placeholder": "뭐든 물어보세요... (/ 템플릿, @ 콘텍스트)"
+        },
         "mode": {
           "label": "모드",
           "edit": "편집",
