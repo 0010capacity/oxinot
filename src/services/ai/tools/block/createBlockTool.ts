@@ -5,134 +5,109 @@ import type { Tool, ToolResult } from "../types";
 export const createBlockTool: Tool = {
   name: "create_block",
   description:
-    'Create a new block in the document. Use this whenever the user asks to "write", "add", "insert", or "create" content. Do not just output text in chat; use this tool to actually write to the document.',
+    "Create a new block in the document. Supports creating root blocks (0-level), nested blocks, and inserting at specific positions.",
   category: "block",
   requiresApproval: true,
 
   parameters: z.object({
-    parentUuid: z
+    pageId: z
       .string()
       .uuid()
+      .optional()
       .describe(
-        "UUID of the parent block. If you want to add content to a page, you MUST first use 'get_page_blocks' to find the root block (the block with no parent) and use that as the parentUuid. Do not use the Page ID directly."
+        "The UUID of the page where the block will be created. Required if parentBlockId is null (creating a root block). If omitted, it will be inferred from parentBlockId."
       ),
-    content: z.string().describe("Content for the new block"),
+    parentBlockId: z
+      .string()
+      .uuid()
+      .nullable()
+      .optional()
+      .describe(
+        "The UUID of the parent block. Pass null to create a root block (0-level). If omitted, defaults to null (root block) IF pageId is provided."
+      ),
+    insertAfterBlockId: z
+      .string()
+      .uuid()
+      .optional()
+      .describe(
+        "The UUID of the sibling block to insert after. Use this to control the order. If omitted, the block is appended to the end of the parent's children."
+      ),
+    content: z.string().describe("The Markdown content of the new block."),
   }),
 
   async execute(params, context): Promise<ToolResult> {
     try {
-      let pageId: string;
-      let parentBlockId: string;
+      let targetPageId = params.pageId;
+      const targetParentId = params.parentBlockId ?? null; // Normalize undefined to null
+      const targetAfterBlockId = params.insertAfterBlockId ?? null;
 
-      // First, always try to get blocks for the UUID as if it's a page ID
-      // This handles the common case where AI sends page ID
-      try {
-        console.log(
-          "[createBlockTool] Checking if UUID is page ID:",
-          params.parentUuid
-        );
-        const blocks = await invoke<any>("get_page_blocks", {
-          workspacePath: context.workspacePath,
-          pageId: params.parentUuid,
-        });
+      // Validation: Must have either pageId OR parentBlockId
+      if (!targetPageId && !targetParentId) {
+        return {
+          success: false,
+          error: "Either pageId or parentBlockId must be provided.",
+        };
+      }
 
-        // If we got blocks, it's a page ID
-        if (blocks && Array.isArray(blocks)) {
-          pageId = params.parentUuid;
-          console.log(
-            "[createBlockTool] UUID is a page ID, found",
-            blocks.length,
-            "blocks"
-          );
+      // If pageId is missing, infer it from parentBlockId
+      if (!targetPageId && targetParentId) {
+        try {
+          const parentBlock = await invoke<any>("get_block", {
+            workspacePath: context.workspacePath,
+            request: {
+              block_id: targetParentId,
+            },
+          });
 
-          if (blocks.length === 0) {
-            // No blocks yet - create root block first
-            console.log("[createBlockTool] Creating root block for empty page");
-            const rootBlock = await invoke<any>("create_block", {
-              workspacePath: context.workspacePath,
-              request: {
-                page_id: pageId,
-                parent_id: null,
-                content: "",
-              },
-            });
-            parentBlockId = rootBlock.id;
-          } else {
-            // Find root block (block with no parent)
-            const rootBlock = blocks.find((b: any) => !b.parent_id);
-            if (rootBlock) {
-              parentBlockId = rootBlock.id;
-              console.log("[createBlockTool] Using root block:", parentBlockId);
-            } else {
-              // Use first block as fallback
-              parentBlockId = blocks[0].id;
-              console.log(
-                "[createBlockTool] No root block found, using first block:",
-                parentBlockId
-              );
-            }
+          if (!parentBlock) {
+            return {
+              success: false,
+              error: `Parent block with UUID ${targetParentId} not found. Cannot infer pageId.`,
+            };
           }
 
-          // Create the block with the found parent
-          const newBlock = await invoke<any>("create_block", {
-            workspacePath: context.workspacePath,
-            request: {
-              page_id: pageId,
-              parent_id: parentBlockId,
-              content: params.content,
-            },
-          });
-
+          // Backend Block struct uses camelCase for pageId
+          targetPageId = parentBlock.pageId;
+          console.log(
+            `[createBlockTool] Inferred pageId ${targetPageId} from parentBlockId ${targetParentId}`
+          );
+        } catch (error) {
           return {
-            success: true,
-            data: { uuid: newBlock.id, content: params.content },
+            success: false,
+            error: `Failed to fetch parent block to infer pageId: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
           };
         }
-      } catch (pageError) {
-        // Not a page ID, try as block ID
-        console.log(
-          "[createBlockTool] Not a page ID, trying as block ID:",
-          pageError
-        );
       }
 
-      // If page ID approach failed, try as block ID
-      try {
-        const parentBlock = await invoke<any>("get_block", {
-          workspacePath: context.workspacePath,
-          request: {
-            block_id: params.parentUuid,
-          },
-        });
-
-        if (parentBlock && parentBlock.block) {
-          console.log("[createBlockTool] UUID is a block ID");
-          pageId = parentBlock.block.page_id;
-          parentBlockId = params.parentUuid;
-
-          // Create the block
-          const newBlock = await invoke<any>("create_block", {
-            workspacePath: context.workspacePath,
-            request: {
-              page_id: pageId,
-              parent_id: parentBlockId,
-              content: params.content,
-            },
-          });
-
-          return {
-            success: true,
-            data: { uuid: newBlock.id, content: params.content },
-          };
-        }
-      } catch (blockError) {
-        console.log("[createBlockTool] Failed to get as block:", blockError);
+      if (!targetPageId) {
+        return {
+          success: false,
+          error: "Could not determine pageId.",
+        };
       }
 
-      // Both approaches failed
+      // Execute create_block
+      // Matches CreateBlockRequest in src-tauri/src/models/block.rs (camelCase)
+      const newBlock = await invoke<any>("create_block", {
+        workspacePath: context.workspacePath,
+        request: {
+          pageId: targetPageId,
+          parentId: targetParentId,
+          afterBlockId: targetAfterBlockId,
+          content: params.content,
+        },
+      });
+
       return {
-        success: false,
-        error: `UUID ${params.parentUuid} is neither a valid page ID nor a block ID`,
+        success: true,
+        data: {
+          uuid: newBlock.id,
+          content: params.content,
+          pageId: targetPageId,
+          parentId: targetParentId,
+        },
       };
     } catch (error) {
       return {
