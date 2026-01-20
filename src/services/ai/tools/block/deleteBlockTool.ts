@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { invoke } from '@tauri-apps/api/core';
-import { useBlockStore } from '../../../../stores/blockStore';
+import { dispatchBlockUpdate } from '../../../../events';
 import type { Tool, ToolResult } from '../types';
 
 export const deleteBlockTool: Tool = {
@@ -20,8 +20,8 @@ export const deleteBlockTool: Tool = {
         blockId: params.uuid, // Note: argument name matches Rust command signature
       });
 
-      // Update local store immediately
-      useBlockStore.getState().updatePartialBlocks([], deletedIds);
+      // Update UI via event
+      dispatchBlockUpdate([], deletedIds);
 
       return {
         success: true,

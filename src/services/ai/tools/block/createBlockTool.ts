@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
-import { useBlockStore } from "../../../../stores/blockStore";
+import { dispatchBlockUpdate } from "../../../../events";
 import type { Tool, ToolResult } from "../types";
 
 export const createBlockTool: Tool = {
@@ -101,8 +101,8 @@ export const createBlockTool: Tool = {
         },
       });
 
-      // Update local store immediately to reflect changes in UI
-      useBlockStore.getState().updatePartialBlocks([newBlock]);
+      // Update UI via event
+      dispatchBlockUpdate([newBlock]);
 
       return {
         success: true,

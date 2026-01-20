@@ -48,6 +48,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useWorkspaceInitializer } from "./hooks/useWorkspaceInitializer";
 import { useCoreCommands } from "./hooks/useCoreCommands";
 import { ThemeProvider } from "./theme/ThemeProvider";
+import { BLOCK_UPDATE_EVENT, type BlockUpdateEventDetail } from "./events";
 
 function WorkspaceSelector() {
   const {
@@ -242,6 +243,26 @@ function AppContent({ workspacePath }: AppContentProps) {
     onUndo: () => useBlockStore.temporal.getState().undo(),
     onRedo: () => useBlockStore.temporal.getState().redo(),
   });
+
+  // Listen for block updates from Copilot tools
+  useEffect(() => {
+    const handleBlockUpdate = (event: CustomEvent<BlockUpdateEventDetail>) => {
+      console.log("[App] Received block update event", event.detail);
+      const { blocks, deletedBlockIds } = event.detail;
+      useBlockStore.getState().updatePartialBlocks(blocks, deletedBlockIds);
+    };
+
+    window.addEventListener(
+      BLOCK_UPDATE_EVENT,
+      handleBlockUpdate as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        BLOCK_UPDATE_EVENT,
+        handleBlockUpdate as EventListener
+      );
+    };
+  }, []);
 
   // Apply saved font, size, and line height settings on mount and when they change
   useEffect(() => {
