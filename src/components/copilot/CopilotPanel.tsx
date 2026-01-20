@@ -684,7 +684,7 @@ export function CopilotPanel() {
         </ScrollArea>
       </Box>
 
-      {/* Footer / Input Area - Zed Editor Style */}
+      {/* Footer / Input Area */}
       <div
         style={{
           padding: "8px 12px",
@@ -692,9 +692,8 @@ export function CopilotPanel() {
           backgroundColor: "var(--color-bg-secondary)",
         }}
       >
-        <Group align="center" gap="8px" wrap="nowrap" style={{ width: "100%" }}>
-          {/* Left Icons */}
-          <Group gap="4px" style={{ flexShrink: 0 }}>
+        <Stack gap="xs">
+          <Group align="flex-end" gap="xs">
             <Menu shadow="md" width={200} position="bottom-start">
               <Menu.Target>
                 <ActionIcon variant="subtle" size="xs" radius="sm">
@@ -717,35 +716,32 @@ export function CopilotPanel() {
                 )}
               </Menu.Dropdown>
             </Menu>
+
+            <Textarea
+              ref={inputRef}
+              placeholder={t("settings.ai.copilot.placeholder")}
+              value={inputValue}
+              onChange={(e) => handleInputChange(e.currentTarget.value)}
+              onKeyDown={handleKeyDown}
+              autosize
+              minRows={1}
+              maxRows={5}
+              style={{ flex: 1 }}
+              disabled={isLoading}
+            />
+
+            <Button
+              size="sm"
+              variant="filled"
+              color="violet"
+              onClick={handleSend}
+              loading={isLoading}
+              disabled={!inputValue.trim()}
+            >
+              <IconArrowUp size={16} />
+            </Button>
           </Group>
-
-          {/* Input Field */}
-          <Textarea
-            ref={inputRef}
-            placeholder={t("settings.ai.copilot.placeholder")}
-            value={inputValue}
-            onChange={(e) => handleInputChange(e.currentTarget.value)}
-            onKeyDown={handleKeyDown}
-            autosize
-            minRows={1}
-            maxRows={3}
-            style={{ flex: 1, fontSize: "13px" }}
-            disabled={isLoading}
-          />
-
-          {/* Right Side - Send Button */}
-          <Button
-            size="xs"
-            variant="filled"
-            color="violet"
-            onClick={handleSend}
-            loading={isLoading}
-            disabled={!inputValue.trim()}
-            style={{ flexShrink: 0 }}
-          >
-            <IconArrowUp size={14} />
-          </Button>
-        </Group>
+        </Stack>
       </div>
     </Paper>
   );
