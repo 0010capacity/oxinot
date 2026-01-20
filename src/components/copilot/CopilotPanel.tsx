@@ -344,10 +344,12 @@ export function CopilotPanel() {
         } else if (chunk.type === "tool_call") {
           console.log("[Copilot] Tool call:", chunk.toolCall?.name);
           console.log("[Copilot] Tool call params:", chunk.toolCall?.arguments);
+          const toolMessage = `Calling tool: ${chunk.toolCall?.name}`;
           console.log(
-            "[Copilot] Adding message - role: system, content: Processing request..."
+            "[Copilot] Adding message - role: system, content:",
+            toolMessage
           );
-          addChatMessage("system", "Processing request...");
+          addChatMessage("system", toolMessage);
         } else if (chunk.type === "tool_result") {
           console.log("[Copilot] Tool result:", chunk.toolResult);
           console.log(
@@ -581,13 +583,12 @@ export function CopilotPanel() {
                     <Group key={msg.id} justify="center" gap="xs">
                       <Badge
                         size="sm"
-                        variant="default"
+                        variant="light"
                         color="gray"
                         style={{
                           fontSize: "11px",
                           padding: "4px 8px",
-                          fontWeight: 400,
-                          opacity: 0.6,
+                          opacity: 0.5,
                         }}
                       >
                         {msg.content}
