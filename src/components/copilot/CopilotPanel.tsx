@@ -677,7 +677,7 @@ export function CopilotPanel() {
             size="sm"
             variant="filled"
             color="violet"
-            radius="sm"
+            radius="xl"
             onClick={handleSend}
             loading={isLoading}
             disabled={!inputValue.trim()}
