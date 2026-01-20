@@ -3,6 +3,7 @@ import { updateBlockTool } from './updateBlockTool';
 import { createBlockTool } from './createBlockTool';
 import { deleteBlockTool } from './deleteBlockTool';
 import { queryBlocksTool } from './queryBlocksTool';
+import { getPageBlocksTool } from './getPageBlocksTool';
 
 export {
   getBlockTool,
@@ -10,6 +11,7 @@ export {
   createBlockTool,
   deleteBlockTool,
   queryBlocksTool,
+  getPageBlocksTool,
 };
 
 export const blockTools = [
@@ -18,4 +20,5 @@ export const blockTools = [
   createBlockTool,
   deleteBlockTool,
   queryBlocksTool,
+  getPageBlocksTool,
 ];

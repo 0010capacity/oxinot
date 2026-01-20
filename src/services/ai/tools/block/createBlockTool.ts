@@ -14,7 +14,7 @@ export const createBlockTool: Tool = {
       .string()
       .uuid()
       .describe(
-        "UUID of the parent block OR page ID. If you only know the page ID, you can use it directly and the tool will find the appropriate parent block."
+        "UUID of the parent block. If you want to add content to a page, you MUST first use 'get_page_blocks' to find the root block (the block with no parent) and use that as the parentUuid. Do not use the Page ID directly."
       ),
     content: z.string().describe("Content for the new block"),
   }),
