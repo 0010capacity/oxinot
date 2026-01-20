@@ -1,13 +1,11 @@
 import {
   ActionIcon,
-  Button,
   Group,
   Paper,
   ScrollArea,
   Stack,
   Text,
   Textarea,
-  Menu,
   Box,
   LoadingOverlay,
   Badge,
@@ -16,10 +14,7 @@ import {
 } from "@mantine/core";
 import {
   IconArrowUp,
-  IconTemplate,
   IconX,
-  IconReplace,
-  IconDownload,
   IconTrash,
   IconUser,
   IconRobot,
@@ -79,8 +74,7 @@ export function CopilotPanel() {
   const deny = useToolApprovalStore((state) => state.deny);
 
   // Settings
-  const { provider, apiKey, baseUrl, model, promptTemplates } =
-    useAISettingsStore();
+  const { provider, apiKey, baseUrl, model } = useAISettingsStore();
 
   // Local state
   const [error, setError] = useState<string | null>(null);
@@ -384,47 +378,6 @@ export function CopilotPanel() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
-    }
-  };
-
-  const handleApplyLastResponse = async () => {
-    const uiStore = useBlockUIStore.getState();
-    const blockStore = useBlockStore.getState();
-    const focusedId = uiStore.focusedBlockId;
-
-    const contentToApply = chatMessages[chatMessages.length - 1]?.content;
-
-    if (!focusedId || !contentToApply) return;
-
-    try {
-      await blockStore.updateBlockContent(focusedId, contentToApply);
-    } catch (e) {
-      console.error("Failed to apply changes:", e);
-      setError("Failed to apply changes");
-    }
-  };
-
-  const handleInsertBelow = async () => {
-    const uiStore = useBlockUIStore.getState();
-    const blockStore = useBlockStore.getState();
-    const focusedId = uiStore.focusedBlockId;
-
-    const contentToApply = chatMessages[chatMessages.length - 1]?.content;
-
-    if (!focusedId || !contentToApply) return;
-
-    try {
-      await blockStore.createBlock(focusedId, contentToApply);
-    } catch (e) {
-      console.error("Failed to insert block:", e);
-      setError("Failed to insert block");
-    }
-  };
-
-  const handleTemplateSelect = (content: string) => {
-    setInputValue(content);
-    if (inputRef.current) {
-      inputRef.current.focus();
     }
   };
 
