@@ -14,9 +14,8 @@ export function CopilotButton() {
     <div
       style={{
         position: "fixed",
-        bottom: "8px",
-        left: "50%",
-        transform: "translateX(-50%)",
+        bottom: "12px",
+        right: "12px",
         zIndex: 150, // Higher than bottom controls
       }}
     >
