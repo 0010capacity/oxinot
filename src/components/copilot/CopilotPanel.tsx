@@ -693,30 +693,6 @@ export function CopilotPanel() {
         }}
       >
         <Group align="flex-end" gap={8} wrap="nowrap">
-          {/* Left: Menu Icon */}
-          <Menu shadow="md" width={200} position="bottom-start">
-            <Menu.Target>
-              <ActionIcon variant="subtle" size="xs" radius={0} opacity={0.5}>
-                <IconTemplate size={14} />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Label>{t("settings.ai.templates")}</Menu.Label>
-              {promptTemplates.length > 0 ? (
-                promptTemplates.map((t) => (
-                  <Menu.Item
-                    key={t.id}
-                    onClick={() => handleTemplateSelect(t.content)}
-                  >
-                    {t.name}
-                  </Menu.Item>
-                ))
-              ) : (
-                <Menu.Item disabled>No templates</Menu.Item>
-              )}
-            </Menu.Dropdown>
-          </Menu>
-
           {/* Center: Input */}
           <Textarea
             ref={inputRef}
