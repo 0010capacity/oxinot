@@ -696,7 +696,7 @@ export function CopilotPanel() {
           {/* Center: Input */}
           <Textarea
             ref={inputRef}
-            placeholder={t("settings.ai.copilot.placeholder")}
+            placeholder="Ask anything... (/ for templates, @ for context)"
             value={inputValue}
             onChange={(e) => handleInputChange(e.currentTarget.value)}
             onKeyDown={handleKeyDown}
