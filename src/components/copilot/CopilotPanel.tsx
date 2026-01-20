@@ -687,17 +687,17 @@ export function CopilotPanel() {
       {/* Footer / Input Area */}
       <div
         style={{
-          padding: "8px 12px",
+          padding: "6px 8px",
           borderTop: "1px solid var(--color-border-primary)",
           backgroundColor: "var(--color-bg-secondary)",
         }}
       >
-        <Stack gap="xs">
-          <Group align="flex-end" gap="xs">
+        <Stack gap={4}>
+          <Group align="flex-end" gap={4}>
             <Menu shadow="md" width={200} position="bottom-start">
               <Menu.Target>
                 <ActionIcon variant="subtle" size="xs" radius="sm">
-                  <IconTemplate size={14} />
+                  <IconTemplate size={12} />
                 </ActionIcon>
               </Menu.Target>
               <Menu.Dropdown>
@@ -726,19 +726,20 @@ export function CopilotPanel() {
               autosize
               minRows={1}
               maxRows={5}
-              style={{ flex: 1 }}
+              style={{ flex: 1, fontSize: "13px" }}
               disabled={isLoading}
             />
 
             <Button
-              size="sm"
+              size="xs"
               variant="filled"
               color="violet"
               onClick={handleSend}
               loading={isLoading}
               disabled={!inputValue.trim()}
+              p={4}
             >
-              <IconArrowUp size={16} />
+              <IconArrowUp size={14} />
             </Button>
           </Group>
         </Stack>
