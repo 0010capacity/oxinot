@@ -602,29 +602,34 @@ export function CopilotPanel() {
                     </ActionIcon>
                   )}
                   <Paper
-                    p="sm"
+                    p={msg.role === "system" ? "xs" : "sm"}
                     radius="md"
                     bg={
                       msg.role === "user"
                         ? "var(--color-interactive-primary)"
                         : msg.role === "system"
-                        ? "var(--color-bg-tertiary)"
+                        ? "transparent"
                         : "var(--color-interactive-selected)"
                     }
                     c={
                       msg.role === "user"
                         ? "white"
+                        : msg.role === "system"
+                        ? "var(--color-text-tertiary)"
                         : "var(--color-text-primary)"
                     }
                     style={{
                       maxWidth: "85%",
-                      border: "none",
+                      border:
+                        msg.role === "system"
+                          ? "1px dashed var(--color-border-primary)"
+                          : "none",
                     }}
                   >
                     <div
                       className="markdown-preview"
                       style={{
-                        fontSize: "14px",
+                        fontSize: msg.role === "system" ? "12px" : "14px",
                         lineHeight: "1.5",
                         fontStyle: "normal",
                         color: "inherit",
