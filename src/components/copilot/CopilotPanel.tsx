@@ -684,66 +684,93 @@ export function CopilotPanel() {
         </ScrollArea>
       </Box>
 
-      {/* Footer / Input Area */}
+      {/* Footer / Input Area - Zed Style Minimal */}
       <div
         style={{
-          padding: "6px 8px",
+          padding: "8px 12px",
           borderTop: "1px solid var(--color-border-primary)",
-          backgroundColor: "var(--color-bg-secondary)",
+          backgroundColor: "transparent",
         }}
       >
-        <Stack gap={4}>
-          <Group align="flex-end" gap={4}>
-            <Menu shadow="md" width={200} position="bottom-start">
-              <Menu.Target>
-                <ActionIcon variant="subtle" size="xs" radius="sm">
-                  <IconTemplate size={12} />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Label>{t("settings.ai.templates")}</Menu.Label>
-                {promptTemplates.length > 0 ? (
-                  promptTemplates.map((t) => (
-                    <Menu.Item
-                      key={t.id}
-                      onClick={() => handleTemplateSelect(t.content)}
-                    >
-                      {t.name}
-                    </Menu.Item>
-                  ))
-                ) : (
-                  <Menu.Item disabled>No templates</Menu.Item>
-                )}
-              </Menu.Dropdown>
-            </Menu>
+        <Group align="flex-end" gap={8} wrap="nowrap">
+          {/* Left: Menu Icon */}
+          <Menu shadow="md" width={200} position="bottom-start">
+            <Menu.Target>
+              <ActionIcon variant="subtle" size="xs" radius={0} opacity={0.5}>
+                <IconTemplate size={14} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Label>{t("settings.ai.templates")}</Menu.Label>
+              {promptTemplates.length > 0 ? (
+                promptTemplates.map((t) => (
+                  <Menu.Item
+                    key={t.id}
+                    onClick={() => handleTemplateSelect(t.content)}
+                  >
+                    {t.name}
+                  </Menu.Item>
+                ))
+              ) : (
+                <Menu.Item disabled>No templates</Menu.Item>
+              )}
+            </Menu.Dropdown>
+          </Menu>
 
-            <Textarea
-              ref={inputRef}
-              placeholder={t("settings.ai.copilot.placeholder")}
-              value={inputValue}
-              onChange={(e) => handleInputChange(e.currentTarget.value)}
-              onKeyDown={handleKeyDown}
-              autosize
-              minRows={1}
-              maxRows={5}
-              style={{ flex: 1, fontSize: "13px" }}
-              disabled={isLoading}
-            />
+          {/* Center: Input */}
+          <Textarea
+            ref={inputRef}
+            placeholder={t("settings.ai.copilot.placeholder")}
+            value={inputValue}
+            onChange={(e) => handleInputChange(e.currentTarget.value)}
+            onKeyDown={handleKeyDown}
+            autosize
+            minRows={1}
+            maxRows={5}
+            style={{
+              flex: 1,
+              fontSize: "13px",
+              background: "transparent",
+              border: "none",
+              padding: "2px 0",
+            }}
+            disabled={isLoading}
+            classNames={{
+              input: "copilot-input-minimal",
+            }}
+          />
 
-            <Button
-              size="xs"
-              variant="filled"
-              color="violet"
-              onClick={handleSend}
-              loading={isLoading}
-              disabled={!inputValue.trim()}
-              p={4}
-            >
-              <IconArrowUp size={14} />
-            </Button>
-          </Group>
-        </Stack>
+          {/* Right: Send Button */}
+          <ActionIcon
+            size="xs"
+            variant="subtle"
+            radius={0}
+            onClick={handleSend}
+            loading={isLoading}
+            disabled={!inputValue.trim()}
+            opacity={!inputValue.trim() ? 0.3 : 0.7}
+          >
+            <IconArrowUp size={14} />
+          </ActionIcon>
+        </Group>
       </div>
+      <style>{`
+        .copilot-input-minimal {
+          background: transparent !important;
+          border: none !important;
+          padding: 2px 0 !important;
+          color: var(--color-text-primary);
+        }
+        .copilot-input-minimal::placeholder {
+          color: var(--color-text-tertiary);
+          opacity: 0.6;
+        }
+        .copilot-input-minimal:focus {
+          outline: none;
+          border: none !important;
+          box-shadow: none !important;
+        }
+      `}</style>
     </Paper>
   );
 }
