@@ -645,7 +645,7 @@ export function CopilotPanel() {
           backgroundColor: "transparent",
         }}
       >
-        <Group align="flex-end" gap={12} wrap="nowrap">
+        <Group align="flex-end" gap={16} wrap="nowrap">
           {/* Center: Input */}
           <Textarea
             ref={inputRef}
