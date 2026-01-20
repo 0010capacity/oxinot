@@ -655,7 +655,7 @@ export function CopilotPanel() {
             onKeyDown={handleKeyDown}
             autosize
             minRows={1}
-            maxRows={5}
+            maxRows={8}
             style={{
               flex: 1,
               fontSize: "13px",
