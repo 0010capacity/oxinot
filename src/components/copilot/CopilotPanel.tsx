@@ -668,6 +668,7 @@ export function CopilotPanel() {
             disabled={isLoading}
             classNames={{
               input: "copilot-input-minimal",
+              wrapper: "copilot-input-wrapper",
             }}
           />
 
@@ -686,11 +687,17 @@ export function CopilotPanel() {
         </Group>
       </div>
       <style>{`
+        .copilot-input-wrapper {
+          margin: 0 !important;
+          padding: 0 !important;
+        }
         .copilot-input-minimal {
           background: transparent !important;
           border: none !important;
           padding: 2px 0 !important;
           color: var(--color-text-primary);
+          margin: 0 !important;
+          line-height: 1.4 !important;
         }
         .copilot-input-minimal::placeholder {
           color: var(--color-text-tertiary);
