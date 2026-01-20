@@ -577,83 +577,90 @@ export function CopilotPanel() {
             )}
             {chatMessages
               .filter((msg) => msg.content.trim() !== "")
-              .map((msg) => (
-                <Group
-                  key={msg.id}
-                  align="flex-start"
-                  wrap="nowrap"
-                  justify={
-                    msg.role === "user"
-                      ? "flex-end"
-                      : msg.role === "system"
-                      ? "center"
-                      : "flex-start"
-                  }
-                >
-                  {msg.role === "assistant" && (
-                    <ActionIcon
-                      variant="light"
-                      color="violet"
-                      radius="xl"
-                      size="sm"
-                      mt={4}
-                    >
-                      <IconRobot size={14} />
-                    </ActionIcon>
-                  )}
-                  <Paper
-                    p={msg.role === "system" ? "xs" : "sm"}
-                    radius="md"
-                    bg={
-                      msg.role === "user"
-                        ? "var(--color-interactive-primary)"
-                        : msg.role === "system"
-                        ? "transparent"
-                        : "var(--color-interactive-selected)"
-                    }
-                    c={
-                      msg.role === "user"
-                        ? "white"
-                        : msg.role === "system"
-                        ? "var(--color-text-tertiary)"
-                        : "var(--color-text-primary)"
-                    }
-                    style={{
-                      maxWidth: "85%",
-                      border:
-                        msg.role === "system"
-                          ? "1px dashed var(--color-border-primary)"
-                          : "none",
-                    }}
+              .map((msg) => {
+                if (msg.role === "system") {
+                  return (
+                    <Group key={msg.id} justify="center" gap="xs">
+                      <Badge
+                        size="sm"
+                        variant="light"
+                        color="gray"
+                        style={{
+                          fontSize: "11px",
+                          padding: "4px 8px",
+                        }}
+                      >
+                        {msg.content}
+                      </Badge>
+                    </Group>
+                  );
+                }
+
+                return (
+                  <Group
+                    key={msg.id}
+                    align="flex-start"
+                    wrap="nowrap"
+                    justify={msg.role === "user" ? "flex-end" : "flex-start"}
                   >
-                    <div
-                      className="markdown-preview"
+                    {msg.role === "assistant" && (
+                      <ActionIcon
+                        variant="light"
+                        color="violet"
+                        radius="xl"
+                        size="sm"
+                        mt={4}
+                      >
+                        <IconRobot size={14} />
+                      </ActionIcon>
+                    )}
+                    <Paper
+                      p="sm"
+                      radius="md"
+                      bg={
+                        msg.role === "user"
+                          ? "var(--color-interactive-primary)"
+                          : "var(--color-interactive-selected)"
+                      }
+                      c={
+                        msg.role === "user"
+                          ? "white"
+                          : "var(--color-text-primary)"
+                      }
                       style={{
-                        fontSize: msg.role === "system" ? "12px" : "14px",
-                        lineHeight: "1.5",
-                        fontStyle: "normal",
-                        color: "inherit",
+                        maxWidth: "85%",
+                        border: "none",
                       }}
-                      dangerouslySetInnerHTML={{
-                        __html: renderMarkdownToHtml(msg.content, {
-                          allowBlocks: true,
-                        }),
-                      }}
-                    />
-                  </Paper>
-                  {msg.role === "user" && (
-                    <ActionIcon
-                      variant="filled"
-                      color="gray"
-                      radius="xl"
-                      size="sm"
-                      mt={4}
                     >
-                      <IconUser size={14} />
-                    </ActionIcon>
-                  )}
-                </Group>
-              ))}
+                      <div
+                        className="markdown-preview"
+                        style={{
+                          fontSize: "14px",
+                          lineHeight: "1.5",
+                          fontStyle: "normal",
+                          color: "inherit",
+                        }}
+                        dangerouslySetInnerHTML={{
+                          __html: renderMarkdownToHtml(msg.content, {
+                            allowBlocks: true,
+                          }),
+                        }}
+                      />
+                    </Paper>
+                    {msg.role === "user" && (
+                      <ActionIcon
+                        variant="filled"
+                        color="gray"
+                        radius="xl"
+                        size="sm"
+                        mt={4}
+                      >
+                        <IconUser size={14} />
+                      </ActionIcon>
+                    )}
+                  </Group>
+                );
+              })}
             {isLoading &&
               chatMessages[chatMessages.length - 1]?.role === "user" && (
                 <Group align="center" gap="xs" ml="xs">
