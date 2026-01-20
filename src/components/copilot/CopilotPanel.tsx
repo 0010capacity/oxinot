@@ -640,7 +640,7 @@ export function CopilotPanel() {
       {/* Footer / Input Area - Zed Style Minimal */}
       <div
         style={{
-          padding: "16px 12px",
+          padding: "4px 4px",
           borderTop: "1px solid var(--color-border-primary)",
           backgroundColor: "transparent",
         }}
@@ -654,14 +654,14 @@ export function CopilotPanel() {
             onChange={(e) => handleInputChange(e.currentTarget.value)}
             onKeyDown={handleKeyDown}
             autosize
-            minRows={1}
+            minRows={3}
             maxRows={8}
             style={{
               flex: 1,
-              fontSize: "13px",
+              fontSize: "14px",
               background: "transparent",
               border: "none",
-              padding: "8px 0",
+              padding: "8px 4px",
               verticalAlign: "top",
               textAlign: "left",
             }}
