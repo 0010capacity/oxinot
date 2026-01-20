@@ -684,20 +684,21 @@ export function CopilotPanel() {
         </ScrollArea>
       </Box>
 
-      {/* Footer / Input Area */}
+      {/* Footer / Input Area - Zed Editor Style */}
       <div
         style={{
-          padding: "12px",
+          padding: "8px 12px",
           borderTop: "1px solid var(--color-border-primary)",
           backgroundColor: "var(--color-bg-secondary)",
         }}
       >
-        <Stack gap="xs">
-          <Group align="flex-end" gap="xs">
+        <Group align="center" gap="8px" wrap="nowrap" style={{ width: "100%" }}>
+          {/* Left Icons */}
+          <Group gap="4px" style={{ flexShrink: 0 }}>
             <Menu shadow="md" width={200} position="bottom-start">
               <Menu.Target>
-                <ActionIcon variant="light" size="sm" radius="md">
-                  <IconTemplate size={16} />
+                <ActionIcon variant="subtle" size="xs" radius="sm">
+                  <IconTemplate size={14} />
                 </ActionIcon>
               </Menu.Target>
               <Menu.Dropdown>
@@ -716,32 +717,35 @@ export function CopilotPanel() {
                 )}
               </Menu.Dropdown>
             </Menu>
-
-            <Textarea
-              ref={inputRef}
-              placeholder={t("settings.ai.copilot.placeholder")}
-              value={inputValue}
-              onChange={(e) => handleInputChange(e.currentTarget.value)}
-              onKeyDown={handleKeyDown}
-              autosize
-              minRows={1}
-              maxRows={5}
-              style={{ flex: 1 }}
-              disabled={isLoading}
-            />
-
-            <Button
-              size="sm"
-              variant="filled"
-              color="violet"
-              onClick={handleSend}
-              loading={isLoading}
-              disabled={!inputValue.trim()}
-            >
-              <IconArrowUp size={16} />
-            </Button>
           </Group>
-        </Stack>
+
+          {/* Input Field */}
+          <Textarea
+            ref={inputRef}
+            placeholder={t("settings.ai.copilot.placeholder")}
+            value={inputValue}
+            onChange={(e) => handleInputChange(e.currentTarget.value)}
+            onKeyDown={handleKeyDown}
+            autosize
+            minRows={1}
+            maxRows={3}
+            style={{ flex: 1, fontSize: "13px" }}
+            disabled={isLoading}
+          />
+
+          {/* Right Side - Send Button */}
+          <Button
+            size="xs"
+            variant="filled"
+            color="violet"
+            onClick={handleSend}
+            loading={isLoading}
+            disabled={!inputValue.trim()}
+            style={{ flexShrink: 0 }}
+          >
+            <IconArrowUp size={14} />
+          </Button>
+        </Group>
       </div>
     </Paper>
   );
