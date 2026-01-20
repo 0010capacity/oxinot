@@ -1,4 +1,4 @@
-import { Modal, Stack, Text, Group, Button, Code } from '@mantine/core';
+import { Modal, Stack, Text, Group, Button } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import type { PendingToolCall } from '../../stores/toolApprovalStore';
 
@@ -30,6 +30,7 @@ export function ToolApprovalModal({ toolCall, onApprove, onDeny }: Props) {
           </div>
         </Group>
 
+        {/* User requested minimal UI, so we hide the parameters JSON
         <div>
           <Text size="sm" fw={500} mb="xs">
             Parameters:
@@ -38,6 +39,7 @@ export function ToolApprovalModal({ toolCall, onApprove, onDeny }: Props) {
             {JSON.stringify(toolCall.params, null, 2)}
           </Code>
         </div>
+        */}
 
         <Group justify="flex-end" mt="md">
           <Button variant="default" onClick={onDeny}>

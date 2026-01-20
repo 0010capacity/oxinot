@@ -327,10 +327,8 @@ export function CopilotPanel() {
             "[Copilot] Tool result stringified:",
             JSON.stringify(chunk.toolResult, null, 2)
           );
-          addChatMessage(
-            "system",
-            `Tool result: ${JSON.stringify(chunk.toolResult)}`
-          );
+          // User requested minimal UI, so we don't show the detailed result in chat
+          // addChatMessage("system", `Tool result: ${JSON.stringify(chunk.toolResult)}`);
         } else if (chunk.type === "error") {
           console.log("[Copilot] Error:", chunk.error);
           setError(chunk.error || "Unknown error");
