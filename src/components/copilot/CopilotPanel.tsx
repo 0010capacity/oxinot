@@ -321,7 +321,7 @@ export function CopilotPanel() {
 
           currentSegmentContent += chunk.content;
           updateLastChatMessage(currentSegmentContent);
-          
+
           // Auto-scroll during streaming
           if (scrollViewportRef.current) {
             scrollViewportRef.current.scrollTop =
@@ -556,82 +556,80 @@ export function CopilotPanel() {
                 </Text>
               </Stack>
             )}
-            {chatMessages.map((msg) => (
-              <Group
-                key={msg.id}
-                align="flex-start"
-                wrap="nowrap"
-                justify={
-                  msg.role === "user"
-                    ? "flex-end"
-                    : msg.role === "system"
-                    ? "center"
-                    : "flex-start"
-                }
-              >
-                {msg.role === "assistant" && (
-                  <ActionIcon
-                    variant="light"
-                    color="violet"
-                    radius="xl"
-                    size="sm"
-                    mt={4}
-                  >
-                    <IconRobot size={14} />
-                  </ActionIcon>
-                )}
-                <Paper
-                  p={msg.role === "system" ? "xs" : "sm"}
-                  radius="md"
-                  bg={
+            {chatMessages
+              .filter((msg) => msg.content.trim() !== "")
+              .map((msg) => (
+                <Group
+                  key={msg.id}
+                  align="flex-start"
+                  wrap="nowrap"
+                  justify={
                     msg.role === "user"
-                      ? "var(--color-interactive-primary)"
+                      ? "flex-end"
                       : msg.role === "system"
-                      ? "transparent"
-                      : "var(--color-interactive-selected)"
+                      ? "center"
+                      : "flex-start"
                   }
-                  c={
-                    msg.role === "user" ? "white" : "var(--color-text-primary)"
-                  }
-                  style={{
-                    maxWidth: "85%",
-                    border:
-                      msg.role === "system"
-                        ? "1px dashed var(--color-border-primary)"
-                        : "none",
-                  }}
                 >
-                  <div
-                    className="markdown-preview"
+                  {msg.role === "assistant" && (
+                    <ActionIcon
+                      variant="light"
+                      color="violet"
+                      radius="xl"
+                      size="sm"
+                      mt={4}
+                    >
+                      <IconRobot size={14} />
+                    </ActionIcon>
+                  )}
+                  <Paper
+                    p="sm"
+                    radius="md"
+                    bg={
+                      msg.role === "user"
+                        ? "var(--color-interactive-primary)"
+                        : msg.role === "system"
+                        ? "var(--color-bg-tertiary)"
+                        : "var(--color-interactive-selected)"
+                    }
+                    c={
+                      msg.role === "user"
+                        ? "white"
+                        : "var(--color-text-primary)"
+                    }
                     style={{
-                      fontSize: msg.role === "system" ? "11px" : "14px",
-                      lineHeight: "1.5",
-                      fontStyle: "normal",
-                      color:
-                        msg.role === "system"
-                          ? "var(--color-text-tertiary)"
-                          : "inherit",
+                      maxWidth: "85%",
+                      border: "none",
                     }}
-                    dangerouslySetInnerHTML={{
-                      __html: renderMarkdownToHtml(msg.content, {
-                        allowBlocks: true,
-                      }),
-                    }}
-                  />
-                </Paper>
-                {msg.role === "user" && (
-                  <ActionIcon
-                    variant="filled"
-                    color="gray"
-                    radius="xl"
-                    size="sm"
-                    mt={4}
                   >
-                    <IconUser size={14} />
-                  </ActionIcon>
-                )}
-              </Group>
-            ))}
+                    <div
+                      className="markdown-preview"
+                      style={{
+                        fontSize: "14px",
+                        lineHeight: "1.5",
+                        fontStyle: "normal",
+                        color: "inherit",
+                      }}
+                      dangerouslySetInnerHTML={{
+                        __html: renderMarkdownToHtml(msg.content, {
+                          allowBlocks: true,
+                        }),
+                      }}
+                    />
+                  </Paper>
+                  {msg.role === "user" && (
+                    <ActionIcon
+                      variant="filled"
+                      color="gray"
+                      radius="xl"
+                      size="sm"
+                      mt={4}
+                    >
+                      <IconUser size={14} />
+                    </ActionIcon>
+                  )}
+                </Group>
+              ))}
             {isLoading &&
               chatMessages[chatMessages.length - 1]?.role === "user" && (
                 <Group align="center" gap="xs" ml="xs">
