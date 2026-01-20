@@ -589,6 +589,7 @@ export function CopilotPanel() {
                           fontSize: "11px",
                           padding: "4px 8px",
                           opacity: 0.5,
+                          fontWeight: 400,
                         }}
                       >
                         {msg.content}
