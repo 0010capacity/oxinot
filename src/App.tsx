@@ -207,6 +207,8 @@ function AppContent({ workspacePath }: AppContentProps) {
     handleMigrationCancel,
   } = useWorkspaceInitializer(workspacePath, openHomepage, setWorkspaceName);
 
+  const copilotOpen = useCopilotUiStore((state) => state.isOpen);
+
   // Register core commands
   useCoreCommands({
     onOpenSearch: () => setSearchOpened(true),
@@ -308,6 +310,11 @@ function AppContent({ workspacePath }: AppContentProps) {
     <>
       <AppShell
         padding={0}
+        aside={{
+          width: 450,
+          breakpoint: "sm",
+          collapsed: { mobile: !copilotOpen, desktop: !copilotOpen },
+        }}
         styles={{
           main: {
             backgroundColor: "var(--color-bg-primary)",
@@ -339,7 +346,6 @@ function AppContent({ workspacePath }: AppContentProps) {
           />
 
           <CopilotButton />
-          <CopilotPanel />
 
           {/* Main Content Panel */}
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -375,6 +381,10 @@ function AppContent({ workspacePath }: AppContentProps) {
           {/* Git Status Indicator - Bottom Right */}
           <GitStatusIndicator workspacePath={workspacePath} />
         </AppShell.Main>
+
+        <AppShell.Aside>
+          <CopilotPanel />
+        </AppShell.Aside>
       </AppShell>
 
       {/* Migration Dialog */}

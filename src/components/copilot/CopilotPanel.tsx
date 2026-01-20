@@ -18,8 +18,6 @@ import {
   IconArrowUp,
   IconTemplate,
   IconX,
-  IconMaximize,
-  IconMinimize,
   IconReplace,
   IconDownload,
   IconTrash,
@@ -84,7 +82,6 @@ export function CopilotPanel() {
     useAISettingsStore();
 
   // Local state
-  const [isExpanded, setIsExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Mention Autocomplete State
@@ -447,24 +444,14 @@ export function CopilotPanel() {
 
   return (
     <Paper
-      shadow="xl"
-      radius="md"
+      shadow="none"
+      radius={0}
       style={{
-        position: "fixed",
-        bottom: 0,
-        left: "50%",
-        transform: "translateX(-50%)",
-        width: "100%",
-        maxWidth: "800px",
-        height: isExpanded ? "80vh" : "500px",
-        zIndex: 140,
+        height: "100%",
         display: "flex",
         flexDirection: "column",
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 0,
-        border: "1px solid var(--color-border-primary)",
+        borderLeft: "1px solid var(--color-border-primary)",
         backgroundColor: "var(--color-bg-primary)",
-        transition: "height 0.3s ease",
       }}
     >
       {/* Mention Autocomplete */}
@@ -504,21 +491,10 @@ export function CopilotPanel() {
             Assistant
           </Badge>
           <Text size="xs" c="dimmed">
-            Use @ to mention blocks or pages
+            Use @ to mention
           </Text>
         </Group>
         <Group gap="xs">
-          <ActionIcon
-            size="sm"
-            variant="subtle"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            {isExpanded ? (
-              <IconMinimize size={16} />
-            ) : (
-              <IconMaximize size={16} />
-            )}
-          </ActionIcon>
           <ActionIcon size="sm" variant="subtle" color="gray" onClick={close}>
             <IconX size={16} />
           </ActionIcon>
