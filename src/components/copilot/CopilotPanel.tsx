@@ -640,7 +640,7 @@ export function CopilotPanel() {
       {/* Footer / Input Area - Zed Style Minimal */}
       <div
         style={{
-          padding: "8px 12px",
+          padding: "16px 12px",
           borderTop: "1px solid var(--color-border-primary)",
           backgroundColor: "transparent",
         }}
@@ -661,7 +661,7 @@ export function CopilotPanel() {
               fontSize: "13px",
               background: "transparent",
               border: "none",
-              padding: "2px 0",
+              padding: "8px 0",
             }}
             disabled={isLoading}
             classNames={{
