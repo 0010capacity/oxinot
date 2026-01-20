@@ -307,11 +307,21 @@ export function CopilotPanel() {
         },
       });
 
-      let fullContent = "";
+      let currentSegmentContent = "";
       for await (const chunk of stream) {
         if (chunk.type === "text" && chunk.content) {
-          fullContent += chunk.content;
-          updateLastChatMessage(fullContent);
+          // Check if we need a new bubble (if last message is NOT assistant)
+          const messages = useCopilotUiStore.getState().chatMessages;
+          const lastMsg = messages[messages.length - 1];
+
+          if (!lastMsg || lastMsg.role !== "assistant") {
+            addChatMessage("assistant", "");
+            currentSegmentContent = ""; // Reset for new bubble
+          }
+
+          currentSegmentContent += chunk.content;
+          updateLastChatMessage(currentSegmentContent);
+          
           // Auto-scroll during streaming
           if (scrollViewportRef.current) {
             scrollViewportRef.current.scrollTop =
@@ -335,7 +345,7 @@ export function CopilotPanel() {
           updateLastChatMessage(`Error: ${chunk.error}`);
         }
       }
-      console.log("[Copilot] Final response:", fullContent);
+      console.log("[Copilot] Final response segment:", currentSegmentContent);
     } catch (err: unknown) {
       console.error("AI Generation Error:", err);
       const errorMessage =
@@ -570,7 +580,6 @@ export function CopilotPanel() {
                     <IconRobot size={14} />
                   </ActionIcon>
                 )}
-                {/* System Badge removed */}
                 <Paper
                   p={msg.role === "system" ? "xs" : "sm"}
                   radius="md"
@@ -578,7 +587,7 @@ export function CopilotPanel() {
                     msg.role === "user"
                       ? "var(--color-interactive-primary)"
                       : msg.role === "system"
-                      ? "var(--color-bg-tertiary)"
+                      ? "transparent"
                       : "var(--color-interactive-selected)"
                   }
                   c={
@@ -586,7 +595,10 @@ export function CopilotPanel() {
                   }
                   style={{
                     maxWidth: "85%",
-                    border: "none",
+                    border:
+                      msg.role === "system"
+                        ? "1px dashed var(--color-border-primary)"
+                        : "none",
                   }}
                 >
                   <div
