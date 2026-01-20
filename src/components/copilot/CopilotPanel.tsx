@@ -228,7 +228,14 @@ export function CopilotPanel() {
     }
 
     // Add message to UI
+    console.log(
+      "[Copilot] Adding message - role: user, content:",
+      currentInput.substring(0, 50)
+    );
     addChatMessage("user", currentInput);
+    console.log(
+      "[Copilot] Adding message - role: assistant, content: (empty placeholder)"
+    );
     addChatMessage("assistant", "");
 
     try {
@@ -315,11 +322,18 @@ export function CopilotPanel() {
           const lastMsg = messages[messages.length - 1];
 
           if (!lastMsg || lastMsg.role !== "assistant") {
+            console.log(
+              "[Copilot] Adding message - role: assistant, content: (empty placeholder for streaming)"
+            );
             addChatMessage("assistant", "");
             currentSegmentContent = ""; // Reset for new bubble
           }
 
           currentSegmentContent += chunk.content;
+          console.log(
+            "[Copilot] Updating last assistant message, total length:",
+            currentSegmentContent.length
+          );
           updateLastChatMessage(currentSegmentContent);
 
           // Auto-scroll during streaming
@@ -330,7 +344,12 @@ export function CopilotPanel() {
         } else if (chunk.type === "tool_call") {
           console.log("[Copilot] Tool call:", chunk.toolCall?.name);
           console.log("[Copilot] Tool call params:", chunk.toolCall?.arguments);
-          addChatMessage("system", `Calling tool: ${chunk.toolCall?.name}`);
+          const toolMessage = `Calling tool: ${chunk.toolCall?.name}`;
+          console.log(
+            "[Copilot] Adding message - role: system, content:",
+            toolMessage
+          );
+          addChatMessage("system", toolMessage);
         } else if (chunk.type === "tool_result") {
           console.log("[Copilot] Tool result:", chunk.toolResult);
           console.log(
