@@ -13,11 +13,11 @@ export class ClaudeProvider implements IAIProvider {
     const url = `${cleanBaseUrl}/messages`;
 
     // 1. Build initial messages
-    const messages: any[] = [];
+    const messages: { role: string; content: any }[] = [];
     if (request.history) {
-      request.history.forEach((msg) => {
+      for (const msg of request.history) {
         messages.push({ role: msg.role, content: msg.content });
-      });
+      }
     }
     messages.push({ role: "user", content: request.prompt });
 
@@ -39,12 +39,14 @@ export class ClaudeProvider implements IAIProvider {
       console.log("[ClaudeProvider] Sending to API:");
       console.log(
         "  System prompt:",
-        request.systemPrompt?.substring(0, 100) + "..."
+        `${request.systemPrompt?.substring(0, 100)}...`
       );
       console.log("  Messages:", messages.length);
-      messages.forEach((msg, i) => {
+      let i = 0;
+      for (const msg of messages) {
         console.log(`    [${i}] ${msg.role}: ${msg.content}`);
-      });
+        i++;
+      }
 
       const response = await fetch(url, {
         method: "POST",
@@ -81,7 +83,7 @@ export class ClaudeProvider implements IAIProvider {
       let hasToolCall = false;
       let assistantContent = "";
 
-      while (true) {
+      innerLoop: while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -168,7 +170,7 @@ export class ClaudeProvider implements IAIProvider {
                       ],
                     });
 
-                    gotoNextTurn: break; // Break inner loop to continue outer while loop
+                    break innerLoop; // Break inner loop to continue outer while loop
                   }
                 } catch (e) {
                   console.error("Claude tool err:", e);

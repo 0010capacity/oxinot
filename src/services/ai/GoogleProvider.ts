@@ -73,18 +73,18 @@ export class GoogleProvider implements IAIProvider {
     }
   }
 
-  private buildContents(request: AIRequest): any[] {
-    const contents: any[] = [];
+  private buildContents(request: AIRequest): { role: string; parts: { text: string }[] }[] {
+    const contents: { role: string; parts: { text: string }[] }[] = [];
 
     // Add history messages
     if (request.history) {
-      request.history.forEach((msg) => {
+      for (const msg of request.history) {
         const role = msg.role === "assistant" ? "model" : "user";
         contents.push({
           role: role,
           parts: [{ text: msg.content }],
         });
-      });
+      }
     }
 
     // Add current prompt
@@ -98,7 +98,7 @@ export class GoogleProvider implements IAIProvider {
 
   private async generateWithTools(
     request: AIRequest,
-    contents: any[]
+    contents: { role: string; parts: any[] }[]
   ): Promise<{ text?: string; functionCall?: { name: string; args: any } }> {
     const model = request.model || "gemini-1.5-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${request.apiKey}`;
@@ -128,7 +128,7 @@ export class GoogleProvider implements IAIProvider {
     console.log("[GoogleProvider] Sending to API:");
     console.log(
       "  System prompt:",
-      request.systemPrompt?.substring(0, 100) + "..."
+      `${request.systemPrompt?.substring(0, 100)}...`
     );
     console.log("  Contents:", contents.length);
 

@@ -12,7 +12,7 @@ export class OllamaProvider implements IAIProvider {
     const url = `${cleanBaseUrl}/api/chat`;
 
     // Build messages array with history
-    const messages: any[] = [];
+    const messages: { role: string; content: string }[] = [];
 
     // Add system message if present
     if (request.systemPrompt) {
@@ -21,9 +21,9 @@ export class OllamaProvider implements IAIProvider {
 
     // Add history messages
     if (request.history) {
-      request.history.forEach((msg) => {
+      for (const msg of request.history) {
         messages.push({ role: msg.role, content: msg.content });
-      });
+      }
     }
 
     // Add current prompt
@@ -31,9 +31,11 @@ export class OllamaProvider implements IAIProvider {
 
     console.log("[OllamaProvider] Sending to API:");
     console.log("  Messages:", messages.length);
-    messages.forEach((msg, i) => {
+    let i = 0;
+    for (const msg of messages) {
       console.log(`    [${i}] ${msg.role}: ${msg.content}`);
-    });
+      i++;
+    }
 
     try {
       const response = await fetch(url, {

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
 import { dispatchBlockUpdate } from "../../../../events";
 import type { Tool, ToolResult } from "../types";
+import type { Block } from "../../../../outliner/types";
 
 export const appendToBlockTool: Tool = {
   name: "append_to_block",
@@ -44,7 +45,7 @@ export const appendToBlockTool: Tool = {
       const newContent = block.content + params.separator + params.text;
 
       // Update the block
-      const updatedBlock = await invoke<any>("update_block", {
+      const updatedBlock = await invoke<Block>("update_block", {
         workspacePath: context.workspacePath,
         request: {
           id: params.blockId,

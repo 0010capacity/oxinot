@@ -606,6 +606,7 @@ export function CopilotPanel() {
                           fontStyle: "normal",
                           color: "inherit",
                         }}
+                        // biome-ignore lint/security/noDangerouslySetInnerHtml: content is sanitized markdown
                         dangerouslySetInnerHTML={{
                           __html: renderMarkdownToHtml(msg.content, {
                             allowBlocks: true,

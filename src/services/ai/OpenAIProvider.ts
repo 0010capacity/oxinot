@@ -17,15 +17,20 @@ export class OpenAIProvider implements IAIProvider {
     const url = baseUrl.endsWith("/v1") ? `${baseUrl}/chat/completions` : `${baseUrl}/v1/chat/completions`;
 
     // 1. Build initial messages
-    const messages: any[] = [];
+    const messages: {
+      role: string;
+      content: string | null;
+      function_call?: { name: string; arguments: string };
+      name?: string;
+    }[] = [];
     if (request.systemPrompt) {
       messages.push({ role: "system", content: request.systemPrompt });
     }
     if (request.history) {
-      request.history.forEach(msg => {
+      for (const msg of request.history) {
         // Map history roles
         messages.push({ role: msg.role, content: msg.content });
-      });
+      }
     }
     messages.push({ role: "user", content: request.prompt });
 
@@ -69,7 +74,7 @@ export class OpenAIProvider implements IAIProvider {
       let isCallingFunction = false;
       let fullAssistantContent = "";
 
-      while (true) {
+      innerLoop: while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -130,7 +135,7 @@ export class OpenAIProvider implements IAIProvider {
 
                  // Continue the outer while loop to get AI's response to the tool result
                  isCallingFunction = false;
-                 gotoNextTurn: break; 
+                 break innerLoop; 
                }
             }
             

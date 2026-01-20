@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Paper, Stack, Text, Group } from '@mantine/core';
+import { Paper, Stack, Text, Group, UnstyledButton } from '@mantine/core';
 import { IconHash, IconFile } from '@tabler/icons-react';
 import { useBlockStore } from '../../stores/blockStore';
 import { usePageStore } from '../../stores/pageStore';
@@ -123,10 +123,17 @@ export function MentionAutocomplete({ query, onSelect, position }: Props) {
     >
       <Stack gap="xs">
         {suggestions.map((suggestion, index) => (
-          <div
+          <UnstyledButton
             key={suggestion.insertText}
             onClick={() => onSelect(suggestion)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(suggestion);
+              }
+            }}
             style={{
+              width: '100%',
               padding: '8px',
               borderRadius: 'var(--radius-sm)',
               backgroundColor:
@@ -153,7 +160,7 @@ export function MentionAutocomplete({ query, onSelect, position }: Props) {
                 )}
               </div>
             </Group>
-          </div>
+          </UnstyledButton>
         ))}
       </Stack>
     </Paper>

@@ -21,17 +21,18 @@ export function parseMentions(text: string): Mention[] {
   ];
 
   for (const { type, regex } of patterns) {
-    let match;
     // Reset lastIndex because regex is global
     regex.lastIndex = 0;
-    while ((match = regex.exec(text)) !== null) {
+    let match = regex.exec(text);
+    while (match !== null) {
       mentions.push({
-        type: type as any,
+        type: type as Mention['type'],
         uuid: match[1],
         text: match[0],
         start: match.index,
         end: match.index + match[0].length,
       });
+      match = regex.exec(text);
     }
   }
 
