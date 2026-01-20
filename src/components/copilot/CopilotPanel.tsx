@@ -526,6 +526,17 @@ export function CopilotPanel() {
           </Text>
         </Group>
         <Group gap="xs">
+          {chatMessages.length > 0 && (
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="gray"
+              onClick={() => clearChatMessages()}
+              title="Clear chat"
+            >
+              <IconTrash size={16} />
+            </ActionIcon>
+          )}
           <ActionIcon size="sm" variant="subtle" color="gray" onClick={close}>
             <IconX size={16} />
           </ActionIcon>
@@ -685,8 +696,8 @@ export function CopilotPanel() {
           <Group align="flex-end" gap="xs">
             <Menu shadow="md" width={200} position="bottom-start">
               <Menu.Target>
-                <ActionIcon variant="light" size="lg" radius="md" mb={4}>
-                  <IconTemplate size={18} />
+                <ActionIcon variant="light" size="sm" radius="md">
+                  <IconTemplate size={16} />
                 </ActionIcon>
               </Menu.Target>
               <Menu.Dropdown>
@@ -720,49 +731,16 @@ export function CopilotPanel() {
             />
 
             <Button
-              size="md"
+              size="sm"
               variant="filled"
               color="violet"
               onClick={handleSend}
               loading={isLoading}
               disabled={!inputValue.trim()}
-              mb={4}
             >
-              <IconArrowUp size={18} />
+              <IconArrowUp size={16} />
             </Button>
           </Group>
-
-          {chatMessages.length > 0 && !isLoading && (
-            <Group justify="flex-end" pt="xs">
-              <Button
-                variant="subtle"
-                size="xs"
-                color="gray"
-                leftSection={<IconTrash size={14} />}
-                onClick={() => clearChatMessages()}
-              >
-                Clear Chat
-              </Button>
-              <Button
-                variant="light"
-                size="xs"
-                color="teal"
-                leftSection={<IconDownload size={14} />}
-                onClick={handleInsertBelow}
-              >
-                Insert Last Below
-              </Button>
-              <Button
-                variant="filled"
-                size="xs"
-                color="violet"
-                leftSection={<IconReplace size={14} />}
-                onClick={handleApplyLastResponse}
-              >
-                Apply Last
-              </Button>
-            </Group>
-          )}
         </Stack>
       </div>
     </Paper>
