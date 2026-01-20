@@ -645,7 +645,7 @@ export function CopilotPanel() {
           backgroundColor: "transparent",
         }}
       >
-        <Group align="flex-end" gap={8} wrap="nowrap">
+        <Group align="flex-end" gap={12} wrap="nowrap">
           {/* Center: Input */}
           <Textarea
             ref={inputRef}
@@ -674,13 +674,13 @@ export function CopilotPanel() {
 
           {/* Right: Send Button */}
           <ActionIcon
-            size="xs"
-            variant="subtle"
-            radius={0}
+            size="sm"
+            variant="filled"
+            color="violet"
+            radius="sm"
             onClick={handleSend}
             loading={isLoading}
             disabled={!inputValue.trim()}
-            opacity={!inputValue.trim() ? 0.3 : 0.7}
           >
             <IconArrowUp size={14} />
           </ActionIcon>
