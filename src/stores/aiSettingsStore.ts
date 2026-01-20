@@ -2,7 +2,13 @@ import { persist } from "zustand/middleware";
 import { createWithEqualityFn } from "zustand/traditional";
 import { v4 as uuidv4 } from "uuid";
 
-export type AIProvider = "google" | "openai" | "claude" | "ollama" | "custom";
+export type AIProvider =
+  | "google"
+  | "openai"
+  | "claude"
+  | "ollama"
+  | "lmstudio"
+  | "custom";
 
 export type ToolApprovalPolicy = "always" | "dangerous_only" | "never";
 
@@ -87,6 +93,11 @@ const DEFAULT_CONFIGS: Record<AIProvider, ProviderConfig> = {
     model: "claude-3-5-sonnet-20240620",
   },
   ollama: { apiKey: "", baseUrl: "http://localhost:11434", model: "llama3" },
+  lmstudio: {
+    apiKey: "",
+    baseUrl: "http://localhost:1234/v1",
+    model: "local-model",
+  },
   custom: { apiKey: "", baseUrl: "", model: "" },
 };
 

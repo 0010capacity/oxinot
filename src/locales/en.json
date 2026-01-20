@@ -224,6 +224,7 @@
         "openai": "OpenAI",
         "claude": "Anthropic Claude",
         "ollama": "Ollama (Local)",
+        "lmstudio": "LM Studio (Local)",
         "custom": "Custom (OpenAI Compatible)"
       },
       "tool_approval": {

@@ -86,6 +86,7 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
       "gemini-2.5-flash",
     ],
     ollama: [],
+    lmstudio: [],
     custom: [],
   };
 
@@ -94,6 +95,7 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
     { value: "openai", label: t("settings.ai.providers.openai") },
     { value: "claude", label: t("settings.ai.providers.claude") },
     { value: "ollama", label: t("settings.ai.providers.ollama") },
+    { value: "lmstudio", label: t("settings.ai.providers.lmstudio") },
     { value: "custom", label: t("settings.ai.providers.custom") },
   ];
 
@@ -141,8 +143,9 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
     }
   };
 
-  const showApiKey = provider !== "ollama";
-  const showBaseUrl = provider === "ollama" || provider === "custom";
+  const showApiKey = provider !== "ollama" && provider !== "lmstudio";
+  const showBaseUrl =
+    provider === "ollama" || provider === "lmstudio" || provider === "custom";
 
   return (
     <Stack gap="xl">
