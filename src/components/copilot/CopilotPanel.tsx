@@ -662,6 +662,8 @@ export function CopilotPanel() {
               background: "transparent",
               border: "none",
               padding: "8px 0",
+              verticalAlign: "top",
+              textAlign: "left",
             }}
             disabled={isLoading}
             classNames={{
