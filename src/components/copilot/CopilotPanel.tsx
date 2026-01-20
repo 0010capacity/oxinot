@@ -570,38 +570,35 @@ export function CopilotPanel() {
                     <IconRobot size={14} />
                   </ActionIcon>
                 )}
-                {msg.role === "system" && (
-                  <Badge variant="outline" color="gray" size="xs" mt={8}>
-                    System
-                  </Badge>
-                )}
+                {/* System Badge removed */}
                 <Paper
-                  p="sm"
+                  p={msg.role === "system" ? "xs" : "sm"}
                   radius="md"
                   bg={
                     msg.role === "user"
                       ? "var(--color-interactive-primary)"
                       : msg.role === "system"
-                      ? "transparent"
-                      : "var(--color-bg-secondary)"
+                      ? "var(--color-bg-tertiary)"
+                      : "var(--color-interactive-selected)"
                   }
                   c={
                     msg.role === "user" ? "white" : "var(--color-text-primary)"
                   }
                   style={{
                     maxWidth: "85%",
-                    border:
-                      msg.role === "system"
-                        ? "1px dashed var(--color-border-primary)"
-                        : "none",
+                    border: "none",
                   }}
                 >
                   <div
                     className="markdown-preview"
                     style={{
-                      fontSize: msg.role === "system" ? "12px" : "14px",
+                      fontSize: msg.role === "system" ? "11px" : "14px",
                       lineHeight: "1.5",
-                      fontStyle: msg.role === "system" ? "italic" : "normal",
+                      fontStyle: "normal",
+                      color:
+                        msg.role === "system"
+                          ? "var(--color-text-tertiary)"
+                          : "inherit",
                     }}
                     dangerouslySetInnerHTML={{
                       __html: renderMarkdownToHtml(msg.content, {
