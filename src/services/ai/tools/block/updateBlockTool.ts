@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { invoke } from '@tauri-apps/api/core';
+import { useBlockStore } from '../../../../stores/blockStore';
 import type { Tool, ToolResult } from '../types';
 
 export const updateBlockTool: Tool = {
@@ -15,13 +16,16 @@ export const updateBlockTool: Tool = {
 
   async execute(params, context): Promise<ToolResult> {
     try {
-      await invoke('update_block', {
+      const updatedBlock = await invoke<any>('update_block', {
         workspacePath: context.workspacePath,
         request: {
           id: params.uuid,
           content: params.content,
         }
       });
+
+      // Update local store immediately
+      useBlockStore.getState().updatePartialBlocks([updatedBlock]);
 
       return {
         success: true,

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { invoke } from '@tauri-apps/api/core';
+import { useBlockStore } from '../../../../stores/blockStore';
 import type { Tool, ToolResult } from '../types';
 
 export const deleteBlockTool: Tool = {
@@ -14,10 +15,13 @@ export const deleteBlockTool: Tool = {
 
   async execute(params, context): Promise<ToolResult> {
     try {
-      await invoke('delete_block', {
+      const deletedIds = await invoke<string[]>('delete_block', {
         workspacePath: context.workspacePath,
         blockId: params.uuid, // Note: argument name matches Rust command signature
       });
+
+      // Update local store immediately
+      useBlockStore.getState().updatePartialBlocks([], deletedIds);
 
       return {
         success: true,
