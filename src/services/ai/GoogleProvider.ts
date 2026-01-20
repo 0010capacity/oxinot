@@ -10,7 +10,7 @@ export class GoogleProvider implements IAIProvider {
   ): AsyncGenerator<StreamChunk, void, unknown> {
     let loopCount = 0;
     const MAX_LOOPS = 5;
-    let conversationHistory = [...this.buildContents(request)];
+    const conversationHistory = [...this.buildContents(request)];
 
     while (loopCount < MAX_LOOPS) {
       loopCount++;

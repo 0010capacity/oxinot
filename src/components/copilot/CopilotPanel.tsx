@@ -233,7 +233,7 @@ export function CopilotPanel() {
       const resolvedContext = resolveContextFromMentions(currentInput);
       let systemPrompt = gatherHints();
 
-      let finalPrompt = currentInput;
+      const finalPrompt = currentInput;
       if (resolvedContext) {
         systemPrompt += `\n--- Context Resolved from Mentions ---\n${resolvedContext}`;
       }

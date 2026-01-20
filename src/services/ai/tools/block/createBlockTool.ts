@@ -8,7 +8,7 @@ export const createBlockTool: Tool = {
   description:
     "Create a new block in the document. Supports creating root blocks (0-level), nested blocks, and inserting at specific positions.",
   category: "block",
-  requiresApproval: true,
+  requiresApproval: false,
 
   parameters: z.object({
     pageId: z

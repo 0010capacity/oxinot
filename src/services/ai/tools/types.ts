@@ -27,6 +27,9 @@ export interface Tool {
   /** Optional: Whether this tool requires user approval before execution */
   requiresApproval?: boolean;
 
+  /** Optional: Whether this is a dangerous/destructive operation (delete, etc.) */
+  isDangerous?: boolean;
+
   /** Optional: Category for organizing tools */
   category?: ToolCategory | string;
 }

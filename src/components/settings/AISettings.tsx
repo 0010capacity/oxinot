@@ -24,6 +24,7 @@ import {
   useAISettingsStore,
   type AIProvider,
   type PromptTemplate,
+  type ToolApprovalPolicy,
 } from "../../stores/aiSettingsStore";
 
 interface AISettingsProps {
@@ -38,11 +39,17 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
   const baseUrl = useAISettingsStore((state) => state.baseUrl);
   const model = useAISettingsStore((state) => state.model);
   const promptTemplates = useAISettingsStore((state) => state.promptTemplates);
+  const toolApprovalPolicy = useAISettingsStore(
+    (state) => state.toolApprovalPolicy
+  );
 
   const setProvider = useAISettingsStore((state) => state.setProvider);
   const setApiKey = useAISettingsStore((state) => state.setApiKey);
   const setBaseUrl = useAISettingsStore((state) => state.setBaseUrl);
   const setModel = useAISettingsStore((state) => state.setModel);
+  const setToolApprovalPolicy = useAISettingsStore(
+    (state) => state.setToolApprovalPolicy
+  );
   const addPromptTemplate = useAISettingsStore(
     (state) => state.addPromptTemplate
   );
@@ -88,6 +95,15 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
     { value: "claude", label: t("settings.ai.providers.claude") },
     { value: "ollama", label: t("settings.ai.providers.ollama") },
     { value: "custom", label: t("settings.ai.providers.custom") },
+  ];
+
+  const toolApprovalOptions = [
+    { value: "always", label: t("settings.ai.tool_approval.always") },
+    {
+      value: "dangerous_only",
+      label: t("settings.ai.tool_approval.dangerous_only"),
+    },
+    { value: "never", label: t("settings.ai.tool_approval.never") },
   ];
 
   // Sync available models when provider changes
@@ -179,10 +195,23 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                 data={availableModels}
                 limit={20}
               />
+
+              <Select
+                label={t("settings.ai.tool_approval.label")}
+                description={t("settings.ai.tool_approval.description")}
+                data={toolApprovalOptions}
+                value={toolApprovalPolicy}
+                onChange={(val) =>
+                  setToolApprovalPolicy(
+                    (val as ToolApprovalPolicy) || "dangerous_only"
+                  )
+                }
+                allowDeselect={false}
+              />
             </>
           )}
 
-          {matchesSearch("prompt templates") && (
+          {matchesSearch("prompt templates tool approval") && (
             <div>
               <Text size="sm" fw={500} mb="sm">
                 {t("settings.ai.templates")}
