@@ -53,6 +53,7 @@ export enum ToolCategory {
   SEARCH = "search",
   SELECTION = "selection",
   METADATA = "metadata",
+  CONTEXT = "context",
 }
 
 /**
