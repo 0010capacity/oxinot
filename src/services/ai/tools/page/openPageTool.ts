@@ -57,7 +57,7 @@ export const openPageTool: Tool = {
         success: true,
         data: {
           pageId: targetPageId,
-          message: `Opened page successfully`,
+          message: "Opened page successfully",
         },
       };
     } catch (error) {

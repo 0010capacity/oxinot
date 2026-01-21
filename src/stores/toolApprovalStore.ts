@@ -1,9 +1,9 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 export interface PendingToolCall {
   id: string;
   toolName: string;
-  params: any;
+  params: Record<string, unknown>;
   description: string;
   requiresApproval: boolean;
   timestamp: number;
@@ -15,7 +15,7 @@ interface ToolApprovalStore {
   deniedCalls: Set<string>;
 
   // Add tool call for approval
-  addPendingCall: (call: Omit<PendingToolCall, 'id' | 'timestamp'>) => string;
+  addPendingCall: (call: Omit<PendingToolCall, "id" | "timestamp">) => string;
 
   // Approve tool call
   approve: (id: string) => void;
@@ -46,7 +46,7 @@ export const useToolApprovalStore = create<ToolApprovalStore>((set, get) => ({
       timestamp: Date.now(),
     };
 
-    set(state => ({
+    set((state) => ({
       pendingCalls: [...state.pendingCalls, pendingCall],
     }));
 
@@ -54,25 +54,25 @@ export const useToolApprovalStore = create<ToolApprovalStore>((set, get) => ({
   },
 
   approve: (id) => {
-    set(state => {
+    set((state) => {
       const newApproved = new Set(state.approvedCalls);
       newApproved.add(id);
 
       return {
         approvedCalls: newApproved,
-        pendingCalls: state.pendingCalls.filter(c => c.id !== id),
+        pendingCalls: state.pendingCalls.filter((c) => c.id !== id),
       };
     });
   },
 
   deny: (id) => {
-    set(state => {
+    set((state) => {
       const newDenied = new Set(state.deniedCalls);
       newDenied.add(id);
 
       return {
         deniedCalls: newDenied,
-        pendingCalls: state.pendingCalls.filter(c => c.id !== id),
+        pendingCalls: state.pendingCalls.filter((c) => c.id !== id),
       };
     });
   },
@@ -80,9 +80,10 @@ export const useToolApprovalStore = create<ToolApprovalStore>((set, get) => ({
   isApproved: (id) => get().approvedCalls.has(id),
   isDenied: (id) => get().deniedCalls.has(id),
 
-  clear: () => set({
-    pendingCalls: [],
-    approvedCalls: new Set(),
-    deniedCalls: new Set(),
-  }),
+  clear: () =>
+    set({
+      pendingCalls: [],
+      approvedCalls: new Set(),
+      deniedCalls: new Set(),
+    }),
 }));

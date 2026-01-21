@@ -7,7 +7,9 @@ import { useAISettingsStore } from "../../../stores/aiSettingsStore";
 /**
  * Execute a tool with parameter validation and optional user approval
  */
-export async function executeTool<T = any>(
+export async function executeTool<
+  T extends Record<string, unknown> = Record<string, unknown>
+>(
   toolName: string,
   params: unknown,
   context: ToolContext,
@@ -46,7 +48,7 @@ export async function executeTool<T = any>(
       // Add to pending calls
       const callId = approvalStore.addPendingCall({
         toolName: tool.name,
-        params,
+        params: params as Record<string, unknown>,
         description: tool.description,
         requiresApproval: true,
       });
@@ -58,9 +60,9 @@ export async function executeTool<T = any>(
             clearInterval(checkInterval);
 
             // Execute tool after approval (skip approval this time)
-            executeTool(toolName, params, context, { skipApproval: true }).then(
-              resolve
-            );
+            executeTool<T>(toolName, params, context, {
+              skipApproval: true,
+            }).then(resolve);
           } else if (approvalStore.isDenied(callId)) {
             clearInterval(checkInterval);
             resolve({
