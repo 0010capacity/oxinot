@@ -7,14 +7,12 @@ import { useAISettingsStore } from "../../../stores/aiSettingsStore";
 /**
  * Execute a tool with parameter validation and optional user approval
  */
-export async function executeTool<
-  T extends Record<string, unknown> = Record<string, unknown>
->(
+export async function executeTool(
   toolName: string,
   params: unknown,
   context: ToolContext,
   options?: { skipApproval?: boolean }
-): Promise<ToolResult<T>> {
+): Promise<ToolResult> {
   // Get tool from registry
   const tool = toolRegistry.get(toolName);
 
@@ -60,9 +58,9 @@ export async function executeTool<
             clearInterval(checkInterval);
 
             // Execute tool after approval (skip approval this time)
-            executeTool<T>(toolName, params, context, {
-              skipApproval: true,
-            }).then(resolve);
+            executeTool(toolName, params, context, { skipApproval: true }).then(
+              resolve
+            );
           } else if (approvalStore.isDenied(callId)) {
             clearInterval(checkInterval);
             resolve({

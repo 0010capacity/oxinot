@@ -15,23 +15,20 @@ export interface AIRequest {
   // Context & Tools
   history?: ChatMessage[]; // Previous chat history
   tools?: Tool[];
-  onToolCall?: (
-    toolName: string,
-    params: Record<string, unknown>
-  ) => Promise<Record<string, unknown>>;
+  onToolCall?: (toolName: string, params: any) => Promise<any>;
 }
 
 export interface ToolCall {
   id: string;
   name: string;
-  arguments: Record<string, unknown>;
+  arguments: any;
 }
 
 export interface StreamChunk {
   type: "text" | "tool_call" | "tool_result" | "error";
   content?: string;
   toolCall?: ToolCall;
-  toolResult?: Record<string, unknown>;
+  toolResult?: any;
   error?: string;
 }
 

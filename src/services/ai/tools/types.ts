@@ -19,10 +19,7 @@ export interface Tool {
   parameters: ToolParameterSchema;
 
   /** Execute the tool with validated parameters */
-  execute: <T extends Record<string, unknown> = Record<string, unknown>>(
-    params: Record<string, unknown>,
-    context: ToolContext
-  ) => Promise<ToolResult<T>>;
+  execute: (params: any, context: ToolContext) => Promise<ToolResult>;
 
   /** Optional: Whether this tool requires user approval before execution */
   requiresApproval?: boolean;
@@ -37,13 +34,11 @@ export interface Tool {
 /**
  * Result returned by tool execution
  */
-export interface ToolResult<
-  T extends Record<string, unknown> = Record<string, unknown>
-> {
+export interface ToolResult<T = any> {
   success: boolean;
   data?: T;
   error?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 /**
