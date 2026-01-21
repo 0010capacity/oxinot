@@ -6,7 +6,7 @@ export type CopilotScope = "block" | "selection" | "page";
 
 export interface ChatMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
 }
 
@@ -16,13 +16,14 @@ interface CopilotUiStore {
   scope: CopilotScope;
   inputValue: string;
   isLoading: boolean;
-  
+
   // Streaming Content State (for Preview)
   previewContent: string;
   originalContent: string | null; // For Undo/Diff
 
   // Chat Mode State
   chatMessages: ChatMessage[];
+  lastPageId: string | null; // Track page changes for context
 
   open: () => void;
   close: () => void;
@@ -33,12 +34,16 @@ interface CopilotUiStore {
   setIsLoading: (loading: boolean) => void;
   setPreviewContent: (content: string) => void;
   setOriginalContent: (content: string | null) => void;
-  
+
   // Chat Actions
-  addChatMessage: (role: "user" | "assistant", content: string) => void;
+  addChatMessage: (
+    role: "user" | "assistant" | "system",
+    content: string
+  ) => void;
   updateLastChatMessage: (content: string) => void;
   clearChatMessages: () => void;
-  
+  updatePageContext: (pageId: string, pageTitle: string) => void;
+
   reset: () => void;
 }
 
@@ -51,6 +56,7 @@ export const useCopilotUiStore = create<CopilotUiStore>((set) => ({
   previewContent: "",
   originalContent: null,
   chatMessages: [],
+  lastPageId: null,
 
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
@@ -64,10 +70,7 @@ export const useCopilotUiStore = create<CopilotUiStore>((set) => ({
 
   addChatMessage: (role, content) =>
     set((state) => ({
-      chatMessages: [
-        ...state.chatMessages,
-        { id: uuidv4(), role, content },
-      ],
+      chatMessages: [...state.chatMessages, { id: uuidv4(), role, content }],
     })),
 
   updateLastChatMessage: (content) =>
@@ -84,6 +87,30 @@ export const useCopilotUiStore = create<CopilotUiStore>((set) => ({
 
   clearChatMessages: () => set({ chatMessages: [] }),
 
+  updatePageContext: (pageId, pageTitle) =>
+    set((state) => {
+      // If page changed and there are existing messages, add context message
+      if (
+        state.lastPageId &&
+        state.lastPageId !== pageId &&
+        state.chatMessages.length > 0
+      ) {
+        return {
+          lastPageId: pageId,
+          chatMessages: [
+            ...state.chatMessages,
+            {
+              id: uuidv4(),
+              role: "system",
+              content: `[Context: User navigated to page "${pageTitle}"]`,
+            },
+          ],
+        };
+      }
+      // Just update lastPageId if no context message needed
+      return { lastPageId: pageId };
+    }),
+
   reset: () =>
     set({
       mode: "edit",
@@ -93,5 +120,6 @@ export const useCopilotUiStore = create<CopilotUiStore>((set) => ({
       previewContent: "",
       originalContent: null,
       chatMessages: [],
+      lastPageId: null,
     }),
 }));

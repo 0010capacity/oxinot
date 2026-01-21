@@ -570,10 +570,11 @@ export function FileTreeIndex() {
               );
               setIsSubmitting(false);
               alert(
-                "Failed to convert parent to directory: " +
-                  (conversionError instanceof Error
+                `Failed to convert parent to directory: ${
+                  conversionError instanceof Error
                     ? conversionError.message
-                    : String(conversionError))
+                    : String(conversionError)
+                }`
               );
               return;
             }
@@ -610,8 +611,9 @@ export function FileTreeIndex() {
         setIsCreating(false);
         setCreatingParentId(null);
         alert(
-          "Failed to create page: " +
-            (error instanceof Error ? error.message : String(error))
+          `Failed to create page: ${
+            error instanceof Error ? error.message : String(error)
+          }`
         );
       }
     },

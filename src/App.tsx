@@ -48,6 +48,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useWorkspaceInitializer } from "./hooks/useWorkspaceInitializer";
 import { useCoreCommands } from "./hooks/useCoreCommands";
 import { ThemeProvider } from "./theme/ThemeProvider";
+import { BLOCK_UPDATE_EVENT, type BlockUpdateEventDetail } from "./events";
 
 function WorkspaceSelector() {
   const {
@@ -206,6 +207,8 @@ function AppContent({ workspacePath }: AppContentProps) {
     handleMigrationCancel,
   } = useWorkspaceInitializer(workspacePath, openHomepage, setWorkspaceName);
 
+  const copilotOpen = useCopilotUiStore((state) => state.isOpen);
+
   // Register core commands
   useCoreCommands({
     onOpenSearch: () => setSearchOpened(true),
@@ -242,6 +245,26 @@ function AppContent({ workspacePath }: AppContentProps) {
     onUndo: () => useBlockStore.temporal.getState().undo(),
     onRedo: () => useBlockStore.temporal.getState().redo(),
   });
+
+  // Listen for block updates from Copilot tools
+  useEffect(() => {
+    const handleBlockUpdate = (event: CustomEvent<BlockUpdateEventDetail>) => {
+      console.log("[App] Received block update event", event.detail);
+      const { blocks, deletedBlockIds } = event.detail;
+      useBlockStore.getState().updatePartialBlocks(blocks, deletedBlockIds);
+    };
+
+    window.addEventListener(
+      BLOCK_UPDATE_EVENT,
+      handleBlockUpdate as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        BLOCK_UPDATE_EVENT,
+        handleBlockUpdate as EventListener
+      );
+    };
+  }, []);
 
   // Apply saved font, size, and line height settings on mount and when they change
   useEffect(() => {
@@ -287,6 +310,11 @@ function AppContent({ workspacePath }: AppContentProps) {
     <>
       <AppShell
         padding={0}
+        aside={{
+          width: 450,
+          breakpoint: "sm",
+          collapsed: { mobile: !copilotOpen, desktop: !copilotOpen },
+        }}
         styles={{
           main: {
             backgroundColor: "var(--color-bg-primary)",
@@ -318,7 +346,6 @@ function AppContent({ workspacePath }: AppContentProps) {
           />
 
           <CopilotButton />
-          <CopilotPanel />
 
           {/* Main Content Panel */}
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -354,6 +381,10 @@ function AppContent({ workspacePath }: AppContentProps) {
           {/* Git Status Indicator - Bottom Right */}
           <GitStatusIndicator workspacePath={workspacePath} />
         </AppShell.Main>
+
+        <AppShell.Aside>
+          <CopilotPanel />
+        </AppShell.Aside>
       </AppShell>
 
       {/* Migration Dialog */}
