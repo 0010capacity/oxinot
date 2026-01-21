@@ -2,6 +2,7 @@ import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
 import { dispatchBlockUpdate } from "../../../../events";
 import type { Tool, ToolResult } from "../types";
+import type { BlockData } from "../../../../stores/blockStore";
 
 export const insertBlockBelowCurrentTool: Tool = {
   name: "insert_block_below_current",
@@ -28,7 +29,7 @@ export const insertBlockBelowCurrentTool: Tool = {
 
       // If no block is focused, create at root level
       if (!focusedBlockId) {
-        const newBlock = await invoke<any>("create_block", {
+        const newBlock = await invoke<BlockData>("create_block", {
           workspacePath: context.workspacePath,
           request: {
             pageId: currentPageId,
@@ -81,7 +82,7 @@ export const insertBlockBelowCurrentTool: Tool = {
         afterBlockId = focusedBlockId;
       }
 
-      const newBlock = await invoke<any>("create_block", {
+      const newBlock = await invoke<BlockData>("create_block", {
         workspacePath: context.workspacePath,
         request: {
           pageId: currentPageId,

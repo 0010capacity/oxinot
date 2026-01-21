@@ -2,6 +2,23 @@ import { fetch } from "@tauri-apps/plugin-http";
 import type { AIRequest, IAIProvider, StreamChunk } from "./types";
 import { toolsToAIFunctions } from "./tools/utils";
 
+interface GooglePart {
+  text?: string;
+  functionCall?: {
+    name: string;
+    args?: Record<string, unknown>;
+  };
+  functionResponse?: {
+    name: string;
+    response: unknown;
+  };
+}
+
+interface GoogleContent {
+  role: string;
+  parts: GooglePart[];
+}
+
 export class GoogleProvider implements IAIProvider {
   id = "google";
 
@@ -73,8 +90,8 @@ export class GoogleProvider implements IAIProvider {
     }
   }
 
-  private buildContents(request: AIRequest): { role: string; parts: { text: string }[] }[] {
-    const contents: { role: string; parts: { text: string }[] }[] = [];
+  private buildContents(request: AIRequest): GoogleContent[] {
+    const contents: GoogleContent[] = [];
 
     // Add history messages
     if (request.history) {
@@ -98,8 +115,11 @@ export class GoogleProvider implements IAIProvider {
 
   private async generateWithTools(
     request: AIRequest,
-    contents: { role: string; parts: any[] }[]
-  ): Promise<{ text?: string; functionCall?: { name: string; args: any } }> {
+    contents: GoogleContent[]
+  ): Promise<{
+    text?: string;
+    functionCall?: { name: string; args: Record<string, unknown> };
+  }> {
     const model = request.model || "gemini-1.5-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${request.apiKey}`;
 
@@ -174,44 +194,64 @@ export class GoogleProvider implements IAIProvider {
     return result;
   }
 
-  private cleanSchemaForGemini(schema: any): any {
+  private cleanSchemaForGemini(
+    schema: Record<string, unknown>
+  ): Record<string, unknown> {
     if (!schema || typeof schema !== "object") {
       return schema;
     }
 
-    const cleaned: any = {};
+    const cleaned: Record<string, unknown> = {};
 
     // Only keep fields that Gemini supports
-    if (schema.type) cleaned.type = schema.type;
-    if (schema.description) cleaned.description = schema.description;
-    if (schema.enum) cleaned.enum = schema.enum;
-    if (schema.format) cleaned.format = schema.format;
+    if ("type" in schema) cleaned.type = schema.type;
+    if ("description" in schema) cleaned.description = schema.description;
+    if ("enum" in schema) cleaned.enum = schema.enum;
+    if ("format" in schema) cleaned.format = schema.format;
 
     // Handle properties recursively
-    if (schema.properties) {
+    if (
+      "properties" in schema &&
+      schema.properties &&
+      typeof schema.properties === "object"
+    ) {
       cleaned.properties = {};
       for (const [key, value] of Object.entries(schema.properties)) {
-        cleaned.properties[key] = this.cleanSchemaForGemini(value);
+        (cleaned.properties as Record<string, unknown>)[key] =
+          this.cleanSchemaForGemini(value as Record<string, unknown>);
       }
     }
 
     // Handle items (for arrays)
-    if (schema.items) {
-      cleaned.items = this.cleanSchemaForGemini(schema.items);
+    if ("items" in schema && schema.items && typeof schema.items === "object") {
+      cleaned.items = this.cleanSchemaForGemini(
+        schema.items as Record<string, unknown>
+      );
     }
 
     // Handle anyOf (union types) - convert to first option for simplicity
-    if (schema.anyOf && Array.isArray(schema.anyOf)) {
+    if ("anyOf" in schema && Array.isArray(schema.anyOf)) {
       // Gemini doesn't support anyOf, so we need to flatten
       // Take all properties from all schemas
-      const allProps: any = {};
+      const allProps: Record<string, unknown> = {};
       const allRequired: string[] = [];
 
       for (const subSchema of schema.anyOf) {
-        if (subSchema.properties) {
+        if (
+          subSchema &&
+          typeof subSchema === "object" &&
+          "properties" in subSchema &&
+          subSchema.properties &&
+          typeof subSchema.properties === "object"
+        ) {
           Object.assign(allProps, subSchema.properties);
         }
-        if (subSchema.required) {
+        if (
+          subSchema &&
+          typeof subSchema === "object" &&
+          "required" in subSchema &&
+          Array.isArray(subSchema.required)
+        ) {
           allRequired.push(...subSchema.required);
         }
       }
@@ -220,13 +260,14 @@ export class GoogleProvider implements IAIProvider {
         cleaned.type = "object";
         cleaned.properties = {};
         for (const [key, value] of Object.entries(allProps)) {
-          cleaned.properties[key] = this.cleanSchemaForGemini(value);
+          (cleaned.properties as Record<string, unknown>)[key] =
+            this.cleanSchemaForGemini(value as Record<string, unknown>);
         }
         if (allRequired.length > 0) {
           cleaned.required = [...new Set(allRequired)];
         }
       }
-    } else if (schema.required) {
+    } else if ("required" in schema) {
       cleaned.required = schema.required;
     }
 

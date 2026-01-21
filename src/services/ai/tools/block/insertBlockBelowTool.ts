@@ -2,6 +2,7 @@ import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
 import { dispatchBlockUpdate } from "../../../../events";
 import type { Tool, ToolResult } from "../types";
+import type { BlockData } from "../../../../stores/blockStore";
 
 export const insertBlockBelowTool: Tool = {
   name: "insert_block_below",
@@ -11,10 +12,7 @@ export const insertBlockBelowTool: Tool = {
   requiresApproval: false,
 
   parameters: z.object({
-    blockId: z
-      .string()
-      .uuid()
-      .describe("UUID of the block to insert below"),
+    blockId: z.string().uuid().describe("UUID of the block to insert below"),
     content: z.string().describe("The Markdown content of the new block"),
   }),
 
@@ -50,7 +48,7 @@ export const insertBlockBelowTool: Tool = {
         afterBlockId = params.blockId;
       }
 
-      const newBlock = await invoke<any>("create_block", {
+      const newBlock = await invoke<BlockData>("create_block", {
         workspacePath: context.workspacePath,
         request: {
           pageId: targetBlock.pageId,

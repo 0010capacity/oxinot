@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type { Tool, ToolResult } from "../types";
 import { useBlockStore } from "../../../../stores/blockStore";
-import { useBlockUIStore } from "../../../../stores/blockUIStore";
 import { usePageStore } from "../../../../stores/pageStore";
 
 export const getCurrentContextTool: Tool = {
@@ -13,7 +12,7 @@ export const getCurrentContextTool: Tool = {
 
   parameters: z.object({}),
 
-  async execute(params, context): Promise<ToolResult> {
+  async execute(_params, context): Promise<ToolResult> {
     try {
       const currentPageId = context.currentPageId;
       const focusedBlockId = context.focusedBlockId;

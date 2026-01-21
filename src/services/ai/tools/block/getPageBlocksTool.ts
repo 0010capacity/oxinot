@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
 import type { Tool, ToolResult } from "../types";
+import type { BlockData } from "../../../../stores/blockStore";
 
 export const getPageBlocksTool: Tool = {
   name: "get_page_blocks",
@@ -13,7 +14,7 @@ export const getPageBlocksTool: Tool = {
   }),
   async execute(params, context): Promise<ToolResult> {
     try {
-      const blocks = await invoke<any>("get_page_blocks", {
+      const blocks = await invoke<BlockData[]>("get_page_blocks", {
         workspacePath: context.workspacePath,
         pageId: params.pageId,
       });
@@ -34,9 +35,7 @@ export const getPageBlocksTool: Tool = {
       return {
         success: false,
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to get page blocks",
+          error instanceof Error ? error.message : "Failed to get page blocks",
       };
     }
   },

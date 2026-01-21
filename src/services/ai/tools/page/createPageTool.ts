@@ -5,7 +5,7 @@ import { usePageStore } from "../../../../stores/pageStore";
 export const createPageTool: Tool = {
   name: "create_page",
   description:
-    "Create a new page in the workspace. You can specify the title, parent directory, and whether it should be a directory page.",
+    "Create a new page in the workspace. You can specify the title and parent directory.",
   category: "page",
   requiresApproval: false,
 
@@ -18,14 +18,9 @@ export const createPageTool: Tool = {
       .describe(
         "UUID of the parent directory page. If omitted, page will be created at root level."
       ),
-    isDirectory: z
-      .boolean()
-      .optional()
-      .default(false)
-      .describe("Whether this page should be a directory (folder)"),
   }),
 
-  async execute(params, context): Promise<ToolResult> {
+  async execute(params): Promise<ToolResult> {
     try {
       const pageStore = usePageStore.getState();
 
@@ -49,11 +44,8 @@ export const createPageTool: Tool = {
       // Create the page
       const newPageId = await pageStore.createPage(
         params.title,
-        params.parentId || null,
-        params.isDirectory
+        params.parentId || undefined
       );
-
-      const newPage = pageStore.pagesById[newPageId];
 
       return {
         success: true,
@@ -61,10 +53,9 @@ export const createPageTool: Tool = {
           id: newPageId,
           title: params.title,
           parentId: params.parentId || null,
-          isDirectory: params.isDirectory,
         },
         metadata: {
-          message: `Created ${params.isDirectory ? "directory" : "page"} "${params.title}"`,
+          message: `Created page "${params.title}"`,
         },
       };
     } catch (error) {

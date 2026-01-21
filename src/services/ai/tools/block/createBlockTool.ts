@@ -2,6 +2,7 @@ import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
 import { dispatchBlockUpdate } from "../../../../events";
 import type { Tool, ToolResult } from "../types";
+import type { BlockData } from "../../../../stores/blockStore";
 
 export const createBlockTool: Tool = {
   name: "create_block",
@@ -53,7 +54,7 @@ export const createBlockTool: Tool = {
       // If pageId is missing, infer it from parentBlockId
       if (!targetPageId && targetParentId) {
         try {
-          const parentBlock = await invoke<any>("get_block", {
+          const parentBlock = await invoke<BlockData>("get_block", {
             workspacePath: context.workspacePath,
             request: {
               block_id: targetParentId,
@@ -91,7 +92,7 @@ export const createBlockTool: Tool = {
 
       // Execute create_block
       // Matches CreateBlockRequest in src-tauri/src/models/block.rs (camelCase)
-      const newBlock = await invoke<any>("create_block", {
+      const newBlock = await invoke<BlockData>("create_block", {
         workspacePath: context.workspacePath,
         request: {
           pageId: targetPageId,

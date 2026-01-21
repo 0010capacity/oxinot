@@ -24,7 +24,7 @@ export const listPagesTool: Tool = {
       .describe("Maximum number of pages to return"),
   }),
 
-  async execute(params, context): Promise<ToolResult> {
+  async execute(params): Promise<ToolResult> {
     try {
       const pageStore = usePageStore.getState();
       const allPages = Object.values(pageStore.pagesById);
@@ -43,7 +43,6 @@ export const listPagesTool: Tool = {
         title: page.title,
         parentId: page.parentId,
         isDirectory: page.isDirectory,
-        hasChildren: page.childIds && page.childIds.length > 0,
       }));
 
       return {
@@ -58,8 +57,7 @@ export const listPagesTool: Tool = {
     } catch (error) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to list pages",
+        error: error instanceof Error ? error.message : "Failed to list pages",
       };
     }
   },

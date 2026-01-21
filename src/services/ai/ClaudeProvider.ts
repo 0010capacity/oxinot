@@ -2,6 +2,21 @@ import { fetch } from "@tauri-apps/plugin-http";
 import type { AIRequest, IAIProvider, StreamChunk } from "./types";
 import { toolToAIFunction } from "./tools/utils";
 
+interface ClaudeContentBlock {
+  type: string;
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+  tool_use_id?: string;
+  content?: string;
+}
+
+interface ClaudeMessage {
+  role: string;
+  content: string | ClaudeContentBlock[];
+}
+
 export class ClaudeProvider implements IAIProvider {
   id = "claude";
 
@@ -13,7 +28,7 @@ export class ClaudeProvider implements IAIProvider {
     const url = `${cleanBaseUrl}/messages`;
 
     // 1. Build initial messages
-    const messages: { role: string; content: any }[] = [];
+    const messages: ClaudeMessage[] = [];
     if (request.history) {
       for (const msg of request.history) {
         messages.push({ role: msg.role, content: msg.content });
@@ -44,7 +59,11 @@ export class ClaudeProvider implements IAIProvider {
       console.log("  Messages:", messages.length);
       let i = 0;
       for (const msg of messages) {
-        console.log(`    [${i}] ${msg.role}: ${msg.content}`);
+        const contentStr =
+          typeof msg.content === "string"
+            ? msg.content
+            : `[${Array.isArray(msg.content) ? msg.content.length : 0} blocks]`;
+        console.log(`    [${i}] ${msg.role}: ${contentStr}`);
         i++;
       }
 

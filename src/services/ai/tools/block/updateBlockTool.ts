@@ -2,6 +2,7 @@ import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
 import { dispatchBlockUpdate } from "../../../../events";
 import type { Tool, ToolResult } from "../types";
+import type { BlockData } from "../../../../stores/blockStore";
 
 export const updateBlockTool: Tool = {
   name: "update_block",
@@ -17,7 +18,7 @@ export const updateBlockTool: Tool = {
 
   async execute(params, context): Promise<ToolResult> {
     try {
-      const updatedBlock = await invoke<any>("update_block", {
+      const updatedBlock = await invoke<BlockData>("update_block", {
         workspacePath: context.workspacePath,
         request: {
           id: params.uuid,
