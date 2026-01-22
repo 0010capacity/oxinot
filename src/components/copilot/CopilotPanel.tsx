@@ -41,6 +41,8 @@ import { executeTool } from "../../services/ai/tools/executor";
 import { blockTools } from "../../services/ai/tools/block";
 import { pageTools } from "../../services/ai/tools/page";
 import { contextTools } from "../../services/ai/tools/context";
+import { initializeToolRegistry } from "../../services/ai/tools/initialization";
+import { exposeDebugToWindow } from "../../services/ai/tools/debug";
 import { useWorkspaceStore } from "../../stores/workspaceStore";
 import { useToolApprovalStore } from "../../stores/toolApprovalStore";
 import { ToolApprovalModal } from "./ToolApprovalModal";
@@ -50,7 +52,16 @@ export function CopilotPanel() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
 
-  // Store state
+  // Initialize tool registry on first mount
+  useEffect(() => {
+    console.log(
+      "[CopilotPanel] Initializing tool registry and debug utilities"
+    );
+    initializeToolRegistry();
+    exposeDebugToWindow();
+    console.log("[CopilotPanel] ✓ Copilot panel initialized");
+  }, []);
+
   const isOpen = useCopilotUiStore((state) => state.isOpen);
   const close = useCopilotUiStore((state) => state.close);
   const inputValue = useCopilotUiStore((state) => state.inputValue);
@@ -288,23 +299,45 @@ export function CopilotPanel() {
         history: historyForAI,
         tools: allTools,
         onToolCall: async (toolName, params) => {
-          console.log(`AI called tool: ${toolName}`, params);
+          console.log(`[CopilotPanel] AI called tool: ${toolName}`, params);
 
-          const workspacePath = useWorkspaceStore.getState().workspacePath;
-          if (!workspacePath) {
-            throw new Error("No workspace path available");
+          try {
+            const workspacePath = useWorkspaceStore.getState().workspacePath;
+            if (!workspacePath) {
+              throw new Error("No workspace path available");
+            }
+
+            const context = {
+              workspacePath,
+              currentPageId:
+                useBlockStore.getState().currentPageId || undefined,
+              focusedBlockId:
+                useBlockUIStore.getState().focusedBlockId || undefined,
+              selectedBlockIds: useBlockUIStore.getState().selectedBlockIds,
+            };
+
+            console.log("[CopilotPanel] Executing tool with context:", context);
+            const result = await executeTool(toolName, params, context);
+
+            console.log(
+              "[CopilotPanel] Tool execution result:",
+              result.success ? "✓ Success" : "✗ Failed",
+              result
+            );
+
+            return result;
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : "Unknown error";
+            console.error(
+              `[CopilotPanel] Tool execution failed: ${toolName}`,
+              errorMessage
+            );
+            return {
+              success: false,
+              error: errorMessage,
+            };
           }
-
-          const context = {
-            workspacePath,
-            currentPageId: useBlockStore.getState().currentPageId || undefined,
-            focusedBlockId:
-              useBlockUIStore.getState().focusedBlockId || undefined,
-            selectedBlockIds: useBlockUIStore.getState().selectedBlockIds,
-          };
-
-          const result = await executeTool(toolName, params, context);
-          return result;
         },
       });
 

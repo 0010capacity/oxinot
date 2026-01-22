@@ -36,12 +36,12 @@ const validateUrl = (url: string): void => {
       throw new Error(
         `URL scheme '${
           parsed.protocol
-        }' is not allowed. Only ${allowedSchemes.join(", ")} are permitted`,
+        }' is not allowed. Only ${allowedSchemes.join(", ")} are permitted`
       );
     }
   } catch (e) {
     throw new Error(
-      `Invalid URL: ${e instanceof Error ? e.message : String(e)}`,
+      `Invalid URL: ${e instanceof Error ? e.message : String(e)}`
     );
   }
 };
@@ -109,16 +109,81 @@ export interface QueryResult {
   error?: string;
 }
 
+export interface SearchResult {
+  id: string;
+  pageId: string;
+  pageTitle: string;
+  resultType: "page" | "block";
+  content: string;
+  snippet: string;
+  rank: number;
+}
+
 export const tauriAPI = {
   // Workspace operations
   selectWorkspace: async (): Promise<string | null> => {
     return await invoke<string | null>("select_workspace");
   },
 
+  // Search operations
+  searchContent: async (
+    workspacePath: string,
+    query: string
+  ): Promise<SearchResult[]> => {
+    const searchLogger = {
+      log: (...args: unknown[]) =>
+        console.log("[tauriAPI.searchContent]", ...args),
+      info: (...args: unknown[]) =>
+        console.info("[tauriAPI.searchContent]", ...args),
+      error: (...args: unknown[]) =>
+        console.error("[tauriAPI.searchContent]", ...args),
+    };
+
+    searchLogger.log("Initiating search request");
+    searchLogger.log("Query:", query);
+    searchLogger.log("Workspace:", workspacePath);
+
+    validatePath(workspacePath, "workspacePath");
+    if (!query || typeof query !== "string") {
+      searchLogger.error("Invalid query parameter");
+      throw new Error("query must be a non-empty string");
+    }
+
+    try {
+      searchLogger.info("Calling Tauri invoke('search_content')");
+      const startTime = performance.now();
+
+      const results = await invoke<SearchResult[]>("search_content", {
+        workspacePath,
+        query,
+      });
+
+      const endTime = performance.now();
+      const duration = (endTime - startTime).toFixed(2);
+
+      searchLogger.info(`✓ Search completed in ${duration}ms`);
+      searchLogger.info(`Results received: ${results.length} items`);
+      searchLogger.log(
+        "Results summary:",
+        results.slice(0, 3).map((r) => ({
+          title: r.pageTitle,
+          type: r.resultType,
+          rank: r.rank,
+        }))
+      );
+
+      return results;
+    } catch (error) {
+      searchLogger.error("Search request failed");
+      searchLogger.error("Error:", error);
+      throw error;
+    }
+  },
+
   // Wiki Link Index
   getPageBacklinks: async (
     workspacePath: string,
-    pageId: string,
+    pageId: string
   ): Promise<BacklinkGroup[]> => {
     return await invoke<BacklinkGroup[]>("get_page_backlinks", {
       workspacePath,
@@ -158,7 +223,7 @@ export const tauriAPI = {
 
   createDirectory: async (
     parentPath: string,
-    dirName: string,
+    dirName: string
   ): Promise<string> => {
     validatePath(parentPath, "parentPath");
     validateFileName(dirName);
@@ -172,7 +237,7 @@ export const tauriAPI = {
 
   deletePathWithDb: async (
     workspacePath: string,
-    targetPath: string,
+    targetPath: string
   ): Promise<boolean> => {
     validatePath(workspacePath, "workspacePath");
     validatePath(targetPath, "targetPath");
@@ -190,7 +255,7 @@ export const tauriAPI = {
 
   movePath: async (
     sourcePath: string,
-    targetParentPath: string,
+    targetParentPath: string
   ): Promise<string> => {
     validatePath(sourcePath, "sourcePath");
     validatePath(targetParentPath, "targetParentPath");
@@ -211,7 +276,7 @@ export const tauriAPI = {
   rewriteWikiLinksForPagePathChange: async (
     workspacePath: string,
     fromPath: string,
-    toPath: string,
+    toPath: string
   ): Promise<number> => {
     validatePath(workspacePath, "workspacePath");
     validatePath(fromPath, "fromPath");
@@ -225,22 +290,22 @@ export const tauriAPI = {
 
   // Workspace sync operations
   syncWorkspaceIncremental: async (
-    workspacePath: string,
+    workspacePath: string
   ): Promise<{ pages: number; blocks: number }> => {
     validatePath(workspacePath, "workspacePath");
     return await invoke<{ pages: number; blocks: number }>(
       "sync_workspace_incremental",
-      { workspacePath },
+      { workspacePath }
     );
   },
 
   reindexWorkspace: async (
-    workspacePath: string,
+    workspacePath: string
   ): Promise<{ pages: number; blocks: number }> => {
     validatePath(workspacePath, "workspacePath");
     return await invoke<{ pages: number; blocks: number }>(
       "reindex_workspace",
-      { workspacePath },
+      { workspacePath }
     );
   },
 
@@ -263,7 +328,7 @@ export const tauriAPI = {
   // Query operations
   executeQueryMacro: async (
     workspacePath: string,
-    queryString: string,
+    queryString: string
   ): Promise<QueryResult> => {
     validatePath(workspacePath, "workspacePath");
     if (!queryString || typeof queryString !== "string") {

@@ -172,7 +172,14 @@ function AppContent({ workspacePath }: AppContentProps) {
   const { t } = useTranslation();
 
   const { selectWorkspace, clearError } = useWorkspaceStore();
-  const currentPageId = usePageStore((state) => state.currentPageId);
+  // Subscribe to both pageStore.currentPageId and viewStore.currentNotePath
+  // viewStore.currentNotePath is updated by AI tools to trigger navigation
+  const pageStoreCurrentPageId = usePageStore((state) => state.currentPageId);
+  const viewStoreCurrentNotePath = useViewStore(
+    (state) => state.currentNotePath
+  );
+  // Use viewStore path if available (for AI-triggered navigation), otherwise fall back to pageStore
+  const currentPageId = viewStoreCurrentNotePath || pageStoreCurrentPageId;
   const createPage = usePageStore((state) => state.createPage);
   const loadPages = usePageStore((state) => state.loadPages);
   const pagesById = usePageStore((state) => state.pagesById);
