@@ -2,38 +2,38 @@ import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { Box, Popover, useComputedColorScheme } from "@mantine/core";
 
+import {
+  IconCopy,
+  IconIndentDecrease,
+  IconIndentIncrease,
+  IconTrash,
+} from "@tabler/icons-react";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  IconIndentIncrease,
-  IconIndentDecrease,
-  IconCopy,
-  IconTrash,
-} from "@tabler/icons-react";
-import {
-  ContextMenu,
-  type ContextMenuSection,
-} from "../components/common/ContextMenu";
-import * as batchOps from "../utils/batchBlockOperations";
 import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
 import {
+  ContextMenu,
+  type ContextMenuSection,
+} from "../components/common/ContextMenu";
+import {
+  type BlockData,
   useBlock,
   useBlockStore,
   useChildrenIds,
-  type BlockData,
 } from "../stores/blockStore";
-import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import {
   useFocusedBlockId,
   useTargetCursorPosition,
 } from "../stores/blockUIStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
+import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
+import * as batchOps from "../utils/batchBlockOperations";
 import { showToast } from "../utils/toast";
 import { MacroContentWrapper } from "./MacroContentWrapper";
 import "./BlockComponent.css";
@@ -55,7 +55,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const hasChildren = childIds.length > 0;
     const focusedBlockId = useFocusedBlockId();
     const showIndentGuides = useOutlinerSettingsStore(
-      (state) => state.showIndentGuides
+      (state) => state.showIndentGuides,
     );
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
@@ -64,21 +64,21 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
     const splitBlockAtCursor = useBlockStore(
-      (state) => state.splitBlockAtCursor
+      (state) => state.splitBlockAtCursor,
     );
     const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const targetCursorPosition = useTargetCursorPosition();
     const setFocusedBlock = useBlockUIStore((state) => state.setFocusedBlock);
     const clearTargetCursorPosition = useBlockUIStore(
-      (state) => state.clearTargetCursorPosition
+      (state) => state.clearTargetCursorPosition,
     );
     const toggleBlockSelection = useBlockUIStore(
-      (state) => state.toggleBlockSelection
+      (state) => state.toggleBlockSelection,
     );
     const selectBlockRange = useBlockUIStore((state) => state.selectBlockRange);
     const selectedBlockIds = useBlockUIStore((state) => state.selectedBlockIds);
     const lastSelectedBlockId = useBlockUIStore(
-      (state) => state.lastSelectedBlockId
+      (state) => state.lastSelectedBlockId,
     );
     const isSelected = selectedBlockIds.includes(blockId);
 
@@ -125,7 +125,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
       // Filter blockOrder to maintain display order
       const orderedBlocks = blockOrder.filter((id) =>
-        targetBlocks.includes(id)
+        targetBlocks.includes(id),
       );
 
       const blocksById = useBlockStore.getState().blocksById;
@@ -320,7 +320,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           ],
         },
       ],
-      [t]
+      [t],
     );
 
     // Cleanup timeout on unmount
@@ -703,7 +703,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           editorRef.current?.focus();
         }
       },
-      [blockId, hasChildren, setFocusedBlock]
+      [blockId, hasChildren, setFocusedBlock],
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
@@ -719,7 +719,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         }
         handleContentChange(value);
       },
-      [handleContentChange]
+      [handleContentChange],
     );
 
     const keybindings: KeyBinding[] = useMemo(() => {
@@ -817,6 +817,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           run: (view: EditorView) => {
             const content = view.state.doc.toString();
             const cursor = view.state.selection.main.head;
+            const selection = view.state.selection.main;
+
+            // If text is selected, let default backspace behavior handle deletion
+            if (selection.from !== selection.to) {
+              return false;
+            }
 
             if (cursor === 0) {
               // At start of block (empty or not)
@@ -1211,5 +1217,5 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         </div>
       </ContextMenu>
     );
-  }
+  },
 );
