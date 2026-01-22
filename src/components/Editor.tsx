@@ -310,11 +310,26 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       }
     }, [isFocused]);
 
+    // Handle Tab key explicitly to prevent default browser focus navigation
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Tab" && event.shiftKey === false) {
+        // Let CodeMirror handle Tab through its keybinding system
+        // Prevent default browser Tab navigation
+        event.preventDefault();
+        event.stopPropagation();
+      } else if (event.key === "Tab" && event.shiftKey === true) {
+        // Handle Shift+Tab
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
     return (
       <div
         ref={containerRef}
         className={className}
         onMouseDown={onMouseDown}
+        onKeyDown={handleKeyDown}
         style={{
           width: "100%",
           height: "100%",
