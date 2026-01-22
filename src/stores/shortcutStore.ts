@@ -82,6 +82,6 @@ export const useShortcutStore = create<ShortcutStore>()(
 
         return currentState;
       },
-    }
-  )
+    },
+  ),
 );

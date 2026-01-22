@@ -55,7 +55,7 @@ export function CopilotPanel() {
   // Initialize tool registry on first mount
   useEffect(() => {
     console.log(
-      "[CopilotPanel] Initializing tool registry and debug utilities"
+      "[CopilotPanel] Initializing tool registry and debug utilities",
     );
     initializeToolRegistry();
     exposeDebugToWindow();
@@ -73,10 +73,10 @@ export function CopilotPanel() {
   const chatMessages = useCopilotUiStore((state) => state.chatMessages);
   const addChatMessage = useCopilotUiStore((state) => state.addChatMessage);
   const updateLastChatMessage = useCopilotUiStore(
-    (state) => state.updateLastChatMessage
+    (state) => state.updateLastChatMessage,
   );
   const clearChatMessages = useCopilotUiStore(
-    (state) => state.clearChatMessages
+    (state) => state.clearChatMessages,
   );
 
   // Tool Approval State
@@ -235,11 +235,11 @@ export function CopilotPanel() {
     // Add message to UI
     console.log(
       "[Copilot] Adding message - role: user, content:",
-      currentInput.substring(0, 50)
+      currentInput.substring(0, 50),
     );
     addChatMessage("user", currentInput);
     console.log(
-      "[Copilot] Adding message - role: assistant, content: (empty placeholder)"
+      "[Copilot] Adding message - role: assistant, content: (empty placeholder)",
     );
     addChatMessage("assistant", "");
 
@@ -268,7 +268,7 @@ export function CopilotPanel() {
         .filter(
           (msg) =>
             (msg.role === "user" || msg.role === "assistant") &&
-            msg.content.trim() !== ""
+            msg.content.trim() !== "",
         )
         .map((msg) => ({
           role: msg.role,
@@ -322,7 +322,7 @@ export function CopilotPanel() {
             console.log(
               "[CopilotPanel] Tool execution result:",
               result.success ? "✓ Success" : "✗ Failed",
-              result
+              result,
             );
 
             return result;
@@ -331,7 +331,7 @@ export function CopilotPanel() {
               error instanceof Error ? error.message : "Unknown error";
             console.error(
               `[CopilotPanel] Tool execution failed: ${toolName}`,
-              errorMessage
+              errorMessage,
             );
             return {
               success: false,
@@ -350,7 +350,7 @@ export function CopilotPanel() {
 
           if (!lastMsg || lastMsg.role !== "assistant") {
             console.log(
-              "[Copilot] Adding message - role: assistant, content: (empty placeholder for streaming)"
+              "[Copilot] Adding message - role: assistant, content: (empty placeholder for streaming)",
             );
             addChatMessage("assistant", "");
             currentSegmentContent = ""; // Reset for new bubble
@@ -359,7 +359,7 @@ export function CopilotPanel() {
           currentSegmentContent += chunk.content;
           console.log(
             "[Copilot] Updating last assistant message, total length:",
-            currentSegmentContent.length
+            currentSegmentContent.length,
           );
           updateLastChatMessage(currentSegmentContent);
 
@@ -374,14 +374,14 @@ export function CopilotPanel() {
           const toolMessage = `Calling tool: ${chunk.toolCall?.name}`;
           console.log(
             "[Copilot] Adding message - role: system, content:",
-            toolMessage
+            toolMessage,
           );
           addChatMessage("system", toolMessage);
         } else if (chunk.type === "tool_result") {
           console.log("[Copilot] Tool result:", chunk.toolResult);
           console.log(
             "[Copilot] Tool result stringified:",
-            JSON.stringify(chunk.toolResult, null, 2)
+            JSON.stringify(chunk.toolResult, null, 2),
           );
           // User requested minimal UI, so we don't show the detailed result in chat
           // addChatMessage("system", `Tool result: ${JSON.stringify(chunk.toolResult)}`);

@@ -51,7 +51,7 @@ export const ToolExecutor = {
   async execute(
     toolName: string,
     toolInput: Record<string, unknown>,
-    workspacePath: string
+    workspacePath: string,
   ): Promise<unknown> {
     logger.group("execute");
     logger.info(`Executing tool: ${toolName}`);
@@ -66,7 +66,7 @@ export const ToolExecutor = {
       throw new Error(
         `Unknown tool: ${toolName}. Available tools: ${toolRegistry
           .getToolNames()
-          .join(", ")}`
+          .join(", ")}`,
       );
     }
 
@@ -87,7 +87,7 @@ export const ToolExecutor = {
           result = await processPageToolCall(
             toolName,
             toolInput,
-            workspacePath
+            workspacePath,
           );
           break;
 
@@ -121,7 +121,7 @@ export const ToolExecutor = {
    */
   validateToolInput(
     toolName: string,
-    toolInput: Record<string, unknown>
+    toolInput: Record<string, unknown>,
   ): boolean {
     logger.log(`Validating input for tool: ${toolName}`);
 
@@ -164,7 +164,7 @@ export const ToolExecutor = {
 
     logger.info(`Returning ${tools.length} tools for API`);
     logger.table(
-      tools.map((t) => ({ name: t.name, description: t.description }))
+      tools.map((t) => ({ name: t.name, description: t.description })),
     );
 
     return tools;
@@ -200,7 +200,7 @@ export async function processAIResponse(
       input?: Record<string, unknown>;
     }>;
   },
-  workspacePath: string
+  workspacePath: string,
 ): Promise<Array<{ type: string; content: string; toolName?: string }>> {
   const processLogger = createLogger("processAIResponse");
 
@@ -263,7 +263,7 @@ export async function processAIResponse(
         const toolResult = await ToolExecutor.execute(
           toolName,
           toolInput,
-          workspacePath
+          workspacePath,
         );
 
         const endTime = performance.now();
@@ -307,7 +307,7 @@ export async function processAIResponse(
       type: r.type,
       toolName: r.toolName || "N/A",
       contentLength: r.content.length,
-    }))
+    })),
   );
   processLogger.groupEnd();
 

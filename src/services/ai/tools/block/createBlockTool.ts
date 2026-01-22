@@ -17,7 +17,7 @@ export const createBlockTool: Tool = {
       .uuid()
       .optional()
       .describe(
-        "The UUID of the page where the block will be created. Required if parentBlockId is null (creating a root block). If omitted, it will be inferred from parentBlockId."
+        "The UUID of the page where the block will be created. Required if parentBlockId is null (creating a root block). If omitted, it will be inferred from parentBlockId.",
       ),
     parentBlockId: z
       .string()
@@ -25,14 +25,14 @@ export const createBlockTool: Tool = {
       .nullable()
       .optional()
       .describe(
-        "The UUID of the parent block. Pass null to create a root block (0-level). If omitted, defaults to null (root block) IF pageId is provided."
+        "The UUID of the parent block. Pass null to create a root block (0-level). If omitted, defaults to null (root block) IF pageId is provided.",
       ),
     insertAfterBlockId: z
       .string()
       .uuid()
       .optional()
       .describe(
-        "The UUID of the sibling block to insert after. Use this to control the order. If omitted, the block is appended to the end of the parent's children."
+        "The UUID of the sibling block to insert after. Use this to control the order. If omitted, the block is appended to the end of the parent's children.",
       ),
     content: z.string().describe("The Markdown content of the new block."),
   }),
@@ -71,7 +71,7 @@ export const createBlockTool: Tool = {
           // Backend Block struct uses camelCase for pageId
           targetPageId = parentBlock.pageId;
           console.log(
-            `[createBlockTool] Inferred pageId ${targetPageId} from parentBlockId ${targetParentId}`
+            `[createBlockTool] Inferred pageId ${targetPageId} from parentBlockId ${targetParentId}`,
           );
         } catch (error) {
           return {

@@ -66,7 +66,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
         setIsSearching(false);
       }
     },
-    [workspacePath]
+    [workspacePath],
   );
 
   useEffect(() => {
@@ -100,7 +100,7 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
     const flattenTree = (
       parentId: string | null,
       depth: number,
-      result: FlatPageItem[] = []
+      result: FlatPageItem[] = [],
     ): FlatPageItem[] => {
       const children = buildTree(parentId);
       for (const page of children) {

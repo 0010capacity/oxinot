@@ -16,7 +16,7 @@ export const createPageTool: Tool = {
       .uuid()
       .optional()
       .describe(
-        "UUID of the parent directory page. If omitted, page will be created at root level."
+        "UUID of the parent directory page. If omitted, page will be created at root level.",
       ),
   }),
 
@@ -44,7 +44,7 @@ export const createPageTool: Tool = {
       // Create the page
       const newPageId = await pageStore.createPage(
         params.title,
-        params.parentId || undefined
+        params.parentId || undefined,
       );
 
       return {

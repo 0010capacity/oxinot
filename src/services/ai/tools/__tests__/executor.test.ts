@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { executeTool } from '../executor';
-import { toolRegistry } from '../registry';
-import { pingTool } from '../examples/pingTool';
+import { describe, it, expect, beforeEach } from "vitest";
+import { executeTool } from "../executor";
+import { toolRegistry } from "../registry";
+import { pingTool } from "../examples/pingTool";
 
-describe('Tool Executor', () => {
+describe("Tool Executor", () => {
   const mockContext = {
-    workspacePath: '/test/workspace',
+    workspacePath: "/test/workspace",
   };
 
   beforeEach(() => {
@@ -13,25 +13,25 @@ describe('Tool Executor', () => {
     toolRegistry.register(pingTool);
   });
 
-  it('should execute tool with valid parameters', async () => {
-    const result = await executeTool('ping', { message: 'test' }, mockContext);
+  it("should execute tool with valid parameters", async () => {
+    const result = await executeTool("ping", { message: "test" }, mockContext);
     expect(result.success).toBe(true);
-    expect(result.data).toBe('pong: test');
+    expect(result.data).toBe("pong: test");
   });
 
-  it('should return error for non-existent tool', async () => {
-    const result = await executeTool('nonexistent', {}, mockContext);
+  it("should return error for non-existent tool", async () => {
+    const result = await executeTool("nonexistent", {}, mockContext);
     expect(result.success).toBe(false);
-    expect(result.error).toContain('not found');
+    expect(result.error).toContain("not found");
   });
 
-  it('should validate parameters', async () => {
+  it("should validate parameters", async () => {
     const result = await executeTool(
-      'ping',
+      "ping",
       { message: 123 }, // Should be string
-      mockContext
+      mockContext,
     );
     expect(result.success).toBe(false);
-    expect(result.error).toContain('Invalid parameters');
+    expect(result.error).toContain("Invalid parameters");
   });
 });

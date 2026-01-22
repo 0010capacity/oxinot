@@ -58,8 +58,8 @@ export function BlockEditor({
           keywords: ["copy", "link", "wiki"],
         },
       ],
-      [pageId, pageName]
-    )
+      [pageId, pageName],
+    ),
   );
 
   // Register block editor commands

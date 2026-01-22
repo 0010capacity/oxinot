@@ -23,7 +23,7 @@ const analytics = getAnalytics(app);
  */
 export const trackEvent = (
   eventName: string,
-  eventParams?: Record<string, unknown>
+  eventParams?: Record<string, unknown>,
 ) => {
   try {
     logEvent(analytics, eventName, eventParams);

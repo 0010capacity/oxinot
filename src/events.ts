@@ -9,7 +9,7 @@ export interface BlockUpdateEventDetail {
 
 export function dispatchBlockUpdate(
   blocks: BlockData[],
-  deletedBlockIds?: string[]
+  deletedBlockIds?: string[],
 ) {
   const event = new CustomEvent<BlockUpdateEventDetail>(BLOCK_UPDATE_EVENT, {
     detail: { blocks, deletedBlockIds },

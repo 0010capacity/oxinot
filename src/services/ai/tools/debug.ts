@@ -65,7 +65,7 @@ export function logToolExecution(
   afterState: any,
   success: boolean,
   result: unknown,
-  duration: number
+  duration: number,
 ): ToolExecutionDebug {
   const debug: ToolExecutionDebug = {
     toolName,
@@ -210,7 +210,7 @@ export function printDebugReport(): void {
       name: t.name,
       category: t.category,
       dangerous: t.isDangerous || false,
-    }))
+    })),
   );
   console.groupEnd();
 
@@ -236,6 +236,6 @@ export function exposeDebugToWindow(): void {
   (window as unknown as Record<string, unknown>).__aiToolsDebug = debugUtils;
 
   console.log(
-    "[AI Tools Debug] Debug utilities exposed to window.__aiToolsDebug"
+    "[AI Tools Debug] Debug utilities exposed to window.__aiToolsDebug",
   );
 }

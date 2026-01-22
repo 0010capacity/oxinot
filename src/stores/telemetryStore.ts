@@ -17,6 +17,6 @@ export const useTelemetryStore = create<TelemetryState>()(
     {
       name: "telemetry-store",
       version: 1,
-    }
-  )
+    },
+  ),
 );

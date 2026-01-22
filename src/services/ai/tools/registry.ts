@@ -1,4 +1,4 @@
-import type { Tool, ToolCategory } from './types';
+import type { Tool, ToolCategory } from "./types";
 
 /**
  * Central registry for all available tools
@@ -47,7 +47,7 @@ class ToolRegistry {
    * Get tools by category
    */
   getByCategory(category: ToolCategory | string): Tool[] {
-    return this.getAll().filter(tool => tool.category === category);
+    return this.getAll().filter((tool) => tool.category === category);
   }
 
   /**
@@ -75,26 +75,26 @@ class ToolRegistry {
    * Validate tool definition
    */
   private validateTool(tool: Tool): void {
-    if (!tool.name || typeof tool.name !== 'string') {
-      throw new Error('Tool name is required and must be a string');
+    if (!tool.name || typeof tool.name !== "string") {
+      throw new Error("Tool name is required and must be a string");
     }
 
-    if (!tool.description || typeof tool.description !== 'string') {
-      throw new Error('Tool description is required and must be a string');
+    if (!tool.description || typeof tool.description !== "string") {
+      throw new Error("Tool description is required and must be a string");
     }
 
     if (!tool.parameters) {
-      throw new Error('Tool parameters schema is required');
+      throw new Error("Tool parameters schema is required");
     }
 
-    if (typeof tool.execute !== 'function') {
-      throw new Error('Tool execute function is required');
+    if (typeof tool.execute !== "function") {
+      throw new Error("Tool execute function is required");
     }
 
     // Tool names should follow naming convention
     if (!/^[a-z][a-z0-9_]*$/.test(tool.name)) {
       throw new Error(
-        `Tool name '${tool.name}' must be lowercase with underscores (snake_case)`
+        `Tool name '${tool.name}' must be lowercase with underscores (snake_case)`,
       );
     }
   }

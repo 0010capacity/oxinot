@@ -53,7 +53,7 @@ export async function debugSearch(query: string): Promise<void> {
         type: r.resultType,
         score: r.rank,
         snippet: r.snippet.substring(0, 50) + "...",
-      }))
+      })),
     );
 
     debugLogger.section("Full Results Details");
@@ -108,7 +108,7 @@ export async function debugOpen(pageId: string): Promise<void> {
       debugLogger.success("✓ Verification passed: Page is now current");
     } else {
       debugLogger.error(
-        `✗ Verification failed: Expected ${pageId}, got ${currentPageId}`
+        `✗ Verification failed: Expected ${pageId}, got ${currentPageId}`,
       );
     }
   } catch (error) {
@@ -196,7 +196,7 @@ export function debugValidateTools(): void {
     debugLogger.group("Test 2: Invalid search_notes input");
     const searchInputInvalid = ToolExecutor.validateToolInput(
       "search_notes",
-      {}
+      {},
     );
     debugLogger.keyValue("Result", !searchInputInvalid ? "✓ PASS" : "✗ FAIL");
     debugLogger.groupEnd();
@@ -242,7 +242,7 @@ export function debugInspectTools(): void {
             ? Object.keys(t.input_schema.properties).join(", ")
             : "N/A"
         }`,
-      }))
+      })),
     );
 
     tools.forEach((tool) => {
@@ -251,12 +251,12 @@ export function debugInspectTools(): void {
       debugLogger.keyValue("Input Type", tool.input_schema.type);
       debugLogger.keyValue(
         "Required Fields",
-        tool.input_schema.required?.join(", ") || "None"
+        tool.input_schema.required?.join(", ") || "None",
       );
       if (tool.input_schema.properties) {
         debugLogger.log("Properties:");
         for (const [key, value] of Object.entries(
-          tool.input_schema.properties
+          tool.input_schema.properties,
         )) {
           const prop = value as Record<string, unknown>;
           debugLogger.keyValue(`  ${key}`, `${prop.type || "unknown"}`);
@@ -279,7 +279,7 @@ export function debugInspectTools(): void {
  */
 export async function debugSimulateAIResponse(
   toolName: string,
-  toolInput: Record<string, unknown>
+  toolInput: Record<string, unknown>,
 ): Promise<void> {
   const debugLogger = createDebugLogger("debugSimulateAIResponse");
   debugLogger.section("Simulating AI Response Processing");
@@ -322,7 +322,7 @@ export async function debugSimulateAIResponse(
       debugLogger.keyValue(
         "Content",
         result.content.substring(0, 100) +
-          (result.content.length > 100 ? "..." : "")
+          (result.content.length > 100 ? "..." : ""),
       );
       debugLogger.groupEnd();
     });
@@ -391,32 +391,32 @@ export function debugInteractive(): void {
   console.clear();
   console.log(
     "%c╔═══════════════════════════════════════╗",
-    "color: cyan; font-weight: bold"
+    "color: cyan; font-weight: bold",
   );
   console.log(
     "%c║   Copilot Tools Debug Interface      ║",
-    "color: cyan; font-weight: bold"
+    "color: cyan; font-weight: bold",
   );
   console.log(
     "%c╚═══════════════════════════════════════╝",
-    "color: cyan; font-weight: bold"
+    "color: cyan; font-weight: bold",
   );
   console.log("");
   console.log("%cAvailable Commands:", "color: green; font-weight: bold");
   console.log(
-    "  debugSearch(query)                  - Test search functionality"
+    "  debugSearch(query)                  - Test search functionality",
   );
   console.log(
-    "  debugOpen(pageId)                   - Test open page functionality"
+    "  debugOpen(pageId)                   - Test open page functionality",
   );
   console.log("  debugSearchAndOpen(query)           - Test complete workflow");
   console.log("  debugValidateTools()                - Test tool validation");
   console.log(
-    "  debugInspectTools()                 - Inspect available tools"
+    "  debugInspectTools()                 - Inspect available tools",
   );
   console.log("  debugSimulateAIResponse(tool, input) - Simulate AI response");
   console.log(
-    "  debugPrintSystemInfo()              - Print system information"
+    "  debugPrintSystemInfo()              - Print system information",
   );
   console.log("  debugInteractive()                  - Show this help message");
   console.log("");
@@ -425,7 +425,7 @@ export function debugInteractive(): void {
   console.log("  await debugOpen('page-id-123');");
   console.log("  await debugSearchAndOpen('budget review');");
   console.log(
-    "  await debugSimulateAIResponse('search_notes', { query: 'test' });"
+    "  await debugSimulateAIResponse('search_notes', { query: 'test' });",
   );
   console.log("");
 }
@@ -478,7 +478,7 @@ function createDebugLogger(moduleName: string) {
         `${prefix} %c${key}:%c ${value}`,
         prefixStyle,
         "color: #7ED321; font-weight: bold",
-        "color: white"
+        "color: white",
       );
     },
 
@@ -506,6 +506,6 @@ if (typeof window !== "undefined") {
 
   console.log(
     "%c📋 Copilot Debug Tools Ready! Type: window.__copilotDebug.help()",
-    "color: #FF6B9D; font-weight: bold; font-size: 12px"
+    "color: #FF6B9D; font-weight: bold; font-size: 12px",
   );
 }

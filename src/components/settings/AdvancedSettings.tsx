@@ -16,7 +16,7 @@ export function AdvancedSettings({
 }: AdvancedSettingsProps) {
   const { t } = useTranslation();
   const setTelemetryStoreEnabled = useTelemetryStore(
-    (state) => state.setEnabled
+    (state) => state.setEnabled,
   );
 
   const handleTelemetryChange = (enabled: boolean) => {
@@ -106,7 +106,7 @@ export function AdvancedSettings({
                     onClick={() => {
                       if (
                         window.confirm(
-                          t("settings.advanced.optimize_db_confirm")
+                          t("settings.advanced.optimize_db_confirm"),
                         )
                       ) {
                         optimizeDatabase();

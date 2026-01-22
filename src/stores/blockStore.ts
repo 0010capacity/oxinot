@@ -54,13 +54,13 @@ interface BlockActions {
   clearPage: () => void;
   updatePartialBlocks: (
     blocks: BlockData[],
-    deletedBlockIds?: string[]
+    deletedBlockIds?: string[],
   ) => void;
 
   // 블록 CRUD
   createBlock: (
     afterBlockId: string | null,
-    content?: string
+    content?: string,
   ) => Promise<string>;
   updateBlock: (id: string, updates: Partial<BlockData>) => Promise<void>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
@@ -68,7 +68,7 @@ interface BlockActions {
   splitBlockAtCursor: (
     id: string,
     offset: number,
-    draftContent?: string
+    draftContent?: string,
   ) => Promise<void>;
 
   // 블록 조작
@@ -77,7 +77,7 @@ interface BlockActions {
   moveBlock: (
     id: string,
     newParentId: string | null,
-    afterBlockId: string | null
+    afterBlockId: string | null,
   ) => Promise<void>;
   mergeWithPrevious: (id: string, draftContent?: string) => Promise<void>;
   toggleCollapse: (id: string) => Promise<void>;
@@ -137,7 +137,7 @@ export const useBlockStore = create<BlockStore>()(
             pageId,
           });
           console.log(
-            `[blockStore] Loaded ${blocks.length} blocks for page ${pageId}`
+            `[blockStore] Loaded ${blocks.length} blocks for page ${pageId}`,
           );
 
           // Normalize
@@ -158,25 +158,25 @@ export const useBlockStore = create<BlockStore>()(
 
           if (isRootEmpty) {
             console.log(
-              `[blockStore] Creating initial block for page ${pageId}...`
+              `[blockStore] Creating initial block for page ${pageId}...`,
             );
             try {
               // Create initial block optimistically
               await get().createBlock(null, "");
               console.log(
-                `[blockStore] Initial block created successfully for page ${pageId}`
+                `[blockStore] Initial block created successfully for page ${pageId}`,
               );
             } catch (blockError) {
               console.error(
                 `[blockStore] Failed to create initial block for page ${pageId}:`,
-                blockError
+                blockError,
               );
               throw new Error(
                 `Failed to create initial block: ${
                   blockError instanceof Error
                     ? blockError.message
                     : String(blockError)
-                }`
+                }`,
               );
             }
 
@@ -189,15 +189,15 @@ export const useBlockStore = create<BlockStore>()(
             `[blockStore] Failed to load page ${pageId}:`,
             error,
             "Workspace:",
-            useWorkspaceStore.getState().workspacePath
+            useWorkspaceStore.getState().workspacePath,
           );
           set((state) => {
             state.error =
               typeof error === "string"
                 ? error
                 : error instanceof Error
-                ? error.message
-                : "Failed to load page";
+                  ? error.message
+                  : "Failed to load page";
             state.isLoading = false;
           });
         }
@@ -225,7 +225,7 @@ export const useBlockStore = create<BlockStore>()(
 
       updatePartialBlocks: (
         blocks: BlockData[],
-        deletedBlockIds?: string[]
+        deletedBlockIds?: string[],
       ) => {
         set((state) => {
           // 1. Update childrenMap incrementally (O(M*K + K log K))
@@ -234,7 +234,7 @@ export const useBlockStore = create<BlockStore>()(
             state.childrenMap,
             state.blocksById,
             blocks,
-            deletedBlockIds ?? []
+            deletedBlockIds ?? [],
           );
 
           // 2. Update blocksById - create new object to ensure re-render
@@ -273,7 +273,7 @@ export const useBlockStore = create<BlockStore>()(
           const target = getInsertBelowTarget(
             afterBlockId,
             blocksById,
-            childrenMap
+            childrenMap,
           );
           parentId = target.parentId;
           afterBlockIdForBackend = target.afterBlockId;
@@ -328,7 +328,7 @@ export const useBlockStore = create<BlockStore>()(
 
             // Capture pending updates before clearing them
             const pendingUpdates = get().pendingUpdates.filter(
-              (u) => u.tempId === tempId
+              (u) => u.tempId === tempId,
             );
             const latestContent =
               pendingUpdates.length > 0
@@ -362,7 +362,7 @@ export const useBlockStore = create<BlockStore>()(
                 }
                 // pending updates 제거
                 state.pendingUpdates = state.pendingUpdates.filter(
-                  (u) => u.tempId !== tempId
+                  (u) => u.tempId !== tempId,
                 );
               }
             });
@@ -385,7 +385,7 @@ export const useBlockStore = create<BlockStore>()(
               } catch (error) {
                 console.error(
                   "Failed to sync pending updates for new block:",
-                  error
+                  error,
                 );
               }
             }
@@ -542,7 +542,7 @@ export const useBlockStore = create<BlockStore>()(
       splitBlockAtCursor: async (
         id: string,
         offset: number,
-        draftContent?: string
+        draftContent?: string,
       ) => {
         const { currentPageId, blocksById, childrenMap } = get();
         if (!currentPageId) throw new Error("No page loaded");
@@ -735,7 +735,7 @@ export const useBlockStore = create<BlockStore>()(
       moveBlock: async (
         id: string,
         targetParentId: string | null,
-        afterBlockId: string | null
+        afterBlockId: string | null,
       ) => {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
@@ -1006,8 +1006,8 @@ export const useBlockStore = create<BlockStore>()(
         blocksById: state.blocksById,
         childrenMap: state.childrenMap,
       }),
-    }
-  )
+    },
+  ),
 );
 
 // ============ Selector Hooks ============
@@ -1018,7 +1018,7 @@ export const useBlock = (id: string) =>
 export const useChildrenIds = (parentId: string | null) =>
   useBlockStore(
     (state) => state.childrenMap[parentId ?? "root"] ?? [],
-    shallow
+    shallow,
   );
 
 export const useBlocksLoading = () => useBlockStore((state) => state.isLoading);

@@ -1,5 +1,5 @@
 export interface Mention {
-  type: 'block' | 'page' | 'selection' | 'current';
+  type: "block" | "page" | "selection" | "current";
   uuid?: string;
   text: string; // Original mention text
   start: number; // Start position in text
@@ -14,10 +14,10 @@ export function parseMentions(text: string): Mention[] {
 
   // Regex patterns for different mention types
   const patterns = [
-    { type: 'block', regex: /@block:([0-9a-f-]{36})/gi },
-    { type: 'page', regex: /@page:([0-9a-f-]{36})/gi },
-    { type: 'selection', regex: /@selection\b/gi },
-    { type: 'current', regex: /@current\b/gi },
+    { type: "block", regex: /@block:([0-9a-f-]{36})/gi },
+    { type: "page", regex: /@page:([0-9a-f-]{36})/gi },
+    { type: "selection", regex: /@selection\b/gi },
+    { type: "current", regex: /@current\b/gi },
   ];
 
   for (const { type, regex } of patterns) {
@@ -26,7 +26,7 @@ export function parseMentions(text: string): Mention[] {
     let match = regex.exec(text);
     while (match !== null) {
       mentions.push({
-        type: type as Mention['type'],
+        type: type as Mention["type"],
         uuid: match[1],
         text: match[0],
         start: match.index,
@@ -45,12 +45,14 @@ export function parseMentions(text: string): Mention[] {
  */
 export function getMentionAtCursor(
   text: string,
-  cursorPosition: number
+  cursorPosition: number,
 ): Mention | null {
   const mentions = parseMentions(text);
-  return mentions.find(
-    m => m.start <= cursorPosition && cursorPosition <= m.end
-  ) || null;
+  return (
+    mentions.find(
+      (m) => m.start <= cursorPosition && cursorPosition <= m.end,
+    ) || null
+  );
 }
 
 /**
@@ -58,7 +60,7 @@ export function getMentionAtCursor(
  */
 export function isTypingMention(
   text: string,
-  cursorPosition: number
+  cursorPosition: number,
 ): { trigger: string; query: string } | null {
   // Get text before cursor
   const textBeforeCursor = text.slice(0, cursorPosition);
@@ -70,8 +72,8 @@ export function isTypingMention(
 
   if (match) {
     return {
-      trigger: '@',
-      query: match[1] || '',
+      trigger: "@",
+      query: match[1] || "",
     };
   }
 

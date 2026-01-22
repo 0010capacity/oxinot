@@ -1,6 +1,6 @@
-import { Modal, Stack, Text, Group, Button } from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
-import type { PendingToolCall } from '../../stores/toolApprovalStore';
+import { Modal, Stack, Text, Group, Button } from "@mantine/core";
+import { IconAlertTriangle } from "@tabler/icons-react";
+import type { PendingToolCall } from "../../stores/toolApprovalStore";
 
 interface Props {
   toolCall: PendingToolCall;

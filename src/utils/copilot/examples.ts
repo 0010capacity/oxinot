@@ -30,7 +30,7 @@ export async function example1_SearchAndOpen() {
     console.log("[Example 1] Searching for 'project planning'...");
     const searchResults = await executeSearchNotes(
       workspacePath,
-      "project planning"
+      "project planning",
     );
 
     if (searchResults.length === 0) {
@@ -45,7 +45,7 @@ export async function example1_SearchAndOpen() {
         title: r.pageTitle,
         snippet: r.snippet,
         rank: r.rank,
-      }))
+      })),
     );
 
     // Step 3: Open the most relevant result (highest rank)
@@ -124,12 +124,12 @@ export async function example3_ProcessAIResponse() {
       } else if (result.type === "tool_result") {
         console.log(
           `[Example 3] Tool "${result.toolName}" result:`,
-          result.content
+          result.content,
         );
       } else if (result.type === "tool_error") {
         console.error(
           `[Example 3] Tool "${result.toolName}" error:`,
-          result.content
+          result.content,
         );
       }
     }
@@ -156,7 +156,7 @@ export async function example4_DirectToolExecution() {
     const searchResult = await ToolExecutor.execute(
       "search_notes",
       { query: "budget review" },
-      workspacePath
+      workspacePath,
     );
     console.log("[Example 4] Search result:", searchResult);
 
@@ -175,7 +175,7 @@ export async function example4_DirectToolExecution() {
       const openResult = await ToolExecutor.execute(
         "open_page",
         { pageId },
-        workspacePath
+        workspacePath,
       );
       console.log("[Example 4] Open result:", openResult);
     }
@@ -196,7 +196,7 @@ export async function example5_ToolValidation() {
   const validInput = { query: "test" };
   const isValid1 = ToolExecutor.validateToolInput("search_notes", validInput);
   console.log(
-    `[Example 5] search_notes with ${JSON.stringify(validInput)}: ${isValid1}`
+    `[Example 5] search_notes with ${JSON.stringify(validInput)}: ${isValid1}`,
   );
 
   // Invalid input (missing required field)
@@ -208,7 +208,7 @@ export async function example5_ToolValidation() {
   const validInput2 = { pageId: "page-123" };
   const isValid3 = ToolExecutor.validateToolInput("open_page", validInput2);
   console.log(
-    `[Example 5] open_page with ${JSON.stringify(validInput2)}: ${isValid3}`
+    `[Example 5] open_page with ${JSON.stringify(validInput2)}: ${isValid3}`,
   );
 
   // Invalid input (missing required field)
@@ -275,7 +275,7 @@ export async function example7_ErrorHandling() {
     await ToolExecutor.execute(
       "unknown_tool",
       { param: "value" },
-      workspacePath
+      workspacePath,
     );
   } catch (error) {
     console.error("[Example 7] Error executing unknown tool:", error);
@@ -287,7 +287,7 @@ export async function example7_ErrorHandling() {
     await ToolExecutor.execute(
       "search_notes",
       {}, // Missing 'query' parameter
-      workspacePath
+      workspacePath,
     );
   } catch (error) {
     console.error("[Example 7] Error with missing parameter:", error);
@@ -318,17 +318,17 @@ export async function example8_CompleteChatWorkflow() {
 
     // Step 2: AI calls search_notes tool
     console.log(
-      "[Example 8] AI decides to search for: 'Q1 2024 budget review'\n"
+      "[Example 8] AI decides to search for: 'Q1 2024 budget review'\n",
     );
     const searchResults = await executeSearchNotes(
       workspacePath,
-      "Q1 2024 budget review"
+      "Q1 2024 budget review",
     );
 
     if (searchResults.length === 0) {
       console.log("[Example 8] No matching pages found");
       console.log(
-        "[Example 8] AI: I couldn't find any pages matching 'Q1 2024 budget review'\n"
+        "[Example 8] AI: I couldn't find any pages matching 'Q1 2024 budget review'\n",
       );
       return;
     }
@@ -336,7 +336,7 @@ export async function example8_CompleteChatWorkflow() {
     // Step 3: AI selects the best result
     const bestMatch = searchResults[0];
     console.log(
-      `[Example 8] Best match: "${bestMatch.pageTitle}" (rank: ${bestMatch.rank})\n`
+      `[Example 8] Best match: "${bestMatch.pageTitle}" (rank: ${bestMatch.rank})\n`,
     );
 
     // Step 4: AI calls open_page tool
@@ -345,7 +345,7 @@ export async function example8_CompleteChatWorkflow() {
 
     // Step 5: AI responds to user
     console.log(
-      `[Example 8] AI: I found and opened your "${bestMatch.pageTitle}" page.\n`
+      `[Example 8] AI: I found and opened your "${bestMatch.pageTitle}" page.\n`,
     );
     console.log(`[Example 8] Snippet preview:\n${bestMatch.snippet}\n`);
   } catch (error) {

@@ -1,8 +1,16 @@
 import { z } from "zod";
-import { toolRegistry } from "./registry";
-import type { ToolResult, ToolContext } from "./types";
-import { useToolApprovalStore } from "../../../stores/toolApprovalStore";
 import { useAISettingsStore } from "../../../stores/aiSettingsStore";
+import { useToolApprovalStore } from "../../../stores/toolApprovalStore";
+import { toolRegistry } from "./registry";
+import type { ToolContext, ToolResult } from "./types";
+import { uiEventEmitter } from "./uiEvents";
+
+/**
+ * Generate a unique execution ID for tracking
+ */
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
 
 /**
  * Execute a tool with parameter validation and optional user approval
@@ -11,7 +19,7 @@ export async function executeTool(
   toolName: string,
   params: unknown,
   context: ToolContext,
-  options?: { skipApproval?: boolean }
+  options?: { skipApproval?: boolean },
 ): Promise<ToolResult> {
   const startTime = performance.now();
   console.log(`[executeTool] Starting execution of tool: '${toolName}'`, {
@@ -26,8 +34,8 @@ export async function executeTool(
     const duration = performance.now() - startTime;
     console.error(
       `[executeTool] ✗ Tool '${toolName}' not found in registry (${duration.toFixed(
-        2
-      )}ms)`
+        2,
+      )}ms)`,
     );
     return {
       success: false,
@@ -37,7 +45,7 @@ export async function executeTool(
 
   console.log(
     `[executeTool] ✓ Tool '${toolName}' found in registry`,
-    `Category: ${tool.category}, Dangerous: ${tool.isDangerous || false}`
+    `Category: ${tool.category}, Dangerous: ${tool.isDangerous || false}`,
   );
 
   // Check if approval is required based on policy
@@ -63,7 +71,7 @@ export async function executeTool(
       console.log(
         `[executeTool] Tool requires approval (dangerous: ${
           tool.isDangerous || false
-        }, requiresApproval: ${tool.requiresApproval || false})`
+        }, requiresApproval: ${tool.requiresApproval || false})`,
       );
       const approvalStore = useToolApprovalStore.getState();
 
@@ -76,7 +84,7 @@ export async function executeTool(
       });
 
       console.log(
-        `[executeTool] Waiting for user approval (callId: ${callId})`
+        `[executeTool] Waiting for user approval (callId: ${callId})`,
       );
 
       // Wait for approval or denial via polling
@@ -85,20 +93,20 @@ export async function executeTool(
           if (approvalStore.isApproved(callId)) {
             clearInterval(checkInterval);
             console.log(
-              `[executeTool] User approved tool execution, proceeding...`
+              `[executeTool] User approved tool execution, proceeding...`,
             );
 
             // Execute tool after approval (skip approval this time)
             executeTool(toolName, params, context, { skipApproval: true }).then(
-              resolve
+              resolve,
             );
           } else if (approvalStore.isDenied(callId)) {
             clearInterval(checkInterval);
             const duration = performance.now() - startTime;
             console.warn(
               `[executeTool] User denied tool execution (${duration.toFixed(
-                2
-              )}ms)`
+                2,
+              )}ms)`,
             );
             resolve({
               success: false,
@@ -110,7 +118,7 @@ export async function executeTool(
     }
 
     console.log(
-      `[executeTool] No approval required, proceeding with execution`
+      `[executeTool] No approval required, proceeding with execution`,
     );
   }
 
@@ -131,7 +139,7 @@ export async function executeTool(
         success: result.success,
         hasData: !!result.data,
         hasError: !!result.error,
-      }
+      },
     );
 
     if (result.success) {
@@ -155,6 +163,23 @@ export async function executeTool(
       console.error(`[executeTool] Stack trace:`, error.stack);
     }
 
+    // Emit execution failed event
+    uiEventEmitter.emit({
+      type: "tool_execution_failed",
+      timestamp: new Date(),
+      payload: {
+        toolName,
+        executionId: generateId(),
+        error: errorMessage,
+      },
+    });
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+
     if (error instanceof z.ZodError) {
       const validationErrors = error.errors.map((e) => e.message).join(", ");
       console.error(`[executeTool] Validation errors:`, validationErrors);
@@ -176,9 +201,9 @@ export async function executeTool(
  */
 export async function executeTools(
   calls: Array<{ toolName: string; params: unknown }>,
-  context: ToolContext
+  context: ToolContext,
 ): Promise<ToolResult[]> {
   return Promise.all(
-    calls.map(({ toolName, params }) => executeTool(toolName, params, context))
+    calls.map(({ toolName, params }) => executeTool(toolName, params, context)),
   );
 }

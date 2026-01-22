@@ -53,7 +53,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         label: t("commands.search.label", "Search"),
         description: t(
           "commands.search.description",
-          "Search pages and blocks"
+          "Search pages and blocks",
         ),
         icon: React.createElement(IconSearch, { size: 16 }),
         action: () => {
@@ -69,7 +69,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         label: t("commands.file_tree.label", "Go to File Tree"),
         description: t(
           "commands.file_tree.description",
-          "Show workspace file tree"
+          "Show workspace file tree",
         ),
         icon: React.createElement(IconFolderPlus, { size: 16 }),
         action: () => {
@@ -119,7 +119,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         label: t("commands.reindex_workspace.label", "Re-index Workspace"),
         description: t(
           "commands.reindex_workspace.description",
-          "Scan and reindex all workspace files"
+          "Scan and reindex all workspace files",
         ),
         icon: React.createElement(IconRefresh, { size: 16 }),
         action: async () => {
@@ -185,7 +185,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
         label: t("commands.help.label", "Help"),
         description: t(
           "commands.help.description",
-          "View help and documentation"
+          "View help and documentation",
         ),
         icon: React.createElement(IconHelp, { size: 16 }),
         action: () => {
@@ -207,11 +207,11 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           description: hasChanges
             ? t(
                 "commands.git_commit.description_changes",
-                "Commit current changes"
+                "Commit current changes",
               )
             : t(
                 "commands.git_commit.description_no_changes",
-                "No changes to commit"
+                "No changes to commit",
               ),
           icon: React.createElement(IconGitCommit, { size: 16 }),
           action: async () => {
@@ -235,7 +235,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           label: t("commands.git_push.label", "Git: Push"),
           description: t(
             "commands.git_push.description",
-            "Push to remote repository"
+            "Push to remote repository",
           ),
           icon: React.createElement(IconGitBranch, { size: 16 }),
           action: async () => {
@@ -257,7 +257,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           label: t("commands.git_pull.label", "Git: Pull"),
           description: t(
             "commands.git_pull.description",
-            "Pull from remote repository"
+            "Pull from remote repository",
           ),
           icon: React.createElement(IconGitBranch, { size: 16 }),
           action: async () => {
@@ -280,7 +280,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           label: t("commands.git_status.label", "Git: Refresh Status"),
           description: t(
             "commands.git_status.description",
-            "Check git repository status"
+            "Check git repository status",
           ),
           icon: React.createElement(IconGitCommit, { size: 16 }),
           action: async () => {
@@ -291,7 +291,7 @@ export function useCoreCommands(options: CoreCommandsOptions) {
           keywords: ["git", "status", "refresh", "check"],
           category: "Git",
           order: 40,
-        }
+        },
       );
     }
 

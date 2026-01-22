@@ -30,13 +30,13 @@ describe("ToolExecutor", () => {
       const result = await ToolExecutor.execute(
         "search_notes",
         { query: "test" },
-        "/workspace"
+        "/workspace",
       );
 
       expect(pageTools.processPageToolCall).toHaveBeenCalledWith(
         "search_notes",
         { query: "test" },
-        "/workspace"
+        "/workspace",
       );
       expect(result).toEqual(mockResult);
     });
@@ -52,27 +52,27 @@ describe("ToolExecutor", () => {
       const result = await ToolExecutor.execute(
         "open_page",
         { pageId: "page-123" },
-        "/workspace"
+        "/workspace",
       );
 
       expect(pageTools.processPageToolCall).toHaveBeenCalledWith(
         "open_page",
         { pageId: "page-123" },
-        "/workspace"
+        "/workspace",
       );
       expect(result).toEqual(mockResult);
     });
 
     it("should throw error for unknown tool", async () => {
       await expect(
-        ToolExecutor.execute("unknown_tool", {}, "/workspace")
+        ToolExecutor.execute("unknown_tool", {}, "/workspace"),
       ).rejects.toThrow("Unknown tool: unknown_tool");
     });
 
     it("should throw error for unimplemented tool", async () => {
       // Even if tool is registered but not implemented in execute switch
       await expect(
-        ToolExecutor.execute("search_notes", { query: "test" }, "/workspace")
+        ToolExecutor.execute("search_notes", { query: "test" }, "/workspace"),
       ).rejects.not.toThrow("Unknown tool");
     });
   });
@@ -281,7 +281,7 @@ describe("processAIResponse", () => {
 
   it("should handle tool execution errors", async () => {
     vi.mocked(pageTools.processPageToolCall).mockRejectedValue(
-      new Error("Search failed")
+      new Error("Search failed"),
     );
 
     const response = {

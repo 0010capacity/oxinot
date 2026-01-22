@@ -176,7 +176,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   // viewStore.currentNotePath is updated by AI tools to trigger navigation
   const pageStoreCurrentPageId = usePageStore((state) => state.currentPageId);
   const viewStoreCurrentNotePath = useViewStore(
-    (state) => state.currentNotePath
+    (state) => state.currentNotePath,
   );
   // Use viewStore path if available (for AI-triggered navigation), otherwise fall back to pageStore
   const currentPageId = viewStoreCurrentNotePath || pageStoreCurrentPageId;
@@ -263,12 +263,12 @@ function AppContent({ workspacePath }: AppContentProps) {
 
     window.addEventListener(
       BLOCK_UPDATE_EVENT,
-      handleBlockUpdate as EventListener
+      handleBlockUpdate as EventListener,
     );
     return () => {
       window.removeEventListener(
         BLOCK_UPDATE_EVENT,
-        handleBlockUpdate as EventListener
+        handleBlockUpdate as EventListener,
       );
     };
   }, []);
@@ -282,11 +282,11 @@ function AppContent({ workspacePath }: AppContentProps) {
     }
     document.documentElement.style.setProperty(
       "--editor-font-size",
-      `${editorFontSize}px`
+      `${editorFontSize}px`,
     );
     document.documentElement.style.setProperty(
       "--editor-line-height",
-      `${editorLineHeight}`
+      `${editorLineHeight}`,
     );
   }, [fontFamily, editorFontSize, editorLineHeight, getFontStack]);
 
@@ -484,10 +484,10 @@ function App() {
   const language = useAppSettingsStore((state) => state.language);
   const setLanguage = useAppSettingsStore((state) => state.setLanguage);
   const telemetryEnabled = useAdvancedSettingsStore(
-    (state) => state.telemetryEnabled
+    (state) => state.telemetryEnabled,
   );
   const setTelemetryStoreEnabled = useTelemetryStore(
-    (state) => state.setEnabled
+    (state) => state.setEnabled,
   );
 
   useEffect(() => {

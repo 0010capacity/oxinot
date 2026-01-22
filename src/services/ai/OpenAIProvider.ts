@@ -11,10 +11,16 @@ export class OpenAIProvider implements IAIProvider {
     if (baseUrl) this.defaultBaseUrl = baseUrl;
   }
 
-  async *generateStream(request: AIRequest): AsyncGenerator<StreamChunk, void, unknown> {
+  async *generateStream(
+    request: AIRequest,
+  ): AsyncGenerator<StreamChunk, void, unknown> {
     const rawBaseUrl = request.baseUrl || this.defaultBaseUrl;
-    const baseUrl = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
-    const url = baseUrl.endsWith("/v1") ? `${baseUrl}/chat/completions` : `${baseUrl}/v1/chat/completions`;
+    const baseUrl = rawBaseUrl.endsWith("/")
+      ? rawBaseUrl.slice(0, -1)
+      : rawBaseUrl;
+    const url = baseUrl.endsWith("/v1")
+      ? `${baseUrl}/chat/completions`
+      : `${baseUrl}/v1/chat/completions`;
 
     // 1. Build initial messages
     const messages: {
@@ -34,7 +40,9 @@ export class OpenAIProvider implements IAIProvider {
     }
     messages.push({ role: "user", content: request.prompt });
 
-    const functions = request.tools ? toolsToAIFunctions(request.tools) : undefined;
+    const functions = request.tools
+      ? toolsToAIFunctions(request.tools)
+      : undefined;
 
     // 2. Loop for potential multiple tool calls
     let loopCount = 0;
@@ -42,12 +50,12 @@ export class OpenAIProvider implements IAIProvider {
 
     while (loopCount < MAX_LOOPS) {
       loopCount++;
-      
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${request.apiKey}`,
+          Authorization: `Bearer ${request.apiKey}`,
         },
         body: JSON.stringify({
           model: request.model,
@@ -68,7 +76,7 @@ export class OpenAIProvider implements IAIProvider {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      
+
       let currentFunctionName = "";
       let currentFunctionArgs = "";
       let isCallingFunction = false;
@@ -85,7 +93,7 @@ export class OpenAIProvider implements IAIProvider {
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed || !trimmed.startsWith("data: ")) continue;
-          
+
           const data = trimmed.slice(6);
           if (data === "[DONE]") continue;
 
@@ -101,54 +109,69 @@ export class OpenAIProvider implements IAIProvider {
 
             if (delta?.function_call) {
               isCallingFunction = true;
-              if (delta.function_call.name) currentFunctionName = delta.function_call.name;
-              if (delta.function_call.arguments) currentFunctionArgs += delta.function_call.arguments;
+              if (delta.function_call.name)
+                currentFunctionName = delta.function_call.name;
+              if (delta.function_call.arguments)
+                currentFunctionArgs += delta.function_call.arguments;
             }
 
             // Function Call detected and turn ended
-            if (finishReason === "function_call" || (isCallingFunction && finishReason === "stop")) {
-               const args = JSON.parse(currentFunctionArgs || "{}");
-               
-               yield {
-                 type: "tool_call",
-                 toolCall: { id: json.id || `call_${Date.now()}`, name: currentFunctionName, arguments: args },
-               };
+            if (
+              finishReason === "function_call" ||
+              (isCallingFunction && finishReason === "stop")
+            ) {
+              const args = JSON.parse(currentFunctionArgs || "{}");
 
-               if (request.onToolCall) {
-                 // Important: Push the assistant's call to history before the result
-                 messages.push({
-                   role: "assistant", 
-                   content: null,
-                   function_call: { name: currentFunctionName, arguments: currentFunctionArgs } 
-                 });
+              yield {
+                type: "tool_call",
+                toolCall: {
+                  id: json.id || `call_${Date.now()}`,
+                  name: currentFunctionName,
+                  arguments: args,
+                },
+              };
 
-                 const result = await request.onToolCall(currentFunctionName, args);
-                 
-                 yield { type: "tool_result", toolResult: result };
+              if (request.onToolCall) {
+                // Important: Push the assistant's call to history before the result
+                messages.push({
+                  role: "assistant",
+                  content: null,
+                  function_call: {
+                    name: currentFunctionName,
+                    arguments: currentFunctionArgs,
+                  },
+                });
 
-                 // Push tool result to history
-                 messages.push({
-                   role: "function", 
-                   name: currentFunctionName, 
-                   content: JSON.stringify(result) 
-                 });
+                const result = await request.onToolCall(
+                  currentFunctionName,
+                  args,
+                );
 
-                 // Continue the outer while loop to get AI's response to the tool result
-                 isCallingFunction = false;
-                 break innerLoop; 
-               }
+                yield { type: "tool_result", toolResult: result };
+
+                // Push tool result to history
+                messages.push({
+                  role: "function",
+                  name: currentFunctionName,
+                  content: JSON.stringify(result),
+                });
+
+                // Continue the outer while loop to get AI's response to the tool result
+                isCallingFunction = false;
+                break innerLoop;
+              }
             }
-            
+
             if (finishReason === "stop" && !isCallingFunction) {
-                // Final text response received
-                return;
+              // Final text response received
+              return;
             }
           } catch (e) {
             console.error("Parse error:", e);
           }
         }
       }
-      
+
       // If we finished the inner loop without a function call, we're done
       if (!isCallingFunction) break;
     }

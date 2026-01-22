@@ -39,14 +39,14 @@ export const openPageTool: Tool = {
       // If title provided instead of ID, search for page by title
       if (!targetPageId && pageTitle) {
         console.log(
-          `[openPageTool] Searching for page by title: "${pageTitle}"`
+          `[openPageTool] Searching for page by title: "${pageTitle}"`,
         );
 
         const pageStore = usePageStore.getState();
         console.log(
           `[openPageTool] PageStore has ${
             Object.keys(pageStore.pagesById).length
-          } pages`
+          } pages`,
         );
 
         // Log all available pages for debugging
@@ -56,18 +56,18 @@ export const openPageTool: Tool = {
           console.log(
             `  - ID: ${page.id}, Title: "${page.title}", Match: ${
               page.title.toLowerCase() === pageTitle.toLowerCase()
-            }`
+            }`,
           );
         });
 
         // Find page by exact title match (case-insensitive)
         const matchingPage = allPages.find(
-          (page) => page.title.toLowerCase() === pageTitle.toLowerCase()
+          (page) => page.title.toLowerCase() === pageTitle.toLowerCase(),
         );
 
         if (!matchingPage) {
           console.warn(
-            `[openPageTool] ✗ No page found matching title "${pageTitle}"`
+            `[openPageTool] ✗ No page found matching title "${pageTitle}"`,
           );
           const duration = performance.now() - startTime;
           console.log(`[openPageTool] Duration: ${duration.toFixed(2)}ms`);
@@ -80,13 +80,13 @@ export const openPageTool: Tool = {
 
         targetPageId = matchingPage.id;
         console.log(
-          `[openPageTool] ✓ Found page with ID: ${targetPageId}, Title: "${matchingPage.title}"`
+          `[openPageTool] ✓ Found page with ID: ${targetPageId}, Title: "${matchingPage.title}"`,
         );
       }
 
       if (!targetPageId) {
         console.error(
-          "[openPageTool] ✗ CRITICAL: No target page ID determined"
+          "[openPageTool] ✗ CRITICAL: No target page ID determined",
         );
         const duration = performance.now() - startTime;
         console.log(`[openPageTool] Duration: ${duration.toFixed(2)}ms`);
@@ -99,7 +99,7 @@ export const openPageTool: Tool = {
 
       console.log(
         `[openPageTool] TARGET PAGE ID: ${targetPageId}`,
-        `Title: ${pageTitle || "N/A"}`
+        `Title: ${pageTitle || "N/A"}`,
       );
 
       // ========== STEP 1: Get current state ==========
@@ -109,18 +109,18 @@ export const openPageTool: Tool = {
 
       console.log("[openPageTool] BEFORE update:");
       console.log(
-        `  - blockStore.currentPageId: ${blockStoreBefore.currentPageId}`
+        `  - blockStore.currentPageId: ${blockStoreBefore.currentPageId}`,
       );
       console.log(
-        `  - pageStore.currentPageId: ${pageStoreBefore.currentPageId}`
+        `  - pageStore.currentPageId: ${pageStoreBefore.currentPageId}`,
       );
       console.log(
-        `  - pageStore has page: ${!!pageStoreBefore.pagesById[targetPageId]}`
+        `  - pageStore has page: ${!!pageStoreBefore.pagesById[targetPageId]}`,
       );
 
       if (pageStoreBefore.pagesById[targetPageId]) {
         console.log(
-          `  - page title: "${pageStoreBefore.pagesById[targetPageId].title}"`
+          `  - page title: "${pageStoreBefore.pagesById[targetPageId].title}"`,
         );
       }
 
@@ -128,7 +128,7 @@ export const openPageTool: Tool = {
       console.log("\n--- STEP 2: Load Blocks via blockStore ---");
       try {
         console.log(
-          `[openPageTool] Calling blockStore.openPage(${targetPageId})...`
+          `[openPageTool] Calling blockStore.openPage(${targetPageId})...`,
         );
         await blockStoreBefore.openPage(targetPageId);
         console.log(`[openPageTool] ✓ blockStore.openPage() completed`);
@@ -136,7 +136,7 @@ export const openPageTool: Tool = {
         const blockStoreAfterBlockLoad = useBlockStore.getState();
         console.log("[openPageTool] After blockStore.openPage():");
         console.log(
-          `  - blockStore.currentPageId: ${blockStoreAfterBlockLoad.currentPageId}`
+          `  - blockStore.currentPageId: ${blockStoreAfterBlockLoad.currentPageId}`,
         );
         const blockIds = Object.keys(blockStoreAfterBlockLoad.blocksById);
         console.log(`  - blockStore has blocks: ${blockIds.length} blocks`);
@@ -146,7 +146,7 @@ export const openPageTool: Tool = {
       } catch (blockError) {
         console.error(
           "[openPageTool] ✗ ERROR in blockStore.openPage():",
-          blockError instanceof Error ? blockError.message : blockError
+          blockError instanceof Error ? blockError.message : blockError,
         );
         const duration = performance.now() - startTime;
         console.log(`[openPageTool] Duration: ${duration.toFixed(2)}ms`);
@@ -164,7 +164,7 @@ export const openPageTool: Tool = {
       try {
         const pageStore = usePageStore.getState();
         console.log(
-          `[openPageTool] Calling pageStore.setCurrentPageId(${targetPageId})...`
+          `[openPageTool] Calling pageStore.setCurrentPageId(${targetPageId})...`,
         );
         pageStore.setCurrentPageId(targetPageId);
         console.log(`[openPageTool] ✓ pageStore.setCurrentPageId() completed`);
@@ -172,12 +172,12 @@ export const openPageTool: Tool = {
         const pageStoreAfterUpdate = usePageStore.getState();
         console.log("[openPageTool] After pageStore.setCurrentPageId():");
         console.log(
-          `  - pageStore.currentPageId: ${pageStoreAfterUpdate.currentPageId}`
+          `  - pageStore.currentPageId: ${pageStoreAfterUpdate.currentPageId}`,
         );
       } catch (pageError) {
         console.error(
           "[openPageTool] ✗ ERROR in pageStore.setCurrentPageId():",
-          pageError instanceof Error ? pageError.message : pageError
+          pageError instanceof Error ? pageError.message : pageError,
         );
         const duration = performance.now() - startTime;
         console.log(`[openPageTool] Duration: ${duration.toFixed(2)}ms`);
@@ -197,10 +197,10 @@ export const openPageTool: Tool = {
 
       console.log("[openPageTool] AFTER all updates:");
       console.log(
-        `  - blockStore.currentPageId: ${blockStoreAfter.currentPageId}`
+        `  - blockStore.currentPageId: ${blockStoreAfter.currentPageId}`,
       );
       console.log(
-        `  - pageStore.currentPageId: ${pageStoreAfter.currentPageId}`
+        `  - pageStore.currentPageId: ${pageStoreAfter.currentPageId}`,
       );
 
       const blockStoreSync = blockStoreAfter.currentPageId === targetPageId;
@@ -213,12 +213,12 @@ export const openPageTool: Tool = {
 
       if (!blockStoreSync) {
         console.warn(
-          `[openPageTool] ⚠️ blockStore mismatch: expected ${targetPageId}, got ${blockStoreAfter.currentPageId}`
+          `[openPageTool] ⚠️ blockStore mismatch: expected ${targetPageId}, got ${blockStoreAfter.currentPageId}`,
         );
       }
       if (!pageStoreSync) {
         console.warn(
-          `[openPageTool] ⚠️ pageStore mismatch: expected ${targetPageId}, got ${pageStoreAfter.currentPageId}`
+          `[openPageTool] ⚠️ pageStore mismatch: expected ${targetPageId}, got ${pageStoreAfter.currentPageId}`,
         );
       }
 
@@ -228,7 +228,7 @@ export const openPageTool: Tool = {
 
       if (!targetPage) {
         console.warn(
-          `[openPageTool] ⚠️ Page ${targetPageId} not found in pagesById`
+          `[openPageTool] ⚠️ Page ${targetPageId} not found in pagesById`,
         );
       } else {
         console.log(`[openPageTool] ✓ Page found: "${targetPage.title}"`);
@@ -251,13 +251,13 @@ export const openPageTool: Tool = {
           context?.workspacePath?.split("/").pop() || "Workspace";
 
         console.log(
-          `[openPageTool] Setting workspace name: "${workspaceName}"`
+          `[openPageTool] Setting workspace name: "${workspaceName}"`,
         );
         viewStore.setWorkspaceName(workspaceName);
         console.log(`[openPageTool] ✓ Workspace name set`);
 
         console.log(
-          "[openPageTool] Building parent page chain for breadcrumb..."
+          "[openPageTool] Building parent page chain for breadcrumb...",
         );
 
         // Build parent names and page path IDs for breadcrumb
@@ -290,24 +290,24 @@ export const openPageTool: Tool = {
             .map((n) => `"${n}"`)
             .join(", ")}], pagePathIds=[${pagePathIds
             .map((id) => id.slice(0, 8))
-            .join(", ")}]`
+            .join(", ")}]`,
         );
 
         // Use openNote which properly updates breadcrumb, instead of showPage
         console.log(
-          `[openPageTool] Calling viewStore.openNote() with full breadcrumb...`
+          `[openPageTool] Calling viewStore.openNote() with full breadcrumb...`,
         );
         viewStore.openNote(
           targetPageId,
           pageTitle_result,
           parentNames,
-          pagePathIds
+          pagePathIds,
         );
         console.log("[openPageTool] ✓ viewStore.openNote() completed");
       } catch (viewError) {
         console.warn(
           "[openPageTool] ⚠️ Warning updating viewStore:",
-          viewError instanceof Error ? viewError.message : viewError
+          viewError instanceof Error ? viewError.message : viewError,
         );
       }
 
@@ -324,7 +324,7 @@ export const openPageTool: Tool = {
       } catch (eventError) {
         console.warn(
           "[openPageTool] ⚠️ Warning dispatching event:",
-          eventError instanceof Error ? eventError.message : eventError
+          eventError instanceof Error ? eventError.message : eventError,
         );
       }
 

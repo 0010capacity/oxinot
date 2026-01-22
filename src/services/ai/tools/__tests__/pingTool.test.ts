@@ -1,18 +1,21 @@
-import { describe, it, expect } from 'vitest';
-import { pingTool } from '../examples/pingTool';
-import { toolToAIFunction } from '../utils';
+import { describe, it, expect } from "vitest";
+import { pingTool } from "../examples/pingTool";
+import { toolToAIFunction } from "../utils";
 
-describe('Tool System', () => {
-  it('should execute ping tool successfully', async () => {
-    const result = await pingTool.execute({ message: 'hello' }, { workspacePath: '/test' });
+describe("Tool System", () => {
+  it("should execute ping tool successfully", async () => {
+    const result = await pingTool.execute(
+      { message: "hello" },
+      { workspacePath: "/test" },
+    );
     expect(result.success).toBe(true);
-    expect(result.data).toBe('pong: hello');
+    expect(result.data).toBe("pong: hello");
   });
 
-  it('should convert tool to AI function format', () => {
+  it("should convert tool to AI function format", () => {
     const aiFunction = toolToAIFunction(pingTool);
-    expect(aiFunction.name).toBe('ping');
+    expect(aiFunction.name).toBe("ping");
     expect(aiFunction.description).toBeDefined();
-    expect(aiFunction.parameters).toHaveProperty('type', 'object');
+    expect(aiFunction.parameters).toHaveProperty("type", "object");
   });
 });

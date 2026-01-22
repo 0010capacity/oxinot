@@ -38,7 +38,7 @@ interface CopilotUiStore {
   // Chat Actions
   addChatMessage: (
     role: "user" | "assistant" | "system",
-    content: string
+    content: string,
   ) => void;
   updateLastChatMessage: (content: string) => void;
   clearChatMessages: () => void;

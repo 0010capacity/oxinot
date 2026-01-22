@@ -51,6 +51,8 @@ export enum ToolCategory {
   SELECTION = "selection",
   METADATA = "metadata",
   CONTEXT = "context",
+  NAVIGATION = "navigation",
+  FILESYSTEM = "filesystem",
 }
 
 /**

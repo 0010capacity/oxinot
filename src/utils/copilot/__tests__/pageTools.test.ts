@@ -84,11 +84,11 @@ describe("pageTools", () => {
 
     it("should throw error when tauriAPI fails", async () => {
       vi.mocked(tauriAPI.searchContent).mockRejectedValue(
-        new Error("API Error")
+        new Error("API Error"),
       );
 
       await expect(executeSearchNotes("/workspace", "test")).rejects.toThrow(
-        "Failed to search notes"
+        "Failed to search notes",
       );
     });
 
@@ -111,7 +111,7 @@ describe("pageTools", () => {
 
       expect(tauriAPI.searchContent).toHaveBeenCalledWith(
         "/workspace",
-        "會議紀錄"
+        "會議紀錄",
       );
       expect(result).toEqual(mockResults);
     });
@@ -135,7 +135,7 @@ describe("pageTools", () => {
       } as unknown as ReturnType<typeof usePageStore.getState>);
 
       await expect(executeOpenPage("invalid-id")).rejects.toThrow(
-        "Failed to open page"
+        "Failed to open page",
       );
     });
   });
@@ -160,7 +160,7 @@ describe("pageTools", () => {
         const result = await processPageToolCall(
           "search_notes",
           { query: "test" },
-          "/workspace"
+          "/workspace",
         );
 
         expect(result).toEqual({
@@ -172,7 +172,7 @@ describe("pageTools", () => {
 
       it("should throw error when query is missing", async () => {
         await expect(
-          processPageToolCall("search_notes", {}, "/workspace")
+          processPageToolCall("search_notes", {}, "/workspace"),
         ).rejects.toThrow("query parameter is required");
       });
 
@@ -194,7 +194,7 @@ describe("pageTools", () => {
         const result = (await processPageToolCall(
           "search_notes",
           { query: "test" },
-          "/workspace"
+          "/workspace",
         )) as Record<string, unknown>;
 
         expect((result.results as unknown[])[0]).toMatchObject({
@@ -218,7 +218,7 @@ describe("pageTools", () => {
         const result = await processPageToolCall(
           "open_page",
           { pageId: "page-123" },
-          "/workspace"
+          "/workspace",
         );
 
         expect(result).toEqual({
@@ -229,7 +229,7 @@ describe("pageTools", () => {
 
       it("should throw error when pageId is missing", async () => {
         await expect(
-          processPageToolCall("open_page", {}, "/workspace")
+          processPageToolCall("open_page", {}, "/workspace"),
         ).rejects.toThrow("pageId parameter is required");
       });
     });
@@ -237,7 +237,7 @@ describe("pageTools", () => {
     describe("unknown tool", () => {
       it("should throw error for unknown tool", async () => {
         await expect(
-          processPageToolCall("unknown_tool", {}, "/workspace")
+          processPageToolCall("unknown_tool", {}, "/workspace"),
         ).rejects.toThrow("Unknown page tool");
       });
     });

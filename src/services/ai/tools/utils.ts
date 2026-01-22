@@ -1,5 +1,5 @@
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import type { Tool } from './types';
+import { zodToJsonSchema } from "zod-to-json-schema";
+import type { Tool } from "./types";
 
 /**
  * Convert tool definition to format expected by AI providers
@@ -9,8 +9,8 @@ export function toolToAIFunction(tool: Tool) {
     name: tool.name,
     description: tool.description,
     parameters: zodToJsonSchema(tool.parameters, {
-      target: 'openApi3',
-      $refStrategy: 'none',
+      target: "openApi3",
+      $refStrategy: "none",
     }),
   };
 }
