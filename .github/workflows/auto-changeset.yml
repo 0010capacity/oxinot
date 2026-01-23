@@ -55,16 +55,10 @@ jobs:
             exit 0
           fi
 
-          # Check if there are already pending changesets (excluding README.md and config.json)
-          CHANGESET_COUNT=$(find .changeset -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d ' ')
-          
-          if [ "$CHANGESET_COUNT" -gt "0" ]; then
-            echo "Found $CHANGESET_COUNT pending changeset(s) - skipping new generation"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No pending changesets - will generate"
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+          # Always generate changeset for new commits
+          # Pending changesets will accumulate and be processed by the Version Packages PR
+          echo "Will generate changeset for new commits"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Generate Changeset
         if: steps.check_skip.outputs.skip == 'false'
@@ -86,7 +80,7 @@ jobs:
       - name: Skip changeset PR creation (workflow-generated commits only)
         if: steps.check_skip.outputs.skip == 'true'
         run: |
-          echo "No changeset needed - only workflow-generated commits since last release"
+          echo "No changeset needed - last commit is from github-actions bot"
 
       - name: Create or Update PR
         if: steps.check_skip.outputs.skip == 'false' && env.changeset_generated == 'true'
