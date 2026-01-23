@@ -822,6 +822,34 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           },
         },
         {
+          key: "Escape",
+          run: (view: EditorView) => {
+            const content = view.state.doc.toString();
+            const cursor = view.state.selection.main.head;
+            const beforeCursor = content.slice(0, cursor);
+
+            const openFencesBeforeCursor = (beforeCursor.match(/^```/gm) || [])
+              .length;
+            const closeFencesBeforeCursor = (
+              beforeCursor.match(/^```$/gm) || []
+            ).length;
+
+            const isInsideCodeBlock =
+              openFencesBeforeCursor > closeFencesBeforeCursor;
+
+            if (isInsideCodeBlock) {
+              commitDraft();
+              const view = editorRef.current?.getView();
+              if (view) {
+                view.contentDOM.blur();
+              }
+              return true;
+            }
+
+            return false;
+          },
+        },
+        {
           key: "Backspace",
           run: (view: EditorView) => {
             const content = view.state.doc.toString();
@@ -850,6 +878,34 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           run: (view: EditorView) => {
             const cursor = view.state.selection.main.head;
             const line = view.state.doc.lineAt(cursor);
+            const content = view.state.doc.toString();
+            const beforeCursor = content.slice(0, cursor);
+
+            const openFencesBeforeCursor = (beforeCursor.match(/^```/gm) || [])
+              .length;
+            const closeFencesBeforeCursor = (
+              beforeCursor.match(/^```$/gm) || []
+            ).length;
+            const isInsideCodeBlock =
+              openFencesBeforeCursor > closeFencesBeforeCursor;
+
+            if (isInsideCodeBlock) {
+              const linesBefore = beforeCursor.split("\n");
+              const fenceLineIndex = linesBefore.findIndex((l) =>
+                l.trim().startsWith("```"),
+              );
+              const isOnFirstCodeLine = line.number === fenceLineIndex + 2;
+
+              if (isOnFirstCodeLine) {
+                commitDraft();
+                const view = editorRef.current?.getView();
+                if (view) {
+                  view.contentDOM.blur();
+                }
+                return true;
+              }
+              return false;
+            }
 
             // Only navigate if on first line
             if (line.number === 1) {
@@ -894,6 +950,37 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const cursor = view.state.selection.main.head;
             const line = view.state.doc.lineAt(cursor);
             const lastLine = view.state.doc.lines;
+            const content = view.state.doc.toString();
+
+            const openFencesBeforeCursor = (
+              content.slice(0, cursor).match(/^```/gm) || []
+            ).length;
+            const closeFencesBeforeCursor = (
+              content.slice(0, cursor).match(/^```$/gm) || []
+            ).length;
+            const isInsideCodeBlock =
+              openFencesBeforeCursor > closeFencesBeforeCursor;
+
+            if (isInsideCodeBlock) {
+              const allLines = content.split("\n");
+              const closingFenceIndex = allLines.findIndex(
+                (l, idx) => idx > line.number - 1 && l.trim().startsWith("```"),
+              );
+
+              if (closingFenceIndex !== -1) {
+                const isOnLastCodeLine = line.number === closingFenceIndex;
+
+                if (isOnLastCodeLine) {
+                  commitDraft();
+                  const view = editorRef.current?.getView();
+                  if (view) {
+                    view.contentDOM.blur();
+                  }
+                  return true;
+                }
+              }
+              return false;
+            }
 
             // Only navigate if on last line
             if (line.number === lastLine) {
