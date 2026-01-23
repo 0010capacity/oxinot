@@ -1,57 +1,338 @@
 # AGENTS.md
 
+Guidelines for AI agents working in the Oxinot codebase.
+
 ## Project Overview
-Modern markdown outliner built with Tauri + React + TypeScript. Block-based editing (Logseq-style) with file tree integration.
+
+Modern markdown outliner built with **Tauri 2 + React 19 + TypeScript**. Block-based editing (Logseq-style) with file tree integration. Zustand for state management, CodeMirror 6 for text editing.
 
 ## Development Commands
-- Build: `npm run build`
-- Lint: `npm run lint` (auto-fix)
-- Format: `npm run format`
-- Tests: `npx vitest run` (all), `npx vitest run <file>` (single), `npx vitest` (watch)
-- Desktop build: `npm run tauri:build`
+
+```bash
+# Build & Development
+npm run build              # TypeScript check + Vite build
+npm run dev                # Vite dev server (frontend only)
+npm run tauri:dev          # Full desktop app dev mode
+npm run tauri:build        # Production desktop build
+
+# Code Quality
+npm run lint               # Biome lint with auto-fix
+npm run format             # Biome format with auto-fix
+
+# Testing (Vitest)
+npx vitest run             # Run all tests once
+npx vitest run <file>      # Run single test file
+npx vitest run -t "test name"  # Run tests matching pattern
+npx vitest                 # Watch mode
+npx vitest --coverage      # With coverage report
+
+# Rust Backend Tests
+cd src-tauri && cargo test # Run Rust tests
+```
+
+## Project Structure
+
+```
+src/
+├── components/           # React components
+│   ├── layout/          # Layout components (TitleBar, PageContainer)
+│   ├── common/          # Reusable primitives (BulletPoint, etc.)
+│   ├── titleBar/        # Titlebar controls
+│   └── copilot/         # AI copilot UI components
+├── outliner/            # Block editor implementation
+├── stores/              # Zustand state management
+├── hooks/               # Custom React hooks
+├── services/ai/         # AI provider integrations
+├── theme/               # Centralized theme system
+├── styles/              # Global CSS with CSS variables
+├── utils/               # Utility functions
+├── editor/              # CodeMirror extensions
+└── constants/           # App constants
+
+src-tauri/               # Rust backend (Tauri)
+├── src/commands/        # Tauri IPC commands
+├── src/services/        # Business logic
+└── tests/               # Rust integration tests
+```
 
 ## Code Style Guidelines
-### Formatting
-- 2 spaces, 80 char width, double quotes, semicolons, trailing commas
-- `import type` for type-only imports
 
-### Naming
-- Components: `ComponentName()` (PascalCase)
-- Hooks: `useHookName()` (camelCase, `use` prefix)
-- Stores: `useXxxStore()` hook, `xxxStore` constant
-- Types: `interface X` (objects), `type X` (unions/primitives)
-- Constants: `CONSTANT_NAME`
+### Formatting (Biome)
 
-### Patterns
-- React: Functional components, `memo()` for expensive ones
-- Zustand: `immer` middleware, `createWithEqualityFn()`, export selectors
-- TypeScript: Strict mode, prefer `unknown` over `any`
+- **Indentation**: 2 spaces
+- **Line width**: 80 characters
+- **Quotes**: Double quotes (`"`)
+- **Semicolons**: Always
+- **Trailing commas**: Always (ES5+)
+- **Line endings**: LF
+
+### Imports
+
+```typescript
+// 1. Use `import type` for type-only imports (enforced by Biome)
+import type { PageData } from "./types";
+import { usePageStore } from "./stores/pageStore";
+
+// 2. Path alias: use @/* for src/* imports
+import { tauriAPI } from "@/tauri-api";
+
+// 3. Biome auto-organizes imports - let it handle ordering
+```
+
+### Naming Conventions
+
+| Entity | Convention | Example |
+|--------|-----------|---------|
+| Components | PascalCase function | `function TitleBar()` |
+| Hooks | camelCase with `use` prefix | `useKeyboardShortcuts()` |
+| Stores | `useXxxStore` hook, `xxxStore` constant | `usePageStore`, `pageStore` |
+| Interfaces | PascalCase, prefer `interface` for objects | `interface PageData {}` |
+| Types | PascalCase, use `type` for unions/primitives | `type ViewMode = "tree" \| "editor"` |
+| Constants | SCREAMING_SNAKE_CASE | `const MAX_RESULTS = 10` |
+| Files | camelCase for utils/hooks, PascalCase for components | `pageUtils.ts`, `TitleBar.tsx` |
+
+### TypeScript
+
+```typescript
+// Strict mode enabled - respect it
+// Never use these:
+// - `as any` (use proper types or `unknown`)
+// - `@ts-ignore` / `@ts-expect-error`
+// - Non-null assertions `!` without good reason
+
+// Prefer `unknown` over `any` for dynamic data
+function handleError(error: unknown) {
+  const message = error instanceof Error ? error.message : "Unknown error";
+}
+```
+
+### React Patterns
+
+```typescript
+// Functional components only
+export function ComponentName({ prop }: Props) {
+  return <div />;
+}
+
+// Use memo() for expensive components
+export const ExpensiveList = memo(function ExpensiveList({ items }: Props) {
+  return items.map(item => <Item key={item.id} {...item} />);
+});
+
+// Hooks at top level, early returns after hooks
+export function MyComponent({ data }: Props) {
+  const [state, setState] = useState(null);
+  
+  if (!data) return null;  // OK: after hooks
+  
+  return <div>{data}</div>;
+}
+```
+
+### Zustand Store Pattern
+
+```typescript
+import { immer } from "zustand/middleware/immer";
+import { createWithEqualityFn } from "zustand/traditional";
+
+interface StoreState {
+  data: Record<string, Item>;
+  isLoading: boolean;
+}
+
+interface StoreActions {
+  loadData: () => Promise<void>;
+  updateItem: (id: string, updates: Partial<Item>) => void;
+}
+
+type Store = StoreState & StoreActions;
+
+export const useMyStore = createWithEqualityFn<Store>()(
+  immer((set, get) => ({
+    // State
+    data: {},
+    isLoading: false,
+
+    // Actions using immer for immutable updates
+    loadData: async () => {
+      set((state) => { state.isLoading = true; });
+      try {
+        const result = await fetchData();
+        set((state) => {
+          state.data = result;
+          state.isLoading = false;
+        });
+      } catch (error) {
+        set((state) => { state.isLoading = false; });
+        throw error;
+      }
+    },
+
+    updateItem: (id, updates) => {
+      set((state) => {
+        if (state.data[id]) {
+          Object.assign(state.data[id], updates);
+        }
+      });
+    },
+  })),
+);
+
+// Export selector hooks for common access patterns
+export const useItem = (id: string) => useMyStore((s) => s.data[id]);
+export const useIsLoading = () => useMyStore((s) => s.isLoading);
+```
 
 ### Error Handling
-- All async file ops need try/catch
-- Never empty catch blocks `catch(e) {}`
-- Log errors: `console.error("[module] Error:", error)`
 
-### UI Styling (Mandatory)
-- **ALL styling MUST use CSS variables** from `src/theme/`
-- Use `var(--variable-name)` in CSS
-- **Never hardcode colors, spacing, or sizes**
+```typescript
+// All async file/Tauri operations need try/catch
+async function saveFile(path: string, content: string) {
+  try {
+    await invoke("write_file", { path, content });
+  } catch (error) {
+    // Never empty catch blocks - always handle or log
+    console.error("[saveFile] Failed to save:", error);
+    throw error; // Re-throw or handle appropriately
+  }
+}
+
+// Log with module prefix for traceability
+console.error("[pageStore] Error loading pages:", error);
+console.log("[BlockEditor] Block created:", blockId);
+```
+
+### UI Styling (MANDATORY)
+
+```typescript
+// ALL styling MUST use CSS variables from src/theme/ and src/styles/
+// ThemeProvider dynamically sets color variables
+
+// CORRECT - use CSS variables
+<div style={{
+  backgroundColor: "var(--color-bg-primary)",
+  color: "var(--color-text-primary)",
+  padding: "var(--spacing-md)",
+  borderRadius: "var(--radius-md)",
+}} />
+
+// WRONG - never hardcode values
+<div style={{
+  backgroundColor: "#1a1a1d",  // NO!
+  color: "#f0f0f2",            // NO!
+  padding: "16px",             // NO!
+}} />
+
+// Available variable categories:
+// Colors: --color-bg-*, --color-text-*, --color-border-*, --color-accent
+// Spacing: --spacing-xs/sm/md/lg/xl/xxl
+// Typography: --font-size-*, --line-height-*, --font-family
+// Layout: --layout-*, --radius-*
+// Transitions: --transition-fast/normal/slow
+```
+
+## Testing Guidelines
+
+### Test Structure (Vitest)
+
+```typescript
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+describe("ModuleName", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("functionName", () => {
+    it("should do expected behavior", () => {
+      const result = functionName(input);
+      expect(result).toBe(expected);
+    });
+
+    it("should handle edge case", () => {
+      expect(() => functionName(null)).toThrow();
+    });
+  });
+});
+```
+
+### Mocking
+
+```typescript
+// Mock modules
+vi.mock("../pageTools", () => ({
+  processPageToolCall: vi.fn(),
+}));
+
+// Mock with resolved values
+vi.mocked(pageTools.processPageToolCall).mockResolvedValue(mockResult);
+
+// Mock Tauri invoke
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
+```
+
+### Test File Locations
+
+- Frontend tests: `src/**/__tests__/*.test.ts`
+- Rust tests: `src-tauri/tests/*_test.rs`
 
 ## Commit Format
+
 ```
 type(scope): message
+
+# Types: feat, fix, improve, perf, refactor, docs, test, chore
+# Examples:
+feat(editor): add block drag-and-drop support
+fix(store): prevent race condition in page loading
+refactor(theme): consolidate color variables
 ```
-Types: feat, fix, improve, perf, refactor, docs, test, chore
 
-## Workflow
-- Major work: Create issue, branch `feature/issue-N-description`
-- Minor fixes: Branch `fix/description`
-- Lint before commit: `npm run lint`
-- PR mandatory, include `Closes #N`
-- Auto-merge: `gh pr merge PR_NUM --auto --squash`
+## Git Workflow
 
-## Release (Fully Automated)
-- Auto changesets generated after PRs merge
-- "chore: Version Packages" PR created automatically
-- User merges PR → tag + GitHub release created
-- **Never run `npm run release` manually**
+```bash
+# Major features - create issue first
+git checkout -b feature/issue-42-block-references
+
+# Minor fixes
+git checkout -b fix/titlebar-alignment
+
+# Before commit
+npm run lint && npm run format
+
+# PR requirements
+# - Reference issue: "Closes #42"
+# - Squash merge preferred
+gh pr merge PR_NUM --auto --squash
+```
+
+## Release Process (Fully Automated)
+
+1. PRs merged to main trigger auto-changeset generation
+2. "chore: Version Packages" PR created automatically
+3. Merge that PR to trigger tag + GitHub release
+4. **Never run `npm run release` manually**
+
+## Key Dependencies Reference
+
+| Package | Purpose |
+|---------|---------|
+| `zustand` + `immer` | State management with immutable updates |
+| `@codemirror/*` | Text editor core |
+| `@tauri-apps/api` | Desktop API bindings |
+| `@mantine/core` | UI components (modals, notifications) |
+| `react-virtuoso` | Virtualized lists |
+| `d3` | Graph visualization |
+| `i18next` | Internationalization |
+| `zod` | Schema validation |
+
+## Common Pitfalls
+
+1. **Don't hardcode colors/spacing** - Always use CSS variables
+2. **Don't suppress TypeScript errors** - Fix them properly
+3. **Don't use empty catch blocks** - Log or handle errors
+4. **Don't forget `import type`** - Biome enforces this
+5. **Don't commit without linting** - Run `npm run lint` first
+6. **Don't use `any`** - Use proper types or `unknown`

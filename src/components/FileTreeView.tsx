@@ -142,7 +142,10 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
               type="button"
               className="absolute -left-6 top-1.5 p-0.5 opacity-0 group-hover/node:opacity-100 transition-opacity cursor-pointer text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 select-none z-10 border-0 bg-transparent"
               title={isExpanded ? "Collapse" : "Expand"}
-              onClick={handleToggle}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggle();
+              }}
             >
               <span className="material-symbols-outlined text-[18px]">
                 {isExpanded ? "arrow_drop_down" : "arrow_right"}
@@ -155,7 +158,10 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
             className={`flex items-start gap-2 py-1 -ml-2 pl-2 rounded-md hover:bg-surface-light dark:hover:bg-white/5 transition-colors pr-2 cursor-pointer w-full text-left ${
               item.is_directory ? "" : ""
             }`}
-            onClick={handleToggle}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleToggle();
+            }}
           >
             <div className="relative flex items-center justify-center h-6 w-6 shrink-0 cursor-pointer mt-0.5 group/bullet">
               {item.is_directory ? (
