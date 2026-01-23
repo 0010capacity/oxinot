@@ -90,6 +90,7 @@ interface OutlinerSettings {
   autoExpandBlocks: boolean;
   showBlockCount: boolean;
   showCodeBlockLineNumbers: boolean;
+  enableCodeSyntaxHighlighting: boolean;
   indentSize: number;
 }
 
@@ -101,6 +102,7 @@ interface OutlinerSettingsStore extends OutlinerSettings {
   setAutoExpandBlocks: (value: boolean) => void;
   setShowBlockCount: (value: boolean) => void;
   setShowCodeBlockLineNumbers: (value: boolean) => void;
+  setEnableCodeSyntaxHighlighting: (value: boolean) => void;
   setIndentSize: (size: number) => void;
 }
 
@@ -114,6 +116,7 @@ export const useOutlinerSettingsStore =
         autoExpandBlocks: true,
         showBlockCount: false,
         showCodeBlockLineNumbers: true,
+        enableCodeSyntaxHighlighting: true,
         indentSize: 24,
 
         // Actions
@@ -130,6 +133,9 @@ export const useOutlinerSettingsStore =
 
         setShowCodeBlockLineNumbers: (value: boolean) =>
           set({ showCodeBlockLineNumbers: value }),
+
+        setEnableCodeSyntaxHighlighting: (value: boolean) =>
+          set({ enableCodeSyntaxHighlighting: value }),
 
         setIndentSize: (size: number) => set({ indentSize: size }),
 

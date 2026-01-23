@@ -11,6 +11,9 @@
  * - Language and title support (```javascript title="My Code")
  */
 
+import { languages } from "@codemirror/language-data";
+import { EditorState } from "@codemirror/state";
+import { EditorView as CMEditorView } from "@codemirror/view";
 import { Decoration, type EditorView, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { useOutlinerSettingsStore } from "../../../stores/outlinerSettingsStore";
@@ -254,7 +257,7 @@ class CodeBlockWidget extends WidgetType {
     }
 
     // Code content
-    const codeContent = document.createElement("pre");
+    const codeContent = document.createElement("div");
     codeContent.className = "cm-code-block-pre";
     codeContent.style.cssText = `
       margin: 0;
@@ -266,7 +269,61 @@ class CodeBlockWidget extends WidgetType {
       line-height: 1.6;
     `;
 
-    const codeElement = document.createElement("code");
+    const enableSyntaxHighlighting =
+      useOutlinerSettingsStore.getState().enableCodeSyntaxHighlighting;
+
+    if (enableSyntaxHighlighting && this.language) {
+      const languageInfo = languages.find(
+        (lang) =>
+          lang.name.toLowerCase() === this.language.toLowerCase() ||
+          lang.alias?.some(
+            (a) => a.toLowerCase() === this.language.toLowerCase(),
+          ),
+      );
+
+      if (languageInfo) {
+        void languageInfo.load().then((langSupport) => {
+          const state = EditorState.create({
+            doc: this.code,
+            extensions: [
+              langSupport,
+              CMEditorView.editable.of(false),
+              CMEditorView.theme({
+                "&": {
+                  background: "transparent",
+                  height: "auto",
+                },
+                ".cm-content": {
+                  padding: "0",
+                  fontFamily:
+                    "'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace",
+                  fontSize: "13px",
+                  lineHeight: "1.6",
+                },
+                ".cm-scroller": { overflow: "visible" },
+              }),
+            ],
+          });
+
+          const view = new CMEditorView({
+            state,
+            parent: codeContent,
+          });
+
+          view.dom.style.cssText = "height: auto;";
+        });
+        codeContainer.appendChild(codeContent);
+        container.appendChild(codeContainer);
+        return container;
+      }
+    }
+
+    const codeElement = document.createElement("pre");
+    codeElement.style.cssText = `
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    `;
     codeElement.textContent = this.code;
     codeContent.appendChild(codeElement);
 
