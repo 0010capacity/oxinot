@@ -37,7 +37,7 @@ export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
       const labelMatch = cmd.label.toLowerCase().includes(lowerQuery);
       const descMatch = cmd.description?.toLowerCase().includes(lowerQuery);
       const keywordMatch = cmd.keywords?.some((kw) =>
-        kw.toLowerCase().includes(lowerQuery)
+        kw.toLowerCase().includes(lowerQuery),
       );
       const categoryMatch = cmd.category?.toLowerCase().includes(lowerQuery);
       return labelMatch || descMatch || keywordMatch || categoryMatch;
@@ -61,7 +61,7 @@ export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIndex((prev) =>
-        Math.min(prev + 1, filteredCommands.length - 1)
+        Math.min(prev + 1, filteredCommands.length - 1),
       );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();

@@ -212,7 +212,7 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
         ],
       },
     ],
-    [t]
+    [t],
   );
 
   const parseMarkdown = (text: string): ReactNode => {
@@ -236,14 +236,14 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
         parts.push(
           <strong key={`bold-${match.index}`} style={{ fontWeight: 600 }}>
             {match[1]}
-          </strong>
+          </strong>,
         );
       } else if (match[2]) {
         // Italic
         parts.push(
           <em key={`italic-${match.index}`} style={{ fontStyle: "italic" }}>
             {match[2]}
-          </em>
+          </em>,
         );
       } else if (match[3]) {
         // Code
@@ -259,7 +259,7 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
             }}
           >
             {match[3]}
-          </code>
+          </code>,
         );
       }
 

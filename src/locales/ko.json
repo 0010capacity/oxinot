@@ -9,6 +9,11 @@
     "save": "저장",
     "delete": "삭제",
     "edit": "편집",
+    "delete_confirm": {
+      "single": "이 블록을 삭제하시겠습니까?",
+      "multiple": "{{count}}개의 블록을 삭제하시겠습니까?",
+      "descendants_warning": "자식 블록을 포함하여 총 {{count}}개의 블록이 삭제됩니다."
+    },
     "create": "생성",
     "clear": "지우기",
     "back": "뒤로",
@@ -40,6 +45,9 @@
       "copy": "복사",
       "cut": "잘라내기"
     },
+    "indent": "들여쓰기",
+    "outdent": "내어쓰기",
+    "duplicate": "복제",
     "search_keywords": {
       "typography": "타이포그래피",
       "font": "글꼴",
@@ -47,6 +55,8 @@
       "blocks": "블록",
       "code_block": "코드 블록",
       "indent": "들여쓰기",
+      "outdent": "내어쓰기",
+      "duplicate": "복제",
       "repository": "저장소",
       "git": "Git",
       "commit": "커밋",
@@ -82,6 +92,7 @@
       "homepage": "홈페이지",
       "outliner": "아웃라이너",
       "version_control": "버전 관리",
+      "ai": "AI 코파일럿",
       "shortcuts": "단축키",
       "advanced": "고급",
       "about": "정보",
@@ -199,12 +210,77 @@
       "remote_url_placeholder": "https://github.com/user/repo.git",
       "remove_remote_confirm": "원격 저장소를 제거하시겠습니까?"
     },
+    "ai": {
+      "title": "AI 코파일럿",
+      "description": "AI 제공자 및 프롬프트 템플릿 설정",
+      "provider": "AI 제공자",
+      "provider_desc": "사용할 AI 서비스 제공자를 선택하세요",
+      "api_key": "API 키",
+      "api_key_desc": "API 키를 입력하세요 (로컬에 저장됨)",
+      "base_url": "기본 URL",
+      "base_url_desc": "API의 기본 URL을 입력하세요 (예: Ollama의 경우 http://localhost:11434)",
+      "model": "모델 이름",
+      "model_desc": "사용할 모델 이름을 입력하세요 (예: gpt-4, gemini-pro, llama3)",
+      "templates": "프롬프트 템플릿",
+      "templates_desc": "빠른 접근을 위한 사용자 정의 프롬프트 템플릿 관리",
+      "add_template": "템플릿 추가",
+      "template_name": "템플릿 이름",
+      "template_content": "템플릿 내용",
+      "template_name_placeholder": "예: 요약하기",
+      "template_content_placeholder": "예: 다음 텍스트를 요약하세요...",
+      "no_templates": "아직 추가된 템플릿이 없습니다",
+      "providers": {
+        "google": "Google Gemini",
+        "openai": "OpenAI",
+        "claude": "Anthropic Claude",
+        "ollama": "Ollama (로컬)",
+        "lmstudio": "LM Studio (로컬)",
+        "custom": "커스텀 (OpenAI 호환)"
+      },
+      "tool_approval": {
+        "label": "도구 승인",
+        "description": "AI가 도구를 실행하기 전에 권한을 요청할 시점 제어",
+        "always": "항상 물어보기",
+        "dangerous_only": "위험한 작업만 물어보기 (권장)",
+        "never": "묻지 않기"
+      },
+      "copilot": {
+        "button_tooltip": "AI 코파일럿",
+        "placeholder": "AI에게 텍스트 편집 또는 생성을 요청하세요...",
+        "input": {
+          "placeholder": "뭐든 물어보세요... (/ 템플릿, @ 콘텍스트)"
+        },
+        "mode": {
+          "label": "모드",
+          "edit": "편집",
+          "generate": "생성",
+          "chat": "채팅"
+        },
+        "scope": {
+          "label": "범위",
+          "block": "현재 블록",
+          "selection": "선택 영역",
+          "page": "전체 페이지"
+        },
+        "actions": {
+          "send": "전송",
+          "stop": "중지",
+          "apply": "적용",
+          "discard": "취소",
+          "retry": "재시도",
+          "undo": "실행 취소"
+        },
+        "preview_title": "미리보기",
+        "templates_tooltip": "템플릿 사용"
+      }
+    },
     "shortcuts": {
       "title": "단축키",
       "description": "키보드 단축키를 확인하고 사용자 정의합니다",
       "command_palette": "명령 팔레트",
       "search": "검색",
       "toggle_index": "인덱스 토글",
+      "toggle_copilot": "코파일럿 토글",
       "help": "도움말"
     },
     "advanced": {

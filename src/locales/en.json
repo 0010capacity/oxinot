@@ -9,6 +9,11 @@
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit",
+    "delete_confirm": {
+      "single": "Delete this block?",
+      "multiple": "Delete {{count}} blocks?",
+      "descendants_warning": "{{count}} blocks will be deleted including descendants"
+    },
     "create": "Create",
     "clear": "Clear",
     "back": "Back",
@@ -40,6 +45,9 @@
       "copy": "Copy",
       "cut": "Cut"
     },
+    "indent": "Indent",
+    "outdent": "Outdent",
+    "duplicate": "Duplicate",
     "search_keywords": {
       "typography": "Typography",
       "font": "Font",
@@ -47,6 +55,8 @@
       "blocks": "Blocks",
       "code_block": "Code Block",
       "indent": "Indent",
+      "outdent": "Outdent",
+      "duplicate": "Duplicate",
       "repository": "Repository",
       "git": "Git",
       "commit": "Commit",
@@ -224,11 +234,22 @@
         "openai": "OpenAI",
         "claude": "Anthropic Claude",
         "ollama": "Ollama (Local)",
+        "lmstudio": "LM Studio (Local)",
         "custom": "Custom (OpenAI Compatible)"
+      },
+      "tool_approval": {
+        "label": "Tool Approval",
+        "description": "Control when to ask for permission before AI executes tools",
+        "always": "Always Ask",
+        "dangerous_only": "Only for Dangerous Operations (Recommended)",
+        "never": "Never Ask"
       },
       "copilot": {
         "button_tooltip": "AI Copilot",
         "placeholder": "Ask AI to edit or generate text...",
+        "input": {
+          "placeholder": "Ask anything... (/ for templates, @ for context)"
+        },
         "mode": {
           "label": "Mode",
           "edit": "Edit",
@@ -259,6 +280,7 @@
       "command_palette": "Command Palette",
       "search": "Search",
       "toggle_index": "Toggle Index",
+      "toggle_copilot": "Toggle Copilot",
       "help": "Help"
     },
     "advanced": {

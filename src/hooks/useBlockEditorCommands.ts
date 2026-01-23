@@ -48,7 +48,7 @@ export function useBlockEditorCommands({
           label: t("commands.new_block.label", "New Block"),
           description: t(
             "commands.new_block.description",
-            "Create a new block after current block"
+            "Create a new block after current block",
           ),
           icon: React.createElement(IconPlus, { size: 16 }),
           action: async () => {
@@ -78,7 +78,7 @@ export function useBlockEditorCommands({
           label: t("commands.delete_block.label", "Delete Block"),
           description: t(
             "commands.delete_block.description",
-            "Delete current block"
+            "Delete current block",
           ),
           icon: React.createElement(IconTrash, { size: 16 }),
           action: async () => {
@@ -87,8 +87,8 @@ export function useBlockEditorCommands({
               window.confirm(
                 t(
                   "commands.delete_block.confirm",
-                  "Are you sure you want to delete this block?"
-                )
+                  "Are you sure you want to delete this block?",
+                ),
               )
             ) {
               try {
@@ -115,7 +115,7 @@ export function useBlockEditorCommands({
           label: t("commands.indent_block.label", "Indent Block"),
           description: t(
             "commands.indent_block.description",
-            "Indent current block"
+            "Indent current block",
           ),
           icon: React.createElement(IconIndentIncrease, { size: 16 }),
           action: async () => {
@@ -143,7 +143,7 @@ export function useBlockEditorCommands({
           label: t("commands.outdent_block.label", "Outdent Block"),
           description: t(
             "commands.outdent_block.description",
-            "Outdent current block"
+            "Outdent current block",
           ),
           icon: React.createElement(IconIndentDecrease, { size: 16 }),
           action: async () => {
@@ -165,7 +165,7 @@ export function useBlockEditorCommands({
           keywords: ["outdent", "unindent", "shallower", "block"],
           category: "Block",
           order: 40,
-        }
+        },
       );
 
       // Only show toggle collapse if block has children
@@ -178,15 +178,15 @@ export function useBlockEditorCommands({
           description: currentBlock.isCollapsed
             ? t(
                 "commands.expand_block.description",
-                "Expand current block and show children"
+                "Expand current block and show children",
               )
             : t(
                 "commands.collapse_block.description",
-                "Collapse current block and hide children"
+                "Collapse current block and hide children",
               ),
           icon: React.createElement(
             currentBlock.isCollapsed ? IconChevronRight : IconChevronDown,
-            { size: 16 }
+            { size: 16 },
           ),
           action: async () => {
             onClose?.();

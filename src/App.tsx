@@ -32,6 +32,7 @@ import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 import { BlockEditor } from "./outliner/BlockEditor";
 import { CopilotButton } from "./components/copilot/CopilotButton";
 import { CopilotPanel } from "./components/copilot/CopilotPanel";
+import { useCopilotUiStore } from "./stores/copilotUiStore";
 
 import { usePageStore } from "./stores/pageStore";
 import { useBlockStore } from "./stores/blockStore";
@@ -47,6 +48,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useWorkspaceInitializer } from "./hooks/useWorkspaceInitializer";
 import { useCoreCommands } from "./hooks/useCoreCommands";
 import { ThemeProvider } from "./theme/ThemeProvider";
+import { BLOCK_UPDATE_EVENT, type BlockUpdateEventDetail } from "./events";
 
 function WorkspaceSelector() {
   const {
@@ -170,7 +172,14 @@ function AppContent({ workspacePath }: AppContentProps) {
   const { t } = useTranslation();
 
   const { selectWorkspace, clearError } = useWorkspaceStore();
-  const currentPageId = usePageStore((state) => state.currentPageId);
+  // Subscribe to both pageStore.currentPageId and viewStore.currentNotePath
+  // viewStore.currentNotePath is updated by AI tools to trigger navigation
+  const pageStoreCurrentPageId = usePageStore((state) => state.currentPageId);
+  const viewStoreCurrentNotePath = useViewStore(
+    (state) => state.currentNotePath,
+  );
+  // Use viewStore path if available (for AI-triggered navigation), otherwise fall back to pageStore
+  const currentPageId = viewStoreCurrentNotePath || pageStoreCurrentPageId;
   const createPage = usePageStore((state) => state.createPage);
   const loadPages = usePageStore((state) => state.loadPages);
   const pagesById = usePageStore((state) => state.pagesById);
@@ -205,6 +214,8 @@ function AppContent({ workspacePath }: AppContentProps) {
     handleMigrationCancel,
   } = useWorkspaceInitializer(workspacePath, openHomepage, setWorkspaceName);
 
+  const copilotOpen = useCopilotUiStore((state) => state.isOpen);
+
   // Register core commands
   useCoreCommands({
     onOpenSearch: () => setSearchOpened(true),
@@ -237,9 +248,30 @@ function AppContent({ workspacePath }: AppContentProps) {
     },
     onGoHome: () => showIndex(),
     onToggleIndex: () => showIndex(),
+    onToggleCopilot: () => useCopilotUiStore.getState().toggle(),
     onUndo: () => useBlockStore.temporal.getState().undo(),
     onRedo: () => useBlockStore.temporal.getState().redo(),
   });
+
+  // Listen for block updates from Copilot tools
+  useEffect(() => {
+    const handleBlockUpdate = (event: CustomEvent<BlockUpdateEventDetail>) => {
+      console.log("[App] Received block update event", event.detail);
+      const { blocks, deletedBlockIds } = event.detail;
+      useBlockStore.getState().updatePartialBlocks(blocks, deletedBlockIds);
+    };
+
+    window.addEventListener(
+      BLOCK_UPDATE_EVENT,
+      handleBlockUpdate as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        BLOCK_UPDATE_EVENT,
+        handleBlockUpdate as EventListener,
+      );
+    };
+  }, []);
 
   // Apply saved font, size, and line height settings on mount and when they change
   useEffect(() => {
@@ -250,11 +282,11 @@ function AppContent({ workspacePath }: AppContentProps) {
     }
     document.documentElement.style.setProperty(
       "--editor-font-size",
-      `${editorFontSize}px`
+      `${editorFontSize}px`,
     );
     document.documentElement.style.setProperty(
       "--editor-line-height",
-      `${editorLineHeight}`
+      `${editorLineHeight}`,
     );
   }, [fontFamily, editorFontSize, editorLineHeight, getFontStack]);
 
@@ -285,6 +317,11 @@ function AppContent({ workspacePath }: AppContentProps) {
     <>
       <AppShell
         padding={0}
+        aside={{
+          width: 450,
+          breakpoint: "sm",
+          collapsed: { mobile: !copilotOpen, desktop: !copilotOpen },
+        }}
         styles={{
           main: {
             backgroundColor: "var(--color-bg-primary)",
@@ -316,7 +353,6 @@ function AppContent({ workspacePath }: AppContentProps) {
           />
 
           <CopilotButton />
-          <CopilotPanel />
 
           {/* Main Content Panel */}
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -352,6 +388,10 @@ function AppContent({ workspacePath }: AppContentProps) {
           {/* Git Status Indicator - Bottom Right */}
           <GitStatusIndicator workspacePath={workspacePath} />
         </AppShell.Main>
+
+        <AppShell.Aside>
+          <CopilotPanel />
+        </AppShell.Aside>
       </AppShell>
 
       {/* Migration Dialog */}
@@ -444,10 +484,10 @@ function App() {
   const language = useAppSettingsStore((state) => state.language);
   const setLanguage = useAppSettingsStore((state) => state.setLanguage);
   const telemetryEnabled = useAdvancedSettingsStore(
-    (state) => state.telemetryEnabled
+    (state) => state.telemetryEnabled,
   );
   const setTelemetryStoreEnabled = useTelemetryStore(
-    (state) => state.setEnabled
+    (state) => state.setEnabled,
   );
 
   useEffect(() => {

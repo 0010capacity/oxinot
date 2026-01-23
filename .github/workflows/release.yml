@@ -16,72 +16,23 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
-  group: release
+  group: changeset-generation
   cancel-in-progress: false
 
 env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Step 1: Handle changeset and create version PR
-  # This job runs on main branch pushes to create/update the "chore: Version Packages" PR
-  changeset:
-    name: Changeset Version
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Create Release PR
-        id: changesets
-        uses: changesets/action@v1
-        with:
-          version: npm run version
-          title: "chore: Version Packages"
-          createGithubReleases: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Trigger CI for Version Packages PR
-        if: steps.changesets.outputs.pullRequestNumber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          PR_NUMBER="${{ steps.changesets.outputs.pullRequestNumber }}"
-
-          if [ -n "$PR_NUMBER" ]; then
-            echo "Triggering CI for PR #$PR_NUMBER by forcing a workflow re-run"
-            # Close and reopen the PR to trigger CI
-            # (GitHub's security model prevents changesets/action from triggering CI automatically)
-            gh pr close "$PR_NUMBER" || true
-            sleep 2
-            gh pr reopen "$PR_NUMBER" || true
-          fi
-
-  # Step 1.5: Create version tag when Version Packages commit is pushed to main
+  # Step 1: Create version tag when Version Packages commit is pushed to main
   # This runs after the "chore: Version Packages" PR is merged by detecting version bumps
   create-version-tag:
     name: Create Version Tag
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: >
+      github.ref == 'refs/heads/main' && 
+      github.event_name == 'push' &&
+      !contains(github.event.head_commit.message, 'chore: auto-generate changeset')
     runs-on: ubuntu-latest
     permissions:
       contents: write

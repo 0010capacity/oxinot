@@ -11,11 +11,21 @@ import {
   TextInput,
   Textarea,
 } from "@mantine/core";
-import { IconPlus, IconTrash, IconPencil, IconCheck, IconX } from "@tabler/icons-react";
+import {
+  IconPlus,
+  IconTrash,
+  IconPencil,
+  IconCheck,
+  IconX,
+} from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
-import { useAISettingsStore, type AIProvider, type PromptTemplate } from "../../stores/aiSettingsStore";
-import { createAIProvider } from "../../services/ai/factory";
+import {
+  useAISettingsStore,
+  type AIProvider,
+  type PromptTemplate,
+  type ToolApprovalPolicy,
+} from "../../stores/aiSettingsStore";
 
 interface AISettingsProps {
   matchesSearch: (text: string) => boolean;
@@ -23,24 +33,38 @@ interface AISettingsProps {
 
 export function AISettings({ matchesSearch }: AISettingsProps) {
   const { t } = useTranslation();
-  
+
   const provider = useAISettingsStore((state) => state.provider);
   const apiKey = useAISettingsStore((state) => state.apiKey);
   const baseUrl = useAISettingsStore((state) => state.baseUrl);
   const model = useAISettingsStore((state) => state.model);
   const promptTemplates = useAISettingsStore((state) => state.promptTemplates);
+  const toolApprovalPolicy = useAISettingsStore(
+    (state) => state.toolApprovalPolicy,
+  );
 
   const setProvider = useAISettingsStore((state) => state.setProvider);
   const setApiKey = useAISettingsStore((state) => state.setApiKey);
   const setBaseUrl = useAISettingsStore((state) => state.setBaseUrl);
   const setModel = useAISettingsStore((state) => state.setModel);
-  const addPromptTemplate = useAISettingsStore((state) => state.addPromptTemplate);
-  const updatePromptTemplate = useAISettingsStore((state) => state.updatePromptTemplate);
-  const deletePromptTemplate = useAISettingsStore((state) => state.deletePromptTemplate);
+  const setToolApprovalPolicy = useAISettingsStore(
+    (state) => state.setToolApprovalPolicy,
+  );
+  const addPromptTemplate = useAISettingsStore(
+    (state) => state.addPromptTemplate,
+  );
+  const updatePromptTemplate = useAISettingsStore(
+    (state) => state.updatePromptTemplate,
+  );
+  const deletePromptTemplate = useAISettingsStore(
+    (state) => state.deletePromptTemplate,
+  );
 
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateContent, setNewTemplateContent] = useState("");
-  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(
+    null,
+  );
   const [editName, setEditName] = useState("");
   const [editContent, setEditContent] = useState("");
 
@@ -62,6 +86,7 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
       "gemini-2.5-flash",
     ],
     ollama: [],
+    lmstudio: [],
     custom: [],
   };
 
@@ -70,7 +95,17 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
     { value: "openai", label: t("settings.ai.providers.openai") },
     { value: "claude", label: t("settings.ai.providers.claude") },
     { value: "ollama", label: t("settings.ai.providers.ollama") },
+    { value: "lmstudio", label: t("settings.ai.providers.lmstudio") },
     { value: "custom", label: t("settings.ai.providers.custom") },
+  ];
+
+  const toolApprovalOptions = [
+    { value: "always", label: t("settings.ai.tool_approval.always") },
+    {
+      value: "dangerous_only",
+      label: t("settings.ai.tool_approval.dangerous_only"),
+    },
+    { value: "never", label: t("settings.ai.tool_approval.never") },
   ];
 
   // Sync available models when provider changes
@@ -100,13 +135,17 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
 
   const saveEditing = () => {
     if (editingTemplateId && editName.trim() && editContent.trim()) {
-      updatePromptTemplate(editingTemplateId, { name: editName, content: editContent });
+      updatePromptTemplate(editingTemplateId, {
+        name: editName,
+        content: editContent,
+      });
       setEditingTemplateId(null);
     }
   };
 
-  const showApiKey = provider !== "ollama";
-  const showBaseUrl = provider === "ollama" || provider === "custom";
+  const showApiKey = provider !== "ollama" && provider !== "lmstudio";
+  const showBaseUrl =
+    provider === "ollama" || provider === "lmstudio" || provider === "custom";
 
   return (
     <Stack gap="xl">
@@ -159,10 +198,23 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                 data={availableModels}
                 limit={20}
               />
+
+              <Select
+                label={t("settings.ai.tool_approval.label")}
+                description={t("settings.ai.tool_approval.description")}
+                data={toolApprovalOptions}
+                value={toolApprovalPolicy}
+                onChange={(val) =>
+                  setToolApprovalPolicy(
+                    (val as ToolApprovalPolicy) || "dangerous_only",
+                  )
+                }
+                allowDeselect={false}
+              />
             </>
           )}
 
-          {matchesSearch("prompt templates") && (
+          {matchesSearch("prompt templates tool approval") && (
             <div>
               <Text size="sm" fw={500} mb="sm">
                 {t("settings.ai.templates")}
@@ -185,20 +237,34 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                         <TextInput
                           value={editName}
                           onChange={(e) => setEditName(e.currentTarget.value)}
-                          placeholder={t("settings.ai.template_name_placeholder")}
+                          placeholder={t(
+                            "settings.ai.template_name_placeholder",
+                          )}
                         />
                         <Textarea
                           value={editContent}
-                          onChange={(e) => setEditContent(e.currentTarget.value)}
-                          placeholder={t("settings.ai.template_content_placeholder")}
+                          onChange={(e) =>
+                            setEditContent(e.currentTarget.value)
+                          }
+                          placeholder={t(
+                            "settings.ai.template_content_placeholder",
+                          )}
                           autosize
                           minRows={2}
                         />
                         <Group justify="flex-end" gap="xs">
-                          <ActionIcon variant="light" color="red" onClick={cancelEditing}>
+                          <ActionIcon
+                            variant="light"
+                            color="red"
+                            onClick={cancelEditing}
+                          >
                             <IconX size={16} />
                           </ActionIcon>
-                          <ActionIcon variant="light" color="green" onClick={saveEditing}>
+                          <ActionIcon
+                            variant="light"
+                            color="green"
+                            onClick={saveEditing}
+                          >
                             <IconCheck size={16} />
                           </ActionIcon>
                         </Group>
@@ -206,16 +272,27 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                     ) : (
                       <Group justify="space-between" align="flex-start">
                         <div style={{ flex: 1 }}>
-                          <Text fw={500} size="sm">{template.name}</Text>
+                          <Text fw={500} size="sm">
+                            {template.name}
+                          </Text>
                           <Text size="xs" c="dimmed" lineClamp={2}>
                             {template.content}
                           </Text>
                         </div>
                         <Group gap="xs">
-                          <ActionIcon variant="subtle" size="sm" onClick={() => startEditing(template)}>
+                          <ActionIcon
+                            variant="subtle"
+                            size="sm"
+                            onClick={() => startEditing(template)}
+                          >
                             <IconPencil size={16} />
                           </ActionIcon>
-                          <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deletePromptTemplate(template.id)}>
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            size="sm"
+                            onClick={() => deletePromptTemplate(template.id)}
+                          >
                             <IconTrash size={16} />
                           </ActionIcon>
                         </Group>
@@ -224,26 +301,42 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                   </Card>
                 ))}
 
-                <Card withBorder padding="sm" radius="md" mt="sm" style={{ borderStyle: "dashed" }}>
-                  <Text size="sm" fw={500} mb="xs">{t("settings.ai.add_template")}</Text>
+                <Card
+                  withBorder
+                  padding="sm"
+                  radius="md"
+                  mt="sm"
+                  style={{ borderStyle: "dashed" }}
+                >
+                  <Text size="sm" fw={500} mb="xs">
+                    {t("settings.ai.add_template")}
+                  </Text>
                   <Stack gap="xs">
                     <TextInput
                       placeholder={t("settings.ai.template_name_placeholder")}
                       value={newTemplateName}
-                      onChange={(e) => setNewTemplateName(e.currentTarget.value)}
+                      onChange={(e) =>
+                        setNewTemplateName(e.currentTarget.value)
+                      }
                     />
                     <Textarea
-                      placeholder={t("settings.ai.template_content_placeholder")}
+                      placeholder={t(
+                        "settings.ai.template_content_placeholder",
+                      )}
                       value={newTemplateContent}
-                      onChange={(e) => setNewTemplateContent(e.currentTarget.value)}
+                      onChange={(e) =>
+                        setNewTemplateContent(e.currentTarget.value)
+                      }
                       autosize
                       minRows={2}
                     />
-                    <Button 
-                      variant="light" 
-                      leftSection={<IconPlus size={16} />} 
+                    <Button
+                      variant="light"
+                      leftSection={<IconPlus size={16} />}
                       onClick={handleAddTemplate}
-                      disabled={!newTemplateName.trim() || !newTemplateContent.trim()}
+                      disabled={
+                        !newTemplateName.trim() || !newTemplateContent.trim()
+                      }
                     >
                       {t("settings.ai.add_template")}
                     </Button>

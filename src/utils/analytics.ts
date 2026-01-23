@@ -119,7 +119,7 @@ export const analytics = {
   recordPerformance: (
     metricName: string,
     duration: number,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ) => {
     if (!useTelemetryStore.getState().isEnabled) return;
     trackEvent("performance_metric", {

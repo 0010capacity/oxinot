@@ -62,6 +62,12 @@ export function createBlockKeybindings(
         const state = view.state;
         const cursorPos = state.selection.main.head;
         const content = state.doc.toString();
+        const selection = state.selection.main;
+
+        // If text is selected, let default backspace behavior handle deletion
+        if (selection.from !== selection.to) {
+          return false;
+        }
 
         if (cursorPos === 0 && content.length === 0) {
           // Delete empty block or merge with previous

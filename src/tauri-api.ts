@@ -109,10 +109,75 @@ export interface QueryResult {
   error?: string;
 }
 
+export interface SearchResult {
+  id: string;
+  pageId: string;
+  pageTitle: string;
+  resultType: "page" | "block";
+  content: string;
+  snippet: string;
+  rank: number;
+}
+
 export const tauriAPI = {
   // Workspace operations
   selectWorkspace: async (): Promise<string | null> => {
     return await invoke<string | null>("select_workspace");
+  },
+
+  // Search operations
+  searchContent: async (
+    workspacePath: string,
+    query: string,
+  ): Promise<SearchResult[]> => {
+    const searchLogger = {
+      log: (...args: unknown[]) =>
+        console.log("[tauriAPI.searchContent]", ...args),
+      info: (...args: unknown[]) =>
+        console.info("[tauriAPI.searchContent]", ...args),
+      error: (...args: unknown[]) =>
+        console.error("[tauriAPI.searchContent]", ...args),
+    };
+
+    searchLogger.log("Initiating search request");
+    searchLogger.log("Query:", query);
+    searchLogger.log("Workspace:", workspacePath);
+
+    validatePath(workspacePath, "workspacePath");
+    if (!query || typeof query !== "string") {
+      searchLogger.error("Invalid query parameter");
+      throw new Error("query must be a non-empty string");
+    }
+
+    try {
+      searchLogger.info("Calling Tauri invoke('search_content')");
+      const startTime = performance.now();
+
+      const results = await invoke<SearchResult[]>("search_content", {
+        workspacePath,
+        query,
+      });
+
+      const endTime = performance.now();
+      const duration = (endTime - startTime).toFixed(2);
+
+      searchLogger.info(`✓ Search completed in ${duration}ms`);
+      searchLogger.info(`Results received: ${results.length} items`);
+      searchLogger.log(
+        "Results summary:",
+        results.slice(0, 3).map((r) => ({
+          title: r.pageTitle,
+          type: r.resultType,
+          rank: r.rank,
+        })),
+      );
+
+      return results;
+    } catch (error) {
+      searchLogger.error("Search request failed");
+      searchLogger.error("Error:", error);
+      throw error;
+    }
   },
 
   // Wiki Link Index

@@ -19,7 +19,7 @@ export interface WorkspaceInitializerActions {
 export const useWorkspaceInitializer = (
   workspacePath: string,
   onInitialComplete: () => void,
-  onWorkspaceNameSet: (name: string) => void
+  onWorkspaceNameSet: (name: string) => void,
 ): WorkspaceInitializerState & WorkspaceInitializerActions => {
   const [isChecking, setIsChecking] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -51,7 +51,7 @@ export const useWorkspaceInitializer = (
       try {
         // Validate that the workspace path exists before attempting to sync
         console.log(
-          "[useWorkspaceInitializer] Validating workspace path exists..."
+          "[useWorkspaceInitializer] Validating workspace path exists...",
         );
         try {
           await tauriAPI.readDirectory(workspacePath);
@@ -61,19 +61,19 @@ export const useWorkspaceInitializer = (
               ? pathError.message
               : "Unknown error occurred";
           throw new Error(
-            `Workspace path validation failed: ${pathErrorMessage}`
+            `Workspace path validation failed: ${pathErrorMessage}`,
           );
         }
 
         console.log(
-          "[useWorkspaceInitializer] Syncing workspace with filesystem..."
+          "[useWorkspaceInitializer] Syncing workspace with filesystem...",
         );
         const syncResult = await invoke<{ pages: number; blocks: number }>(
           "sync_workspace",
-          { workspacePath }
+          { workspacePath },
         );
         console.log(
-          `[useWorkspaceInitializer] Workspace synced: ${syncResult.pages} pages, ${syncResult.blocks} blocks`
+          `[useWorkspaceInitializer] Workspace synced: ${syncResult.pages} pages, ${syncResult.blocks} blocks`,
         );
 
         await loadPages();
@@ -91,7 +91,7 @@ export const useWorkspaceInitializer = (
           error instanceof Error ? error.message : "Unknown error occurred";
         console.error(
           "[useWorkspaceInitializer] Failed to sync workspace:",
-          error
+          error,
         );
 
         setIsInitialized(false);
