@@ -15,27 +15,27 @@ export interface AIRequest {
   // Context & Tools
   history?: ChatMessage[]; // Previous chat history
   tools?: Tool[];
-  onToolCall?: (toolName: string, params: any) => Promise<any>;
+  onToolCall?: (toolName: string, params: unknown) => Promise<unknown>;
 }
 
 export interface ToolCall {
   id: string;
   name: string;
-  arguments: any;
+  arguments: unknown;
 }
 
 export interface StreamChunk {
   type: "text" | "tool_call" | "tool_result" | "error";
   content?: string;
   toolCall?: ToolCall;
-  toolResult?: any;
+  toolResult?: unknown;
   error?: string;
 }
 
 export interface IAIProvider {
   id: string;
   generateStream(
-    request: AIRequest,
+    request: AIRequest
   ): AsyncGenerator<StreamChunk, void, unknown>;
   generate(request: AIRequest): Promise<string>;
 }

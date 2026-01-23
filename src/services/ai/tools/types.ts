@@ -8,7 +8,8 @@ export type ToolParameterSchema = z.ZodTypeAny;
 /**
  * Tool definition that AI can invoke
  */
-export interface Tool {
+// biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
+export interface Tool<Params = any> {
   /** Unique tool identifier (e.g., 'get_block', 'update_block') */
   name: string;
 
@@ -19,7 +20,7 @@ export interface Tool {
   parameters: ToolParameterSchema;
 
   /** Execute the tool with validated parameters */
-  execute: (params: any, context: ToolContext) => Promise<ToolResult>;
+  execute: (params: Params, context: ToolContext) => Promise<ToolResult>;
 
   /** Optional: Whether this tool requires user approval before execution */
   requiresApproval?: boolean;
@@ -34,6 +35,7 @@ export interface Tool {
 /**
  * Result returned by tool execution
  */
+// biome-ignore lint/suspicious/noExplicitAny: Default type flexibility for tool results
 export interface ToolResult<T = any> {
   success: boolean;
   data?: T;

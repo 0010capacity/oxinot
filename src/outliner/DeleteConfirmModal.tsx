@@ -20,7 +20,7 @@ interface DeleteConfirmModalProps {
 
 const truncateContent = (content: string, maxLength = 50): string => {
   if (content.length <= maxLength) return content;
-  return content.slice(0, maxLength) + "...";
+  return `${content.slice(0, maxLength)}...`;
 };
 
 export function DeleteConfirmModal({
@@ -90,10 +90,10 @@ export function DeleteConfirmModal({
                 }) ||
                 `${totalBlocksCount} blocks will be deleted including descendants`
               : blocksToDelete.length === 1 && totalBlocksCount === 1
-                ? t("common.delete_confirm.single") || "Delete this block?"
-                : t("common.delete_confirm.multiple", {
-                    count: totalBlocksCount,
-                  }) || `Delete ${totalBlocksCount} blocks?`}
+              ? t("common.delete_confirm.single") || "Delete this block?"
+              : t("common.delete_confirm.multiple", {
+                  count: totalBlocksCount,
+                }) || `Delete ${totalBlocksCount} blocks?`}
           </Text>
         </Group>
 

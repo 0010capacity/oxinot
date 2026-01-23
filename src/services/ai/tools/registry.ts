@@ -4,12 +4,14 @@ import type { Tool, ToolCategory } from "./types";
  * Central registry for all available tools
  */
 class ToolRegistry {
-  private tools: Map<string, Tool> = new Map();
+  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
+  private tools: Map<string, Tool<any>> = new Map();
 
   /**
    * Register a new tool
    */
-  register(tool: Tool): void {
+  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
+  register(tool: Tool<any>): void {
     if (this.tools.has(tool.name)) {
       throw new Error(`Tool '${tool.name}' is already registered`);
     }
@@ -23,7 +25,8 @@ class ToolRegistry {
   /**
    * Register multiple tools at once
    */
-  registerMany(tools: Tool[]): void {
+  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
+  registerMany(tools: Tool<any>[]): void {
     for (const tool of tools) {
       this.register(tool);
     }
@@ -32,21 +35,24 @@ class ToolRegistry {
   /**
    * Get a tool by name
    */
-  get(name: string): Tool | undefined {
+  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
+  get(name: string): Tool<any> | undefined {
     return this.tools.get(name);
   }
 
   /**
    * Get all registered tools
    */
-  getAll(): Tool[] {
+  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
+  getAll(): Tool<any>[] {
     return Array.from(this.tools.values());
   }
 
   /**
    * Get tools by category
    */
-  getByCategory(category: ToolCategory | string): Tool[] {
+  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
+  getByCategory(category: ToolCategory | string): Tool<any>[] {
     return this.getAll().filter((tool) => tool.category === category);
   }
 
@@ -74,7 +80,8 @@ class ToolRegistry {
   /**
    * Validate tool definition
    */
-  private validateTool(tool: Tool): void {
+  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
+  private validateTool(tool: Tool<any>): void {
     if (!tool.name || typeof tool.name !== "string") {
       throw new Error("Tool name is required and must be a string");
     }
@@ -94,7 +101,7 @@ class ToolRegistry {
     // Tool names should follow naming convention
     if (!/^[a-z][a-z0-9_]*$/.test(tool.name)) {
       throw new Error(
-        `Tool name '${tool.name}' must be lowercase with underscores (snake_case)`,
+        `Tool name '${tool.name}' must be lowercase with underscores (snake_case)`
       );
     }
   }

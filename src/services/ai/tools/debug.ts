@@ -22,14 +22,10 @@ export interface ToolExecutionDebug {
   toolName: string;
   timestamp: string;
   params: unknown;
-  beforeState: {
-    pageStoreCurrentPageId: string | null;
-    blockStoreCurrentPageId: string | null;
-  };
-  afterState: {
-    pageStoreCurrentPageId: string | null;
-    blockStoreCurrentPageId: string | null;
-  };
+  // biome-ignore lint/suspicious/noExplicitAny: State objects have dynamic structure
+  beforeState: any;
+  // biome-ignore lint/suspicious/noExplicitAny: State objects have dynamic structure
+  afterState: any;
   success: boolean;
   result: unknown;
   duration: number;
@@ -61,11 +57,13 @@ export function getDebugInfo(): DebugInfo {
 export function logToolExecution(
   toolName: string,
   params: unknown,
+  // biome-ignore lint/suspicious/noExplicitAny: State objects have dynamic structure
   beforeState: any,
+  // biome-ignore lint/suspicious/noExplicitAny: State objects have dynamic structure
   afterState: any,
   success: boolean,
   result: unknown,
-  duration: number,
+  duration: number
 ): ToolExecutionDebug {
   const debug: ToolExecutionDebug = {
     toolName,
@@ -143,6 +141,7 @@ export function getToolInfo(toolName: string) {
     category: tool.category,
     isDangerous: tool.isDangerous || false,
     requiresApproval: tool.requiresApproval || false,
+    // biome-ignore lint/suspicious/noExplicitAny: Zod schema type checking
     parametersSchema: (tool.parameters as any).safeParse
       ? "Zod schema"
       : "Unknown schema type",
@@ -210,7 +209,7 @@ export function printDebugReport(): void {
       name: t.name,
       category: t.category,
       dangerous: t.isDangerous || false,
-    })),
+    }))
   );
   console.groupEnd();
 
@@ -236,6 +235,6 @@ export function exposeDebugToWindow(): void {
   (window as unknown as Record<string, unknown>).__aiToolsDebug = debugUtils;
 
   console.log(
-    "[AI Tools Debug] Debug utilities exposed to window.__aiToolsDebug",
+    "[AI Tools Debug] Debug utilities exposed to window.__aiToolsDebug"
   );
 }
