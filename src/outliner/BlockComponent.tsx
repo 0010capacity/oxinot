@@ -206,8 +206,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             },
             {
               label: isBatchOperation
-                ? `${t("common.outdent") || "Outdent"} (${targetBlocks.length})`
-                : t("common.outdent") || "Outdent",
+                ? `${t("common.outdent")} (${targetBlocks.length})`
+                : t("common.outdent"),
               icon: <IconIndentDecrease size={16} />,
               onClick: async () => {
                 for (const id of targetBlocks) {
@@ -221,10 +221,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             },
             {
               label: isBatchOperation
-                ? `${t("common.duplicate") || "Duplicate"} (${
+                ? `${t("common.duplicate")} (${
                     targetBlocks.length
                   })`
-                : t("common.duplicate") || "Duplicate",
+                : t("common.duplicate"),
               icon: <IconCopy size={16} />,
               onClick: async () => {
                 for (const id of targetBlocks) {

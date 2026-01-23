@@ -52,6 +52,8 @@
       "blocks": "Blocks",
       "code_block": "Code Block",
       "indent": "Indent",
+      "outdent": "Outdent",
+      "duplicate": "Duplicate",
       "repository": "Repository",
       "git": "Git",
       "commit": "Commit",
