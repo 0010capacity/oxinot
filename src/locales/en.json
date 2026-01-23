@@ -9,6 +9,11 @@
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit",
+    "delete_confirm": {
+      "single": "Delete this block?",
+      "multiple": "Delete {{count}} blocks?",
+      "descendants_warning": "{{count}} blocks will be deleted including descendants"
+    },
     "create": "Create",
     "clear": "Clear",
     "back": "Back",

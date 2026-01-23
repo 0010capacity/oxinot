@@ -1,15 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
-import { immer } from "zustand/middleware/immer";
 import { temporal } from "zundo";
+import { immer } from "zustand/middleware/immer";
 import { shallow } from "zustand/shallow";
 import { createWithEqualityFn as create } from "zustand/traditional";
-import { useWorkspaceStore } from "./workspaceStore";
-import { useBlockUIStore } from "./blockUIStore";
 import {
   getInsertBelowTarget,
-  updateChildrenMap,
   normalizeBlocks,
+  updateChildrenMap,
 } from "./blockGraphHelpers";
+import { useBlockUIStore } from "./blockUIStore";
+import { useWorkspaceStore } from "./workspaceStore";
 
 // ============ Types ============
 
@@ -596,7 +596,7 @@ export const useBlockStore = create<BlockStore>()(
       },
 
       deleteBlock: async (id: string) => {
-        const { blocksById, getPreviousVisibleBlock } = get();
+        const { blocksById, getPreviousVisibleBlock, currentPageId } = get();
         const block = blocksById[id];
         if (!block) return;
 
@@ -621,41 +621,17 @@ export const useBlockStore = create<BlockStore>()(
             throw new Error("No workspace selected");
           }
 
-          // Backend returns all deleted IDs (block + descendants)
-          const deletedIds: string[] = await invoke("delete_block", {
+          await invoke("delete_block", {
             workspacePath,
             blockId: id,
           });
 
-          // Update only the affected blocks (remove deleted ones)
-          get().updatePartialBlocks([], deletedIds);
-
-          // Cleanup UI state if needed
-          const currentUI = useBlockUIStore.getState();
-
-          // 1. Handle Focus
-          if (
-            currentUI.focusedBlockId &&
-            deletedIds.includes(currentUI.focusedBlockId)
-          ) {
-            if (nextFocusId) {
-              useBlockUIStore.setState({ focusedBlockId: nextFocusId });
-            } else {
-              useBlockUIStore.setState({ focusedBlockId: null });
-            }
+          if (currentPageId) {
+            await get().loadPage(currentPageId);
           }
 
-          // 2. Handle Merge State
-          if (
-            (currentUI.mergingBlockId &&
-              deletedIds.includes(currentUI.mergingBlockId)) ||
-            (currentUI.mergingTargetBlockId &&
-              deletedIds.includes(currentUI.mergingTargetBlockId))
-          ) {
-            useBlockUIStore.setState({
-              mergingBlockId: null,
-              mergingTargetBlockId: null,
-            });
+          if (nextFocusId) {
+            useBlockUIStore.setState({ focusedBlockId: nextFocusId });
           }
         } catch (error) {
           console.error("Failed to delete block:", error);
