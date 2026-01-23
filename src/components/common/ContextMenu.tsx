@@ -1,7 +1,8 @@
 import { Menu } from "@mantine/core";
 import type React from "react";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { create } from "zustand";
+import { useBlockUIStore } from "../../stores/blockUIStore";
 
 export interface ContextMenuItem {
   label: string;
@@ -58,14 +59,20 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleOpenChange = useCallback(
-    (isOpen: boolean) => {
-      if (isOpen) {
-        setOpenMenuId(menuId);
-      } else if (openMenuId === menuId) {
+    (opened: boolean) => {
+      console.log("[ContextMenu] Menu opened:", opened);
+      console.log("[ContextMenu] menuId:", menuId);
+
+      if (!opened) {
         setOpenMenuId(null);
+        setCoords({ x: 0, y: 0 });
+      } else {
+        // Clear block selection when context menu opens
+        useBlockUIStore.getState().clearSelectedBlocks();
+        useBlockUIStore.getState().clearSelectionAnchor();
       }
     },
-    [menuId, openMenuId, setOpenMenuId],
+    [menuId],
   );
 
   // Save selection on mousedown before browser can change it
@@ -107,6 +114,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      e.nativeEvent.stopPropagation();
 
       // Use the saved selection from mousedown, not the current one
       const savedSelection = savedSelectionRef.current;
@@ -161,7 +169,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         ref={containerRef}
         className={className}
         style={{ position: "relative", ...style }}
-        onContextMenuCapture={handleContextMenu}
+        onContextMenu={handleContextMenu}
       >
         {children}
       </div>
