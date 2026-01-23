@@ -617,16 +617,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           // Clear IME flag - we've processed the IME Enter
           imeStateRef.current.lastInputWasComposition = false;
 
-          // Execute block operation immediately since composition is already done
-          // For split, we pass the content directly to the store action to ensure atomic update
-          // For create (at end), we trigger save but can proceed with creation independently
-
           if (cursor === contentLength) {
             commitDraft().then(() => {
               createBlock(blockId);
             });
           } else {
-            // Pass current content to ensure split happens on the correct text
+            const beforeContent = content.slice(0, cursor);
+            draftRef.current = beforeContent;
+            setDraft(beforeContent);
+            
             splitBlockAtCursor(blockId, cursor, content);
           }
 
@@ -795,20 +794,16 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               return true;
             }
 
-            // Start async operations but return true immediately to prevent default behavior
-            // Determine whether to split block or create new sibling based on cursor position
             if (cursor === contentLength) {
-              // Cursor at end: create new sibling block
-              // Commit current block changes first
               commitDraft().then(() => {
                 createBlock(blockId);
               });
             } else {
-              // Cursor in middle: split current block
-              // Commit current block changes first, then split to ensure sync
-              commitDraft().then(() => {
-                splitBlockAtCursor(blockId, cursor, content);
-              });
+              const beforeContent = content.slice(0, cursor);
+              draftRef.current = beforeContent;
+              setDraft(beforeContent);
+              
+              splitBlockAtCursor(blockId, cursor, content);
             }
 
             return true; // Prevent default CodeMirror behavior
