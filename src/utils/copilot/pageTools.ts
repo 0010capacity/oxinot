@@ -122,7 +122,7 @@ export async function executeSearchNotes(
         pageTitle: r.pageTitle,
         resultType: r.resultType,
         rank: r.rank,
-        snippet: r.snippet.substring(0, 50) + "...",
+        snippet: `${r.snippet.substring(0, 50)}...`,
       })),
     );
 
@@ -248,7 +248,7 @@ export async function processPageToolCall(
           count: results.length,
         };
 
-        logger.info(`✓ search_notes completed successfully`);
+        logger.info("✓ search_notes completed successfully");
         logger.info(`Returning ${results.length} results`);
         logger.log("Response:", response);
         logger.groupEnd();
@@ -282,7 +282,7 @@ export async function processPageToolCall(
           message: `Page ${pageId} opened successfully`,
         };
 
-        logger.info(`✓ open_page completed successfully`);
+        logger.info("✓ open_page completed successfully");
         logger.log("Response:", response);
         logger.groupEnd();
 

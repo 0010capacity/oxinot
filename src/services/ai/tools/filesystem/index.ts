@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { tauriAPI } from "../../../tauri-api";
-import type { Tool, ToolContext, ToolResult } from "../types";
-import { uiEventEmitter } from "./uiEvents";
+import { tauriAPI } from "../../../../tauri-api";
+import type { Tool } from "../types";
+import { uiEventEmitter } from "../uiEvents";
 
 /**
  * Create a new file or directory in the workspace
@@ -27,43 +27,68 @@ Notes:
     path: z
       .string()
       .describe(
-        "Full path where to create the file (e.g., 'Projects/new-notes.md', 'Documents/notes')",
+        "Full path where to create the file (e.g., 'Projects/new-notes.md', 'Documents/notes')"
       ),
     type: z
       .enum(["file", "directory"])
       .optional()
       .describe(
-        "Type to create: 'file' or 'directory'. Defaults to 'file' if not specified.",
+        "Type to create: 'file' or 'directory'. Defaults to 'file' if not specified."
       ),
     content: z
       .string()
       .optional()
       .describe(
-        "Content to write to the file (only for file type, not directory)",
+        "Content to write to the file (only for file type, not directory)"
       ),
   }),
   isDangerous: false,
   requiresApproval: false,
-  execute: async ({ path, type = "file", content }, context) => {
+  execute: async ({ path, type = "file", content }) => {
     console.log(`[create_file] Creating ${type} at path: ${path}`);
 
     try {
-      let result;
+      let success: boolean;
+      let data: string | undefined;
+      let error: string | undefined;
 
       if (type === "directory") {
-        result = await tauriAPI.createDirectory(path);
+        // Parse parent path and directory name
+        const lastSlashIndex = path.lastIndexOf("/");
+        const parentPath =
+          lastSlashIndex >= 0 ? path.substring(0, lastSlashIndex) : "";
+        const dirName =
+          lastSlashIndex >= 0 ? path.substring(lastSlashIndex + 1) : path;
+
+        data = await tauriAPI.createDirectory(parentPath, dirName);
+        success = !!data;
       } else {
         // Default to .md if not specified
         const filePath = path.endsWith(".md") || !content ? path : `${path}.md`;
 
+        // Parse directory path and file name
+        const lastSlashIndex = filePath.lastIndexOf("/");
+        const dirPath =
+          lastSlashIndex >= 0 ? filePath.substring(0, lastSlashIndex) : "";
+        const fileName =
+          lastSlashIndex >= 0
+            ? filePath.substring(lastSlashIndex + 1)
+            : filePath;
+
         if (content) {
-          result = await tauriAPI.writeFile(filePath, content);
+          // First create the file, then write content
+          data = await tauriAPI.createFile(dirPath, fileName);
+          success = !!data;
+          if (success) {
+            success = await tauriAPI.writeFile(filePath, content);
+          }
         } else {
-          result = await tauriAPI.createFile(filePath);
+          data = await tauriAPI.createFile(dirPath, fileName);
+          success = !!data;
         }
       }
 
-      if (result.success) {
+      if (success) {
         // Emit file creation event
         uiEventEmitter.emit({
           type: "file_created",
@@ -72,7 +97,7 @@ Notes:
         });
       }
 
-      return result;
+      return { success, data, error };
     } catch (error) {
       return {
         success: false,
@@ -109,12 +134,12 @@ Notes:
       .boolean()
       .optional()
       .describe(
-        "Whether to show confirmation dialog. Defaults to true if not specified.",
+        "Whether to show confirmation dialog. Defaults to true if not specified."
       ),
   }),
   isDangerous: true,
   requiresApproval: true,
-  execute: async ({ path, confirm = true }, context) => {
+  execute: async ({ path, confirm = true }) => {
     console.log(`[delete_file] Deleting path: ${path}`);
 
     // Show confirmation if requested
@@ -126,9 +151,9 @@ Notes:
     }
 
     try {
-      const result = await tauriAPI.deleteFile(path);
+      const success = await tauriAPI.deletePath(path);
 
-      if (result.success) {
+      if (success) {
         // Emit file deletion event
         uiEventEmitter.emit({
           type: "file_deleted",
@@ -137,7 +162,7 @@ Notes:
         });
       }
 
-      return result;
+      return { success, data: path };
     } catch (error) {
       return {
         success: false,
@@ -178,18 +203,20 @@ Notes:
   }),
   isDangerous: false,
   requiresApproval: true,
-  execute: async ({ oldPath, newName }, context) => {
+  execute: async ({ oldPath, newName }) => {
     console.log(`[rename_file] Renaming ${oldPath} to ${newName}`);
 
     try {
-      // Construct new path
+      // Rename using the API (which takes oldPath and newName)
+      const data = await tauriAPI.renamePath(oldPath, newName);
+      const success = !!data;
+
+      // Construct new path for the event payload
       const pathParts = oldPath.split("/");
       pathParts[pathParts.length - 1] = newName;
       const newPath = pathParts.join("/");
 
-      const result = await tauriAPI.renameFile(oldPath, newPath);
-
-      if (result.success) {
+      if (success) {
         // Emit file renamed event
         uiEventEmitter.emit({
           type: "file_renamed",
@@ -198,7 +225,7 @@ Notes:
         });
       }
 
-      return result;
+      return { success, data, error: undefined };
     } catch (error) {
       return {
         success: false,
@@ -238,13 +265,15 @@ Notes:
   }),
   isDangerous: false,
   requiresApproval: true,
-  execute: async ({ sourcePath, destinationPath }, context) => {
+  execute: async ({ sourcePath, destinationPath }) => {
     console.log(`[move_file] Moving ${sourcePath} to ${destinationPath}`);
 
     try {
-      const result = await tauriAPI.moveFile(sourcePath, destinationPath);
+      // Move using the API (which takes sourcePath and targetParentPath)
+      const data = await tauriAPI.movePath(sourcePath, destinationPath);
+      const success = !!data;
 
-      if (result.success) {
+      if (success) {
         // Emit file moved event
         uiEventEmitter.emit({
           type: "file_moved",
@@ -253,7 +282,7 @@ Notes:
         });
       }
 
-      return result;
+      return { success, data, error: undefined };
     } catch (error) {
       return {
         success: false,
@@ -264,5 +293,3 @@ Notes:
     }
   },
 };
-
-export { createFileTool, deleteFileTool, renameFileTool, moveFileTool };

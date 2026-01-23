@@ -220,7 +220,7 @@ export async function processAIResponse(
 
     if (block.type === "text" && block.text) {
       processLogger.info("Processing text block");
-      processLogger.log("Text:", block.text.substring(0, 100) + "...");
+      processLogger.log("Text:", `${block.text.substring(0, 100)}...`);
 
       results.push({
         type: "text",

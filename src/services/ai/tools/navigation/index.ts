@@ -99,7 +99,7 @@ Notes:
           success: true,
           data: `Opened page ${pageId}`,
         };
-      } else if (pagePath) {
+      }if (pagePath) {
         // Parse path to get page info
         const pageStore = usePageStore.getState();
         const page = Object.values(pageStore.pagesById).find(
@@ -112,20 +112,18 @@ Notes:
             success: true,
             data: `Opened page "${page.title}"`,
           };
-        } else {
+        }
           return {
             success: false,
             error: `Page not found for path: ${pagePath}`,
           };
-        }
-      } else {
+      }
         // If no page specified, just switch to note view mode
         viewStore.showIndex();
         return {
           success: true,
           data: "Switched to note view mode",
         };
-      }
     } catch (error) {
       return {
         success: false,
@@ -286,3 +284,14 @@ Notes:
     }
   },
 };
+
+/**
+ * Export array of all navigation tools
+ */
+export const navigationTools: Tool[] = [
+  switchToIndexTool,
+  switchToNoteViewTool,
+  navigateToPathTool,
+  goBackTool,
+  goForwardTool,
+];

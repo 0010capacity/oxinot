@@ -1,5 +1,3 @@
-import type { Tool } from "./types";
-
 /**
  * UI Event types for tool execution feedback
  * Allows tools to emit events that UI components can listen to
@@ -44,7 +42,7 @@ class UIEventEmitter {
     if (!this.listeners.has(eventType)) {
       this.listeners.set(eventType, new Set());
     }
-    this.listeners.get(eventType)!.add(callback);
+    this.listeners.get(eventType)?.add(callback);
   }
 
   /**
@@ -69,10 +67,10 @@ class UIEventEmitter {
         } catch (error) {
           console.error(
             `[UIEventEmitter] Error in listener for event type '${event.type}':`,
-            error,
+            error
           );
         }
-      });
+      }
     }
   }
 
