@@ -207,8 +207,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             },
             {
               label: isBatchOperation
-                ? `${t("common.outdent") || "Outdent"} (${targetBlocks.length})`
-                : t("common.outdent") || "Outdent",
+                ? `${t("common.outdent")} (${targetBlocks.length})`
+                : t("common.outdent"),
               icon: <IconIndentDecrease size={16} />,
               onClick: async () => {
                 for (const id of targetBlocks) {
@@ -222,10 +222,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             },
             {
               label: isBatchOperation
-                ? `${t("common.duplicate") || "Duplicate"} (${
+                ? `${t("common.duplicate")} (${
                     targetBlocks.length
                   })`
-                : t("common.duplicate") || "Duplicate",
+                : t("common.duplicate"),
               icon: <IconCopy size={16} />,
               onClick: async () => {
                 for (const id of targetBlocks) {
@@ -807,8 +807,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               });
             } else {
               // Cursor in middle: split current block
-              // Pass content explicitly to avoid race conditions with store state
-              splitBlockAtCursor(blockId, cursor, content);
+              // Commit current block changes first, then split to ensure sync
+              commitDraft().then(() => {
+                splitBlockAtCursor(blockId, cursor, content);
+              });
             }
 
             return true; // Prevent default CodeMirror behavior

@@ -52,6 +52,8 @@
       "blocks": "블록",
       "code_block": "코드 블록",
       "indent": "들여쓰기",
+      "outdent": "내어쓰기",
+      "duplicate": "복제",
       "repository": "저장소",
       "git": "Git",
       "commit": "커밋",
