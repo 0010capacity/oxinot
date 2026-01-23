@@ -50,10 +50,11 @@
     "duplicate": "복제",
     "search_keywords": {
       "typography": "타이포그래피",
-      "font": "글꼴",
-      "monospace": "고정폭",
+      "font": "폰트",
+      "monospace": "모노스페이스",
       "blocks": "블록",
       "code_block": "코드 블록",
+      "syntax_highlighting": "구문 강조",
       "indent": "들여쓰기",
       "outdent": "내어쓰기",
       "duplicate": "복제",
@@ -184,6 +185,8 @@
       "block_count_desc": "각 부모 블록의 자식 블록 수를 표시합니다",
       "code_block_line_numbers": "코드 블록 줄 번호 표시",
       "code_block_line_numbers_desc": "코드 블록에 줄 번호를 표시합니다",
+      "code_syntax_highlighting": "구문 강조 활성화",
+      "code_syntax_highlighting_desc": "코드 블록에서 언어에 따라 구문을 강조 표시합니다",
       "indent_size": "들여쓰기 크기"
     },
     "git": {

@@ -54,6 +54,7 @@
       "monospace": "Monospace",
       "blocks": "Blocks",
       "code_block": "Code Block",
+      "syntax_highlighting": "Syntax Highlighting",
       "indent": "Indent",
       "outdent": "Outdent",
       "duplicate": "Duplicate",
@@ -184,6 +185,8 @@
       "block_count_desc": "Display the number of child blocks for each parent",
       "code_block_line_numbers": "Show code block line numbers",
       "code_block_line_numbers_desc": "Display line numbers in code blocks",
+      "code_syntax_highlighting": "Enable syntax highlighting",
+      "code_syntax_highlighting_desc": "Highlight code syntax based on language in code blocks",
       "indent_size": "Indent Size"
     },
     "git": {

@@ -1,5 +1,6 @@
 import { NumberInput, Stack, Switch, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { useOutlinerSettingsStore } from "../../stores/outlinerSettingsStore";
 import type { OutlinerSettingsProps } from "./types";
 
 export function OutlinerSettings({
@@ -16,6 +17,12 @@ export function OutlinerSettings({
   setIndentSize,
 }: OutlinerSettingsProps) {
   const { t } = useTranslation();
+  const enableCodeSyntaxHighlighting = useOutlinerSettingsStore(
+    (state) => state.enableCodeSyntaxHighlighting,
+  );
+  const setEnableCodeSyntaxHighlighting = useOutlinerSettingsStore(
+    (state) => state.setEnableCodeSyntaxHighlighting,
+  );
 
   return (
     <Stack gap="xl">
@@ -66,6 +73,17 @@ export function OutlinerSettings({
               checked={showCodeBlockLineNumbers}
               onChange={(event) =>
                 setShowCodeBlockLineNumbers?.(event.currentTarget.checked)
+              }
+            />
+          )}
+
+          {matchesSearch("syntax highlighting code") && (
+            <Switch
+              label={t("settings.outliner.code_syntax_highlighting")}
+              description={t("settings.outliner.code_syntax_highlighting_desc")}
+              checked={enableCodeSyntaxHighlighting}
+              onChange={(event) =>
+                setEnableCodeSyntaxHighlighting(event.currentTarget.checked)
               }
             />
           )}
