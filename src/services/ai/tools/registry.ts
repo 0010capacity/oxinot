@@ -101,7 +101,7 @@ class ToolRegistry {
     // Tool names should follow naming convention
     if (!/^[a-z][a-z0-9_]*$/.test(tool.name)) {
       throw new Error(
-        `Tool name '${tool.name}' must be lowercase with underscores (snake_case)`
+        `Tool name '${tool.name}' must be lowercase with underscores (snake_case)`,
       );
     }
   }

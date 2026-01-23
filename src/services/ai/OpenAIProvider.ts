@@ -12,7 +12,7 @@ export class OpenAIProvider implements IAIProvider {
   }
 
   async *generateStream(
-    request: AIRequest
+    request: AIRequest,
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const rawBaseUrl = request.baseUrl || this.defaultBaseUrl;
     const baseUrl = rawBaseUrl.endsWith("/")
@@ -144,7 +144,7 @@ export class OpenAIProvider implements IAIProvider {
 
                 const result = await request.onToolCall(
                   currentFunctionName,
-                  args
+                  args,
                 );
 
                 yield { type: "tool_result", toolResult: result };

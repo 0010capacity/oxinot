@@ -35,7 +35,7 @@ export interface StreamChunk {
 export interface IAIProvider {
   id: string;
   generateStream(
-    request: AIRequest
+    request: AIRequest,
   ): AsyncGenerator<StreamChunk, void, unknown>;
   generate(request: AIRequest): Promise<string>;
 }
