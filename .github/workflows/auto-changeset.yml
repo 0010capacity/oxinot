@@ -12,7 +12,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: auto-changeset-main
+  group: changeset-generation
   cancel-in-progress: false
 
 jobs:
@@ -48,13 +48,21 @@ jobs:
           LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
           LAST_COMMIT_AUTHOR=$(git log -1 --pretty=%an)
 
-          # If the last commit is "chore: auto-generate changeset" from github-actions bot,
-          # skip generating another changeset to prevent infinite loop
-          if [[ "$LAST_COMMIT_AUTHOR" == "github-actions[bot]" ]] && \
-             [[ "$LAST_COMMIT_MESSAGE" == *"chore: auto-generate changeset"* ]]; then
+          # Skip if last commit is from github-actions bot
+          if [[ "$LAST_COMMIT_AUTHOR" == "github-actions[bot]" ]]; then
             echo "Last commit is workflow-generated - skipping to prevent infinite loop"
             echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Check if there are already pending changesets (excluding README.md and config.json)
+          CHANGESET_COUNT=$(find .changeset -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d ' ')
+          
+          if [ "$CHANGESET_COUNT" -gt "0" ]; then
+            echo "Found $CHANGESET_COUNT pending changeset(s) - skipping new generation"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           else
+            echo "No pending changesets - will generate"
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -105,8 +113,16 @@ jobs:
             git checkout changeset-auto
             git pull origin changeset-auto
             git add .changeset
-            git commit --amend --no-edit || true
-            git push origin changeset-auto --force-with-lease
+            
+            # Check if there are actual changes
+            if git diff --cached --quiet; then
+              echo "No new changes to commit"
+              exit 0
+            fi
+            
+            # Create a new commit instead of amending
+            git commit -m "chore: update auto-generated changeset"
+            git push origin changeset-auto
           else
             # Create new branch and PR
             echo "Creating new changeset PR"
