@@ -12,13 +12,13 @@ export class OpenAIProvider implements IAIProvider {
   }
 
   async *generateStream(
-    request: AIRequest,
+    request: AIRequest
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const rawBaseUrl = request.baseUrl || this.defaultBaseUrl;
     const baseUrl = rawBaseUrl.endsWith("/")
       ? rawBaseUrl.slice(0, -1)
       : rawBaseUrl;
-    const url = baseUrl.endsWith("/v1")
+    const url = baseUrl.match(/\/v\d+$/)
       ? `${baseUrl}/chat/completions`
       : `${baseUrl}/v1/chat/completions`;
 
@@ -144,7 +144,7 @@ export class OpenAIProvider implements IAIProvider {
 
                 const result = await request.onToolCall(
                   currentFunctionName,
-                  args,
+                  args
                 );
 
                 yield { type: "tool_result", toolResult: result };
