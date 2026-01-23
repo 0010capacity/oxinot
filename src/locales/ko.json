@@ -45,6 +45,9 @@
       "copy": "복사",
       "cut": "잘라내기"
     },
+    "indent": "들여쓰기",
+    "outdent": "내어쓰기",
+    "duplicate": "복제",
     "search_keywords": {
       "typography": "타이포그래피",
       "font": "글꼴",

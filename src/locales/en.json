@@ -45,6 +45,9 @@
       "copy": "Copy",
       "cut": "Cut"
     },
+    "indent": "Indent",
+    "outdent": "Outdent",
+    "duplicate": "Duplicate",
     "search_keywords": {
       "typography": "Typography",
       "font": "Font",
