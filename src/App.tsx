@@ -215,6 +215,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   } = useWorkspaceInitializer(workspacePath, openHomepage, setWorkspaceName);
 
   const copilotOpen = useCopilotUiStore((state) => state.isOpen);
+  const copilotPanelWidth = useCopilotUiStore((state) => state.panelWidth);
 
   // Register core commands
   useCoreCommands({
@@ -318,7 +319,7 @@ function AppContent({ workspacePath }: AppContentProps) {
       <AppShell
         padding={0}
         aside={{
-          width: 450,
+          width: copilotPanelWidth,
           breakpoint: "sm",
           collapsed: { mobile: !copilotOpen, desktop: !copilotOpen },
         }}

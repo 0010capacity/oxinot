@@ -17,6 +17,9 @@ interface CopilotUiStore {
   inputValue: string;
   isLoading: boolean;
 
+  // Panel Width
+  panelWidth: number;
+
   // Streaming Content State (for Preview)
   previewContent: string;
   originalContent: string | null; // For Undo/Diff
@@ -34,6 +37,7 @@ interface CopilotUiStore {
   setIsLoading: (loading: boolean) => void;
   setPreviewContent: (content: string) => void;
   setOriginalContent: (content: string | null) => void;
+  setPanelWidth: (width: number) => void;
 
   // Chat Actions
   addChatMessage: (
@@ -57,6 +61,7 @@ export const useCopilotUiStore = create<CopilotUiStore>((set) => ({
   originalContent: null,
   chatMessages: [],
   lastPageId: null,
+  panelWidth: 450,
 
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
@@ -67,6 +72,7 @@ export const useCopilotUiStore = create<CopilotUiStore>((set) => ({
   setIsLoading: (isLoading) => set({ isLoading }),
   setPreviewContent: (previewContent) => set({ previewContent }),
   setOriginalContent: (originalContent) => set({ originalContent }),
+  setPanelWidth: (width) => set({ panelWidth: Math.max(300, Math.min(800, width)) }),
 
   addChatMessage: (role, content) =>
     set((state) => ({

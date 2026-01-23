@@ -46,6 +46,7 @@ import {
   MentionAutocomplete,
   type MentionSuggestion,
 } from "./MentionAutocomplete";
+import { ResizableHandle } from "./ResizableHandle";
 import { ToolApprovalModal } from "./ToolApprovalModal";
 
 export function CopilotPanel() {
@@ -69,6 +70,8 @@ export function CopilotPanel() {
   const setInputValue = useCopilotUiStore((state) => state.setInputValue);
   const isLoading = useCopilotUiStore((state) => state.isLoading);
   const setIsLoading = useCopilotUiStore((state) => state.setIsLoading);
+  const setPanelWidth = useCopilotUiStore((state) => state.setPanelWidth);
+  const panelWidth = useCopilotUiStore((state) => state.panelWidth);
 
   const chatMessages = useCopilotUiStore((state) => state.chatMessages);
   const addChatMessage = useCopilotUiStore((state) => state.addChatMessage);
@@ -336,6 +339,10 @@ export function CopilotPanel() {
 
   if (!isOpen) return null;
 
+  const handleResize = (deltaX: number) => {
+    setPanelWidth(panelWidth + deltaX);
+  };
+
   return (
     <Paper
       shadow="none"
@@ -346,8 +353,10 @@ export function CopilotPanel() {
         flexDirection: "column",
         borderLeft: "1px solid var(--color-border-primary)",
         backgroundColor: "var(--color-bg-primary)",
+        position: "relative",
       }}
     >
+      <ResizableHandle onResize={handleResize} />
       {/* Mention Autocomplete */}
       {mentionAutocomplete?.show && (
         <Portal>
