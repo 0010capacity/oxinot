@@ -809,8 +809,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               });
             } else {
               // Cursor in middle: split current block
-              // Pass content explicitly to avoid race conditions with store state
-              splitBlockAtCursor(blockId, cursor, content);
+              // Commit current block changes first, then split to ensure sync
+              commitDraft().then(() => {
+                splitBlockAtCursor(blockId, cursor, content);
+              });
             }
 
             return true; // Prevent default CodeMirror behavior
