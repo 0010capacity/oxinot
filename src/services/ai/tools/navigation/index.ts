@@ -74,19 +74,19 @@ Notes:
       .string()
       .optional()
       .describe(
-        "The unique ID of the page to open. Obtain this from search_pages or query_pages tool results. Use this when you have the exact page ID from a previous search."
+        "The unique ID of the page to open. Obtain this from search_pages or query_pages tool results. Use this when you have the exact page ID from a previous search.",
       ),
     pagePath: z
       .string()
       .optional()
       .describe(
-        "The full path of the page to open. Use this when you know the exact file path but not the page ID."
+        "The full path of the page to open. Use this when you know the exact file path but not the page ID.",
       ),
   }),
   isDangerous: false,
   execute: async ({ pageId, pagePath }) => {
     console.log(
-      `[switch_to_note_view] Switching to note view: ${pageId || pagePath}`
+      `[switch_to_note_view] Switching to note view: ${pageId || pagePath}`,
     );
 
     try {
@@ -99,11 +99,12 @@ Notes:
           success: true,
           data: `Opened page ${pageId}`,
         };
-      }if (pagePath) {
+      }
+      if (pagePath) {
         // Parse path to get page info
         const pageStore = usePageStore.getState();
         const page = Object.values(pageStore.pagesById).find(
-          (p) => p.filePath === pagePath
+          (p) => p.filePath === pagePath,
         );
 
         if (page) {
@@ -113,17 +114,17 @@ Notes:
             data: `Opened page "${page.title}"`,
           };
         }
-          return {
-            success: false,
-            error: `Page not found for path: ${pagePath}`,
-          };
-      }
-        // If no page specified, just switch to note view mode
-        viewStore.showIndex();
         return {
-          success: true,
-          data: "Switched to note view mode",
+          success: false,
+          error: `Page not found for path: ${pagePath}`,
         };
+      }
+      // If no page specified, just switch to note view mode
+      viewStore.showIndex();
+      return {
+        success: true,
+        data: "Switched to note view mode",
+      };
     } catch (error) {
       return {
         success: false,
@@ -161,7 +162,7 @@ Notes:
     path: z
       .string()
       .describe(
-        "Directory or file path to navigate to (e.g., 'Projects/Q1 Budget', 'Documents/notes', 'meeting-notes.md')"
+        "Directory or file path to navigate to (e.g., 'Projects/Q1 Budget', 'Documents/notes', 'meeting-notes.md')",
       ),
   }),
   isDangerous: false,

@@ -84,11 +84,7 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
 
       <Group gap="xs" ml="auto">
         {/* Indent Button */}
-        <Tooltip
-          label={t("common.indent")}
-          withArrow
-          position="top"
-        >
+        <Tooltip label={t("common.indent")} withArrow position="top">
           <ActionIcon
             variant="subtle"
             color="gray"
@@ -101,11 +97,7 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
         </Tooltip>
 
         {/* Outdent Button */}
-        <Tooltip
-          label={t("common.outdent")}
-          withArrow
-          position="top"
-        >
+        <Tooltip label={t("common.outdent")} withArrow position="top">
           <ActionIcon
             variant="subtle"
             color="gray"
@@ -131,11 +123,7 @@ export const BlockSelectionToolbar: React.FC<BlockSelectionToolbarProps> = ({
         </Menu>
 
         {/* Delete Button */}
-        <Tooltip
-          label={t("common.delete")}
-          withArrow
-          position="top"
-        >
+        <Tooltip label={t("common.delete")} withArrow position="top">
           <ActionIcon
             variant="subtle"
             color="red"

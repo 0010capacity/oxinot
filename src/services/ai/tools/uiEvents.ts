@@ -67,7 +67,7 @@ class UIEventEmitter {
         } catch (error) {
           console.error(
             `[UIEventEmitter] Error in listener for event type '${event.type}':`,
-            error
+            error,
           );
         }
       }

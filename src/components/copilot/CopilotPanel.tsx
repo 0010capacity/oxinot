@@ -1,50 +1,51 @@
 import {
   ActionIcon,
+  Badge,
+  Box,
   Group,
+  Loader,
+  LoadingOverlay,
   Paper,
+  Portal,
   ScrollArea,
   Stack,
   Text,
   Textarea,
-  Box,
-  LoadingOverlay,
-  Badge,
-  Loader,
-  Portal,
 } from "@mantine/core";
 import {
   IconArrowUp,
-  IconX,
+  IconRobot,
   IconTrash,
   IconUser,
-  IconRobot,
+  IconX,
 } from "@tabler/icons-react";
-import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
-import { useCopilotUiStore } from "../../stores/copilotUiStore";
-import { useAISettingsStore } from "../../stores/aiSettingsStore";
-import { createAIProvider } from "../../services/ai/factory";
-import { useBlockStore } from "../../stores/blockStore";
-import { useBlockUIStore } from "../../stores/blockUIStore";
+import { useTranslation } from "react-i18next";
 import { renderMarkdownToHtml } from "../../outliner/markdownRenderer";
-import { usePageStore } from "../../stores/pageStore";
+import { AgentOrchestrator } from "../../services/ai/agent";
+import { createAIProvider } from "../../services/ai/factory";
 import {
   isTypingMention,
   parseMentions,
 } from "../../services/ai/mentions/parser";
+import { blockTools } from "../../services/ai/tools/block";
+import { contextTools } from "../../services/ai/tools/context";
+import { exposeDebugToWindow } from "../../services/ai/tools/debug";
+import { initializeToolRegistry } from "../../services/ai/tools/initialization";
+import { pageTools } from "../../services/ai/tools/page";
+import { toolRegistry } from "../../services/ai/tools/registry";
+import { useAgentStore } from "../../stores/agentStore";
+import { useAISettingsStore } from "../../stores/aiSettingsStore";
+import { useBlockStore } from "../../stores/blockStore";
+import { useBlockUIStore } from "../../stores/blockUIStore";
+import { useCopilotUiStore } from "../../stores/copilotUiStore";
+import { usePageStore } from "../../stores/pageStore";
+import { useToolApprovalStore } from "../../stores/toolApprovalStore";
+import { useWorkspaceStore } from "../../stores/workspaceStore";
 import {
   MentionAutocomplete,
   type MentionSuggestion,
 } from "./MentionAutocomplete";
-import { toolRegistry } from "../../services/ai/tools/registry";
-import { executeTool } from "../../services/ai/tools/executor";
-import { blockTools } from "../../services/ai/tools/block";
-import { pageTools } from "../../services/ai/tools/page";
-import { contextTools } from "../../services/ai/tools/context";
-import { initializeToolRegistry } from "../../services/ai/tools/initialization";
-import { exposeDebugToWindow } from "../../services/ai/tools/debug";
-import { useWorkspaceStore } from "../../stores/workspaceStore";
-import { useToolApprovalStore } from "../../stores/toolApprovalStore";
 import { ToolApprovalModal } from "./ToolApprovalModal";
 
 export function CopilotPanel() {
@@ -55,7 +56,7 @@ export function CopilotPanel() {
   // Initialize tool registry on first mount
   useEffect(() => {
     console.log(
-      "[CopilotPanel] Initializing tool registry and debug utilities"
+      "[CopilotPanel] Initializing tool registry and debug utilities",
     );
     initializeToolRegistry();
     exposeDebugToWindow();
@@ -69,14 +70,10 @@ export function CopilotPanel() {
   const isLoading = useCopilotUiStore((state) => state.isLoading);
   const setIsLoading = useCopilotUiStore((state) => state.setIsLoading);
 
-  // Chat State
   const chatMessages = useCopilotUiStore((state) => state.chatMessages);
   const addChatMessage = useCopilotUiStore((state) => state.addChatMessage);
-  const updateLastChatMessage = useCopilotUiStore(
-    (state) => state.updateLastChatMessage
-  );
   const clearChatMessages = useCopilotUiStore(
-    (state) => state.clearChatMessages
+    (state) => state.clearChatMessages,
   );
 
   // Tool Approval State
@@ -85,7 +82,7 @@ export function CopilotPanel() {
   const deny = useToolApprovalStore((state) => state.deny);
 
   // Settings
-  const { provider, apiKey, baseUrl, model } = useAISettingsStore();
+  const { provider, baseUrl } = useAISettingsStore();
 
   // Local state
   const [error, setError] = useState<string | null>(null);
@@ -184,37 +181,6 @@ export function CopilotPanel() {
     return contextString;
   };
 
-  const gatherHints = (): string => {
-    const blockStore = useBlockStore.getState();
-    const uiStore = useBlockUIStore.getState();
-    const pageStore = usePageStore.getState();
-
-    let systemPrompt =
-      "You are an AI assistant integrated into 'Oxinot', a block-based outliner app.\n" +
-      "CRITICAL RULE: When the user asks to create, write, add, insert, update, or delete content, you MUST use the provided tools to perform the action directly in the document.\n" +
-      "DO NOT just generate text in the chat. For example, if the user says 'Write 5 blocks about ABC', you must call 'create_block' tool 5 times.\n" +
-      "Context about the current focus and page is provided below.\n" +
-      "- If user says 'current block' or 'here', use the focused block ID.\n" +
-      "- If user says 'current page', use the current page ID.\n" +
-      "- If no parent is specified for creation, use the focused block as parent, or the page root if no focus.\n\n";
-
-    const focusedId = uiStore.focusedBlockId;
-    if (focusedId) {
-      const block = blockStore.blocksById[focusedId];
-      if (block) {
-        systemPrompt += `Current focused block content: "${block.content}" (ID: ${focusedId})\n`;
-      }
-    }
-
-    const pageId = blockStore.currentPageId;
-    if (pageId) {
-      const pageTitle = pageStore.pagesById[pageId]?.title || "Untitled";
-      systemPrompt += `You are currently on page "${pageTitle}" (ID: ${pageId})\n`;
-    }
-
-    return systemPrompt;
-  };
-
   const handleSend = async () => {
     if (!inputValue.trim()) return;
 
@@ -223,7 +189,6 @@ export function CopilotPanel() {
     setError(null);
     setIsLoading(true);
 
-    // Track page context before sending
     const pageStore = usePageStore.getState();
     const blockStore = useBlockStore.getState();
     const currentPageId = blockStore.currentPageId;
@@ -232,161 +197,84 @@ export function CopilotPanel() {
       useCopilotUiStore.getState().updatePageContext(currentPageId, pageTitle);
     }
 
-    // Add message to UI
     console.log("[Copilot] User message:", currentInput.substring(0, 50));
     addChatMessage("user", currentInput);
-    addChatMessage("assistant", "");
 
     try {
       const aiProvider = createAIProvider(provider, baseUrl);
+      aiProvider.id = provider;
+
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        throw new Error("No workspace path available");
+      }
+
+      const context = {
+        workspacePath,
+        currentPageId: currentPageId || undefined,
+        focusedBlockId: useBlockUIStore.getState().focusedBlockId || undefined,
+        selectedBlockIds: useBlockUIStore.getState().selectedBlockIds,
+      };
 
       const resolvedContext = resolveContextFromMentions(currentInput);
-      let systemPrompt = gatherHints();
-
-      const finalPrompt = currentInput;
+      let enrichedGoal = currentInput;
       if (resolvedContext) {
-        systemPrompt += `\n--- Context Resolved from Mentions ---\n${resolvedContext}`;
+        enrichedGoal += `\n\n--- Context from Mentions ---\n${resolvedContext}`;
       }
 
-      const allTools = toolRegistry.getAll();
+      const orchestrator = new AgentOrchestrator(aiProvider);
 
-      // Get fresh history from store state
-      const allMessages = useCopilotUiStore.getState().chatMessages;
+      const agentStore = useAgentStore.getState();
+      agentStore.reset();
 
-      // Exclude the last two messages we just added (Current User Prompt + Assistant Placeholder)
-      // This ensures 'history' only contains past conversation turns
-      const pastMessages = allMessages.slice(0, -2);
+      for await (const step of orchestrator.execute(enrichedGoal, {
+        maxIterations: 10,
+        verbose: true,
+        context,
+      })) {
+        console.log("[Copilot Agent] Step:", step.type);
 
-      // Filter out system messages (tool logs) and empty messages, then map to AI provider format (without id)
-      let historyForAI = pastMessages
-        .filter(
-          (msg) =>
-            (msg.role === "user" || msg.role === "assistant") &&
-            msg.content.trim() !== ""
-        )
-        .map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-        }));
+        agentStore.addStep(step);
 
-      // Limit history to last 20 messages (10 turns) to prevent excessive token usage
-      const MAX_HISTORY_MESSAGES = 20;
-      if (historyForAI.length > MAX_HISTORY_MESSAGES) {
-        historyForAI = historyForAI.slice(-MAX_HISTORY_MESSAGES);
-      }
-
-      console.log(
-        "[Copilot] Sending with history:",
-        historyForAI.length,
-        "messages"
-      );
-      console.log("[Copilot] System prompt:", systemPrompt);
-      console.log("[Copilot] Current prompt:", finalPrompt);
-
-      const stream = aiProvider.generateStream({
-        prompt: finalPrompt,
-        systemPrompt,
-        model,
-        apiKey,
-        baseUrl,
-        history: historyForAI,
-        tools: allTools,
-        onToolCall: async (toolName, params) => {
-          console.log(`[CopilotPanel] AI called tool: ${toolName}`, params);
-
-          try {
-            const workspacePath = useWorkspaceStore.getState().workspacePath;
-            if (!workspacePath) {
-              throw new Error("No workspace path available");
-            }
-
-            const context = {
-              workspacePath,
-              currentPageId:
-                useBlockStore.getState().currentPageId || undefined,
-              focusedBlockId:
-                useBlockUIStore.getState().focusedBlockId || undefined,
-              selectedBlockIds: useBlockUIStore.getState().selectedBlockIds,
-            };
-
-            console.log("[CopilotPanel] Executing tool with context:", context);
-            const result = await executeTool(toolName, params, context);
-
-            console.log(
-              "[CopilotPanel] Tool execution result:",
-              result.success ? "✓ Success" : "✗ Failed",
-              result
+        if (step.type === "thought") {
+          addChatMessage("system", `💭 ${step.thought}`);
+        } else if (step.type === "tool_call") {
+          addChatMessage("system", `🔧 Using tool: ${step.toolName}`);
+        } else if (step.type === "observation") {
+          if (step.toolResult?.success) {
+            addChatMessage("system", "✅ Tool executed successfully");
+          } else {
+            addChatMessage(
+              "system",
+              `❌ Tool failed: ${step.toolResult?.error || "Unknown error"}`,
             );
-
-            return result;
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : "Unknown error";
-            console.error(
-              `[CopilotPanel] Tool execution failed: ${toolName}`,
-              errorMessage
-            );
-            return {
-              success: false,
-              error: errorMessage,
-            };
           }
-        },
-      });
+        } else if (step.type === "final_answer") {
+          addChatMessage("assistant", step.content || "");
+        }
 
-      let currentSegmentContent = "";
-      for await (const chunk of stream) {
-        if (chunk.type === "text" && chunk.content) {
-          // Check if we need a new bubble (if last message is NOT assistant)
-          const messages = useCopilotUiStore.getState().chatMessages;
-          const lastMsg = messages[messages.length - 1];
-
-          if (!lastMsg || lastMsg.role !== "assistant") {
-            console.log(
-              "[Copilot] Adding message - role: assistant, content: (empty placeholder for streaming)"
-            );
-            addChatMessage("assistant", "");
-            currentSegmentContent = ""; // Reset for new bubble
-          }
-
-          currentSegmentContent += chunk.content;
-          updateLastChatMessage(currentSegmentContent);
-
-          // Auto-scroll during streaming
-          if (scrollViewportRef.current) {
-            scrollViewportRef.current.scrollTop =
-              scrollViewportRef.current.scrollHeight;
-          }
-        } else if (chunk.type === "tool_call") {
-          console.log("[Copilot] Tool call:", chunk.toolCall?.name);
-          console.log("[Copilot] Tool call params:", chunk.toolCall?.arguments);
-          const toolMessage = `Calling tool: ${chunk.toolCall?.name}`;
-          console.log(
-            "[Copilot] Adding message - role: system, content:",
-            toolMessage
-          );
-          addChatMessage("system", toolMessage);
-        } else if (chunk.type === "tool_result") {
-          console.log("[Copilot] Tool result:", chunk.toolResult);
-          console.log(
-            "[Copilot] Tool result stringified:",
-            JSON.stringify(chunk.toolResult, null, 2)
-          );
-          // User requested minimal UI, so we don't show the detailed result in chat
-          // addChatMessage("system", `Tool result: ${JSON.stringify(chunk.toolResult)}`);
-        } else if (chunk.type === "error") {
-          console.log("[Copilot] Error:", chunk.error);
-          setError(chunk.error || "Unknown error");
-          updateLastChatMessage(`Error: ${chunk.error}`);
+        if (scrollViewportRef.current) {
+          scrollViewportRef.current.scrollTop =
+            scrollViewportRef.current.scrollHeight;
         }
       }
-      console.log("[Copilot] Final response segment:", currentSegmentContent);
+
+      const finalState = orchestrator.getState();
+      console.log("[Copilot Agent] Final state:", finalState.status);
+
+      if (finalState.status === "failed") {
+        setError(finalState.error || "Agent failed to complete task");
+        addChatMessage(
+          "system",
+          `⚠️ Task incomplete: ${finalState.error || "Unknown error"}`,
+        );
+      }
     } catch (err: unknown) {
       console.error("AI Generation Error:", err);
       const errorMessage =
         err instanceof Error ? err.message : "Failed to generate response";
       setError(errorMessage);
-      updateLastChatMessage(`Error: ${errorMessage}`);
+      addChatMessage("assistant", `Error: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

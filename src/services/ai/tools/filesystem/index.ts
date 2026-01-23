@@ -27,19 +27,19 @@ Notes:
     path: z
       .string()
       .describe(
-        "Full path where to create the file (e.g., 'Projects/new-notes.md', 'Documents/notes')"
+        "Full path where to create the file (e.g., 'Projects/new-notes.md', 'Documents/notes')",
       ),
     type: z
       .enum(["file", "directory"])
       .optional()
       .describe(
-        "Type to create: 'file' or 'directory'. Defaults to 'file' if not specified."
+        "Type to create: 'file' or 'directory'. Defaults to 'file' if not specified.",
       ),
     content: z
       .string()
       .optional()
       .describe(
-        "Content to write to the file (only for file type, not directory)"
+        "Content to write to the file (only for file type, not directory)",
       ),
   }),
   isDangerous: false,
@@ -134,7 +134,7 @@ Notes:
       .boolean()
       .optional()
       .describe(
-        "Whether to show confirmation dialog. Defaults to true if not specified."
+        "Whether to show confirmation dialog. Defaults to true if not specified.",
       ),
   }),
   isDangerous: true,

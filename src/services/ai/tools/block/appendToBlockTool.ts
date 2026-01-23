@@ -16,14 +16,14 @@ export const appendToBlockTool: Tool = {
     text: z
       .string()
       .describe(
-        "Text to append to the block. Will be added to the end of existing content."
+        "Text to append to the block. Will be added to the end of existing content.",
       ),
     separator: z
       .string()
       .optional()
       .default(" ")
       .describe(
-        "Separator to use between existing content and new text (default: space)"
+        "Separator to use between existing content and new text (default: space)",
       ),
   }),
 
