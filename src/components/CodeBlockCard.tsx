@@ -40,9 +40,11 @@ export const CodeBlockCard: React.FC<CodeBlockCardProps> = ({
       style={{
         display: "block",
         width: "100%",
-        margin: "8px 0",
+        margin: "0",
         position: "relative",
-        border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.15)"}`,
+        border: `1px solid ${
+          isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.15)"
+        }`,
         borderRadius: "8px",
         overflow: "hidden",
         backgroundColor: isDark
@@ -59,7 +61,9 @@ export const CodeBlockCard: React.FC<CodeBlockCardProps> = ({
             background: isDark
               ? "rgba(255, 255, 255, 0.06)"
               : "rgba(0, 0, 0, 0.04)",
-            borderBottom: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
+            borderBottom: `1px solid ${
+              isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"
+            }`,
             fontSize: "12px",
             fontWeight: 500,
             opacity: 0.7,
