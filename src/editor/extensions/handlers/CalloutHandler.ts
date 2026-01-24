@@ -120,7 +120,7 @@ export class CalloutHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isEditMode: boolean,
+    isEditMode: boolean
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -163,7 +163,7 @@ export class CalloutHandler extends BaseHandler {
             decoration: Decoration.mark({
               class: "cm-dim-marker",
               attributes: {
-                style: "opacity: 0.4; font-size: 0.85em;",
+                style: "opacity: 0.65; font-size: 0.85em;",
               },
             }),
           });
