@@ -222,8 +222,35 @@ export class CodeBlockHandler extends BaseHandler {
       }),
     });
 
-    // Note: Syntax highlighting for code fence markers respects the theme's
-    // text color variables through CSS, which is applied in hybridRenderingTheme.
+    // When in edit mode, explicitly brighten code fence markers
+    // to override CodeMirror's default dark blue syntax highlighting
+    if (context.isEditMode) {
+      // Opening fence: ```language title="..."
+      const firstLineEnd = node.from + firstLine.length;
+      decorations.push({
+        from: node.from,
+        to: firstLineEnd,
+        decoration: Decoration.mark({
+          attributes: {
+            style:
+              "color: var(--color-text-secondary) !important; opacity: 1 !important;",
+          },
+        }),
+      });
+
+      // Closing fence: ```
+      const lastLineStart = node.to - lastLine.length;
+      decorations.push({
+        from: lastLineStart,
+        to: node.to,
+        decoration: Decoration.mark({
+          attributes: {
+            style:
+              "color: var(--color-text-secondary) !important; opacity: 1 !important;",
+          },
+        }),
+      });
+    }
 
     return decorations;
   }
