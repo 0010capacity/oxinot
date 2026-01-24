@@ -444,7 +444,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             to: start + 2,
             decoration: Decoration.mark({
               class: "cm-dim-marker",
-              attributes: { style: "opacity: 0.65;" },
+              attributes: { style: "opacity: 0.8;" },
             }),
           });
           decorations.push({
@@ -452,7 +452,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             to: end,
             decoration: Decoration.mark({
               class: "cm-dim-marker",
-              attributes: { style: "opacity: 0.65;" },
+              attributes: { style: "opacity: 0.8;" },
             }),
           });
         }
@@ -646,14 +646,14 @@ export const hybridRenderingTheme = EditorView.theme({
 
   // Ensure markdown markers (like '#') never inherit underline from any surrounding styles
   ".cm-dim-marker": {
-    opacity: "0.65",
+    opacity: "0.8",
     textDecoration: "none !important",
     borderBottom: "none !important",
   },
 
   ".cm-hidden-marker": {
     fontSize: "0.85em",
-    opacity: "0.65",
+    opacity: "0.8",
     textDecoration: "none !important",
     borderBottom: "none !important",
   },

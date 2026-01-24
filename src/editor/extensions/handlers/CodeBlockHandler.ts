@@ -222,6 +222,33 @@ export class CodeBlockHandler extends BaseHandler {
       }),
     });
 
+    // When in edit mode, brighten the backticks and header for better visibility
+    if (context.isEditMode) {
+      // Opening backticks and header (```language title="...")
+      const firstLineEnd = node.from + firstLine.length;
+      decorations.push({
+        from: node.from,
+        to: firstLineEnd,
+        decoration: Decoration.mark({
+          attributes: {
+            style: "opacity: 1 !important; color: inherit !important;",
+          },
+        }),
+      });
+
+      // Closing backticks
+      const lastLineStart = node.to - lastLine.length;
+      decorations.push({
+        from: lastLineStart,
+        to: node.to,
+        decoration: Decoration.mark({
+          attributes: {
+            style: "opacity: 1 !important; color: inherit !important;",
+          },
+        }),
+      });
+    }
+
     return decorations;
   }
 }

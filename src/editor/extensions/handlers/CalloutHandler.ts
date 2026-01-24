@@ -163,7 +163,7 @@ export class CalloutHandler extends BaseHandler {
             decoration: Decoration.mark({
               class: "cm-dim-marker",
               attributes: {
-                style: "opacity: 0.65; font-size: 0.85em;",
+                style: "opacity: 0.8; font-size: 0.85em;",
               },
             }),
           });
