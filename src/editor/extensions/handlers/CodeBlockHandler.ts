@@ -91,22 +91,48 @@ export class CodeBlockHandler extends BaseHandler {
   }
 
   canHandle(node: SyntaxNode): boolean {
-    return node.type.name === "FencedCode";
+    const result = node.type.name === "FencedCode";
+    if (result) {
+      console.log("[CodeBlockHandler] canHandle TRUE for node:", {
+        nodeName: node.type.name,
+        from: node.from,
+        to: node.to,
+      });
+    }
+    return result;
   }
 
   handle(node: SyntaxNode, context: RenderContext): DecorationSpec[] {
+    console.log("[CodeBlockHandler] handle called", {
+      nodeFrom: node.from,
+      nodeTo: node.to,
+      isEditMode: context.isEditMode,
+      cursorPos: context.cursor.pos,
+    });
+
     const decorations: DecorationSpec[] = [];
     const content = this.getNodeText(node, context);
     const lines = content.split("\n");
 
+    console.log("[CodeBlockHandler] content lines:", lines.length);
+
     if (lines.length < 2) {
+      console.log("[CodeBlockHandler] Early return: lines < 2");
       return decorations;
     }
 
     const cursorPos = context.cursor.pos;
     const isInCodeBlock = cursorPos >= node.from && cursorPos <= node.to;
 
+    console.log("[CodeBlockHandler] Cursor check:", {
+      isEditMode: context.isEditMode,
+      isInCodeBlock,
+    });
+
     if (context.isEditMode || isInCodeBlock) {
+      console.log(
+        "[CodeBlockHandler] Early return: editMode or cursor in block",
+      );
       return decorations;
     }
 
