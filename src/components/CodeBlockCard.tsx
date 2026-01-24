@@ -21,6 +21,7 @@ export const CodeBlockCard: React.FC<CodeBlockCardProps> = ({
 
   const handleCopyCode = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     try {
       await navigator.clipboard.writeText(code);
       showToast({ message: "Code copied", type: "success" });
@@ -30,8 +31,14 @@ export const CodeBlockCard: React.FC<CodeBlockCardProps> = ({
     }
   };
 
+  const handleButtonMouseDown = (e: React.MouseEvent) => {
+    (e.nativeEvent as any).stopImmediatePropagation?.();
+    e.preventDefault();
+  };
+
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     onEdit?.();
   };
 
@@ -90,6 +97,7 @@ export const CodeBlockCard: React.FC<CodeBlockCardProps> = ({
         <button
           type="button"
           onClick={handleCopyCode}
+          onMouseDown={handleButtonMouseDown}
           title="Copy code"
           style={{
             border: "none",
@@ -114,6 +122,7 @@ export const CodeBlockCard: React.FC<CodeBlockCardProps> = ({
         <button
           type="button"
           onClick={handleEdit}
+          onMouseDown={handleButtonMouseDown}
           title="Edit code"
           style={{
             border: "none",

@@ -36,6 +36,41 @@ class CodeBlockWidget extends WidgetType {
   toDOM(view: EditorView) {
     const container = document.createElement("div");
     container.className = "cm-code-block-widget";
+    container.setAttribute("contenteditable", "false");
+    container.style.userSelect = "none";
+    container.style.pointerEvents = "auto";
+
+    // Prevent mousedown from propagating to editor (except for buttons)
+    container.addEventListener(
+      "mousedown",
+      (e) => {
+        const target = e.target as HTMLElement;
+        const isButton =
+          target.tagName === "BUTTON" || target.closest("button");
+
+        if (!isButton) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      },
+      true
+    );
+
+    // Prevent click from propagating to editor (except for buttons)
+    container.addEventListener(
+      "click",
+      (e) => {
+        const target = e.target as HTMLElement;
+        const isButton =
+          target.tagName === "BUTTON" || target.closest("button");
+
+        if (!isButton) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      },
+      true
+    );
 
     this.root = createRoot(container);
     this.root.render(
@@ -77,9 +112,13 @@ class CodeBlockWidget extends WidgetType {
 
   ignoreEvent(event: Event) {
     const target = event.target as HTMLElement;
-    if (target.tagName === "BUTTON" || target.closest("button")) {
+    const isButton = target.tagName === "BUTTON" || target.closest("button");
+    // Only allow events from buttons (Edit, Copy)
+    // All other clicks should be ignored to prevent entering edit mode
+    if (isButton) {
       return false;
     }
+    // Ignore all other events (including clicks on the widget itself)
     return true;
   }
 }
