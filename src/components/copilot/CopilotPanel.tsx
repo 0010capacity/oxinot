@@ -258,16 +258,18 @@ export function CopilotPanel() {
         agentStore.addStep(step);
 
         if (step.type === "thought") {
-          addChatMessage("system", `💭 ${step.thought}`);
+          addChatMessage("system", `Analyzing: ${step.thought}`);
         } else if (step.type === "tool_call") {
-          addChatMessage("system", `🔧 Using tool: ${step.toolName}`);
+          addChatMessage("system", `Executing tool: ${step.toolName}`);
         } else if (step.type === "observation") {
           if (step.toolResult?.success) {
-            addChatMessage("system", "✅ Tool executed successfully");
+            addChatMessage("system", "Tool execution completed successfully");
           } else {
             addChatMessage(
               "system",
-              `❌ Tool failed: ${step.toolResult?.error || "Unknown error"}`,
+              `Tool execution failed: ${
+                step.toolResult?.error || "Unknown error"
+              }`,
             );
           }
         } else if (step.type === "final_answer") {
@@ -287,7 +289,7 @@ export function CopilotPanel() {
         setError(finalState.error || "Agent failed to complete task");
         addChatMessage(
           "system",
-          `⚠️ Task incomplete: ${finalState.error || "Unknown error"}`,
+          `Task incomplete: ${finalState.error || "Unknown error"}`,
         );
       }
     } catch (err: unknown) {
