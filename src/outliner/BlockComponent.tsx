@@ -625,7 +625,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const beforeContent = content.slice(0, cursor);
             draftRef.current = beforeContent;
             setDraft(beforeContent);
-            
+
             splitBlockAtCursor(blockId, cursor, content);
           }
 
@@ -802,7 +802,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               const beforeContent = content.slice(0, cursor);
               draftRef.current = beforeContent;
               setDraft(beforeContent);
-              
+
               splitBlockAtCursor(blockId, cursor, content);
             }
 

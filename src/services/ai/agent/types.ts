@@ -67,6 +67,15 @@ export interface AgentConfig {
 
   /** Tool execution context */
   context: ToolContext;
+
+  /** AI provider API key */
+  apiKey?: string;
+
+  /** AI provider base URL */
+  baseUrl?: string;
+
+  /** AI model name */
+  model?: string;
 }
 
 /**

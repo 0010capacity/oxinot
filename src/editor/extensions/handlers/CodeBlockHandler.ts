@@ -60,7 +60,7 @@ class CodeBlockWidget extends WidgetType {
           e.preventDefault();
         }
       },
-      true
+      true,
     );
 
     // Prevent click from propagating to editor (except for buttons)
@@ -76,7 +76,7 @@ class CodeBlockWidget extends WidgetType {
           e.preventDefault();
         }
       },
-      true
+      true,
     );
 
     this.root = createRoot(container);
@@ -100,9 +100,9 @@ class CodeBlockWidget extends WidgetType {
                 });
               }
             },
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
 
     return container;

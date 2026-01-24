@@ -33,7 +33,7 @@ export class CommentHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isEditMode: boolean
+    isEditMode: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 

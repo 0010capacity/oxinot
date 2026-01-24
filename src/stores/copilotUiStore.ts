@@ -72,7 +72,8 @@ export const useCopilotUiStore = create<CopilotUiStore>((set) => ({
   setIsLoading: (isLoading) => set({ isLoading }),
   setPreviewContent: (previewContent) => set({ previewContent }),
   setOriginalContent: (originalContent) => set({ originalContent }),
-  setPanelWidth: (width) => set({ panelWidth: Math.max(300, Math.min(800, width)) }),
+  setPanelWidth: (width) =>
+    set({ panelWidth: Math.max(300, Math.min(800, width)) }),
 
   addChatMessage: (role, content) =>
     set((state) => ({

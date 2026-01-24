@@ -85,7 +85,7 @@ export function CopilotPanel() {
   const deny = useToolApprovalStore((state) => state.deny);
 
   // Settings
-  const { provider, baseUrl } = useAISettingsStore();
+  const { provider, baseUrl, apiKey, model } = useAISettingsStore();
 
   // Local state
   const [error, setError] = useState<string | null>(null);
@@ -212,6 +212,14 @@ export function CopilotPanel() {
         throw new Error("No workspace path available");
       }
 
+      console.log("[Copilot] AI Config:", {
+        provider,
+        baseUrl,
+        hasApiKey: !!apiKey,
+        apiKeyLength: apiKey?.length || 0,
+        model,
+      });
+
       const context = {
         workspacePath,
         currentPageId: currentPageId || undefined,
@@ -225,6 +233,13 @@ export function CopilotPanel() {
         enrichedGoal += `\n\n--- Context from Mentions ---\n${resolvedContext}`;
       }
 
+      console.log("[Copilot] Passing to orchestrator:", {
+        enrichedGoal: enrichedGoal.substring(0, 100),
+        hasApiKey: !!apiKey,
+        hasBaseUrl: !!baseUrl,
+        hasModel: !!model,
+      });
+
       const orchestrator = new AgentOrchestrator(aiProvider);
 
       const agentStore = useAgentStore.getState();
@@ -234,6 +249,9 @@ export function CopilotPanel() {
         maxIterations: 10,
         verbose: true,
         context,
+        apiKey,
+        baseUrl,
+        model,
       })) {
         console.log("[Copilot Agent] Step:", step.type);
 

@@ -21,3 +21,13 @@ export function toolToAIFunction(tool: Tool) {
 export function toolsToAIFunctions(tools: Tool[]) {
   return tools.map(toolToAIFunction);
 }
+
+/**
+ * Convert tools to modern OpenAI tools API format
+ */
+export function toolsToOpenAITools(tools: Tool[]) {
+  return tools.map((tool) => ({
+    type: "function" as const,
+    function: toolToAIFunction(tool),
+  }));
+}

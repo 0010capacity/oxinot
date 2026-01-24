@@ -1,6 +1,6 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import type { AIRequest, IAIProvider, StreamChunk } from "./types";
-import { toolsToAIFunctions } from "./tools/utils";
+import { toolsToOpenAITools } from "./tools/utils";
 
 export class OpenAIProvider implements IAIProvider {
   id = "openai";
@@ -22,12 +22,26 @@ export class OpenAIProvider implements IAIProvider {
       ? `${baseUrl}/chat/completions`
       : `${baseUrl}/v1/chat/completions`;
 
+    console.log("[OpenAIProvider] API Request:", {
+      url,
+      hasApiKey: !!request.apiKey,
+      apiKeyLength: request.apiKey?.length || 0,
+      apiKeyPrefix: request.apiKey?.substring(0, 10) + "...",
+      model: request.model,
+      toolsCount: request.tools?.length || 0,
+    });
+
     // 1. Build initial messages
     const messages: {
       role: string;
       content: string | null;
-      function_call?: { name: string; arguments: string };
+      tool_calls?: Array<{
+        id: string;
+        type: "function";
+        function: { name: string; arguments: string };
+      }>;
       name?: string;
+      tool_call_id?: string;
     }[] = [];
     if (request.systemPrompt) {
       messages.push({ role: "system", content: request.systemPrompt });
@@ -40,9 +54,7 @@ export class OpenAIProvider implements IAIProvider {
     }
     messages.push({ role: "user", content: request.prompt });
 
-    const functions = request.tools
-      ? toolsToAIFunctions(request.tools)
-      : undefined;
+    const tools = request.tools ? toolsToOpenAITools(request.tools) : undefined;
 
     // 2. Loop for potential multiple tool calls
     let loopCount = 0;
@@ -60,11 +72,13 @@ export class OpenAIProvider implements IAIProvider {
         body: JSON.stringify({
           model: request.model,
           messages,
-          functions,
-          function_call: functions ? "auto" : undefined,
+          tools,
+          tool_choice: tools ? "auto" : undefined,
           stream: true,
         }),
       });
+
+      console.log("[OpenAIProvider] API Response status:", response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -77,8 +91,10 @@ export class OpenAIProvider implements IAIProvider {
       const decoder = new TextDecoder();
       let buffer = "";
 
-      let currentFunctionName = "";
-      let currentFunctionArgs = "";
+      const toolCalls = new Map<
+        string,
+        { id: string; name: string; args: string }
+      >();
       let isCallingFunction = false;
       let fullAssistantContent = "";
 
@@ -107,54 +123,75 @@ export class OpenAIProvider implements IAIProvider {
               yield { type: "text", content: delta.content };
             }
 
-            if (delta?.function_call) {
+            if (delta?.tool_calls) {
               isCallingFunction = true;
-              if (delta.function_call.name)
-                currentFunctionName = delta.function_call.name;
-              if (delta.function_call.arguments)
-                currentFunctionArgs += delta.function_call.arguments;
+              for (const toolCall of delta.tool_calls) {
+                const { index, id, function: fn } = toolCall;
+                if (!toolCalls.has(index)) {
+                  toolCalls.set(index, { id: id || "", name: "", args: "" });
+                }
+                const tc = toolCalls.get(index)!;
+                if (id) tc.id = id;
+                if (fn?.name) tc.name = fn.name;
+                if (fn?.arguments) tc.args += fn.arguments;
+              }
             }
 
-            // Function Call detected and turn ended
+            // Tool Call detected and turn ended
             if (
-              finishReason === "function_call" ||
+              finishReason === "tool_calls" ||
               (isCallingFunction && finishReason === "stop")
             ) {
-              const args = JSON.parse(currentFunctionArgs || "{}");
+              // Store tool results to avoid double execution
+              const toolResults: Array<{
+                id: string;
+                name: string;
+                result: unknown;
+              }> = [];
 
-              yield {
-                type: "tool_call",
-                toolCall: {
-                  id: json.id || `call_${Date.now()}`,
-                  name: currentFunctionName,
-                  arguments: args,
-                },
-              };
+              // Yield all tool calls
+              for (const { id, name, args } of toolCalls.values()) {
+                const parsedArgs = JSON.parse(args || "{}");
 
-              if (request.onToolCall) {
-                // Important: Push the assistant's call to history before the result
+                yield {
+                  type: "tool_call",
+                  toolCall: {
+                    id,
+                    name,
+                    arguments: parsedArgs,
+                  },
+                };
+
+                if (request.onToolCall) {
+                  const result = await request.onToolCall(name, parsedArgs);
+                  toolResults.push({ id, name, result });
+                  yield { type: "tool_result", toolResult: result };
+                }
+              }
+
+              if (request.onToolCall && toolResults.length > 0) {
+                // Important: Push the assistant's tool calls to history before results
+                const assistantToolCalls = Array.from(toolCalls.values()).map(
+                  ({ id, name, args }) => ({
+                    id,
+                    type: "function" as const,
+                    function: { name, arguments: args },
+                  }),
+                );
                 messages.push({
                   role: "assistant",
                   content: null,
-                  function_call: {
-                    name: currentFunctionName,
-                    arguments: currentFunctionArgs,
-                  },
+                  tool_calls: assistantToolCalls,
                 });
 
-                const result = await request.onToolCall(
-                  currentFunctionName,
-                  args,
-                );
-
-                yield { type: "tool_result", toolResult: result };
-
-                // Push tool result to history
-                messages.push({
-                  role: "function",
-                  name: currentFunctionName,
-                  content: JSON.stringify(result),
-                });
+                // Push tool results to history (in same order as tool calls)
+                for (const { id, result } of toolResults) {
+                  messages.push({
+                    role: "tool",
+                    tool_call_id: id,
+                    content: JSON.stringify(result),
+                  });
+                }
 
                 // Continue the outer while loop to get AI's response to the tool result
                 isCallingFunction = false;

@@ -897,6 +897,19 @@ pub async fn delete_block(
         .map_err(|e| e.to_string())?
     };
 
+    // Check if this is the only block in the page (root block with no siblings)
+    let is_last_block = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM blocks WHERE page_id = ?",
+                [&page_id],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        count == 1
+    };
+
     // Get all direct children of the block to be deleted
     let children: Vec<String> = {
         let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
@@ -912,30 +925,53 @@ pub async fn delete_block(
         results
     };
 
-    let now = chrono::Utc::now().to_rfc3339(); // Wait, to_rfc3339()
+    let now = chrono::Utc::now().to_rfc3339();
 
     {
         let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
-        // Move children to the deleted block's parent (merge/promote children)
-        for child_id in children {
+
+        // If this is the only block in the page, clear content instead of deleting
+        if is_last_block {
             conn.execute(
-                "UPDATE blocks SET parent_id = ?, updated_at = ? WHERE id = ?",
-                params![&parent_id, &now, &child_id],
+                "UPDATE blocks SET content = '', updated_at = ? WHERE id = ?",
+                params![&now, &block_id],
             )
             .map_err(|e| e.to_string())?;
+
+            // Re-index block in FTS5
+            index_block_fts(&conn, &block_id, &page_id, "")?;
+        } else {
+            // Move children to the deleted block's parent (merge/promote children)
+            for child_id in children {
+                conn.execute(
+                    "UPDATE blocks SET parent_id = ?, updated_at = ? WHERE id = ?",
+                    params![&parent_id, &now, &child_id],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+
+            // Delete only the target block (children are now preserved and promoted)
+            conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
+                .map_err(|e| e.to_string())?;
+
+            // Remove block from FTS5 index
+            deindex_block_fts(&conn, &block_id)?;
         }
-
-        // Delete only the target block (children are now preserved and promoted)
-        conn.execute("DELETE FROM blocks WHERE id = ?", [&block_id])
-            .map_err(|e| e.to_string())?;
-
-        // Remove block from FTS5 index
-        deindex_block_fts(&conn, &block_id)?;
     }
 
     // Sync to markdown file
-    sync_page_to_markdown_after_delete(&conn_mutex, &workspace_path, &page_id, block_id.as_str())
+    if is_last_block {
+        sync_page_to_markdown_after_update(&conn_mutex, &workspace_path, &page_id, &block_id)
+            .await?;
+    } else {
+        sync_page_to_markdown_after_delete(
+            &conn_mutex,
+            &workspace_path,
+            &page_id,
+            block_id.as_str(),
+        )
         .await?;
+    }
 
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);

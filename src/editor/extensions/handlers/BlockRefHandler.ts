@@ -140,7 +140,7 @@ class EmbedSubtreeWidget extends WidgetType {
                 new CustomEvent("cm-embed-navigate", {
                   bubbles: true,
                   detail: { blockId },
-                })
+                }),
               );
             },
             onEdit: () => {
@@ -153,9 +153,9 @@ class EmbedSubtreeWidget extends WidgetType {
                 });
               }
             },
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
 
     return container;
@@ -288,7 +288,7 @@ export class BlockRefHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isEditMode: boolean
+    isEditMode: boolean,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 

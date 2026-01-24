@@ -7,6 +7,9 @@ import type {
   AgentStep,
   IAgentOrchestrator,
 } from "./types";
+import { useBlockStore } from "../../../stores/blockStore";
+import { usePageStore } from "../../../stores/pageStore";
+import { useBlockUIStore } from "../../../stores/blockUIStore";
 
 export class AgentOrchestrator implements IAgentOrchestrator {
   private state: AgentState;
@@ -31,7 +34,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   ): AsyncGenerator<AgentStep, void, unknown> {
     this.shouldStop = false;
 
-    const executionId = `exec_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const executionId = `exec_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(7)}`;
 
     this.state = {
       executionId,
@@ -83,7 +88,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
           const stream = this.aiProvider.generateStream({
             prompt: goal,
             systemPrompt,
-            model: "",
+            model: config.model || "",
+            apiKey: config.apiKey,
+            baseUrl: config.baseUrl,
             history: conversationHistory,
             tools: allTools,
             onToolCall: async (toolName: string, params: unknown) => {
@@ -95,7 +102,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               );
 
               const toolCallStep: AgentStep = {
-                id: `step_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                id: `step_${Date.now()}_${Math.random()
+                  .toString(36)
+                  .substring(7)}`,
                 type: "tool_call",
                 timestamp: Date.now(),
                 toolName,
@@ -119,7 +128,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               );
 
               const observationStep: AgentStep = {
-                id: `step_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                id: `step_${Date.now()}_${Math.random()
+                  .toString(36)
+                  .substring(7)}`,
                 type: "observation",
                 timestamp: Date.now(),
                 toolResult: result,
@@ -130,7 +141,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
               conversationHistory.push({
                 role: "assistant",
-                content: `I called ${toolName} with params ${JSON.stringify(params)}`,
+                content: `I called ${toolName} with params ${JSON.stringify(
+                  params,
+                )}`,
               });
               conversationHistory.push({
                 role: "user",
@@ -158,7 +171,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             finalAnswerReceived = true;
 
             const finalStep: AgentStep = {
-              id: `step_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+              id: `step_${Date.now()}_${Math.random()
+                .toString(36)
+                .substring(7)}`,
               type: "final_answer",
               timestamp: Date.now(),
               content: accumulatedText,
@@ -239,12 +254,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   }
 
   private buildSystemPrompt(_config: AgentConfig): string {
-    const blockStore =
-      require("../../../stores/blockStore").useBlockStore.getState();
-    const pageStore =
-      require("../../../stores/pageStore").usePageStore.getState();
-    const uiStore =
-      require("../../../stores/blockUIStore").useBlockUIStore.getState();
+    const blockStore = useBlockStore.getState();
+    const pageStore = usePageStore.getState();
+    const uiStore = useBlockUIStore.getState();
 
     let systemPrompt = `You are an AI agent integrated into 'Oxinot', a block-based outliner application.
 
