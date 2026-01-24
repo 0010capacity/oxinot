@@ -121,17 +121,16 @@ export class CodeBlockHandler extends BaseHandler {
       return decorations;
     }
 
-    const cursorPos = context.cursor.pos;
-    const isInCodeBlock = cursorPos >= node.from && cursorPos <= node.to;
-
-    console.log("[CodeBlockHandler] Cursor check:", {
+    console.log("[CodeBlockHandler] Edit mode check:", {
       isEditMode: context.isEditMode,
-      isInCodeBlock,
-      willShowWidget: !isInCodeBlock,
+      cursorPos: context.cursor.pos,
+      nodeFrom: node.from,
+      nodeTo: node.to,
+      willShowWidget: !context.isEditMode,
     });
 
-    if (isInCodeBlock) {
-      console.log("[CodeBlockHandler] Early return: cursor in block");
+    if (context.isEditMode) {
+      console.log("[CodeBlockHandler] Early return: edit mode active");
       return decorations;
     }
 
