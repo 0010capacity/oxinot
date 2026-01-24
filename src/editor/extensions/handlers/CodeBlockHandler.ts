@@ -127,12 +127,11 @@ export class CodeBlockHandler extends BaseHandler {
     console.log("[CodeBlockHandler] Cursor check:", {
       isEditMode: context.isEditMode,
       isInCodeBlock,
+      willShowWidget: !isInCodeBlock,
     });
 
-    if (context.isEditMode || isInCodeBlock) {
-      console.log(
-        "[CodeBlockHandler] Early return: editMode or cursor in block",
-      );
+    if (isInCodeBlock) {
+      console.log("[CodeBlockHandler] Early return: cursor in block");
       return decorations;
     }
 
