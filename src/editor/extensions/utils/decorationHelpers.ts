@@ -34,7 +34,7 @@ export interface StyledTextConfig {
 export function isOnCursorLine(
   line: Line,
   cursorLineFrom: number,
-  cursorLineTo: number,
+  cursorLineTo: number
 ): boolean {
   return line.from >= cursorLineFrom && line.to <= cursorLineTo;
 }
@@ -45,7 +45,7 @@ export function isOnCursorLine(
 export function isPositionOnCursorLine(
   pos: number,
   cursorLineFrom: number,
-  cursorLineTo: number,
+  cursorLineTo: number
 ): boolean {
   return pos >= cursorLineFrom && pos <= cursorLineTo;
 }
@@ -63,7 +63,7 @@ export function isPositionOnCursorLine(
 export function createHiddenMarker(
   from: number,
   to: number,
-  isEditMode: boolean,
+  isEditMode: boolean
 ): DecorationSpec {
   return {
     from,
@@ -83,7 +83,7 @@ export function createHiddenMarker(
 export function createStyledText(
   from: number,
   to: number,
-  config: StyledTextConfig,
+  config: StyledTextConfig
 ): DecorationSpec {
   return {
     from,
@@ -105,7 +105,12 @@ export function createHiddenText(from: number, to: number): DecorationSpec {
   return {
     from,
     to,
-    decoration: Decoration.replace({}),
+    decoration: Decoration.mark({
+      class: "cm-hidden",
+      attributes: {
+        style: "font-size: 0; opacity: 0;",
+      },
+    }),
   };
 }
 
@@ -115,7 +120,7 @@ export function createHiddenText(from: number, to: number): DecorationSpec {
 export function createDimmedText(
   from: number,
   to: number,
-  className = "cm-dim-marker",
+  className = "cm-dim-marker"
 ): DecorationSpec {
   return {
     from,
@@ -135,7 +140,7 @@ export function createDimmedText(
 export function createVerySubtleText(
   from: number,
   to: number,
-  className = "cm-very-subtle",
+  className = "cm-very-subtle"
 ): DecorationSpec {
   return {
     from,
@@ -155,7 +160,7 @@ export function createVerySubtleText(
 export function createWidget(
   pos: number,
   widget: WidgetType,
-  side = 1,
+  side = 1
 ): DecorationSpec {
   return {
     from: pos,
@@ -172,10 +177,10 @@ export function createWidget(
  */
 export function createHiddenMarkers(
   ranges: Array<{ from: number; to: number }>,
-  isEditMode: boolean,
+  isEditMode: boolean
 ): DecorationSpec[] {
   return ranges.map((range) =>
-    createHiddenMarker(range.from, range.to, isEditMode),
+    createHiddenMarker(range.from, range.to, isEditMode)
   );
 }
 
@@ -183,13 +188,13 @@ export function createHiddenMarkers(
  * Safely create a replacement decoration (checks for line breaks)
  *
  * CM6 does not allow replacing text that contains line breaks via plugins.
- * This helper checks if the range is safe to replace.
+ * This helper uses mark() instead of replace() to avoid line break issues.
  */
 export function createSafeReplacement(
   from: number,
   to: number,
   lineText: string,
-  startOffset = 0,
+  startOffset = 0
 ): DecorationSpec | null {
   const textToReplace = lineText.slice(from - startOffset, to - startOffset);
 
@@ -201,7 +206,12 @@ export function createSafeReplacement(
   return {
     from,
     to,
-    decoration: Decoration.replace({}),
+    decoration: Decoration.mark({
+      class: "cm-hidden",
+      attributes: {
+        style: "font-size: 0; opacity: 0;",
+      },
+    }),
   };
 }
 
@@ -234,7 +244,7 @@ function getDecorationEndSide(decoration: Decoration): number {
  * This helper ensures decorations are properly sorted.
  */
 export function sortDecorations(
-  decorations: DecorationSpec[],
+  decorations: DecorationSpec[]
 ): DecorationSpec[] {
   return decorations.sort((a, b) => {
     // RangeSetBuilder requires ranges ordered by `from`, then by `startSide`.
@@ -258,7 +268,7 @@ export function sortDecorations(
  * Removes decorations where from >= to (invalid ranges)
  */
 export function filterValidDecorations(
-  decorations: DecorationSpec[],
+  decorations: DecorationSpec[]
 ): DecorationSpec[] {
   return decorations.filter((spec) => spec.from < spec.to);
 }
@@ -271,7 +281,7 @@ export function createPairedMarkers(
   openTo: number,
   closeFrom: number,
   closeTo: number,
-  isEditMode: boolean,
+  isEditMode: boolean
 ): DecorationSpec[] {
   return [
     createHiddenMarker(openFrom, openTo, isEditMode),

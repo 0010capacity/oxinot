@@ -140,7 +140,7 @@ class EmbedSubtreeWidget extends WidgetType {
                 new CustomEvent("cm-embed-navigate", {
                   bubbles: true,
                   detail: { blockId },
-                }),
+                })
               );
             },
             onEdit: () => {
@@ -153,9 +153,9 @@ class EmbedSubtreeWidget extends WidgetType {
                 });
               }
             },
-          }),
-        ),
-      ),
+          })
+        )
+      )
     );
 
     return container;
@@ -288,7 +288,7 @@ export class BlockRefHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isEditMode: boolean,
+    isEditMode: boolean
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -332,10 +332,10 @@ export class BlockRefHandler extends BaseHandler {
 
       if (match.isEmbed) {
         // BLOCK-LEVEL EMBED: insert a block-level widget (full-width subtree preview)
-        // Side=0 places widget at the reference start
+        // Widget must use single position, not range - use from only
         decorations.push({
           from,
-          to,
+          to: from,
           decoration: Decoration.widget({
             widget: new EmbedSubtreeWidget(match.id),
             side: 0,
@@ -343,11 +343,10 @@ export class BlockRefHandler extends BaseHandler {
         });
       } else {
         // INLINE LINK: render a one-line inline preview widget (read-only).
-        // Place the widget at the reference start so it remains visible/clickable
-        // while the raw markup is hidden.
+        // Widget must use single position, not range - use from only
         decorations.push({
           from,
-          to,
+          to: from,
           decoration: Decoration.widget({
             widget: new BlockRefPreviewWidget(match.id),
             side: 0,

@@ -33,7 +33,7 @@ export class CommentHandler extends BaseHandler {
   static processLine(
     lineText: string,
     lineFrom: number,
-    isEditMode: boolean,
+    isEditMode: boolean
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -68,7 +68,12 @@ export class CommentHandler extends BaseHandler {
         decorations.push({
           from: start,
           to: end,
-          decoration: Decoration.replace({}),
+          decoration: Decoration.mark({
+            class: "cm-hidden",
+            attributes: {
+              style: "font-size: 0; opacity: 0;",
+            },
+          }),
         });
       }
       match = commentRegex.exec(lineText);

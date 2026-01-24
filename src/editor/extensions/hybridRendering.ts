@@ -144,7 +144,7 @@ function clamp(n: number, min: number, max: number): number {
 function getVisibleLineRanges(
   view: EditorView,
   mergedVisibleRanges: VisibleRange[],
-  bufferLines: number,
+  bufferLines: number
 ): Array<{ fromLine: number; toLine: number }> {
   const { doc } = view.state;
   const out: Array<{ fromLine: number; toLine: number }> = [];
@@ -224,7 +224,9 @@ function buildDecorations(view: EditorView): DecorationSet {
         const syntaxNode = node.node;
 
         const nodeDecorations = handlerRegistry.handleNode(syntaxNode, context);
-        if (nodeDecorations.length) decorations.push(...nodeDecorations);
+        if (nodeDecorations.length) {
+          decorations.push(...nodeDecorations);
+        }
         return true;
       },
     });
@@ -234,7 +236,7 @@ function buildDecorations(view: EditorView): DecorationSet {
   const visibleLineRanges = getVisibleLineRanges(
     view,
     mergedVisibleRanges,
-    VISIBLE_LINE_BUFFER,
+    VISIBLE_LINE_BUFFER
   );
 
   // Process line-by-line patterns (not represented in syntax tree)
@@ -249,28 +251,28 @@ function buildDecorations(view: EditorView): DecorationSet {
 
       // Block-level and inline wiki links (embed pages are block-level)
       decorations.push(
-        ...WikiLinkHandler.processLine(lineText, line.from, isEditMode),
+        ...WikiLinkHandler.processLine(lineText, line.from, isEditMode)
       );
 
       // Block-level and inline block references (embed blocks are block-level)
       decorations.push(
-        ...BlockRefHandler.processLine(lineText, line.from, isEditMode),
+        ...BlockRefHandler.processLine(lineText, line.from, isEditMode)
       );
 
       // Inline patterns
       decorations.push(
-        ...TagHandler.processLine(lineText, line.from, isEditMode),
+        ...TagHandler.processLine(lineText, line.from, isEditMode)
       );
       decorations.push(
-        ...HighlightHandler.processLine(lineText, line.from, isEditMode),
+        ...HighlightHandler.processLine(lineText, line.from, isEditMode)
       );
       decorations.push(
-        ...CommentHandler.processLine(lineText, line.from, isEditMode),
+        ...CommentHandler.processLine(lineText, line.from, isEditMode)
       );
 
       // Block-level callouts (but enforced in CalloutHandler)
       decorations.push(
-        ...CalloutHandler.processLine(lineText, line.from, isEditMode),
+        ...CalloutHandler.processLine(lineText, line.from, isEditMode)
       );
     }
   }
@@ -295,7 +297,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         if (!isEditMode) {
           decorations.push({
             from: line.from,
-            to: line.to,
+            to: Math.min(line.to, line.from + lineText.length),
             decoration: Decoration.mark({
               class: "cm-table-separator-hidden",
               attributes: {
@@ -307,7 +309,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         } else {
           decorations.push({
             from: line.from,
-            to: line.to,
+            to: Math.min(line.to, line.from + lineText.length),
             decoration: Decoration.mark({
               class: "cm-table-separator",
               attributes: {
@@ -330,7 +332,7 @@ function buildDecorations(view: EditorView): DecorationSet {
 
       decorations.push({
         from: line.from,
-        to: line.to,
+        to: Math.min(line.to, line.from + lineText.length),
         decoration: Decoration.mark({
           class: isHeader ? "cm-table-header" : "cm-table-row",
           attributes: { style: rowStyle },
@@ -423,12 +425,18 @@ function buildDecorations(view: EditorView): DecorationSet {
           decorations.push({
             from: start,
             to: start + 2,
-            decoration: Decoration.replace({}),
+            decoration: Decoration.mark({
+              class: "cm-hidden",
+              attributes: { style: "font-size: 0; opacity: 0;" },
+            }),
           });
           decorations.push({
             from: end - 2,
             to: end,
-            decoration: Decoration.replace({}),
+            decoration: Decoration.mark({
+              class: "cm-hidden",
+              attributes: { style: "font-size: 0; opacity: 0;" },
+            }),
           });
         } else {
           decorations.push({
@@ -464,7 +472,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         if (!isEditMode) {
           decorations.push({
             from: line.from,
-            to: line.to,
+            to: Math.min(line.to, line.from + lineText.length),
             decoration: Decoration.mark({
               class: "cm-footnote-def",
               attributes: {
@@ -504,7 +512,9 @@ function buildDecorations(view: EditorView): DecorationSet {
   // Build decoration set using RangeSetBuilder
   const builder = new RangeSetBuilder<Decoration>();
   for (const spec of sortedDecorations) {
-    if (spec.from >= spec.to) continue;
+    // Allow from === to for widgets (point decorations), but skip for marks
+    const isWidget = spec.decoration.spec?.widget !== undefined;
+    if (!isWidget && spec.from >= spec.to) continue;
 
     try {
       builder.add(spec.from, spec.to, spec.decoration);
@@ -599,11 +609,11 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
       try {
         this.view.dom.removeEventListener(
           "compositionstart",
-          this.onCompositionStart,
+          this.onCompositionStart
         );
         this.view.dom.removeEventListener(
           "compositionend",
-          this.onCompositionEnd,
+          this.onCompositionEnd
         );
       } catch {
         // no-op
@@ -612,7 +622,7 @@ export const hybridRenderingPlugin = ViewPlugin.fromClass(
   },
   {
     decorations: (v) => v.decorations,
-  },
+  }
 );
 
 /**

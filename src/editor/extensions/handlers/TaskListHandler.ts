@@ -43,15 +43,16 @@ export class TaskListHandler extends BaseHandler {
     const markerEnd = line.from + taskMatch[1].length;
     const checkboxEnd = markerEnd + 3; // [x] or [ ]
 
-    // Add checkbox widget at the start of the line
+    // Add checkbox widget at the checkbox position (not at line start)
+    // side: -1 places it before the [x] marker to avoid line break issues
     decorations.push(
-      createWidget(line.from, new CheckboxWidget(checked, line.from), 1),
+      createWidget(markerEnd, new CheckboxWidget(checked, markerEnd), -1)
     );
 
     // Hide the markdown checkbox syntax
     // Show dimmed in edit mode
     decorations.push(
-      createHiddenMarker(markerEnd, checkboxEnd, context.isEditMode),
+      createHiddenMarker(markerEnd, checkboxEnd, context.isEditMode)
     );
 
     return decorations;

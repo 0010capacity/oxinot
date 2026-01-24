@@ -57,9 +57,9 @@ class CodeBlockWidget extends WidgetType {
                 });
               }
             },
-          }),
-        ),
-      ),
+          })
+        )
+      )
     );
 
     return container;
@@ -137,29 +137,27 @@ export class CodeBlockHandler extends BaseHandler {
     const codeLines = lines.slice(1, -1);
     const code = codeLines.join("\n");
 
-    // Hide each line of the code block individually (can't hide line breaks)
-    const docLines = state.doc;
-    const startLine = docLines.lineAt(node.from);
-    const endLine = docLines.lineAt(node.to);
-
-    for (let line = startLine.number; line <= endLine.number; line++) {
-      const lineObj = docLines.line(line);
-      decorations.push({
-        from: lineObj.from,
-        to: lineObj.to,
-        decoration: Decoration.line({
-          attributes: { style: "display: none;" },
-        }),
-      });
-    }
-
-    // Add widget at the start position
+    // NEW APPROACH: Use an inline widget at the start position
+    // The widget will be displayed, and original text will be hidden via mark decorations
     decorations.push({
       from: node.from,
-      to: node.to,
+      to: node.from,
       decoration: Decoration.widget({
         widget: new CodeBlockWidget(code, language),
         side: 0,
+      }),
+    });
+
+    // Hide the entire code block content (all lines from node.from to node.to)
+    // using a mark decoration with display: none
+    decorations.push({
+      from: node.from,
+      to: node.to,
+      decoration: Decoration.mark({
+        class: "cm-code-block-hidden",
+        attributes: {
+          style: "display: none !important;",
+        },
       }),
     });
 
