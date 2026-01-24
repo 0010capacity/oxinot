@@ -16,7 +16,6 @@ import { type Root, createRoot } from "react-dom/client";
 import { CodeBlockCard } from "../../../components/CodeBlockCard";
 import { ThemeProvider } from "../../../theme/ThemeProvider";
 import type { DecorationSpec } from "../utils/decorationHelpers";
-import { createHiddenMarker } from "../utils/decorationHelpers";
 import { BaseHandler, type RenderContext } from "./types";
 
 class CodeBlockWidget extends WidgetType {
@@ -138,8 +137,23 @@ export class CodeBlockHandler extends BaseHandler {
     const codeLines = lines.slice(1, -1);
     const code = codeLines.join("\n");
 
-    decorations.push(createHiddenMarker(node.from, node.to, false));
+    // Hide each line of the code block individually (can't hide line breaks)
+    const docLines = state.doc;
+    const startLine = docLines.lineAt(node.from);
+    const endLine = docLines.lineAt(node.to);
 
+    for (let line = startLine.number; line <= endLine.number; line++) {
+      const lineObj = docLines.line(line);
+      decorations.push({
+        from: lineObj.from,
+        to: lineObj.to,
+        decoration: Decoration.line({
+          attributes: { style: "display: none;" },
+        }),
+      });
+    }
+
+    // Add widget at the start position
     decorations.push({
       from: node.from,
       to: node.to,
