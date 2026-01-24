@@ -106,7 +106,7 @@ export class CodeBlockHandler extends BaseHandler {
     const cursorPos = context.cursor.pos;
     const isInCodeBlock = cursorPos >= node.from && cursorPos <= node.to;
 
-    if (isInCodeBlock) {
+    if (context.isEditMode || isInCodeBlock) {
       return decorations;
     }
 
@@ -119,15 +119,29 @@ export class CodeBlockHandler extends BaseHandler {
     }
 
     const { state } = context;
-    const startLine = state.doc.lineAt(node.from);
-    const endLine = state.doc.lineAt(node.to);
+    const doc = state.doc;
 
-    const beforeCodeBlock = startLine.text
-      .substring(0, node.from - startLine.from)
+    const startLineObj = doc.lineAt(node.from);
+    const endLineObj = doc.lineAt(node.to);
+
+    const beforeCodeBlock = startLineObj.text
+      .substring(0, node.from - startLineObj.from)
       .trim();
-    const afterCodeBlock = endLine.text
-      .substring(node.to - endLine.from)
+    const afterCodeBlock = endLineObj.text
+      .substring(node.to - endLineObj.from)
       .trim();
+
+    console.log("[CodeBlockHandler] Debug:", {
+      nodeFrom: node.from,
+      nodeTo: node.to,
+      startLineFrom: startLineObj.from,
+      endLineFrom: endLineObj.from,
+      startLineText: startLineObj.text,
+      endLineText: endLineObj.text,
+      beforeCodeBlock,
+      afterCodeBlock,
+      willRender: beforeCodeBlock.length === 0 && afterCodeBlock.length === 0,
+    });
 
     if (beforeCodeBlock.length > 0 || afterCodeBlock.length > 0) {
       return decorations;
