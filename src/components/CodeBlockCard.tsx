@@ -38,7 +38,9 @@ export const CodeBlockCard: React.FC<CodeBlockCardProps> = ({
   return (
     <Box
       style={{
-        margin: "0",
+        display: "block",
+        width: "100%",
+        margin: "8px 0",
         position: "relative",
         border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.15)"}`,
         borderRadius: "8px",
