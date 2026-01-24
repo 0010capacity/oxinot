@@ -928,42 +928,6 @@ export const hybridRenderingTheme = EditorView.theme({
   ".cm-line": {
     lineHeight: "1.6",
   },
-
-  // CodeMirror token color overrides using CSS variables
-  // This ensures code fence markers and syntax highlighting respect the theme
-  // Using secondary text color for better visibility of syntax tokens
-  // Using !important to override CodeMirror's default theme
-  ".cm-string": {
-    color: "var(--color-text-secondary) !important",
-  },
-
-  ".cm-number": {
-    color: "var(--color-text-secondary) !important",
-  },
-
-  ".cm-atom": {
-    color: "var(--color-text-secondary) !important",
-  },
-
-  ".cm-keyword": {
-    color: "var(--color-text-secondary) !important",
-  },
-
-  ".cm-variable": {
-    color: "var(--color-text-secondary) !important",
-  },
-
-  ".cm-property": {
-    color: "var(--color-text-secondary) !important",
-  },
-
-  ".cm-operator": {
-    color: "var(--color-text-secondary) !important",
-  },
-
-  ".cm-punctuation": {
-    color: "var(--color-text-secondary) !important",
-  },
 });
 
 /**

@@ -311,32 +311,3 @@ button {
     text-decoration: underline;
   }
 }
-
-/* ============================================================================
-   CodeMirror Syntax Highlighting Override
-   ============================================================================ */
-
-/* Override CodeMirror's default syntax highlighting colors with theme variables
-   This is necessary because CodeMirror's built-in highlighting uses hardcoded colors
-   like #219 (dark blue) which are not visible enough in dark themes.
-   Using !important to ensure these override the auto-generated classes. */
-
-.cm-string,
-.cm-number,
-.cm-atom,
-.cm-keyword,
-.cm-variable,
-.cm-property,
-.cm-operator,
-.cm-punctuation,
-.cm-meta,
-.cm-bracket,
-.cm-tag {
-  color: var(--color-text-secondary) !important;
-}
-
-/* Target only code fence markers (backticks) specifically */
-/* The .ͼc class is CodeMirror's obfuscated class for meta/punctuation in markdown */
-.ͼc {
-  color: var(--color-text-tertiary) !important;
-}
