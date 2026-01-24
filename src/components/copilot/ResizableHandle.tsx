@@ -36,17 +36,29 @@ export function ResizableHandle({ onResize }: ResizableHandleProps) {
       onMouseLeave={() => setIsHovering(false)}
       style={{
         position: "absolute",
-        left: 0,
+        left: "-2px",
         top: 0,
         bottom: 0,
         width: "4px",
         cursor: "col-resize",
-        backgroundColor: isHovering || isDragging
-          ? "var(--color-border-secondary)"
-          : "var(--color-border-primary)",
-        transition: "background-color var(--transition-fast)",
         zIndex: 10,
       }}
-    />
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: isHovering || isDragging ? "0px" : "1.75px",
+          top: 0,
+          bottom: 0,
+          width: isHovering || isDragging ? "4px" : "0.5px",
+          backgroundColor:
+            isHovering || isDragging
+              ? "var(--color-border-secondary)"
+              : "var(--color-border-primary)",
+          transition:
+            "background-color var(--transition-fast), left var(--transition-fast), width var(--transition-fast)",
+        }}
+      />
+    </div>
   );
 }
