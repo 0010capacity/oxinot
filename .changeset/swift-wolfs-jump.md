@@ -96,3 +96,5 @@
 - override CodeMirror syntax colors with theme variables
 - target only code fence markers for dimming
 - improve resizable handle UX with 4px hotspot and expand-on-hover
+- support modern OpenAI tools API format
+- improve agent efficiency and fix double tool call execution
