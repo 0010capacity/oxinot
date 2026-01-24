@@ -231,6 +231,38 @@ console.log("[BlockEditor] Block created:", blockId);
 // Transitions: --transition-fast/normal/slow
 ```
 
+### CodeMirror Syntax Highlighting
+
+**IMPORTANT**: Do NOT use CodeMirror's `defaultHighlightStyle`. Always use the custom `customHighlightStyle` defined in `src/editor/createEditor.ts`.
+
+```typescript
+// ✅ CORRECT - Using customHighlightStyle with CSS variables
+// This is already integrated in createEditor.ts and handles all syntax colors
+
+// Custom highlight style maps syntax tokens to theme variables:
+// - t.meta, t.punctuation → --color-text-tertiary (dimmed, for markers)
+// - t.keyword, t.string, etc. → --color-text-secondary (normal syntax)
+// - t.content → --color-text-primary (regular text)
+// - t.comment → --color-text-tertiary (dimmed)
+// - t.heading → --color-text-primary (bold)
+// - t.link, t.url → --color-accent (highlighted)
+
+// ❌ WRONG - Never use defaultHighlightStyle
+// import { defaultHighlightStyle } from "@codemirror/language";
+// syntaxHighlighting(defaultHighlightStyle)  // NO! Uses hardcoded colors
+
+// ❌ WRONG - Never override syntax colors with CSS !important
+// This breaks the proper extension precedence system
+// .cm-string { color: #xyz !important; }  // NO!
+```
+
+**Why this matters**:
+- `defaultHighlightStyle` uses hardcoded colors (e.g., `#219` for blue)
+- These colors don't respect the theme system
+- Proper approach: define all syntax colors in `customHighlightStyle` using CSS variables
+- This way, dark/light mode and color variants automatically work
+- Never fight CodeMirror's precedence with `!important` in CSS
+
 ## Testing Guidelines
 
 ### Test Structure (Vitest)

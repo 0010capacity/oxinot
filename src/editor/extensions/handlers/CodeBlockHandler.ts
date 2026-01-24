@@ -222,8 +222,33 @@ export class CodeBlockHandler extends BaseHandler {
       }),
     });
 
-    // Note: Code fence marker colors are now handled by customHighlightStyle
-    // in createEditor.ts, which uses CSS variables for theme-aware syntax highlighting
+    // When in edit mode, add opacity adjustment to code fence markers
+    // to visually distinguish them from regular text
+    if (context.isEditMode) {
+      // Opening fence: ```language title="..."
+      const firstLineEnd = node.from + firstLine.length;
+      decorations.push({
+        from: node.from,
+        to: firstLineEnd,
+        decoration: Decoration.mark({
+          attributes: {
+            style: "opacity: 0.7;",
+          },
+        }),
+      });
+
+      // Closing fence: ```
+      const lastLineStart = node.to - lastLine.length;
+      decorations.push({
+        from: lastLineStart,
+        to: node.to,
+        decoration: Decoration.mark({
+          attributes: {
+            style: "opacity: 0.7;",
+          },
+        }),
+      });
+    }
 
     return decorations;
   }
