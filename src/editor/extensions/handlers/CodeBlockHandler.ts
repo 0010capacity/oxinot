@@ -1,11 +1,12 @@
 /**
  * Code Block handler for widget-based rendering
  *
- * Handles fenced code blocks (```lang ... ```)
+ * Handles fenced code blocks (```lang title="..." ... ```)
  * - Hides the entire block when cursor is NOT on it
  * - Renders as a React widget with copy/edit buttons
  * - Shows raw text when cursor is present (edit mode)
  * - Only renders when code block is alone in the block (no other text)
+ * - Supports language specification and optional title attribute
  */
 
 import { Decoration, type EditorView, WidgetType } from "@codemirror/view";
@@ -21,16 +22,22 @@ import { BaseHandler, type RenderContext } from "./types";
 class CodeBlockWidget extends WidgetType {
   private readonly code: string;
   private readonly language: string;
+  private readonly title: string | null;
   private root: Root | null = null;
 
-  constructor(code: string, language: string) {
+  constructor(code: string, language: string, title: string | null = null) {
     super();
     this.code = code;
     this.language = language;
+    this.title = title;
   }
 
   eq(other: CodeBlockWidget) {
-    return other.code === this.code && other.language === this.language;
+    return (
+      other.code === this.code &&
+      other.language === this.language &&
+      other.title === this.title
+    );
   }
 
   toDOM(view: EditorView) {
@@ -83,6 +90,7 @@ class CodeBlockWidget extends WidgetType {
           React.createElement(CodeBlockCard, {
             code: this.code,
             language: this.language,
+            title: this.title,
             onEdit: () => {
               const pos = view.posAtDOM(container);
               if (pos !== null) {
@@ -132,6 +140,21 @@ export class CodeBlockHandler extends BaseHandler {
     return node.type.name === "FencedCode";
   }
 
+  private parseCodeBlockHeader(firstLine: string): {
+    language: string;
+    title: string | null;
+  } {
+    // Match: ```language title="Title Text"
+    const titleMatch = firstLine.match(/title=["']([^"']+)["']/);
+    const title = titleMatch?.[1] || null;
+
+    // Match language: everything after ``` up to space or title
+    const languageMatch = firstLine.match(/^```(\S+)?/);
+    const language = languageMatch?.[1] || "";
+
+    return { language, title };
+  }
+
   handle(node: SyntaxNode, context: RenderContext): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
     const content = this.getNodeText(node, context);
@@ -170,8 +193,7 @@ export class CodeBlockHandler extends BaseHandler {
       return decorations;
     }
 
-    const languageMatch = firstLine.match(/^```(\w+)?/);
-    const language = languageMatch?.[1] || "";
+    const { language, title } = this.parseCodeBlockHeader(firstLine);
 
     const codeLines = lines.slice(1, -1);
     const code = codeLines.join("\n");
@@ -182,7 +204,7 @@ export class CodeBlockHandler extends BaseHandler {
       from: node.from,
       to: node.from,
       decoration: Decoration.widget({
-        widget: new CodeBlockWidget(code, language),
+        widget: new CodeBlockWidget(code, language, title),
         side: 0,
       }),
     });

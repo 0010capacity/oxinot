@@ -7,12 +7,14 @@ import { showToast } from "../utils/toast";
 interface CodeBlockCardProps {
   code: string;
   language: string;
+  title?: string | null;
   onEdit?: () => void;
 }
 
 export const CodeBlockCard: React.FC<CodeBlockCardProps> = ({
   code,
   language,
+  title,
   onEdit,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -61,7 +63,7 @@ export const CodeBlockCard: React.FC<CodeBlockCardProps> = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {language && (
+      {(language || title) && (
         <Box
           style={{
             padding: "8px 12px",
@@ -75,16 +77,22 @@ export const CodeBlockCard: React.FC<CodeBlockCardProps> = ({
             fontWeight: 500,
             opacity: 0.7,
             fontFamily: "var(--font-family)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
-          {language}
+          <span>{language || "Code"}</span>
+          {title && (
+            <span style={{ fontWeight: 600, opacity: 1 }}>{title}</span>
+          )}
         </Box>
       )}
 
       <Box
         style={{
           position: "absolute",
-          top: language ? "8px" : "8px",
+          top: language || title ? "50px" : "8px",
           right: "8px",
           display: "flex",
           gap: "6px",
