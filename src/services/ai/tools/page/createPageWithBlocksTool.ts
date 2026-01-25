@@ -1,9 +1,9 @@
-import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
-import type { Tool, ToolResult } from "../types";
-import { usePageStore } from "../../../../stores/pageStore";
+import { z } from "zod";
 import { dispatchBlockUpdate } from "../../../../events";
 import type { BlockData } from "../../../../stores/blockStore";
+import { usePageStore } from "../../../../stores/pageStore";
+import type { Tool, ToolResult } from "../types";
 
 export const createPageWithBlocksTool: Tool = {
   name: "create_page_with_blocks",
@@ -19,28 +19,35 @@ export const createPageWithBlocksTool: Tool = {
       .uuid()
       .optional()
       .describe(
-        "UUID of the parent directory page. If omitted, page will be created at root level."
+        "UUID of the parent directory page. If omitted, page will be created at root level.",
       ),
     blocks: z
       .array(
         z.object({
           content: z.string().describe("Markdown content of the block"),
+          indent: z
+            .number()
+            .min(0)
+            .optional()
+            .describe(
+              "Indent level for hierarchical structure (0 = root level, 1 = nested, etc.)",
+            ),
           parentBlockId: z
             .string()
             .uuid()
             .nullable()
             .optional()
             .describe(
-              "UUID of parent block for nesting. Null for root-level blocks."
+              "UUID of parent block for nesting. Null for root-level blocks.",
             ),
           insertAfterBlockId: z
             .string()
             .uuid()
             .optional()
             .describe(
-              "UUID of sibling block to insert after. Controls block order."
+              "UUID of sibling block to insert after. Controls block order.",
             ),
-        })
+        }),
       )
       .describe("Array of blocks to create in the page"),
   }),
@@ -69,19 +76,21 @@ export const createPageWithBlocksTool: Tool = {
       // Create the page
       const newPageId = await pageStore.createPage(
         params.title,
-        params.parentId || undefined
+        params.parentId || undefined,
       );
 
       // Create blocks using Tauri's create_block command directly
       const createdBlocks: Array<{
         uuid: string;
         content: string;
+        indent: number;
         parentId: string | null;
       }> = [];
 
       let lastBlockId: string | null = null;
 
       for (const block of params.blocks) {
+        const blockIndent = block.indent ?? 0;
         try {
           // If no explicit insertAfterBlockId provided, use the previous block
           const insertAfterBlockId: string | null =
@@ -95,12 +104,14 @@ export const createPageWithBlocksTool: Tool = {
               parentId: block.parentBlockId ?? null,
               afterBlockId: insertAfterBlockId || null,
               content: block.content,
+              indent: blockIndent,
             },
           });
 
           createdBlocks.push({
             uuid: newBlock.id,
             content: block.content,
+            indent: blockIndent,
             parentId: block.parentBlockId ?? null,
           });
 
@@ -111,7 +122,7 @@ export const createPageWithBlocksTool: Tool = {
         } catch (blockError) {
           console.error(
             "[createPageWithBlocksTool] Failed to create block:",
-            blockError
+            blockError,
           );
         }
       }
@@ -123,7 +134,11 @@ export const createPageWithBlocksTool: Tool = {
           title: params.title,
           parentId: params.parentId || null,
           blocksCreated: createdBlocks.length,
-          blocks: createdBlocks,
+          blocks: createdBlocks.map((b) => ({
+            uuid: b.uuid,
+            content: b.content,
+            indent: b.indent,
+          })),
         },
         metadata: {
           message: `Created page "${params.title}" with ${createdBlocks.length} blocks`,

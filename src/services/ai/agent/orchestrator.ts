@@ -1,3 +1,6 @@
+import { useBlockStore } from "../../../stores/blockStore";
+import { useBlockUIStore } from "../../../stores/blockUIStore";
+import { usePageStore } from "../../../stores/pageStore";
 import { executeTool } from "../tools/executor";
 import { toolRegistry } from "../tools/registry";
 import type { ChatMessage, IAIProvider } from "../types";
@@ -7,9 +10,6 @@ import type {
   AgentStep,
   IAgentOrchestrator,
 } from "./types";
-import { useBlockStore } from "../../../stores/blockStore";
-import { usePageStore } from "../../../stores/pageStore";
-import { useBlockUIStore } from "../../../stores/blockUIStore";
 
 export class AgentOrchestrator implements IAgentOrchestrator {
   private state: AgentState;
@@ -30,7 +30,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
   async *execute(
     goal: string,
-    config: AgentConfig
+    config: AgentConfig,
   ): AsyncGenerator<AgentStep, void, unknown> {
     this.shouldStop = false;
 
@@ -48,7 +48,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     };
 
     console.log(
-      `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`
+      `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`,
     );
 
     const allTools = toolRegistry.getAll();
@@ -64,7 +64,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       ) {
         this.state.iterations++;
         console.log(
-          `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`
+          `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`,
         );
 
         this.state.status = "thinking";
@@ -99,7 +99,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
               console.log(
                 `[AgentOrchestrator] Tool called: ${toolName}`,
-                params
+                params,
               );
 
               const toolCallStep: AgentStep = {
@@ -120,12 +120,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               const result = await executeTool(
                 toolName,
                 params,
-                config.context
+                config.context,
               );
 
               console.log(
                 "[AgentOrchestrator] Tool result:",
-                result.success ? "✓ Success" : "✗ Failed"
+                result.success ? "✓ Success" : "✗ Failed",
               );
 
               const observationStep: AgentStep = {
@@ -143,7 +143,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               conversationHistory.push({
                 role: "assistant",
                 content: `I called ${toolName} with params ${JSON.stringify(
-                  params
+                  params,
                 )}`,
               });
               conversationHistory.push({
@@ -184,7 +184,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             this.state.status = "completed";
 
             console.log(
-              "[AgentOrchestrator] Final answer received, completing execution"
+              "[AgentOrchestrator] Final answer received, completing execution",
             );
 
             yield finalStep;
@@ -193,7 +193,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
           if (!toolWasCalled && !finalAnswerReceived) {
             console.log(
-              "[AgentOrchestrator] No tool call and no final answer, AI may need more guidance"
+              "[AgentOrchestrator] No tool call and no final answer, AI may need more guidance",
             );
 
             conversationHistory.push({
@@ -212,7 +212,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             error instanceof Error ? error.message : "Unknown error";
           console.error(
             `[AgentOrchestrator] Error in iteration ${this.state.iterations}:`,
-            errorMessage
+            errorMessage,
           );
 
           this.state.error = errorMessage;
@@ -227,7 +227,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         this.state.status !== "completed"
       ) {
         console.warn(
-          `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`
+          `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`,
         );
         this.state.status = "failed";
         this.state.error = "Maximum iterations reached without completing task";
@@ -240,7 +240,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     } finally {
       console.log(
-        `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`
+        `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`,
       );
     }
   }
@@ -269,6 +269,83 @@ AGENT BEHAVIOR:
 5. Only provide text responses when truly complete or need clarification
 6. LEARN FROM FAILURES: If a tool call fails, DO NOT retry the same approach. Analyze the error and try a different strategy.
 7. If you reach max iterations without completing, provide a summary of what you accomplished and what's left.
+
+⭐ CRITICAL: MARKDOWN TO BLOCKS CONVERSION (EACH LINE = ONE BLOCK)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FUNDAMENTAL RULE: When creating content, you MUST convert markdown with newlines
+into SEPARATE BLOCKS. You CANNOT put multi-line text (containing \n) in a single block.
+
+WHY THIS MATTERS:
+When a user presses Enter in Oxinot:
+- If block.content has "Line1\nLine2\nLine3" → Enter adds newline WITHIN block (wrong)
+- If each line is separate block → Enter creates NEW block below (correct, Logseq style)
+
+MARKDOWN → BLOCKS CONVERSION ALGORITHM:
+1. Parse your markdown output line by line (split on \n)
+2. For each non-empty line:
+   a) Detect heading level from # symbols (# = level 1, ## = level 2, etc.)
+   b) Remove # symbols from content
+   c) Calculate indent: (heading_level - 1) OR based on list nesting
+   d) Create ONE block for this line
+3. Result: Multiple blocks with hierarchy via indent
+
+CONCRETE EXAMPLE:
+
+Your planned markdown:
+┌─────────────────────────────────────┐
+| # Project Documentation             |
+| Oxinot is a block-based outliner.   |
+|                                     |
+| ## Overview                         |
+| Fast, lightweight, keyboard-driven. |
+|                                     |
+| ## Features                         |
+| - Local-first architecture          |
+| - Block-based editing               |
+| - Graph visualization               |
+└─────────────────────────────────────┘
+
+WRONG ❌ - Do NOT do this:
+blocks: [{
+  content: "# Project Documentation\nOxinot is a block-based outliner.\n## Overview\nFast, lightweight, keyboard-driven.\n## Features\n- Local-first architecture\n- Block-based editing\n- Graph visualization"
+}]
+Result: ONE block. When user presses Enter in it, just adds newline inside.
+
+RIGHT ✅ - Do THIS instead:
+blocks: [
+  { content: "Project Documentation", indent: 0 },
+  { content: "Oxinot is a block-based outliner.", indent: 1 },
+  { content: "Overview", indent: 1 },
+  { content: "Fast, lightweight, keyboard-driven.", indent: 2 },
+  { content: "Features", indent: 1 },
+  { content: "Local-first architecture", indent: 2 },
+  { content: "Block-based editing", indent: 2 },
+  { content: "Graph visualization", indent: 2 }
+]
+Result: 8 separate blocks. When user presses Enter, NEW block is created below.
+
+INDENT CALCULATION RULES:
+- # (top heading) → indent: 0
+- Content under # → indent: 1
+- ## (section heading) → indent: 1
+- Content under ## → indent: 2
+- ### (subsection heading) → indent: 2
+- Content under ### → indent: 3
+- List items → indent based on nesting level
+
+VERIFICATION CHECKLIST:
+Before calling create_page_with_blocks, verify your blocks array:
+- [ ] Each block.content is a SINGLE LINE (no \n, no \r characters)
+- [ ] No block content starts with # ## ### (already extracted as separate blocks)
+- [ ] Heading blocks have lower indent than their content blocks
+- [ ] Indentation is consistent and logical
+- [ ] No empty blocks
+
+TOOLS TO USE:
+- create_page_with_blocks: For initial structured content (use this!)
+- create_block: For adding single blocks later
+- insert_block_below: For precise placement after specific blocks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 BLOCK-BASED OUTLINER STRUCTURE:
 - Each block is a bullet point with content
