@@ -1,8 +1,8 @@
-import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
+import { z } from "zod";
 import { dispatchBlockUpdate } from "../../../../events";
-import type { Tool, ToolResult } from "../types";
 import type { BlockData } from "../../../../stores/blockStore";
+import type { Tool, ToolResult } from "../types";
 
 export const insertBlockBelowTool: Tool = {
   name: "insert_block_below",
@@ -12,8 +12,17 @@ export const insertBlockBelowTool: Tool = {
   requiresApproval: false,
 
   parameters: z.object({
-    blockId: z.string().uuid().describe("UUID of the block to insert below"),
-    content: z.string().describe("The Markdown content of the new block"),
+    blockId: z
+      .string()
+      .uuid()
+      .describe(
+        "UUID of the block to insert below. If expanded, new block becomes first child; else becomes sibling. Example: '550e8400-e29b-41d4-a716-446655440000'",
+      ),
+    content: z
+      .string()
+      .describe(
+        "Markdown content of the new block. Example: '- Task item' or '## Subsection'",
+      ),
   }),
 
   async execute(params, context): Promise<ToolResult> {

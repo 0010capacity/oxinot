@@ -1,8 +1,8 @@
-import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
+import { z } from "zod";
 import { dispatchBlockUpdate } from "../../../../events";
-import type { Tool, ToolResult } from "../types";
 import type { BlockData } from "../../../../stores/blockStore";
+import type { Tool, ToolResult } from "../types";
 
 export const appendToBlockTool: Tool = {
   name: "append_to_block",
@@ -12,18 +12,23 @@ export const appendToBlockTool: Tool = {
   requiresApproval: false,
 
   parameters: z.object({
-    blockId: z.string().uuid().describe("UUID of the block to append to"),
+    blockId: z
+      .string()
+      .uuid()
+      .describe(
+        "UUID of the block to append to. Example: '550e8400-e29b-41d4-a716-446655440000'",
+      ),
     text: z
       .string()
       .describe(
-        "Text to append to the block. Will be added to the end of existing content.",
+        "Text to append to the block end. Will be combined with existing content using the separator. Example: '+ Added at 3 PM'",
       ),
     separator: z
       .string()
       .optional()
       .default(" ")
       .describe(
-        "Separator to use between existing content and new text (default: space)",
+        "Separator between existing and new text. Default: space ' '. Use '\\n' for new line, ' | ' for pipe separator, etc.",
       ),
   }),
 

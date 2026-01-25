@@ -12,7 +12,12 @@ export const deleteBlockTool: Tool = {
   isDangerous: true,
 
   parameters: z.object({
-    blockId: z.string().uuid().describe("UUID of the block to delete"),
+    blockId: z
+      .string()
+      .uuid()
+      .describe(
+        "UUID of the block to delete. WARNING: This will also delete all child blocks. Example: '550e8400-e29b-41d4-a716-446655440000'",
+      ),
   }),
 
   async execute(params, context): Promise<ToolResult> {

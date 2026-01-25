@@ -10,14 +10,18 @@ export const createPageTool: Tool = {
   requiresApproval: false,
 
   parameters: z.object({
-    title: z.string().describe("Title of the new page"),
+    title: z
+      .string()
+      .describe(
+        "Title of the new page. Example: 'Project Notes' or 'Meeting 2025-01'",
+      ),
     parentId: z
       .string()
       .uuid()
       .nullable()
       .optional()
       .describe(
-        "UUID of the parent directory page. Omit or pass null to create at root level.",
+        "UUID of the parent directory page. Omit or pass null to create at root level. Example: '550e8400-e29b-41d4-a716-446655440000'",
       ),
   }),
 

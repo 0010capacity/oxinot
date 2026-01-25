@@ -13,25 +13,31 @@ export const createPageWithBlocksTool: Tool = {
   requiresApproval: false,
 
   parameters: z.object({
-    title: z.string().describe("Title of the new page"),
+    title: z
+      .string()
+      .describe("Title of the new page. Example: 'Meeting Notes'"),
     parentId: z
       .string()
       .uuid()
       .nullable()
       .optional()
       .describe(
-        "UUID of the parent directory page. Omit or pass null to create at root level.",
+        "UUID of the parent directory page. Omit or pass null to create at root level. Example: '550e8400-e29b-41d4-a716-446655440000'",
       ),
     blocks: z
       .array(
         z.object({
-          content: z.string().describe("Markdown content of the block"),
+          content: z
+            .string()
+            .describe(
+              "Markdown content of the block. Example: '# Title' or '- Task item'",
+            ),
           indent: z
             .number()
             .min(0)
             .optional()
             .describe(
-              "Indent level for hierarchical structure (0 = root level, 1 = nested, etc.)",
+              "Indent level (0=root, 1=nested under first child, etc). Default: 0. Example: 0, 1, 2",
             ),
           parentBlockId: z
             .string()
@@ -39,14 +45,14 @@ export const createPageWithBlocksTool: Tool = {
             .nullable()
             .optional()
             .describe(
-              "UUID of parent block for nesting. Null for root-level blocks.",
+              "UUID of parent block for nesting. Null for root-level blocks. Example: '550e8400-e29b-41d4-a716-446655440001'",
             ),
           insertAfterBlockId: z
             .string()
             .uuid()
             .optional()
             .describe(
-              "UUID of sibling block to insert after. Controls block order.",
+              "UUID of sibling block to insert after (controls order). Example: '550e8400-e29b-41d4-a716-446655440002'",
             ),
         }),
       )

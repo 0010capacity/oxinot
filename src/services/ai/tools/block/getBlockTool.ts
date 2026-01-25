@@ -10,7 +10,12 @@ export const getBlockTool: Tool = {
   requiresApproval: false, // Read-only operation
 
   parameters: z.object({
-    blockId: z.string().uuid().describe("UUID of the block to retrieve"),
+    blockId: z
+      .string()
+      .uuid()
+      .describe(
+        "UUID of the block to retrieve. Returns block content, metadata, and hierarchy information. Example: '550e8400-e29b-41d4-a716-446655440000'",
+      ),
   }),
 
   async execute(params, context): Promise<ToolResult> {

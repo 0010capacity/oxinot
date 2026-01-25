@@ -1,8 +1,8 @@
-import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
+import { z } from "zod";
 import { dispatchBlockUpdate } from "../../../../events";
-import type { Tool, ToolResult } from "../types";
 import type { BlockData } from "../../../../stores/blockStore";
+import type { Tool, ToolResult } from "../types";
 
 export const createBlockTool: Tool = {
   name: "create_block",
@@ -17,7 +17,7 @@ export const createBlockTool: Tool = {
       .uuid()
       .optional()
       .describe(
-        "The UUID of the page where the block will be created. Required if parentBlockId is null (creating a root block). If omitted, it will be inferred from parentBlockId.",
+        "UUID of the page where the block will be created. Required if parentBlockId is null (creating a root block). If omitted, will be inferred from parentBlockId. Example: '550e8400-e29b-41d4-a716-446655440000'",
       ),
     parentBlockId: z
       .string()
@@ -25,16 +25,20 @@ export const createBlockTool: Tool = {
       .nullable()
       .optional()
       .describe(
-        "The UUID of the parent block. Pass null to create a root block (0-level). If omitted, defaults to null (root block) IF pageId is provided.",
+        "UUID of the parent block for nesting. Pass null or omit for root block (level 0). If set, the new block will be nested under this parent. Example: '550e8400-e29b-41d4-a716-446655440001'",
       ),
     insertAfterBlockId: z
       .string()
       .uuid()
       .optional()
       .describe(
-        "The UUID of the sibling block to insert after. Use this to control the order. If omitted, the block is appended to the end of the parent's children.",
+        "UUID of sibling block to insert after. Controls the order among siblings. If omitted, appends to end of parent's children. Example: '550e8400-e29b-41d4-a716-446655440002'",
       ),
-    content: z.string().describe("The Markdown content of the new block."),
+    content: z
+      .string()
+      .describe(
+        "Markdown content of the new block. Can include formatting (e.g., **bold**, # heading, `code`). Example: '# Title or **Task: Review design**'",
+      ),
   }),
 
   async execute(params, context): Promise<ToolResult> {

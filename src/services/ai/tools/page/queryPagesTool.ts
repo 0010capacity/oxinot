@@ -9,13 +9,17 @@ export const queryPagesTool: Tool = {
   requiresApproval: false, // Read-only operation
 
   parameters: z.object({
-    query: z.string().describe("Search query to match against page titles"),
+    query: z
+      .string()
+      .describe(
+        "Search query to match against page titles. Case-insensitive partial match. Example: 'project' or 'meeting'",
+      ),
     limit: z
       .number()
       .min(1)
       .max(50)
-      .default(10)
-      .describe("Maximum number of results to return"),
+      .default(20)
+      .describe("Maximum results to return. Range: 1-50, default 20"),
   }),
 
   async execute(params): Promise<ToolResult> {
