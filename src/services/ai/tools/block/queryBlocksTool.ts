@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
+import { z } from "zod";
 import type { Tool, ToolResult } from "../types";
 
 export const queryBlocksTool: Tool = {
@@ -10,13 +10,17 @@ export const queryBlocksTool: Tool = {
   requiresApproval: false, // Read-only
 
   parameters: z.object({
-    query: z.string().describe("Search query string"),
+    query: z
+      .string()
+      .describe(
+        "Search query string to find matching blocks. Matches against block content. Example: 'TODO' or 'meeting'",
+      ),
     limit: z
       .number()
       .min(1)
       .max(100)
       .default(20)
-      .describe("Maximum results to return"),
+      .describe("Maximum results to return. Range: 1-100, default 20"),
   }),
 
   async execute(params, context): Promise<ToolResult> {

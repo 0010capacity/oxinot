@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { Tool, ToolResult } from "../types";
 import { usePageStore } from "../../../../stores/pageStore";
+import type { Tool, ToolResult } from "../types";
 
 export const listPagesTool: Tool = {
   name: "list_pages",
@@ -14,14 +14,16 @@ export const listPagesTool: Tool = {
       .boolean()
       .optional()
       .default(false)
-      .describe("Whether to include directory pages in the list"),
+      .describe(
+        "Whether to include directory/folder pages in results. Default: false (only show note pages)",
+      ),
     limit: z
       .number()
       .min(1)
       .max(500)
       .optional()
       .default(100)
-      .describe("Maximum number of pages to return"),
+      .describe("Maximum number of pages to return. Range: 1-500, default 100"),
   }),
 
   async execute(params): Promise<ToolResult> {

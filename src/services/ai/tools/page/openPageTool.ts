@@ -1,8 +1,8 @@
 import { z } from "zod";
-import type { Tool, ToolResult } from "../types";
 import { useBlockStore } from "../../../../stores/blockStore";
 import { usePageStore } from "../../../../stores/pageStore";
 import { useViewStore } from "../../../../stores/viewStore";
+import type { Tool, ToolResult } from "../types";
 
 export const openPageTool: Tool = {
   name: "open_page",
@@ -13,10 +13,19 @@ export const openPageTool: Tool = {
 
   parameters: z.union([
     z.object({
-      pageId: z.string().uuid().describe("UUID of the page to open"),
+      pageId: z
+        .string()
+        .uuid()
+        .describe(
+          "UUID of the page to open. Example: '550e8400-e29b-41d4-a716-446655440000'",
+        ),
     }),
     z.object({
-      pageTitle: z.string().describe("Title of the page to open"),
+      pageTitle: z
+        .string()
+        .describe(
+          "Title of the page to open. Will search for exact match (case-insensitive). Example: 'Project Notes'",
+        ),
     }),
   ]),
 

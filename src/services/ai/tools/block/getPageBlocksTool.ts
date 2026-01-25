@@ -1,7 +1,7 @@
-import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
-import type { Tool, ToolResult } from "../types";
+import { z } from "zod";
 import type { BlockData } from "../../../../stores/blockStore";
+import type { Tool, ToolResult } from "../types";
 
 export const getPageBlocksTool: Tool = {
   name: "get_page_blocks",
@@ -10,7 +10,12 @@ export const getPageBlocksTool: Tool = {
   category: "block",
   requiresApproval: false,
   parameters: z.object({
-    pageId: z.string().uuid().describe("UUID of the page"),
+    pageId: z
+      .string()
+      .uuid()
+      .describe(
+        "UUID of the page. Returns all blocks in the page with hierarchy information. Example: '550e8400-e29b-41d4-a716-446655440000'",
+      ),
   }),
   async execute(params, context): Promise<ToolResult> {
     try {

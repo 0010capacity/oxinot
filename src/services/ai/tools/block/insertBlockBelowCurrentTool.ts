@@ -1,18 +1,24 @@
-import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
+import { z } from "zod";
 import { dispatchBlockUpdate } from "../../../../events";
-import type { Tool, ToolResult } from "../types";
 import type { BlockData } from "../../../../stores/blockStore";
+import type { Tool, ToolResult } from "../types";
 
 export const insertBlockBelowCurrentTool: Tool = {
   name: "insert_block_below_current",
   description:
-    "Insert a new block below the currently focused block. This is a convenient shortcut that doesn't require knowing block UUIDs. If no block is focused, the block will be added to the end of the current page.",
+    "Insert a new block below the currently focused block. This is a context-dependent operation that uses the active page and focused block. " +
+    "If no block is focused, the block is added to the end of the current page. " +
+    "IMPORTANT: This tool requires an open page and will fail with 'No page is currently open' if not satisfied.",
   category: "block",
   requiresApproval: false,
 
   parameters: z.object({
-    content: z.string().describe("The Markdown content of the new block"),
+    content: z
+      .string()
+      .describe(
+        "Markdown content of the new block. If no block is focused, appends to page end. Example: '- New item' or '## Section'",
+      ),
   }),
 
   async execute(params, context): Promise<ToolResult> {
