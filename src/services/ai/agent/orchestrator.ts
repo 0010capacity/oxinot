@@ -202,6 +202,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             }
           }
 
+          if (accumulatedText.trim()) {
+            console.log(
+              `[AgentOrchestrator] AI Response (Iter ${this.state.iterations}): ${accumulatedText.substring(0, 150)}...`,
+            );
+          }
+
           for (const step of pendingSteps) {
             yield step;
           }
@@ -223,7 +229,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             this.state.status = "completed";
 
             console.log(
-              "[AgentOrchestrator] Final answer received, completing execution",
+              "[AgentOrchestrator] Execution complete: Final answer received",
             );
 
             yield finalStep;
@@ -231,8 +237,11 @@ export class AgentOrchestrator implements IAgentOrchestrator {
           }
 
           if (!toolWasCalled && !finalAnswerReceived) {
+            const responsePreview = accumulatedText
+              .substring(0, 100)
+              .replace(/\n/g, " ");
             console.log(
-              "[AgentOrchestrator] No tool call and no final answer, AI may need more guidance",
+              `[AgentOrchestrator] Iter ${this.state.iterations}: No tool call detected. Response: "${responsePreview}"`,
             );
 
             conversationHistory.push({
