@@ -286,17 +286,30 @@ NESTED BLOCK CREATION (CRITICAL):
 - The insertAfterBlockId parameter controls ordering among siblings (optional)
 
 CREATING BULLET LISTS WITH MARKDOWN:
-- If given markdown with indentation like:
-  - Item 1
-    - Nested Item
-      - Deep Item
-  - Item 2
-- Parse the indentation structure and create blocks in order:
-  1. Create "Item 1" (parentBlockId=null)
-  2. Create "Nested Item" (parentBlockId=Item 1 UUID)
-  3. Create "Deep Item" (parentBlockId=Nested Item UUID)
-  4. Create "Item 2" (parentBlockId=null)
-- Use insertAfterBlockId to maintain order if needed
+- When given markdown with bullet indentation, USE create_blocks_from_markdown tool!
+- Example: If user says "create a project outline from this markdown":
+  - Project Planning
+    - Sprint 1
+      - Task 1.1
+      - Task 1.2
+    - Sprint 2
+  - Documentation
+- Simply call: create_blocks_from_markdown(pageId="<page-uuid>", markdown="<the markdown text>")
+- The tool automatically handles all indentation parsing and hierarchy creation!
+- Use this INSTEAD of manually creating blocks one by one with create_block
+- Alternative (only if tool fails): Manually parse indentation and use create_block with parentBlockId for each level
+
+WHEN TO USE create_blocks_from_markdown:
+✅ USE create_blocks_from_markdown when:
+- User provides indented markdown or bullet list
+- Creating outlines, hierarchical structures, or task lists
+- You have multiple levels of nesting
+- User wants to "create structure from outline" or similar
+
+✅ USE create_block when:
+- Creating single blocks
+- Need fine-grained control over exact parentBlockId
+- Modifying specific existing structures
 
 DIRECTORY/FILE HIERARCHY (CRITICAL):
 - The workspace has a hierarchical structure similar to a file system
@@ -335,6 +348,7 @@ KEY TOOLS:
 - get_page_blocks: See what content exists before changing
 - create_page: Create new pages (set parentId to place in directory)
 - create_block: New block (provide content + parentBlockId for nesting)
+- create_blocks_from_markdown: ⭐ PARSE INDENTED MARKDOWN AND CREATE NESTED BLOCKS - Perfect for outlines! Pass markdown with indentation, tool handles hierarchy automatically
 - update_block: Modify existing (more efficient than delete+create)
 - insert_block_below: Add after specific block
 - query_blocks: Find specific content
