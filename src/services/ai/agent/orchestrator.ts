@@ -81,7 +81,13 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       ) {
         this.state.iterations++;
         console.log(
+          `\n[AgentOrchestrator] ═══════════════════════════════════════`,
+        );
+        console.log(
           `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`,
+        );
+        console.log(
+          `[AgentOrchestrator] ═══════════════════════════════════════`,
         );
 
         this.state.status = "thinking";
@@ -114,10 +120,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             onToolCall: async (toolName: string, params: unknown) => {
               toolWasCalled = true;
 
+              const toolStartTime = Date.now();
+              const paramsJson = JSON.stringify(params, null, 2);
               console.log(
-                `[AgentOrchestrator] Tool called: ${toolName}`,
-                params,
+                `[AgentOrchestrator] Tool Called (Iter ${this.state.iterations}): ${toolName}`,
               );
+              console.log(`[AgentOrchestrator] Parameters:`, paramsJson);
 
               const toolCallStep: AgentStep = {
                 id: `step_${Date.now()}_${Math.random()
@@ -140,10 +148,20 @@ export class AgentOrchestrator implements IAgentOrchestrator {
                 config.context,
               );
 
+              const toolDuration = Date.now() - toolStartTime;
+              const resultStatus = result.success ? "✓ Success" : "✗ Failed";
               console.log(
-                "[AgentOrchestrator] Tool result:",
-                result.success ? "✓ Success" : "✗ Failed",
+                `[AgentOrchestrator] Tool Result: ${toolName} ${resultStatus} (${toolDuration}ms)`,
               );
+              if (result.success && result.data) {
+                const dataPreview = JSON.stringify(result.data).substring(
+                  0,
+                  200,
+                );
+                console.log(`[AgentOrchestrator] Result Data:`, dataPreview);
+              } else if (!result.success) {
+                console.log(`[AgentOrchestrator] Error: ${result.error}`);
+              }
 
               // Handle tool execution errors with recovery logic
               if (!result.success) {
@@ -205,6 +223,17 @@ export class AgentOrchestrator implements IAgentOrchestrator {
           if (accumulatedText.trim()) {
             console.log(
               `[AgentOrchestrator] AI Response (Iter ${this.state.iterations}): ${accumulatedText.substring(0, 150)}...`,
+            );
+          }
+
+          const toolCalls = pendingSteps
+            .filter((step) => step.type === "tool_call")
+            .map((step) => step.toolName)
+            .filter(Boolean);
+
+          if (toolCalls.length > 0) {
+            console.log(
+              `[AgentOrchestrator] Tools Called This Iteration: ${toolCalls.join(" → ")}`,
             );
           }
 
@@ -277,6 +306,16 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         console.warn(
           `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`,
         );
+        console.log(`[AgentOrchestrator] Tool Usage Summary:`);
+        const toolUsage: Record<string, number> = {};
+        for (const step of this.state.steps) {
+          if (step.type === "tool_call" && step.toolName) {
+            toolUsage[step.toolName] = (toolUsage[step.toolName] || 0) + 1;
+          }
+        }
+        Object.entries(toolUsage).forEach(([tool, count]) => {
+          console.log(`  - ${tool}: ${count} times`);
+        });
         this.state.status = "failed";
         this.state.error = "Maximum iterations reached without completing task";
       }
@@ -288,7 +327,35 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     } finally {
       console.log(
+        `[AgentOrchestrator] ═══════════════════════════════════════`,
+      );
+      console.log(
         `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`,
+      );
+
+      const toolUsageMap: Record<string, number> = {};
+      const toolSequence: string[] = [];
+      for (const step of this.state.steps) {
+        if (step.type === "tool_call" && step.toolName) {
+          toolUsageMap[step.toolName] = (toolUsageMap[step.toolName] || 0) + 1;
+          toolSequence.push(step.toolName);
+        }
+      }
+
+      if (toolSequence.length > 0) {
+        console.log(`[AgentOrchestrator] Tool Sequence:`);
+        console.log(`  ${toolSequence.join(" → ")}`);
+        console.log(`[AgentOrchestrator] Tool Call Summary:`);
+        for (const [tool, count] of Object.entries(toolUsageMap)) {
+          console.log(`  - ${tool}: ${count} call(s)`);
+        }
+      }
+
+      console.log(
+        `[AgentOrchestrator] Total iterations: ${this.state.iterations}/${this.state.maxIterations}`,
+      );
+      console.log(
+        `[AgentOrchestrator] ═══════════════════════════════════════\n`,
       );
     }
   }
