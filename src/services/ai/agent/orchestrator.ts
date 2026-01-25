@@ -4,6 +4,13 @@ import { usePageStore } from "../../../stores/pageStore";
 import { executeTool } from "../tools/executor";
 import { toolRegistry } from "../tools/registry";
 import type { ChatMessage, IAIProvider } from "../types";
+import {
+  RecoveryStrategy,
+  categorizeToolError,
+  getAlternativeApproachPrompt,
+  getRecoveryGuidance,
+  isRecoverable,
+} from "./errorRecovery";
 import systemPromptTemplate from "./system-prompt.md?raw";
 import type {
   AgentConfig,
@@ -11,13 +18,6 @@ import type {
   AgentStep,
   IAgentOrchestrator,
 } from "./types";
-import {
-  isRecoverable,
-  getRecoveryGuidance,
-  getAlternativeApproachPrompt,
-  categorizeToolError,
-  RecoveryStrategy,
-} from "./errorRecovery";
 
 interface ErrorContext {
   toolName?: string;
@@ -168,16 +168,14 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               this.state.steps.push(observationStep);
               pendingSteps.push(observationStep);
 
-              conversationHistory.push({
-                role: "assistant",
-                content: `I called ${toolName} with params ${JSON.stringify(
-                  params,
-                )}`,
-              });
-              conversationHistory.push({
-                role: "user",
-                content: `Tool result: ${JSON.stringify(result)}`,
-              });
+              // Only add to conversation history if tool execution failed
+              // Successful tool results don't need to be in history - the AI doesn't see them
+              if (!result.success) {
+                conversationHistory.push({
+                  role: "user",
+                  content: `Tool '${toolName}' execution failed: ${result.error || "Unknown error"}. Please try an alternative approach.`,
+                });
+              }
 
               return result;
             },
