@@ -284,11 +284,23 @@ BLOCK-BASED OUTLINER STRUCTURE:
 NESTED BLOCK CREATION (CRITICAL):
 - To create nested blocks, use parentBlockId parameter to link child blocks to their parent
 - The create_block tool accepts: pageId, parentBlockId, insertAfterBlockId, content
-- Example: To create "Item 1" then "Nested Item" under it:
-  1. create_block(pageId="page-uuid", parentBlockId=null, content="Item 1") → returns block-id-1
-  2. create_block(pageId="page-uuid", parentBlockId="block-id-1", content="Nested Item")
-- When creating multiple nested items, ALWAYS pass the parent block's UUID as parentBlockId
-- The insertAfterBlockId parameter controls ordering among siblings (optional)
+- parentBlockId=null means it's a root block (level 0)
+- parentBlockId="<uuid>" means it's nested under that block
+
+EXAMPLE 1 - Simple hierarchy:
+1. create_block(pageId="page-uuid", parentBlockId=null, content="Project") → returns proj-id
+2. create_block(pageId="page-uuid", parentBlockId="proj-id", content="Task 1") → returns task1-id
+3. create_block(pageId="page-uuid", parentBlockId="proj-id", content="Task 2")
+Result: Project (level 0), Task 1 (level 1 under Project), Task 2 (level 1 under Project)
+
+EXAMPLE 2 - Deep hierarchy:
+1. create_block(pageId="page-uuid", parentBlockId=null, content="Project") → returns proj-id
+2. create_block(pageId="page-uuid", parentBlockId="proj-id", content="Sprint 1") → returns sprint-id
+3. create_block(pageId="page-uuid", parentBlockId="sprint-id", content="Task A")
+4. create_block(pageId="page-uuid", parentBlockId="sprint-id", content="Task B")
+Result: Project (level 0) > Sprint 1 (level 1) > Task A, B (level 2)
+
+KEY: Always track returned UUIDs to use as parentBlockId for the next level
 
 CREATING BULLET LISTS WITH MARKDOWN:
 ⚠️ CRITICAL: When user provides bullet lists, you MUST use create_blocks_from_markdown tool!
