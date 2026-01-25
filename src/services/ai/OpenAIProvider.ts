@@ -1,6 +1,6 @@
 import { fetch } from "@tauri-apps/plugin-http";
-import type { AIRequest, IAIProvider, StreamChunk } from "./types";
 import { toolsToOpenAITools } from "./tools/utils";
+import type { AIRequest, IAIProvider, StreamChunk } from "./types";
 
 export class OpenAIProvider implements IAIProvider {
   id = "openai";
@@ -12,7 +12,7 @@ export class OpenAIProvider implements IAIProvider {
   }
 
   async *generateStream(
-    request: AIRequest
+    request: AIRequest,
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const rawBaseUrl = request.baseUrl || this.defaultBaseUrl;
     const baseUrl = rawBaseUrl.endsWith("/")
@@ -26,7 +26,7 @@ export class OpenAIProvider implements IAIProvider {
       url,
       hasApiKey: !!request.apiKey,
       apiKeyLength: request.apiKey?.length || 0,
-      apiKeyPrefix: request.apiKey?.substring(0, 10) + "...",
+      apiKeyPrefix: `${request.apiKey?.substring(0, 10)}...`,
       model: request.model,
       toolsCount: request.tools?.length || 0,
     });
@@ -131,10 +131,12 @@ export class OpenAIProvider implements IAIProvider {
                 if (!toolCalls.has(index)) {
                   toolCalls.set(index, { id: id || "", name: "", args: "" });
                 }
-                const tc = toolCalls.get(index)!;
-                if (id) tc.id = id;
-                if (fn?.name) tc.name = fn.name;
-                if (fn?.arguments) tc.args += fn.arguments;
+                const tc = toolCalls.get(index);
+                if (tc) {
+                  if (id) tc.id = id;
+                  if (fn?.name) tc.name = fn.name;
+                  if (fn?.arguments) tc.args += fn.arguments;
+                }
               }
             }
 
@@ -177,7 +179,7 @@ export class OpenAIProvider implements IAIProvider {
                     id,
                     type: "function" as const,
                     function: { name, arguments: args },
-                  })
+                  }),
                 );
                 messages.push({
                   role: "assistant",
