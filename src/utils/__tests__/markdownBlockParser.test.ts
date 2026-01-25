@@ -195,3 +195,66 @@ describe("flattenBlockHierarchy", () => {
     expect(result[1].insertAfterBlockId).not.toBe(result[2].insertAfterBlockId);
   });
 });
+
+describe("Solar System Example - Hierarchical Structure", () => {
+  it("should parse Solar System with planets as root items and moon as nested", () => {
+    const solarSystemMarkdown = `- Mercury
+ - Venus
+ - Earth
+   - Moon
+ - Mars
+ - Jupiter
+ - Saturn
+ - Uranus
+ - Neptune`;
+
+    const result = parseMarkdownToBlocks(solarSystemMarkdown);
+
+    expect(result).toHaveLength(8);
+    expect(result[0].content).toBe("Mercury");
+    expect(result[1].content).toBe("Venus");
+    expect(result[2].content).toBe("Earth");
+    expect(result[2].children).toHaveLength(1);
+    expect(result[2].children[0].content).toBe("Moon");
+    expect(result[3].content).toBe("Mars");
+    expect(result[4].content).toBe("Jupiter");
+    expect(result[5].content).toBe("Saturn");
+    expect(result[6].content).toBe("Uranus");
+    expect(result[7].content).toBe("Neptune");
+  });
+
+  it("should flatten Solar System structure with correct parent relationships", () => {
+    const solarSystemMarkdown = `- Mercury
+ - Venus
+ - Earth
+   - Moon
+ - Mars`;
+
+    const nodes = parseMarkdownToBlocks(solarSystemMarkdown);
+    const flattened = flattenBlockHierarchy(nodes);
+
+    expect(flattened).toHaveLength(5);
+
+    const mercury = flattened[0];
+    const venus = flattened[1];
+    const earth = flattened[2];
+    const moon = flattened[3];
+    const mars = flattened[4];
+
+    expect(mercury.content).toBe("Mercury");
+    expect(mercury.parentBlockId).toBeNull();
+
+    expect(venus.content).toBe("Venus");
+    expect(venus.parentBlockId).toBeNull();
+
+    expect(earth.content).toBe("Earth");
+    expect(earth.parentBlockId).toBeNull();
+
+    expect(moon.content).toBe("Moon");
+    expect(moon.parentBlockId).toBeDefined();
+    expect(moon.parentBlockId).not.toBeNull();
+
+    expect(mars.content).toBe("Mars");
+    expect(mars.parentBlockId).toBeNull();
+  });
+});
