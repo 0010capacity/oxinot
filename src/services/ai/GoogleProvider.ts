@@ -1,6 +1,6 @@
 import { fetch } from "@tauri-apps/plugin-http";
-import type { AIRequest, IAIProvider, StreamChunk } from "./types";
 import { toolsToAIFunctions } from "./tools/utils";
+import type { AIRequest, IAIProvider, StreamChunk } from "./types";
 
 interface GooglePart {
   text?: string;
@@ -21,10 +21,12 @@ interface GoogleContent {
 
 export class GoogleProvider implements IAIProvider {
   id = "google";
+  private abortController: AbortController | null = null;
 
   async *generateStream(
-    request: AIRequest
+    request: AIRequest,
   ): AsyncGenerator<StreamChunk, void, unknown> {
+    this.abortController = new AbortController();
     let loopCount = 0;
     const MAX_LOOPS = 5;
     const conversationHistory = [...this.buildContents(request)];
@@ -35,7 +37,7 @@ export class GoogleProvider implements IAIProvider {
       try {
         const result = await this.generateWithTools(
           request,
-          conversationHistory
+          conversationHistory,
         );
 
         // If text response, yield and return
@@ -81,6 +83,10 @@ export class GoogleProvider implements IAIProvider {
         // No text and no function call - shouldn't happen
         return;
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          console.log("[GoogleProvider] Stream aborted");
+          return;
+        }
         yield {
           type: "error",
           error: error instanceof Error ? error.message : "Unknown error",
@@ -115,7 +121,7 @@ export class GoogleProvider implements IAIProvider {
 
   private async generateWithTools(
     request: AIRequest,
-    contents: GoogleContent[]
+    contents: GoogleContent[],
   ): Promise<{
     text?: string;
     functionCall?: { name: string; args: Record<string, unknown> };
@@ -151,7 +157,7 @@ export class GoogleProvider implements IAIProvider {
     console.log("[GoogleProvider] Sending to API:");
     console.log(
       "  System prompt:",
-      `${request.systemPrompt?.substring(0, 100)}...`
+      `${request.systemPrompt?.substring(0, 100)}...`,
     );
     console.log("  Contents:", contents.length);
 
@@ -159,6 +165,7 @@ export class GoogleProvider implements IAIProvider {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      signal: this.abortController?.signal,
     });
 
     if (!response.ok) {
@@ -198,7 +205,7 @@ export class GoogleProvider implements IAIProvider {
   }
 
   private cleanSchemaForGemini(
-    schema: Record<string, unknown>
+    schema: Record<string, unknown>,
   ): Record<string, unknown> {
     if (!schema || typeof schema !== "object") {
       return schema;
@@ -228,7 +235,7 @@ export class GoogleProvider implements IAIProvider {
     // Handle items (for arrays)
     if ("items" in schema && schema.items && typeof schema.items === "object") {
       cleaned.items = this.cleanSchemaForGemini(
-        schema.items as Record<string, unknown>
+        schema.items as Record<string, unknown>,
       );
     }
 
@@ -275,5 +282,9 @@ export class GoogleProvider implements IAIProvider {
     }
 
     return cleaned;
+  }
+
+  abort(): void {
+    this.abortController?.abort();
   }
 }

@@ -14,6 +14,7 @@ import {
   Text,
   Textarea,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import {
   IconArrowUp,
   IconChevronDown,
@@ -143,7 +144,7 @@ function ModelSelectorDropdown({
                 Object.entries(allConfigs)
                   .filter(
                     ([_, config]) =>
-                      config?.apiKey && config?.models?.length > 0
+                      config?.apiKey && config?.models?.length > 0,
                   )
                   .map(([p]) => p)
                   .pop() && <Menu.Divider />}
@@ -163,7 +164,7 @@ export function CopilotPanel() {
   // Initialize tool registry on first mount
   useEffect(() => {
     console.log(
-      "[CopilotPanel] Initializing tool registry and debug utilities"
+      "[CopilotPanel] Initializing tool registry and debug utilities",
     );
     initializeToolRegistry();
     exposeDebugToWindow();
@@ -182,7 +183,7 @@ export function CopilotPanel() {
   const chatMessages = useCopilotUiStore((state) => state.chatMessages);
   const addChatMessage = useCopilotUiStore((state) => state.addChatMessage);
   const clearChatMessages = useCopilotUiStore(
-    (state) => state.clearChatMessages
+    (state) => state.clearChatMessages,
   );
 
   // Tool Approval State
@@ -208,7 +209,7 @@ export function CopilotPanel() {
           | "claude"
           | "ollama"
           | "lmstudio"
-          | "custom"
+          | "custom",
       );
   };
 
@@ -395,19 +396,31 @@ export function CopilotPanel() {
         agentStore.addStep(step);
 
         if (step.type === "thought") {
-          addChatMessage("system", `Analyzing: ${step.thought}`);
+          notifications.show({
+            title: "Analyzing",
+            message: step.thought,
+            autoClose: 3000,
+          });
         } else if (step.type === "tool_call") {
-          addChatMessage("system", `Executing tool: ${step.toolName}`);
+          notifications.show({
+            title: "Executing Tool",
+            message: step.toolName,
+            autoClose: 3000,
+          });
         } else if (step.type === "observation") {
           if (step.toolResult?.success) {
-            addChatMessage("system", "Tool execution completed successfully");
+            notifications.show({
+              title: "Tool Result",
+              message: "Tool execution completed successfully",
+              autoClose: 3000,
+            });
           } else {
-            addChatMessage(
-              "system",
-              `Tool execution failed: ${
-                step.toolResult?.error || "Unknown error"
-              }`
-            );
+            notifications.show({
+              title: "Tool Error",
+              message: step.toolResult?.error || "Unknown error",
+              color: "red",
+              autoClose: 3000,
+            });
           }
         } else if (step.type === "final_answer") {
           addChatMessage("assistant", step.content || "");
@@ -424,10 +437,12 @@ export function CopilotPanel() {
 
       if (finalState.status === "failed") {
         setError(finalState.error || "Agent failed to complete task");
-        addChatMessage(
-          "system",
-          `Task incomplete: ${finalState.error || "Unknown error"}`
-        );
+        notifications.show({
+          title: "Task Incomplete",
+          message: finalState.error || "Unknown error",
+          color: "red",
+          autoClose: 3000,
+        });
       }
     } catch (err: unknown) {
       console.error("AI Generation Error:", err);
@@ -444,7 +459,11 @@ export function CopilotPanel() {
   const handleStop = () => {
     if (orchestratorRef.current) {
       orchestratorRef.current.stop();
-      addChatMessage("system", "Agent stopped by user");
+      notifications.show({
+        title: "Agent Stopped",
+        message: "Agent execution stopped by user",
+        autoClose: 2000,
+      });
     }
   };
 

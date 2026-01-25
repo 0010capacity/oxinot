@@ -398,6 +398,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   stop(): void {
     console.log("[AgentOrchestrator] Stop requested");
     this.shouldStop = true;
+    this.aiProvider.abort?.();
   }
 
   private buildSystemPrompt(_config: AgentConfig): string {
