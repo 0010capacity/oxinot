@@ -168,12 +168,25 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               this.state.steps.push(observationStep);
               pendingSteps.push(observationStep);
 
-              // Only add to conversation history if tool execution failed
-              // Successful tool results don't need to be in history - the AI doesn't see them
+              // Add tool result to conversation history so AI knows what happened
               if (!result.success) {
+                // For failures, provide clear error message
                 conversationHistory.push({
                   role: "user",
                   content: `Tool '${toolName}' execution failed: ${result.error || "Unknown error"}. Please try an alternative approach.`,
+                });
+              } else {
+                // For successes, provide concise result summary
+                let resultSummary = `Tool '${toolName}' executed successfully.`;
+                if (
+                  result.metadata?.message &&
+                  typeof result.metadata.message === "string"
+                ) {
+                  resultSummary = result.metadata.message;
+                }
+                conversationHistory.push({
+                  role: "user",
+                  content: resultSummary,
                 });
               }
 
