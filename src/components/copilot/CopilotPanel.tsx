@@ -224,8 +224,6 @@ export function CopilotPanel() {
   };
 
   // Local state
-  const [error, setError] = useState<string | null>(null);
-
   // Mention Autocomplete State
   const [mentionAutocomplete, setMentionAutocomplete] = useState<{
     show: boolean;
@@ -325,7 +323,6 @@ export function CopilotPanel() {
 
     const currentInput = inputValue;
     setInputValue("");
-    setError(null);
     setIsLoading(true);
 
     const pageStore = usePageStore.getState();
@@ -436,7 +433,6 @@ export function CopilotPanel() {
       console.log("[Copilot Agent] Final state:", finalState.status);
 
       if (finalState.status === "failed") {
-        setError(finalState.error || "Agent failed to complete task");
         notifications.show({
           title: "Task Incomplete",
           message: finalState.error || "Unknown error",
@@ -448,7 +444,12 @@ export function CopilotPanel() {
       console.error("AI Generation Error:", err);
       const errorMessage =
         err instanceof Error ? err.message : "Failed to generate response";
-      setError(errorMessage);
+      notifications.show({
+        title: "Generation Error",
+        message: errorMessage,
+        color: "red",
+        autoClose: 5000,
+      });
       addChatMessage("assistant", `Error: ${errorMessage}`);
     } finally {
       setIsLoading(false);
@@ -614,18 +615,6 @@ export function CopilotPanel() {
           zIndex={10}
           overlayProps={{ blur: 1 }}
         />
-
-        {error && (
-          <div
-            style={{
-              padding: "12px",
-              backgroundColor: "var(--mantine-color-red-1)",
-              color: "var(--mantine-color-red-9)",
-            }}
-          >
-            <Text size="sm">{error}</Text>
-          </div>
-        )}
 
         <ScrollArea h="100%" p="md" viewportRef={scrollViewportRef}>
           <Stack gap="md">
