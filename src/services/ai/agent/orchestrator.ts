@@ -1,3 +1,6 @@
+import { useBlockStore } from "../../../stores/blockStore";
+import { useBlockUIStore } from "../../../stores/blockUIStore";
+import { usePageStore } from "../../../stores/pageStore";
 import { executeTool } from "../tools/executor";
 import { toolRegistry } from "../tools/registry";
 import type { ChatMessage, IAIProvider } from "../types";
@@ -7,9 +10,6 @@ import type {
   AgentStep,
   IAgentOrchestrator,
 } from "./types";
-import { useBlockStore } from "../../../stores/blockStore";
-import { usePageStore } from "../../../stores/pageStore";
-import { useBlockUIStore } from "../../../stores/blockUIStore";
 
 export class AgentOrchestrator implements IAgentOrchestrator {
   private state: AgentState;
@@ -30,7 +30,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
   async *execute(
     goal: string,
-    config: AgentConfig
+    config: AgentConfig,
   ): AsyncGenerator<AgentStep, void, unknown> {
     this.shouldStop = false;
 
@@ -48,7 +48,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     };
 
     console.log(
-      `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`
+      `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`,
     );
 
     const allTools = toolRegistry.getAll();
@@ -64,7 +64,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       ) {
         this.state.iterations++;
         console.log(
-          `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`
+          `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`,
         );
 
         this.state.status = "thinking";
@@ -99,7 +99,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
               console.log(
                 `[AgentOrchestrator] Tool called: ${toolName}`,
-                params
+                params,
               );
 
               const toolCallStep: AgentStep = {
@@ -120,12 +120,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               const result = await executeTool(
                 toolName,
                 params,
-                config.context
+                config.context,
               );
 
               console.log(
                 "[AgentOrchestrator] Tool result:",
-                result.success ? "✓ Success" : "✗ Failed"
+                result.success ? "✓ Success" : "✗ Failed",
               );
 
               const observationStep: AgentStep = {
@@ -143,7 +143,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               conversationHistory.push({
                 role: "assistant",
                 content: `I called ${toolName} with params ${JSON.stringify(
-                  params
+                  params,
                 )}`,
               });
               conversationHistory.push({
@@ -184,7 +184,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             this.state.status = "completed";
 
             console.log(
-              "[AgentOrchestrator] Final answer received, completing execution"
+              "[AgentOrchestrator] Final answer received, completing execution",
             );
 
             yield finalStep;
@@ -193,7 +193,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
           if (!toolWasCalled && !finalAnswerReceived) {
             console.log(
-              "[AgentOrchestrator] No tool call and no final answer, AI may need more guidance"
+              "[AgentOrchestrator] No tool call and no final answer, AI may need more guidance",
             );
 
             conversationHistory.push({
@@ -212,7 +212,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             error instanceof Error ? error.message : "Unknown error";
           console.error(
             `[AgentOrchestrator] Error in iteration ${this.state.iterations}:`,
-            errorMessage
+            errorMessage,
           );
 
           this.state.error = errorMessage;
@@ -227,7 +227,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         this.state.status !== "completed"
       ) {
         console.warn(
-          `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`
+          `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`,
         );
         this.state.status = "failed";
         this.state.error = "Maximum iterations reached without completing task";
@@ -240,7 +240,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     } finally {
       console.log(
-        `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`
+        `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`,
       );
     }
   }
@@ -275,6 +275,28 @@ BLOCK-BASED OUTLINER STRUCTURE:
 - Blocks can be nested (parent-child hierarchy)
 - Types: bullet (text), code (triple backticks with language), fence (multiline text)
 - Pages can be regular notes OR directories (folders that contain other pages)
+
+NESTED BLOCK CREATION (CRITICAL):
+- To create nested blocks, use parentBlockId parameter to link child blocks to their parent
+- The create_block tool accepts: pageId, parentBlockId, insertAfterBlockId, content
+- Example: To create "Item 1" then "Nested Item" under it:
+  1. create_block(pageId="page-uuid", parentBlockId=null, content="Item 1") → returns block-id-1
+  2. create_block(pageId="page-uuid", parentBlockId="block-id-1", content="Nested Item")
+- When creating multiple nested items, ALWAYS pass the parent block's UUID as parentBlockId
+- The insertAfterBlockId parameter controls ordering among siblings (optional)
+
+CREATING BULLET LISTS WITH MARKDOWN:
+- If given markdown with indentation like:
+  - Item 1
+    - Nested Item
+      - Deep Item
+  - Item 2
+- Parse the indentation structure and create blocks in order:
+  1. Create "Item 1" (parentBlockId=null)
+  2. Create "Nested Item" (parentBlockId=Item 1 UUID)
+  3. Create "Deep Item" (parentBlockId=Nested Item UUID)
+  4. Create "Item 2" (parentBlockId=null)
+- Use insertAfterBlockId to maintain order if needed
 
 DIRECTORY/FILE HIERARCHY (CRITICAL):
 - The workspace has a hierarchical structure similar to a file system
@@ -312,7 +334,7 @@ KEY TOOLS:
 - list_pages: Discover all pages and directories, find UUIDs by title
 - get_page_blocks: See what content exists before changing
 - create_page: Create new pages (set parentId to place in directory)
-- create_block: New block (provide content)
+- create_block: New block (provide content + parentBlockId for nesting)
 - update_block: Modify existing (more efficient than delete+create)
 - insert_block_below: Add after specific block
 - query_blocks: Find specific content
@@ -321,6 +343,7 @@ COMMON ERRORS AND HOW TO AVOID THEM:
 - "Parent page not found": You used a title instead of UUID. Call list_pages to get the UUID.
 - "Parent is not a directory": The parent is a regular page. Create a directory first or find a different parent.
 - "Page not found": Wrong UUID. Call list_pages to find the correct one.
+- "Nested blocks not showing indentation": You forgot to set parentBlockId. Always use parentBlockId for nesting.
 
 AVAILABLE CONTEXT:
 `;
