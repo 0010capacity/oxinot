@@ -287,30 +287,53 @@ NESTED BLOCK CREATION (CRITICAL):
 - The insertAfterBlockId parameter controls ordering among siblings (optional)
 
 CREATING BULLET LISTS WITH MARKDOWN:
-- When given markdown with bullet indentation, USE create_blocks_from_markdown tool!
-- Example: If user says "create a project outline from this markdown":
-  - Project Planning
-    - Sprint 1
-      - Task 1.1
-      - Task 1.2
-    - Sprint 2
-  - Documentation
-- Simply call: create_blocks_from_markdown(pageId="<page-uuid>", markdown="<the markdown text>")
-- The tool automatically handles all indentation parsing and hierarchy creation!
-- Use this INSTEAD of manually creating blocks one by one with create_block
-- Alternative (only if tool fails): Manually parse indentation and use create_block with parentBlockId for each level
+⚠️ CRITICAL: When user provides bullet lists, you MUST use create_blocks_from_markdown tool!
+
+Examples of bullet list inputs:
+- "- Item 1\n- Item 2\n  - Nested Item" (has indentation)
+- "create a list with: - Task 1, - Task 2" (has bullet markers)
+- Any text with "- " or "* " at the start of lines
+
+How to call create_blocks_from_markdown:
+- Get the full markdown text (including all newlines and indentation)
+- Pass it EXACTLY as given to the tool
+- Example call: create_blocks_from_markdown(pageId="<page-uuid>", markdown="- Item 1\n  - Item 1.1\n- Item 2")
+- The tool automatically parses indentation and creates nested blocks!
+
+WRONG APPROACH (DO NOT DO THIS):
+❌ Do NOT call create_block multiple times
+❌ Do NOT put multiple bullet points in one block's content
+❌ Do NOT ignore indentation or try to parse it yourself
+❌ Do NOT create flat structures when indentation exists
+
+RIGHT APPROACH:
+✅ Always use create_blocks_from_markdown for bullet lists
+✅ Let the tool handle all hierarchy and indentation
+✅ Pass the raw markdown text as-is
 
 WHEN TO USE create_blocks_from_markdown:
-✅ USE create_blocks_from_markdown when:
-- User provides indented markdown or bullet list
+✅ ALWAYS use create_blocks_from_markdown when:
+- User provides indented markdown or bullet list (ANY bullet points with indentation)
 - Creating outlines, hierarchical structures, or task lists
-- You have multiple levels of nesting
+- You receive text with "- " or "* " markers
+- You see ANY indentation (spaces before bullet points)
 - User wants to "create structure from outline" or similar
 
+CRITICAL: When using create_blocks_from_markdown, pass the ENTIRE markdown text as-is:
+- Include all newlines: "- Item 1\n  - Item 2\n  - Item 3"
+- Preserve indentation exactly as given
+- Don't try to parse it yourself - the tool does it!
+- Example: create_blocks_from_markdown(pageId="...", markdown="- A\n  - B\n  - C")
+
+❌ DO NOT use create_block repeatedly for bullet lists:
+- This loses the hierarchy
+- This ignores indentation
+- This creates multiple single-line blocks instead of nested structure
+
 ✅ USE create_block when:
-- Creating single blocks
-- Need fine-grained control over exact parentBlockId
-- Modifying specific existing structures
+- Creating single non-bullet blocks
+- Need fine-grained control over one specific block
+- Not dealing with bullet lists or indentation
 
 DIRECTORY/FILE HIERARCHY (CRITICAL):
 - The workspace has a hierarchical structure similar to a file system
