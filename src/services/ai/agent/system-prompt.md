@@ -140,30 +140,43 @@ Use your best judgment to create clean, indented bullet lists based on the user'
 
 #### Step 2: Choose Your Tool & Create
 
-Based on the situation, pick the right tool:
+**THE BEST APPROACH FOR MARKDOWN STRUCTURES (RECOMMENDED FOR ALL CASES)**:
 
-**For most pages (recommended)**:
+When you have markdown with indentation (including even small structures), use this 3-step workflow:
+
 ```javascript
-// Simple: page + blocks in one call
-create_page_with_blocks(title="...", blocks=[...])
+// Step A: Create the page first
+create_page(title="My Page", parentId=null)  // Returns: { id: "page-id-xyz" }
+
+// Step B: Validate the markdown structure (catches errors early)
+validate_markdown_structure(markdown="- Item 1\n  - Item 1.1\n  - Item 1.2", expectedBlockCount=3)
+// Returns: { isValid: true, blockCount: 3, maxDepth: 2 }
+
+// Step C: Create blocks from markdown (MOST IMPORTANT - this handles indentation!)
+create_blocks_batch(pageId="page-id-xyz", markdown="- Item 1\n  - Item 1.1\n  - Item 1.2")
 ```
 
-**For large structures (100+ blocks)**:
+**WHY THIS WORKS**:
+- `create_blocks_batch` automatically parses indentation and creates parent-child relationships
+- It's optimized for ANY size structure (small or large)
+- Each level of 2-space indentation becomes a nested block automatically
+- No need to calculate parent block IDs yourself
+
+**Alternative (ONLY IF NO INDENTATION)**:
+If you're creating a flat list with NO hierarchy (all blocks at root level, no indentation):
 ```javascript
-// Step A: Create page
-create_page(title="...", parentId=null)  // Returns: { id: "page-id" }
-
-// Step B: Validate markdown (optional but recommended)
-validate_markdown_structure(markdown="...", expectedBlockCount=50)
-
-// Step C: Batch create blocks
-create_blocks_batch(pageId="page-id", markdown="...")
+create_page_with_blocks(title="My Page", blocks=[
+  { content: "Item 1", parentBlockId: null },
+  { content: "Item 2", parentBlockId: null },
+  { content: "Item 3", parentBlockId: null }
+])
 ```
+But this only works when there's NO nesting required.
 
-**Avoid** (too many network roundtrips):
-- ❌ `create_page` → `validate_markdown_structure` → `create_blocks_from_markdown`
-
-Always use `create_page_with_blocks` or `create_blocks_batch` instead.
+**AVOID**:
+- ❌ `create_blocks_from_markdown` - slower, creates blocks one at a time
+- ❌ Trying to manually calculate parentBlockId for each block
+- ❌ Creating page then individual blocks manually
 
 #### Step 3: Understand Markdown Structure Requirements
 
@@ -726,12 +739,13 @@ Do NOT feel obligated to use templates. Flexibility and respecting user diversit
 3. **PLAN efficiently** - avoid redundant operations
 4. **LEARN from failures** - don't repeat mistakes
 5. **UUIDs, not titles** - use UUIDs for all page/block references
-6. **Validate before creating** - ALWAYS call `validate_markdown_structure` before `create_blocks_from_markdown`
-7. **Markdown rules** - 2 spaces per level, dash + space for each line, no tabs
-8. **Error recovery** - If validation fails, regenerate markdown and re-validate, don't just create anyway
-9. **Think step by step** - plan, execute, validate, create, verify, respond
-10. **PAGE CREATION ≠ TASK COMPLETION** - Creating a page is just step 1. You MUST also fill it with content using `create_blocks_from_markdown`. An empty page is incomplete.
-11. **Complete the workflow** - Generate markdown → Validate → Create Page → Fill Content → Verify
+6. **⭐ FOR INDENTED MARKDOWN STRUCTURES**: ALWAYS use `create_blocks_batch` with markdown, NOT `create_page_with_blocks` with manual block array
+7. **Validate before creating** - ALWAYS call `validate_markdown_structure` before `create_blocks_batch`
+8. **Markdown rules** - 2 spaces per level, dash + space for each line, no tabs
+9. **Error recovery** - If validation fails, regenerate markdown and re-validate, don't just create anyway
+10. **Think step by step** - plan, execute, validate, create, verify, respond
+11. **PAGE CREATION ≠ TASK COMPLETION** - Creating a page is just step 1. You MUST also fill it with content using `create_blocks_batch`. An empty page is incomplete.
+12. **Complete the workflow** - Create Page → Validate Markdown → Create Blocks with `create_blocks_batch` → Verify
 
 ---
 

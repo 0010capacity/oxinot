@@ -11,28 +11,25 @@ describe("Copilot Tool Efficiency Fix - System Prompt Validation", () => {
   });
 
   describe("Step 2: Tool Recommendation", () => {
-    it("should recommend create_page_with_blocks for most cases", () => {
-      expect(systemPromptContent).toContain("create_page_with_blocks");
-      expect(systemPromptContent).toContain("For most pages (recommended)");
-    });
-
-    it("should recommend create_blocks_batch for large structures", () => {
+    it("should recommend create_blocks_batch as primary approach for markdown structures", () => {
       expect(systemPromptContent).toContain("create_blocks_batch");
-      expect(systemPromptContent).toContain(
-        "For large structures (100+ blocks)",
-      );
+      expect(systemPromptContent).toContain("RECOMMENDED FOR ALL CASES");
     });
 
-    it("should explicitly discourage inefficient 3-step process", () => {
-      expect(systemPromptContent).toContain("Avoid");
-      expect(systemPromptContent).toContain("too many network roundtrips");
+    it("should explain why create_blocks_batch works best", () => {
+      expect(systemPromptContent).toContain("automatically parses indentation");
+      expect(systemPromptContent).toContain("parent-child relationships");
+    });
+
+    it("should show create_page_with_blocks only for flat structures", () => {
+      expect(systemPromptContent).toContain("create_page_with_blocks");
+      expect(systemPromptContent).toContain("ONLY IF NO INDENTATION");
+    });
+
+    it("should guide AI away from manual block array creation", () => {
       expect(systemPromptContent).toContain("❌");
-    });
-
-    it("should guide AI away from create_blocks_from_markdown pattern", () => {
-      expect(systemPromptContent).toContain("create_blocks_from_markdown");
       expect(systemPromptContent).toContain(
-        "Always use `create_page_with_blocks` or `create_blocks_batch`",
+        "Trying to manually calculate parentBlockId",
       );
     });
   });
@@ -59,7 +56,7 @@ describe("Copilot Tool Efficiency Fix - System Prompt Validation", () => {
   describe("Step 4: Validation & Error Recovery", () => {
     it("should recommend validation before create_blocks_batch", () => {
       expect(systemPromptContent).toContain("validate_markdown_structure");
-      expect(systemPromptContent).toContain("For create_blocks_batch");
+      expect(systemPromptContent).toContain("Step B:");
     });
 
     it("should explain validation response format", () => {
@@ -84,29 +81,39 @@ describe("Copilot Tool Efficiency Fix - System Prompt Validation", () => {
       expect(systemPromptContent).toContain("Step 4:");
     });
 
-    it("should feature create_page_with_blocks prominently in step 2", () => {
+    it("should feature create_blocks_batch prominently in step 2", () => {
+      const step2Section = systemPromptContent.substring(
+        systemPromptContent.indexOf("#### Step 2:"),
+        systemPromptContent.indexOf("#### Step 3:"),
+      );
+
+      expect(step2Section).toContain("create_blocks_batch");
+      expect(step2Section).toContain("RECOMMENDED FOR ALL CASES");
+      expect(step2Section).toContain("validate_markdown_structure");
+    });
+  });
+
+  describe("Tool Examples", () => {
+    it("should show 3-step workflow with create_blocks_batch", () => {
+      const step2Section = systemPromptContent.substring(
+        systemPromptContent.indexOf("#### Step 2:"),
+        systemPromptContent.indexOf("#### Step 3:"),
+      );
+
+      expect(step2Section).toContain("Step A:");
+      expect(step2Section).toContain("Step B:");
+      expect(step2Section).toContain("Step C:");
+      expect(step2Section).toContain("create_blocks_batch");
+    });
+
+    it("should show create_page_with_blocks example for flat structures only", () => {
       const step2Section = systemPromptContent.substring(
         systemPromptContent.indexOf("#### Step 2:"),
         systemPromptContent.indexOf("#### Step 3:"),
       );
 
       expect(step2Section).toContain("create_page_with_blocks");
-      expect(step2Section).toContain("For most pages (recommended)");
-      expect(step2Section).toContain("create_blocks_batch");
-    });
-  });
-
-  describe("Tool Examples", () => {
-    it("should show example of create_page_with_blocks usage", () => {
-      expect(systemPromptContent).toContain(
-        'create_page_with_blocks(title="..."',
-      );
-      expect(systemPromptContent).toContain("blocks=[...]");
-    });
-
-    it("should show example of create_blocks_batch usage", () => {
-      expect(systemPromptContent).toContain('create_blocks_batch(pageId="');
-      expect(systemPromptContent).toContain('markdown="..."');
+      expect(step2Section).toContain("ONLY IF NO INDENTATION");
     });
 
     it("should show markdown structure examples", () => {
