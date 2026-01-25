@@ -30,7 +30,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
   async *execute(
     goal: string,
-    config: AgentConfig,
+    config: AgentConfig
   ): AsyncGenerator<AgentStep, void, unknown> {
     this.shouldStop = false;
 
@@ -44,11 +44,11 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       status: "thinking",
       steps: [],
       iterations: 0,
-      maxIterations: config.maxIterations || 10,
+      maxIterations: config.maxIterations || 50,
     };
 
     console.log(
-      `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`,
+      `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`
     );
 
     const allTools = toolRegistry.getAll();
@@ -64,7 +64,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       ) {
         this.state.iterations++;
         console.log(
-          `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`,
+          `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`
         );
 
         this.state.status = "thinking";
@@ -93,12 +93,13 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             baseUrl: config.baseUrl,
             history: conversationHistory,
             tools: allTools,
+            temperature: config.temperature,
             onToolCall: async (toolName: string, params: unknown) => {
               toolWasCalled = true;
 
               console.log(
                 `[AgentOrchestrator] Tool called: ${toolName}`,
-                params,
+                params
               );
 
               const toolCallStep: AgentStep = {
@@ -119,12 +120,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               const result = await executeTool(
                 toolName,
                 params,
-                config.context,
+                config.context
               );
 
               console.log(
                 "[AgentOrchestrator] Tool result:",
-                result.success ? "✓ Success" : "✗ Failed",
+                result.success ? "✓ Success" : "✗ Failed"
               );
 
               const observationStep: AgentStep = {
@@ -142,7 +143,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               conversationHistory.push({
                 role: "assistant",
                 content: `I called ${toolName} with params ${JSON.stringify(
-                  params,
+                  params
                 )}`,
               });
               conversationHistory.push({
@@ -183,7 +184,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             this.state.status = "completed";
 
             console.log(
-              "[AgentOrchestrator] Final answer received, completing execution",
+              "[AgentOrchestrator] Final answer received, completing execution"
             );
 
             yield finalStep;
@@ -192,7 +193,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
           if (!toolWasCalled && !finalAnswerReceived) {
             console.log(
-              "[AgentOrchestrator] No tool call and no final answer, AI may need more guidance",
+              "[AgentOrchestrator] No tool call and no final answer, AI may need more guidance"
             );
 
             conversationHistory.push({
@@ -211,7 +212,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             error instanceof Error ? error.message : "Unknown error";
           console.error(
             `[AgentOrchestrator] Error in iteration ${this.state.iterations}:`,
-            errorMessage,
+            errorMessage
           );
 
           this.state.error = errorMessage;
@@ -226,7 +227,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         this.state.status !== "completed"
       ) {
         console.warn(
-          `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`,
+          `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`
         );
         this.state.status = "failed";
         this.state.error = "Maximum iterations reached without completing task";
@@ -239,7 +240,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     } finally {
       console.log(
-        `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`,
+        `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`
       );
     }
   }
@@ -262,15 +263,39 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
 AGENT BEHAVIOR:
 1. You MUST use tools to complete tasks - don't just describe what to do
-2. Read current state first (get_page_blocks) before making changes
+2. Read current state first (list_pages, get_page_blocks) before making changes
 3. Plan efficiently - avoid creating then deleting blocks
 4. Use update_block instead of delete + create when possible
 5. Only provide text responses when truly complete or need clarification
+6. LEARN FROM FAILURES: If a tool call fails, DO NOT retry the same approach. Analyze the error and try a different strategy.
+7. If you reach max iterations without completing, provide a summary of what you accomplished and what's left.
 
 BLOCK-BASED OUTLINER STRUCTURE:
 - Each block is a bullet point with content
 - Blocks can be nested (parent-child hierarchy)
 - Types: bullet (text), code (triple backticks with language), fence (multiline text)
+- Pages can be regular notes OR directories (folders that contain other pages)
+
+DIRECTORY/FILE HIERARCHY (CRITICAL):
+- The workspace has a hierarchical structure similar to a file system
+- Directories: Pages where isDirectory=true. They contain other pages.
+- Regular pages: isDirectory=false. They contain blocks (content).
+- ROOT LEVEL: Pages with parentId=null are at the top level
+
+WORKFLOW FOR CREATING PAGES IN DIRECTORIES:
+1. First call list_pages(includeDirectories=true) to see what exists
+2. Find the parent directory by its TITLE, then use its UUID as parentId
+3. If the parent directory doesn't exist, create it FIRST with create_page(parentId=null, isDirectory=true)
+4. Then create child pages with create_page(parentId=<parent-UUID>)
+5. NEVER use page titles as parentId - ALWAYS use the UUID from list_pages results
+
+IMPORTANT: UUID vs TITLES:
+- All page references (parentId, pageId) MUST be UUIDs, not titles
+- To find a UUID: call list_pages and search for the title in results
+- Example: If you want to create "Meeting" under "PROJECTS":
+  1. list_pages() → find "PROJECTS" page, get its UUID
+  2. create_page(title="Meeting", parentId="<PROJECTS-UUID>")
+- WRONG: create_page(title="Meeting", parentId="PROJECTS") ← This will fail!
 
 MARKDOWN SYNTAX:
 - Code blocks: Triple backticks with language, e.g. python, javascript, rust
@@ -284,11 +309,18 @@ Use triple backticks at start and end with language name after opening backticks
 All code lines go between the backticks.
 
 KEY TOOLS:
-- get_page_blocks: See what exists before changing
+- list_pages: Discover all pages and directories, find UUIDs by title
+- get_page_blocks: See what content exists before changing
+- create_page: Create new pages (set parentId to place in directory)
 - create_block: New block (provide content)
 - update_block: Modify existing (more efficient than delete+create)
 - insert_block_below: Add after specific block
-- query_blocks/list_pages: Find content
+- query_blocks: Find specific content
+
+COMMON ERRORS AND HOW TO AVOID THEM:
+- "Parent page not found": You used a title instead of UUID. Call list_pages to get the UUID.
+- "Parent is not a directory": The parent is a regular page. Create a directory first or find a different parent.
+- "Page not found": Wrong UUID. Call list_pages to find the correct one.
 
 AVAILABLE CONTEXT:
 `;

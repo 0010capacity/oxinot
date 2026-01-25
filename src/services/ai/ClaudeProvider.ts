@@ -21,7 +21,7 @@ export class ClaudeProvider implements IAIProvider {
   id = "claude";
 
   async *generateStream(
-    request: AIRequest,
+    request: AIRequest
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const baseUrl = request.baseUrl || "https://api.anthropic.com/v1";
     const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
@@ -54,7 +54,7 @@ export class ClaudeProvider implements IAIProvider {
       console.log("[ClaudeProvider] Sending to API:");
       console.log(
         "  System prompt:",
-        `${request.systemPrompt?.substring(0, 100)}...`,
+        `${request.systemPrompt?.substring(0, 100)}...`
       );
       console.log("  Messages:", messages.length);
       let i = 0;
@@ -82,6 +82,7 @@ export class ClaudeProvider implements IAIProvider {
           tools:
             claudeTools && claudeTools.length > 0 ? claudeTools : undefined,
           stream: true,
+          temperature: request.temperature ?? 0.3,
         }),
       });
 
@@ -173,7 +174,7 @@ export class ClaudeProvider implements IAIProvider {
 
                     const result = await request.onToolCall(
                       currentToolName,
-                      args,
+                      args
                     );
                     yield { type: "tool_result", toolResult: result };
 

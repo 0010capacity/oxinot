@@ -9,6 +9,7 @@ export interface AIRequest {
   prompt: string;
   systemPrompt?: string;
   model: string;
+  temperature?: number;
   baseUrl?: string;
   apiKey?: string;
 
@@ -35,7 +36,7 @@ export interface StreamChunk {
 export interface IAIProvider {
   id: string;
   generateStream(
-    request: AIRequest,
+    request: AIRequest
   ): AsyncGenerator<StreamChunk, void, unknown>;
   generate(request: AIRequest): Promise<string>;
 }

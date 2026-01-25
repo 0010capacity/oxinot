@@ -23,7 +23,7 @@ export class GoogleProvider implements IAIProvider {
   id = "google";
 
   async *generateStream(
-    request: AIRequest,
+    request: AIRequest
   ): AsyncGenerator<StreamChunk, void, unknown> {
     let loopCount = 0;
     const MAX_LOOPS = 5;
@@ -35,7 +35,7 @@ export class GoogleProvider implements IAIProvider {
       try {
         const result = await this.generateWithTools(
           request,
-          conversationHistory,
+          conversationHistory
         );
 
         // If text response, yield and return
@@ -115,7 +115,7 @@ export class GoogleProvider implements IAIProvider {
 
   private async generateWithTools(
     request: AIRequest,
-    contents: GoogleContent[],
+    contents: GoogleContent[]
   ): Promise<{
     text?: string;
     functionCall?: { name: string; args: Record<string, unknown> };
@@ -125,6 +125,9 @@ export class GoogleProvider implements IAIProvider {
 
     const payload: Record<string, unknown> = {
       contents: contents,
+      generationConfig: {
+        temperature: request.temperature ?? 0.3,
+      },
     };
 
     if (request.systemPrompt) {
@@ -148,7 +151,7 @@ export class GoogleProvider implements IAIProvider {
     console.log("[GoogleProvider] Sending to API:");
     console.log(
       "  System prompt:",
-      `${request.systemPrompt?.substring(0, 100)}...`,
+      `${request.systemPrompt?.substring(0, 100)}...`
     );
     console.log("  Contents:", contents.length);
 
@@ -195,7 +198,7 @@ export class GoogleProvider implements IAIProvider {
   }
 
   private cleanSchemaForGemini(
-    schema: Record<string, unknown>,
+    schema: Record<string, unknown>
   ): Record<string, unknown> {
     if (!schema || typeof schema !== "object") {
       return schema;
@@ -225,7 +228,7 @@ export class GoogleProvider implements IAIProvider {
     // Handle items (for arrays)
     if ("items" in schema && schema.items && typeof schema.items === "object") {
       cleaned.items = this.cleanSchemaForGemini(
-        schema.items as Record<string, unknown>,
+        schema.items as Record<string, unknown>
       );
     }
 

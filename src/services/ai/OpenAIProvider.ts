@@ -12,7 +12,7 @@ export class OpenAIProvider implements IAIProvider {
   }
 
   async *generateStream(
-    request: AIRequest,
+    request: AIRequest
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const rawBaseUrl = request.baseUrl || this.defaultBaseUrl;
     const baseUrl = rawBaseUrl.endsWith("/")
@@ -75,6 +75,7 @@ export class OpenAIProvider implements IAIProvider {
           tools,
           tool_choice: tools ? "auto" : undefined,
           stream: true,
+          temperature: request.temperature ?? 0.3,
         }),
       });
 
@@ -176,7 +177,7 @@ export class OpenAIProvider implements IAIProvider {
                     id,
                     type: "function" as const,
                     function: { name, arguments: args },
-                  }),
+                  })
                 );
                 messages.push({
                   role: "assistant",

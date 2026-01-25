@@ -8,6 +8,8 @@ export type AIProvider =
   | "claude"
   | "ollama"
   | "lmstudio"
+  | "zai"
+  | "zai-coding-plan"
   | "custom";
 
 export type ToolApprovalPolicy = "always" | "dangerous_only" | "never";
@@ -21,7 +23,8 @@ export interface PromptTemplate {
 export interface ProviderConfig {
   apiKey: string;
   baseUrl: string;
-  model: string;
+  models: string[];
+  temperature: number;
 }
 
 interface AISettings {
@@ -30,7 +33,8 @@ interface AISettings {
   // Current active values (synced with configs[provider])
   apiKey: string;
   baseUrl: string;
-  model: string;
+  models: string[];
+  temperature: number;
 
   // Per-provider configuration
   configs: Record<AIProvider, ProviderConfig>;
@@ -47,13 +51,15 @@ interface AISettingsStore extends AISettings {
   setApiKey: (key: string) => void;
   setBaseUrl: (url: string) => void;
   setModel: (model: string) => void;
+  setModels: (models: string[]) => void;
+  setTemperature: (temperature: number) => void;
   setToolApprovalPolicy: (policy: ToolApprovalPolicy) => void;
 
   // Template Actions
   addPromptTemplate: (name: string, content: string) => void;
   updatePromptTemplate: (
     id: string,
-    updates: Partial<Omit<PromptTemplate, "id">>,
+    updates: Partial<Omit<PromptTemplate, "id">>
   ) => void;
   deletePromptTemplate: (id: string) => void;
 
@@ -85,27 +91,62 @@ const DEFAULT_TEMPLATES: PromptTemplate[] = [
 ];
 
 const DEFAULT_CONFIGS: Record<AIProvider, ProviderConfig> = {
-  google: { apiKey: "", baseUrl: "", model: "gemini-2.5-pro" },
-  openai: { apiKey: "", baseUrl: "https://api.openai.com/v1", model: "gpt-4o" },
+  google: {
+    apiKey: "",
+    baseUrl: "",
+    models: ["gemini-2.5-pro", "gemini-2.0-flash", "gemini-1.5-pro"],
+    temperature: 0.3,
+  },
+  openai: {
+    apiKey: "",
+    baseUrl: "https://api.openai.com/v1",
+    models: ["gpt-5.2", "gpt-5-mini", "gpt-5-nano"],
+    temperature: 0.3,
+  },
   claude: {
     apiKey: "",
     baseUrl: "https://api.anthropic.com",
-    model: "claude-3-5-sonnet-20240620",
+    models: ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5"],
+    temperature: 0.3,
   },
-  ollama: { apiKey: "", baseUrl: "http://localhost:11434", model: "llama3" },
+  ollama: {
+    apiKey: "",
+    baseUrl: "http://localhost:11434",
+    models: ["llama3", "llama3:70b", "mistral", "codellama"],
+    temperature: 0.3,
+  },
   lmstudio: {
     apiKey: "",
     baseUrl: "http://localhost:1234/v1",
-    model: "local-model",
+    models: ["local-model", "llama-3-8b-instruct", "mistral-7b-instruct"],
+    temperature: 0.3,
   },
-  custom: { apiKey: "", baseUrl: "", model: "" },
+  custom: {
+    apiKey: "",
+    baseUrl: "",
+    models: [],
+    temperature: 0.3,
+  },
+  zai: {
+    apiKey: "",
+    baseUrl: "https://api.z.ai/api/paas/v4",
+    models: ["glm-4.7", "glm-4.7-flash", "glm-4.6"],
+    temperature: 0.3,
+  },
+  "zai-coding-plan": {
+    apiKey: "",
+    baseUrl: "https://api.z.ai/api/coding/paas/v4",
+    models: ["glm-4.7", "glm-4.7-flash", "glm-4.6"],
+    temperature: 0.3,
+  },
 };
 
 const INITIAL_STATE: AISettings = {
   provider: "google",
   apiKey: DEFAULT_CONFIGS.google.apiKey,
   baseUrl: DEFAULT_CONFIGS.google.baseUrl,
-  model: DEFAULT_CONFIGS.google.model,
+  models: DEFAULT_CONFIGS.google.models,
+  temperature: DEFAULT_CONFIGS.google.temperature,
   configs: DEFAULT_CONFIGS,
   promptTemplates: DEFAULT_TEMPLATES,
   toolApprovalPolicy: "dangerous_only",
@@ -123,7 +164,8 @@ export const useAISettingsStore = createWithEqualityFn<AISettingsStore>()(
         updatedConfigs[state.provider] = {
           apiKey: state.apiKey,
           baseUrl: state.baseUrl,
-          model: state.model,
+          models: state.models,
+          temperature: state.temperature,
         };
 
         // Load values for the new provider (merge with defaults to ensure all fields exist)
@@ -133,7 +175,11 @@ export const useAISettingsStore = createWithEqualityFn<AISettingsStore>()(
         const newConfig = {
           apiKey: savedConfig?.apiKey ?? defaultConfig.apiKey,
           baseUrl: savedConfig?.baseUrl ?? defaultConfig.baseUrl,
-          model: savedConfig?.model ?? defaultConfig.model,
+          models:
+            savedConfig?.models !== undefined
+              ? savedConfig.models
+              : defaultConfig.models,
+          temperature: savedConfig?.temperature ?? defaultConfig.temperature,
         };
 
         set({
@@ -141,7 +187,8 @@ export const useAISettingsStore = createWithEqualityFn<AISettingsStore>()(
           configs: updatedConfigs,
           apiKey: newConfig.apiKey,
           baseUrl: newConfig.baseUrl,
-          model: newConfig.model,
+          models: newConfig.models,
+          temperature: newConfig.temperature,
         });
       },
 
@@ -164,11 +211,50 @@ export const useAISettingsStore = createWithEqualityFn<AISettingsStore>()(
         })),
 
       setModel: (model) =>
+        set((state) => {
+          // Replace first model in the list
+          // If models array is empty, don't add the model (user intentionally deleted all)
+          if (state.models.length === 0) {
+            return state;
+          }
+          const newModels = [model, ...state.models.slice(1)];
+          return {
+            models: newModels,
+            configs: {
+              ...state.configs,
+              [state.provider]: {
+                ...state.configs[state.provider],
+                models: newModels,
+              },
+            },
+          };
+        }),
+
+      setModels: (models) =>
+        set((state) => {
+          // Deduplicate models to prevent duplicate keys in UI
+          const deduplicatedModels = Array.from(new Set(models));
+          return {
+            models: deduplicatedModels,
+            configs: {
+              ...state.configs,
+              [state.provider]: {
+                ...state.configs[state.provider],
+                models: deduplicatedModels,
+              },
+            },
+          };
+        }),
+
+      setTemperature: (temperature) =>
         set((state) => ({
-          model,
+          temperature,
           configs: {
             ...state.configs,
-            [state.provider]: { ...state.configs[state.provider], model },
+            [state.provider]: {
+              ...state.configs[state.provider],
+              temperature,
+            },
           },
         })),
 
@@ -186,7 +272,7 @@ export const useAISettingsStore = createWithEqualityFn<AISettingsStore>()(
       updatePromptTemplate: (id, updates) =>
         set((state) => ({
           promptTemplates: state.promptTemplates.map((t) =>
-            t.id === id ? { ...t, ...updates } : t,
+            t.id === id ? { ...t, ...updates } : t
           ),
         })),
 
@@ -205,7 +291,8 @@ export const useAISettingsStore = createWithEqualityFn<AISettingsStore>()(
         // Also persist current values so they load correctly on startup without setProvider trigger
         apiKey: state.apiKey,
         baseUrl: state.baseUrl,
-        model: state.model,
+        models: state.models,
+        temperature: state.temperature,
         promptTemplates: state.promptTemplates,
         toolApprovalPolicy: state.toolApprovalPolicy,
       }),
@@ -218,16 +305,34 @@ export const useAISettingsStore = createWithEqualityFn<AISettingsStore>()(
           const provider = state.provider || "google";
           const configs = { ...DEFAULT_CONFIGS };
 
+          // Migrate from old schema (model string) to new schema (models array)
+          const oldModel = (state as unknown as Record<string, unknown>).model;
+          if (oldModel && typeof oldModel === "string") {
+            configs[provider].models = [
+              oldModel,
+              ...DEFAULT_CONFIGS[provider].models,
+            ];
+          }
+
           // Assign whatever was in state (from old version) to the current provider
+          // Only use defaults if the models array is undefined, not if it's empty
+          const savedModels = state.models;
+          const deduplicatedModels = savedModels
+            ? Array.from(new Set(savedModels))
+            : undefined;
           configs[provider] = {
             apiKey: state.apiKey || "",
             baseUrl: state.baseUrl || DEFAULT_CONFIGS[provider].baseUrl,
-            model: state.model || DEFAULT_CONFIGS[provider].model,
+            models: deduplicatedModels ?? DEFAULT_CONFIGS[provider].models,
+            temperature:
+              state.temperature ?? DEFAULT_CONFIGS[provider].temperature,
           };
 
           state.configs = configs;
+          state.models = configs[provider].models;
+          state.temperature = configs[provider].temperature;
         }
       },
-    },
-  ),
+    }
+  )
 );

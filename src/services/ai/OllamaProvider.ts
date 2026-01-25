@@ -5,7 +5,7 @@ export class OllamaProvider implements IAIProvider {
   id = "ollama";
 
   async *generateStream(
-    request: AIRequest,
+    request: AIRequest
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const baseUrl = request.baseUrl || "http://localhost:11434";
     const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
@@ -47,6 +47,7 @@ export class OllamaProvider implements IAIProvider {
           model: request.model,
           messages: messages,
           stream: true,
+          temperature: request.temperature ?? 0.3,
         }),
       });
 

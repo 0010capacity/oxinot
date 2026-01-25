@@ -76,6 +76,9 @@ export interface AgentConfig {
 
   /** AI model name */
   model?: string;
+
+  /** Temperature for controlling randomness in AI responses (0.0-1.0) */
+  temperature?: number;
 }
 
 /**
@@ -87,7 +90,7 @@ export interface IAgentOrchestrator {
    */
   execute(
     goal: string,
-    config: AgentConfig,
+    config: AgentConfig
   ): AsyncGenerator<AgentStep, void, unknown>;
 
   /**

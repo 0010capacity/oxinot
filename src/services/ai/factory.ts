@@ -7,7 +7,7 @@ import { ClaudeProvider } from "./ClaudeProvider";
 
 export function createAIProvider(
   type: AIProviderType,
-  baseUrl: string,
+  baseUrl: string
 ): IAIProvider {
   switch (type) {
     case "google":
@@ -24,6 +24,12 @@ export function createAIProvider(
 
     case "lmstudio":
       return new OpenAIProvider("lmstudio", baseUrl);
+
+    case "zai":
+      return new OpenAIProvider("zai", baseUrl);
+
+    case "zai-coding-plan":
+      return new OpenAIProvider("zai-coding-plan", baseUrl);
 
     case "custom":
       return new OpenAIProvider("custom", baseUrl);

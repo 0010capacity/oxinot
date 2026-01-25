@@ -221,6 +221,13 @@
       "base_url_desc": "API의 기본 URL을 입력하세요 (예: Ollama의 경우 http://localhost:11434)",
       "model": "모델 이름",
       "model_desc": "사용할 모델 이름을 입력하세요 (예: gpt-4, gemini-pro, llama3)",
+      "active_model": "활성 모델",
+      "no_model": "선택된 모델 없음",
+      "add_model_placeholder": "모델 ID 추가 (예: gpt-4o)",
+      "temperature": "온도",
+      "temperature_desc": "AI 응답의 무작위성을 제어합니다. 낮은 값(0.0)은 더 결정적이고, 높은 값(1.0)은 더 창의적입니다.",
+      "temperature_precise": "정밀",
+      "temperature_creative": "창의적",
       "templates": "프롬프트 템플릿",
       "templates_desc": "빠른 접근을 위한 사용자 정의 프롬프트 템플릿 관리",
       "add_template": "템플릿 추가",
@@ -235,6 +242,8 @@
         "claude": "Anthropic Claude",
         "ollama": "Ollama (로컬)",
         "lmstudio": "LM Studio (로컬)",
+        "zai": "Zai",
+        "zai-coding-plan": "Zai Coding Plan",
         "custom": "커스텀 (OpenAI 호환)"
       },
       "tool_approval": {

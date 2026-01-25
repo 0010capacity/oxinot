@@ -2,9 +2,11 @@ import {
   ActionIcon,
   Badge,
   Box,
+  Button,
   Group,
   Loader,
   LoadingOverlay,
+  Menu,
   Paper,
   Portal,
   ScrollArea,
@@ -14,6 +16,9 @@ import {
 } from "@mantine/core";
 import {
   IconArrowUp,
+  IconChevronDown,
+  IconDeviceDesktop,
+  IconPlayerStop,
   IconRobot,
   IconTrash,
   IconUser,
@@ -49,15 +54,116 @@ import {
 import { ResizableHandle } from "./ResizableHandle";
 import { ToolApprovalModal } from "./ToolApprovalModal";
 
+// Provider icons mapping
+const PROVIDER_ICONS: Record<string, React.ReactNode> = {
+  google: <IconDeviceDesktop size={16} />,
+  openai: <IconDeviceDesktop size={16} />,
+  claude: <IconDeviceDesktop size={16} />,
+  ollama: <IconDeviceDesktop size={16} />,
+  lmstudio: <IconDeviceDesktop size={16} />,
+  custom: <IconDeviceDesktop size={16} />,
+  zai: <IconDeviceDesktop size={16} />,
+  "zai-coding-plan": <IconDeviceDesktop size={16} />,
+};
+
+interface ModelSelectorDropdownProps {
+  currentProvider: string;
+  currentModel: string;
+  allConfigs: Record<string, { models: string[]; apiKey: string }>;
+  onProviderChange: (provider: string) => void;
+  onModelChange: (provider: string, model: string) => void;
+  disabled?: boolean;
+}
+
+function ModelSelectorDropdown({
+  currentProvider,
+  currentModel,
+  allConfigs,
+  onProviderChange,
+  onModelChange,
+  disabled = false,
+}: ModelSelectorDropdownProps) {
+  return (
+    <Menu position="top-end" withinPortal disabled={disabled}>
+      <Menu.Target>
+        <Button
+          variant="subtle"
+          size="xs"
+          radius="xl"
+          title={`Model: ${currentProvider}/${currentModel}`}
+          disabled={disabled}
+          px={10}
+          py={4}
+          style={{
+            minWidth: "110px",
+            height: "28px",
+          }}
+        >
+          <Group gap={4} wrap="nowrap">
+            <Text
+              size="xs"
+              style={{ textOverflow: "ellipsis", overflow: "hidden" }}
+            >
+              {currentModel}
+            </Text>
+            <IconChevronDown size={12} />
+          </Group>
+        </Button>
+      </Menu.Target>
+
+      <Menu.Dropdown>
+        {Object.entries(allConfigs)
+          .filter(([_, config]) => config?.apiKey && config?.models?.length > 0)
+          .map(([provider, config]) => (
+            <div key={provider}>
+              <Menu.Label>
+                <Group gap={6} wrap="nowrap">
+                  {PROVIDER_ICONS[provider]}
+                  <span>{provider}</span>
+                </Group>
+              </Menu.Label>
+              {(config?.models || []).map((model) => (
+                <Menu.Item
+                  key={model}
+                  onClick={() => {
+                    onProviderChange(provider);
+                    onModelChange(provider, model);
+                  }}
+                  style={{
+                    fontWeight:
+                      provider === currentProvider && model === currentModel
+                        ? 600
+                        : 400,
+                  }}
+                >
+                  {model}
+                </Menu.Item>
+              ))}
+              {provider !==
+                Object.entries(allConfigs)
+                  .filter(
+                    ([_, config]) =>
+                      config?.apiKey && config?.models?.length > 0
+                  )
+                  .map(([p]) => p)
+                  .pop() && <Menu.Divider />}
+            </div>
+          ))}
+      </Menu.Dropdown>
+    </Menu>
+  );
+}
+
 export function CopilotPanel() {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const orchestratorRef = useRef<AgentOrchestrator | null>(null);
 
   // Initialize tool registry on first mount
   useEffect(() => {
     console.log(
-      "[CopilotPanel] Initializing tool registry and debug utilities",
+      "[CopilotPanel] Initializing tool registry and debug utilities"
     );
     initializeToolRegistry();
     exposeDebugToWindow();
@@ -76,7 +182,7 @@ export function CopilotPanel() {
   const chatMessages = useCopilotUiStore((state) => state.chatMessages);
   const addChatMessage = useCopilotUiStore((state) => state.addChatMessage);
   const clearChatMessages = useCopilotUiStore(
-    (state) => state.clearChatMessages,
+    (state) => state.clearChatMessages
   );
 
   // Tool Approval State
@@ -85,7 +191,36 @@ export function CopilotPanel() {
   const deny = useToolApprovalStore((state) => state.deny);
 
   // Settings
-  const { provider, baseUrl, apiKey, model } = useAISettingsStore();
+  const { provider, baseUrl, apiKey, models, temperature, configs } =
+    useAISettingsStore();
+
+  // Use first model from the list as active model
+  const activeModel = models[0] || "";
+
+  // Handler for changing provider
+  const handleProviderChange = (newProvider: string) => {
+    useAISettingsStore
+      .getState()
+      .setProvider(
+        newProvider as
+          | "google"
+          | "openai"
+          | "claude"
+          | "ollama"
+          | "lmstudio"
+          | "custom"
+      );
+  };
+
+  // Handler for changing model
+  const handleModelChange = (newProvider: string, newModel: string) => {
+    // First switch provider if different
+    if (newProvider !== provider) {
+      handleProviderChange(newProvider);
+    }
+    // Then set the model
+    useAISettingsStore.getState().setModel(newModel);
+  };
 
   // Local state
   const [error, setError] = useState<string | null>(null);
@@ -217,7 +352,7 @@ export function CopilotPanel() {
         baseUrl,
         hasApiKey: !!apiKey,
         apiKeyLength: apiKey?.length || 0,
-        model,
+        activeModel,
       });
 
       const context = {
@@ -237,21 +372,23 @@ export function CopilotPanel() {
         enrichedGoal: enrichedGoal.substring(0, 100),
         hasApiKey: !!apiKey,
         hasBaseUrl: !!baseUrl,
-        hasModel: !!model,
+        hasModel: !!activeModel,
       });
 
       const orchestrator = new AgentOrchestrator(aiProvider);
+      orchestratorRef.current = orchestrator;
 
       const agentStore = useAgentStore.getState();
       agentStore.reset();
 
       for await (const step of orchestrator.execute(enrichedGoal, {
-        maxIterations: 10,
+        maxIterations: 50,
         verbose: true,
         context,
         apiKey,
         baseUrl,
-        model,
+        model: activeModel,
+        temperature,
       })) {
         console.log("[Copilot Agent] Step:", step.type);
 
@@ -269,7 +406,7 @@ export function CopilotPanel() {
               "system",
               `Tool execution failed: ${
                 step.toolResult?.error || "Unknown error"
-              }`,
+              }`
             );
           }
         } else if (step.type === "final_answer") {
@@ -289,7 +426,7 @@ export function CopilotPanel() {
         setError(finalState.error || "Agent failed to complete task");
         addChatMessage(
           "system",
-          `Task incomplete: ${finalState.error || "Unknown error"}`,
+          `Task incomplete: ${finalState.error || "Unknown error"}`
         );
       }
     } catch (err: unknown) {
@@ -300,6 +437,14 @@ export function CopilotPanel() {
       addChatMessage("assistant", `Error: ${errorMessage}`);
     } finally {
       setIsLoading(false);
+      orchestratorRef.current = null;
+    }
+  };
+
+  const handleStop = () => {
+    if (orchestratorRef.current) {
+      orchestratorRef.current.stop();
+      addChatMessage("system", "Agent stopped by user");
     }
   };
 
@@ -580,13 +725,13 @@ export function CopilotPanel() {
       {/* Footer / Input Area - Zed Style Minimal */}
       <div
         style={{
-          padding: "4px 12px 12px",
+          padding: "4px 12px 8px",
           borderTop: "1px solid var(--color-border-primary)",
           backgroundColor: "transparent",
         }}
       >
-        <Group align="flex-end" gap={16} wrap="nowrap">
-          {/* Center: Input */}
+        <Stack gap={2}>
+          {/* Top: Input */}
           <Textarea
             ref={inputRef}
             placeholder={t("settings.ai.copilot.input.placeholder")}
@@ -594,14 +739,13 @@ export function CopilotPanel() {
             onChange={(e) => handleInputChange(e.currentTarget.value)}
             onKeyDown={handleKeyDown}
             autosize
-            minRows={3}
-            maxRows={8}
+            minRows={4}
+            maxRows={10}
             style={{
-              flex: 1,
               fontSize: "14px",
               background: "transparent",
               border: "none",
-              padding: "8px 4px",
+              padding: "6px 4px",
               verticalAlign: "top",
               textAlign: "left",
             }}
@@ -612,19 +756,42 @@ export function CopilotPanel() {
             }}
           />
 
-          {/* Right: Send Button */}
-          <ActionIcon
-            size="sm"
-            variant="filled"
-            color="violet"
-            radius="xl"
-            onClick={handleSend}
-            loading={isLoading}
-            disabled={!inputValue.trim()}
-          >
-            <IconArrowUp size={14} />
-          </ActionIcon>
-        </Group>
+          {/* Bottom: Model Selector & Stop/Send Button */}
+          <Group justify="flex-end" gap={4}>
+            <ModelSelectorDropdown
+              currentProvider={provider}
+              currentModel={activeModel}
+              allConfigs={configs}
+              onProviderChange={handleProviderChange}
+              onModelChange={handleModelChange}
+              disabled={isLoading}
+            />
+
+            {isLoading ? (
+              <ActionIcon
+                size="xs"
+                variant="filled"
+                color="red"
+                radius="xl"
+                onClick={handleStop}
+                title="Stop execution"
+              >
+                <IconPlayerStop size={12} />
+              </ActionIcon>
+            ) : (
+              <ActionIcon
+                size="xs"
+                variant="filled"
+                color="violet"
+                radius="xl"
+                onClick={handleSend}
+                disabled={!inputValue.trim()}
+              >
+                <IconArrowUp size={12} />
+              </ActionIcon>
+            )}
+          </Group>
+        </Stack>
       </div>
       <style>{`
         .copilot-input-wrapper {
