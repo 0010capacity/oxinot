@@ -4,17 +4,32 @@ import { usePageStore } from "../../../stores/pageStore";
 import { executeTool } from "../tools/executor";
 import { toolRegistry } from "../tools/registry";
 import type { ChatMessage, IAIProvider } from "../types";
+import systemPromptTemplate from "./system-prompt.md?raw";
 import type {
   AgentConfig,
   AgentState,
   AgentStep,
   IAgentOrchestrator,
 } from "./types";
+import {
+  isRecoverable,
+  getRecoveryGuidance,
+  getAlternativeApproachPrompt,
+  categorizeToolError,
+  RecoveryStrategy,
+} from "./errorRecovery";
+
+interface ErrorContext {
+  toolName?: string;
+  toolParams?: unknown;
+  attemptCount: number;
+}
 
 export class AgentOrchestrator implements IAgentOrchestrator {
   private state: AgentState;
   private aiProvider: IAIProvider;
   private shouldStop = false;
+  private errorContexts: Map<string, ErrorContext> = new Map();
 
   constructor(aiProvider: IAIProvider) {
     this.aiProvider = aiProvider;
@@ -46,6 +61,8 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       iterations: 0,
       maxIterations: config.maxIterations || 50,
     };
+
+    this.errorContexts.clear();
 
     console.log(
       `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`,
@@ -127,6 +144,17 @@ export class AgentOrchestrator implements IAgentOrchestrator {
                 "[AgentOrchestrator] Tool result:",
                 result.success ? "✓ Success" : "✗ Failed",
               );
+
+              // Handle tool execution errors with recovery logic
+              if (!result.success) {
+                return this.handleToolError(
+                  result,
+                  toolName,
+                  params,
+                  conversationHistory,
+                  goal,
+                );
+              }
 
               const observationStep: AgentStep = {
                 id: `step_${Date.now()}_${Math.random()
@@ -245,6 +273,113 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     }
   }
 
+  /**
+   * Handle tool execution errors with intelligent recovery
+   */
+  private async handleToolError(
+    result: any,
+    toolName: string,
+    params: unknown,
+    conversationHistory: ChatMessage[],
+    goal: string,
+  ): Promise<any> {
+    console.log(
+      `[AgentOrchestrator] Handling tool error from ${toolName}:`,
+      result.error,
+    );
+
+    // Categorize the error
+    const errorInfo = categorizeToolError(result, toolName);
+    const isRecoverableError = isRecoverable(errorInfo);
+
+    // Track error attempts for this tool
+    const errorKey = toolName;
+    const context = this.errorContexts.get(errorKey) || {
+      toolName,
+      toolParams: params,
+      attemptCount: 0,
+    };
+    context.attemptCount += 1;
+    this.errorContexts.set(errorKey, context);
+
+    console.log(
+      `[AgentOrchestrator] Error classified as: ${errorInfo.category} (severity: ${errorInfo.severity})`,
+    );
+
+    if (!isRecoverableError) {
+      console.error(
+        `[AgentOrchestrator] Fatal error, cannot recover: ${errorInfo.message}`,
+      );
+      // Return the failed result to stop execution
+      return result;
+    }
+
+    // Determine recovery strategy
+    const strategy = errorInfo.suggestedStrategy;
+    console.log(`[AgentOrchestrator] Suggested recovery strategy: ${strategy}`);
+
+    // Generate recovery guidance
+    const recoveryGuidance = getRecoveryGuidance(errorInfo);
+
+    // Add recovery context to conversation
+    conversationHistory.push({
+      role: "assistant",
+      content: `Tool call failed: ${toolName}`,
+    });
+
+    switch (strategy) {
+      case RecoveryStrategy.RETRY:
+        // Retry the same tool call
+        console.log(`[AgentOrchestrator] Retrying tool ${toolName}`);
+        conversationHistory.push({
+          role: "user",
+          content: `${recoveryGuidance}\n\nRetrying: ${toolName}`,
+        });
+        // Let orchestrator retry on next iteration
+        return result;
+
+      case RecoveryStrategy.ALTERNATIVE:
+        // Ask AI to try alternative approach
+        console.log(
+          `[AgentOrchestrator] Requesting alternative approach instead of ${toolName}`,
+        );
+        const altPrompt = getAlternativeApproachPrompt(errorInfo, goal);
+        conversationHistory.push({
+          role: "user",
+          content: altPrompt,
+        });
+        return result;
+
+      case RecoveryStrategy.CLARIFY:
+        // Ask for user clarification
+        console.log(
+          `[AgentOrchestrator] Need clarification for tool ${toolName}`,
+        );
+        conversationHistory.push({
+          role: "user",
+          content:
+            `${recoveryGuidance}\n\n` +
+            `Please ask the user for clarification or try a different approach.`,
+        });
+        return result;
+
+      case RecoveryStrategy.SKIP:
+        // Skip this step and continue
+        console.log(`[AgentOrchestrator] Skipping tool ${toolName}`);
+        conversationHistory.push({
+          role: "user",
+          content: `${recoveryGuidance}\n\nSkipping this step, let's try a different approach.`,
+        });
+        return { success: true, message: "Skipped", data: null };
+
+      case RecoveryStrategy.ABORT:
+      default:
+        // Give up
+        console.log(`[AgentOrchestrator] Aborting due to error in ${toolName}`);
+        return result;
+    }
+  }
+
   getState(): AgentState {
     return { ...this.state };
   }
@@ -259,165 +394,26 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     const pageStore = usePageStore.getState();
     const uiStore = useBlockUIStore.getState();
 
-    let systemPrompt = `You are an AI agent in 'Oxinot', a block-based outliner (like Logseq/Roam).
+    // Load system prompt from external markdown file
+    let systemPrompt = systemPromptTemplate;
 
-AGENT BEHAVIOR:
-1. You MUST use tools to complete tasks - don't just describe what to do
-2. Read current state first (list_pages, get_page_blocks) before making changes
-3. Plan efficiently - avoid creating then deleting blocks
-4. Use update_block instead of delete + create when possible
-5. Only provide text responses when truly complete or need clarification
-6. LEARN FROM FAILURES: If a tool call fails, DO NOT retry the same approach. Analyze the error and try a different strategy.
-7. If you reach max iterations without completing, provide a summary of what you accomplished and what's left.
-8. HIERARCHICAL STRUCTURE: When user requests nested structures, parse them carefully:
-   - Understand parent-child relationships from description
-   - Create blocks in proper order (parents before children)
-   - Use parentBlockId to establish hierarchy
-   - Track block IDs to use as future parent IDs
-
-BLOCK-BASED OUTLINER STRUCTURE:
-- Each block is a bullet point with content
-- Blocks can be nested (parent-child hierarchy)
-- Types: bullet (text), code (triple backticks with language), fence (multiline text)
-- Pages can be regular notes OR directories (folders that contain other pages)
-
-NESTED BLOCK CREATION (CRITICAL):
-- To create nested blocks, use parentBlockId parameter to link child blocks to their parent
-- The create_block tool accepts: pageId, parentBlockId, insertAfterBlockId, content
-- parentBlockId=null means it's a root block (level 0)
-- parentBlockId="<uuid>" means it's nested under that block
-
-EXAMPLE 1 - Simple hierarchy:
-1. create_block(pageId="page-uuid", parentBlockId=null, content="Project") → returns proj-id
-2. create_block(pageId="page-uuid", parentBlockId="proj-id", content="Task 1") → returns task1-id
-3. create_block(pageId="page-uuid", parentBlockId="proj-id", content="Task 2")
-Result: Project (level 0), Task 1 (level 1 under Project), Task 2 (level 1 under Project)
-
-EXAMPLE 2 - Deep hierarchy:
-1. create_block(pageId="page-uuid", parentBlockId=null, content="Project") → returns proj-id
-2. create_block(pageId="page-uuid", parentBlockId="proj-id", content="Sprint 1") → returns sprint-id
-3. create_block(pageId="page-uuid", parentBlockId="sprint-id", content="Task A")
-4. create_block(pageId="page-uuid", parentBlockId="sprint-id", content="Task B")
-Result: Project (level 0) > Sprint 1 (level 1) > Task A, B (level 2)
-
-KEY: Always track returned UUIDs to use as parentBlockId for the next level
-
-CREATING BULLET LISTS WITH MARKDOWN:
-⚠️ CRITICAL: When user provides bullet lists, you MUST use create_blocks_from_markdown tool!
-
-Examples of bullet list inputs:
-- "- Item 1\n- Item 2\n  - Nested Item" (has indentation)
-- "create a list with: - Task 1, - Task 2" (has bullet markers)
-- Any text with "- " or "* " at the start of lines
-
-How to call create_blocks_from_markdown:
-- Get the full markdown text (including all newlines and indentation)
-- Pass it EXACTLY as given to the tool
-- Example call: create_blocks_from_markdown(pageId="<page-uuid>", markdown="- Item 1\n  - Item 1.1\n- Item 2")
-- The tool automatically parses indentation and creates nested blocks!
-
-WRONG APPROACH (DO NOT DO THIS):
-❌ Do NOT call create_block multiple times
-❌ Do NOT put multiple bullet points in one block's content
-❌ Do NOT ignore indentation or try to parse it yourself
-❌ Do NOT create flat structures when indentation exists
-
-RIGHT APPROACH:
-✅ Always use create_blocks_from_markdown for bullet lists
-✅ Let the tool handle all hierarchy and indentation
-✅ Pass the raw markdown text as-is
-
-WHEN TO USE create_blocks_from_markdown:
-✅ ALWAYS use create_blocks_from_markdown when:
-- User provides indented markdown or bullet list (ANY bullet points with indentation)
-- Creating outlines, hierarchical structures, or task lists
-- You receive text with "- " or "* " markers
-- You see ANY indentation (spaces before bullet points)
-- User wants to "create structure from outline" or similar
-
-CRITICAL: When using create_blocks_from_markdown, pass the ENTIRE markdown text as-is:
-- Include all newlines: "- Item 1\n  - Item 2\n  - Item 3"
-- Preserve indentation exactly as given
-- Don't try to parse it yourself - the tool does it!
-- Example: create_blocks_from_markdown(pageId="...", markdown="- A\n  - B\n  - C")
-
-❌ DO NOT use create_block repeatedly for bullet lists:
-- This loses the hierarchy
-- This ignores indentation
-- This creates multiple single-line blocks instead of nested structure
-
-✅ USE create_block when:
-- Creating single non-bullet blocks
-- Need fine-grained control over one specific block
-- Not dealing with bullet lists or indentation
-
-DIRECTORY/FILE HIERARCHY (CRITICAL):
-- The workspace has a hierarchical structure similar to a file system
-- Directories: Pages where isDirectory=true. They contain other pages.
-- Regular pages: isDirectory=false. They contain blocks (content).
-- ROOT LEVEL: Pages with parentId=null are at the top level
-
-WORKFLOW FOR CREATING PAGES IN DIRECTORIES:
-1. First call list_pages(includeDirectories=true) to see what exists
-2. Find the parent directory by its TITLE, then use its UUID as parentId
-3. If the parent directory doesn't exist, create it FIRST with create_page(parentId=null, isDirectory=true)
-4. Then create child pages with create_page(parentId=<parent-UUID>)
-5. NEVER use page titles as parentId - ALWAYS use the UUID from list_pages results
-
-IMPORTANT: UUID vs TITLES:
-- All page references (parentId, pageId) MUST be UUIDs, not titles
-- To find a UUID: call list_pages and search for the title in results
-- Example: If you want to create "Meeting" under "PROJECTS":
-  1. list_pages() → find "PROJECTS" page, get its UUID
-  2. create_page(title="Meeting", parentId="<PROJECTS-UUID>")
-- WRONG: create_page(title="Meeting", parentId="PROJECTS") ← This will fail!
-
-MARKDOWN SYNTAX:
-- Code blocks: Triple backticks with language, e.g. python, javascript, rust
-- Wiki links: [[Page Name]]
-- Block refs: ((block-id))
-- Tasks: - [ ] todo, - [x] done
-
-CODE BLOCK CREATION:
-When creating code blocks, include FULL content in ONE operation.
-Use triple backticks at start and end with language name after opening backticks.
-All code lines go between the backticks.
-
-KEY TOOLS:
-- list_pages: Discover all pages and directories, find UUIDs by title
-- get_page_blocks: See what content exists before changing
-- create_page: Create new pages (set parentId to place in directory)
-- create_block: New block (use parentBlockId for nesting - YOU control hierarchy)
-- update_block: Modify existing (more efficient than delete+create)
-- insert_block_below: Add after specific block
-- query_blocks: Find specific content
-
-COMMON ERRORS AND HOW TO AVOID THEM:
-- "Parent page not found": You used a title instead of UUID. Call list_pages to get the UUID.
-- "Parent is not a directory": The parent is a regular page. Create a directory first or find a different parent.
-- "Page not found": Wrong UUID. Call list_pages to find the correct one.
-- "Nested blocks not showing indentation": You forgot to set parentBlockId. Always use parentBlockId for nesting.
-
-AVAILABLE CONTEXT:
-`;
+    // Add dynamic context
+    systemPrompt += "\n\n## Dynamic Context\n\n";
 
     const focusedId = uiStore.focusedBlockId;
-    if (focusedId) {
+    if (focusedId != null) {
       const block = blockStore.blocksById[focusedId];
       if (block) {
-        systemPrompt += `- Current focused block: "${block.content}" (ID: ${focusedId})\n`;
+        systemPrompt += `- **Current focused block**: "${block.content}" (ID: ${focusedId})\n`;
       }
     }
 
     const pageId = blockStore.currentPageId;
-    if (pageId) {
+    if (pageId != null) {
       const page = pageStore.pagesById[pageId];
       const pageTitle = page?.title || "Untitled";
-      systemPrompt += `- Current page: "${pageTitle}" (ID: ${pageId})\n`;
+      systemPrompt += `- **Current page**: "${pageTitle}" (ID: ${pageId})\n`;
     }
-
-    systemPrompt +=
-      "\nREMEMBER: You are an autonomous agent. Use tools to accomplish tasks. Think step by step.";
 
     return systemPrompt;
   }
