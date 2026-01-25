@@ -25,7 +25,7 @@ Notes:
   requiresApproval: false,
 
   parameters: z.object({
-    uuid: z.string().uuid().describe("UUID of the block to update"),
+    blockId: z.string().uuid().describe("UUID of the block to update"),
     content: z
       .string()
       .describe(
@@ -38,7 +38,7 @@ Notes:
       const updatedBlock = await invoke<BlockData>("update_block", {
         workspacePath: context.workspacePath,
         request: {
-          id: params.uuid,
+          id: params.blockId,
           content: params.content,
         },
       });
@@ -48,7 +48,7 @@ Notes:
 
       return {
         success: true,
-        data: { uuid: params.uuid, content: params.content },
+        data: { blockId: params.blockId, content: params.content },
       };
     } catch (error) {
       return {
