@@ -138,81 +138,80 @@ Use your best judgment to create clean, indented bullet lists based on the user'
 - Every content line MUST start with `- ` (dash + space)
 - Empty lines between sections are OK (they're skipped by parser)
 
-#### Step 2: Always Validate Before Creating
+#### Step 2: Choose Your Tool & Create
 
-BEFORE calling `create_blocks_from_markdown`, call `validate_markdown_structure` to catch errors:
+Based on the situation, pick the right tool:
+
+**For most pages (recommended)**:
+```javascript
+// Simple: page + blocks in one call
+create_page_with_blocks(title="...", blocks=[...])
+```
+
+**For large structures (100+ blocks)**:
+```javascript
+// Step A: Create page
+create_page(title="...", parentId=null)  // Returns: { id: "page-id" }
+
+// Step B: Validate markdown (optional but recommended)
+validate_markdown_structure(markdown="...", expectedBlockCount=50)
+
+// Step C: Batch create blocks
+create_blocks_batch(pageId="page-id", markdown="...")
+```
+
+**Avoid** (too many network roundtrips):
+- ❌ `create_page` → `validate_markdown_structure` → `create_blocks_from_markdown`
+
+Always use `create_page_with_blocks` or `create_blocks_batch` instead.
+
+#### Step 3: Understand Markdown Structure Requirements
+
+All markdown for blocks must follow these rules:
+
+```markdown
+- Root item
+  - Nested item 1 (2 spaces indentation)
+    - Deeply nested (4 spaces)
+  - Nested item 2
+- Another root item
+```
+
+**CRITICAL RULES**:
+1. **Every line must start with `- ` (dash + space)** - No exceptions
+2. **Use 2 spaces per nesting level** (not tabs, not 1 space, not 3)
+3. **No special characters** in indentation (no unicode spaces, etc.)
+4. **All levels start from 0 indentation** - Never indent root items
+
+**Common mistakes to avoid**:
+- ❌ Mixed tabs and spaces
+- ❌ Inconsistent indentation (1 space, 3 spaces, etc.)
+- ❌ Lines without `- ` marker (they'll be skipped)
+- ❌ Unicode/special spaces in indentation
+
+#### Step 4: Validation & Error Recovery (For create_blocks_batch)
+
+Before calling `create_blocks_batch` on large structures, validate:
 
 ```javascript
-// Step 1: Validate
-validate_markdown_structure(
-  markdown="- Item 1\n  - Detail 1.1\n- Item 2",
-  expectedBlockCount=2
-)
-// Returns: { blockCount: 2, maxDepth: 2, isValid: true }
+validate_markdown_structure(markdown="...", expectedBlockCount=50)
+// Returns: { isValid: true, blockCount: 50, maxDepth: 4 }
 
-// Step 2: Create only if valid
-if (validation.success) {
-  create_blocks_from_markdown(
-    pageId="uuid",
-    markdown="- Item 1\n  - Detail 1.1\n- Item 2"
-  )
+if (validation.isValid) {
+  create_blocks_batch(pageId="...", markdown="...")
 }
 ```
 
-**Why validate first**:
-- Catch indentation errors before creating blocks
-- Verify you generated the expected number of blocks
-- Allow regeneration without polluting the database
-- Provide better feedback to the user
+**If validation fails**:
+1. **Read the error** - It tells you exactly what's wrong
+2. **Fix the markdown** - Correct indentation, missing markers, etc.
+3. **Re-validate** - Ensure the fixed version passes
+4. **Create** - Call `create_blocks_batch` only after validation passes
 
-#### Step 3: Create Page + Content in One Workflow
-
-When creating a new page with content, always use this 2-step approach:
-
-**CRITICAL**: `create_page` alone is NOT enough. You MUST also fill the page with content.
-
-```javascript
-// Step A: Create the page
-create_page(
-  title="Demo",
-  parentId=null,
-  isDirectory=false
-)
-// Returns: { id: "page-uuid-123", ... }
-
-// Step B: Immediately fill with content (MANDATORY)
-validate_markdown_structure(markdown="...")
-create_blocks_from_markdown(
-  pageId="page-uuid-123",  // Use the UUID from Step A
-  markdown="..."
-)
-```
-
-**If you only call `create_page` and stop, the page will be empty and the task is INCOMPLETE.**
-
-#### Step 4: Handle Validation Failures
-
-If `validate_markdown_structure` returns `success: false`:
-
-1. **Read the error message** - It explains what went wrong
-2. **Regenerate the markdown** - Fix indentation, missing bullet markers, etc.
-3. **Re-validate** - Ensure the new version parses correctly
-4. **Only then create** - Call `create_blocks_from_markdown`
-
-Example failure recovery:
-```
-Generated 8 blocks, but expected 10.
-
-Likely cause: Some lines don't start with '- ' or indentation is wrong.
-
-Fixed markdown: [regenerate with proper indentation]
-
-Validating again: validate_markdown_structure(...)
-→ Returns: blockCount: 10 ✓, success: true ✓
-
-Creating blocks: create_blocks_from_markdown(...)
-→ Success: created 10 blocks
-```
+**Common validation failures**:
+- `blockCount mismatch` → Some lines don't start with `- ` or have wrong indentation
+- `maxDepth exceeded` → Indentation too deep (should be 2-space increments)
+- `invalid structure` → Mixed tabs/spaces or inconsistent indentation
 
 #### Template Examples
 
