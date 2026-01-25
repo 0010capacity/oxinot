@@ -1,12 +1,13 @@
-import { getBlockTool } from "./getBlockTool";
-import { updateBlockTool } from "./updateBlockTool";
+import { appendToBlockTool } from "./appendToBlockTool";
 import { createBlockTool } from "./createBlockTool";
+import { createBlocksFromMarkdownTool } from "./createBlocksFromMarkdownTool";
 import { deleteBlockTool } from "./deleteBlockTool";
-import { queryBlocksTool } from "./queryBlocksTool";
+import { getBlockTool } from "./getBlockTool";
 import { getPageBlocksTool } from "./getPageBlocksTool";
 import { insertBlockBelowCurrentTool } from "./insertBlockBelowCurrentTool";
 import { insertBlockBelowTool } from "./insertBlockBelowTool";
-import { appendToBlockTool } from "./appendToBlockTool";
+import { queryBlocksTool } from "./queryBlocksTool";
+import { updateBlockTool } from "./updateBlockTool";
 
 export {
   getBlockTool,
@@ -18,6 +19,7 @@ export {
   insertBlockBelowCurrentTool,
   insertBlockBelowTool,
   appendToBlockTool,
+  createBlocksFromMarkdownTool,
 };
 
 export const blockTools = [
@@ -30,4 +32,5 @@ export const blockTools = [
   insertBlockBelowCurrentTool,
   insertBlockBelowTool,
   appendToBlockTool,
+  createBlocksFromMarkdownTool,
 ];
