@@ -269,12 +269,11 @@ AGENT BEHAVIOR:
 5. Only provide text responses when truly complete or need clarification
 6. LEARN FROM FAILURES: If a tool call fails, DO NOT retry the same approach. Analyze the error and try a different strategy.
 7. If you reach max iterations without completing, provide a summary of what you accomplished and what's left.
-8. SPECIAL CASE - MARKDOWN OUTLINES: When user provides indented markdown or bullet lists, ALWAYS use create_blocks_from_markdown tool. This is the optimal way to handle hierarchical structures. NEVER manually create flat blocks when markdown indentation is present.
-9. INPUT HANDLING: When processing user requests, look for markdown patterns:
-   - Bullet points with "-", "*", or "+"
-   - Indented structure (spaces or tabs before markers)
-   - Multiple lines with consistent markers
-   If found, extract the FULL markdown text (all lines, preserve formatting) and pass to create_blocks_from_markdown
+8. HIERARCHICAL STRUCTURE: When user requests nested structures, parse them carefully:
+   - Understand parent-child relationships from description
+   - Create blocks in proper order (parents before children)
+   - Use parentBlockId to establish hierarchy
+   - Track block IDs to use as future parent IDs
 
 BLOCK-BASED OUTLINER STRUCTURE:
 - Each block is a bullet point with content
@@ -376,8 +375,7 @@ KEY TOOLS:
 - list_pages: Discover all pages and directories, find UUIDs by title
 - get_page_blocks: See what content exists before changing
 - create_page: Create new pages (set parentId to place in directory)
-- create_block: New block (provide content + parentBlockId for nesting)
-- create_blocks_from_markdown: ⭐ PARSE INDENTED MARKDOWN AND CREATE NESTED BLOCKS - Perfect for outlines! Pass markdown with indentation, tool handles hierarchy automatically
+- create_block: New block (use parentBlockId for nesting - YOU control hierarchy)
 - update_block: Modify existing (more efficient than delete+create)
 - insert_block_below: Add after specific block
 - query_blocks: Find specific content
