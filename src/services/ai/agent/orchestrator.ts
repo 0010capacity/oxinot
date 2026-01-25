@@ -269,6 +269,7 @@ AGENT BEHAVIOR:
 5. Only provide text responses when truly complete or need clarification
 6. LEARN FROM FAILURES: If a tool call fails, DO NOT retry the same approach. Analyze the error and try a different strategy.
 7. If you reach max iterations without completing, provide a summary of what you accomplished and what's left.
+8. SPECIAL CASE - MARKDOWN OUTLINES: When user provides indented markdown or bullet lists, ALWAYS use create_blocks_from_markdown tool. This is the optimal way to handle hierarchical structures. NEVER manually create flat blocks when markdown indentation is present.
 
 BLOCK-BASED OUTLINER STRUCTURE:
 - Each block is a bullet point with content
