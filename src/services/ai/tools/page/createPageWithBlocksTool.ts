@@ -1,9 +1,9 @@
-import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
-import type { Tool, ToolResult } from "../types";
-import { usePageStore } from "../../../../stores/pageStore";
+import { z } from "zod";
 import { dispatchBlockUpdate } from "../../../../events";
 import type { BlockData } from "../../../../stores/blockStore";
+import { usePageStore } from "../../../../stores/pageStore";
+import type { Tool, ToolResult } from "../types";
 
 export const createPageWithBlocksTool: Tool = {
   name: "create_page_with_blocks",
@@ -17,9 +17,10 @@ export const createPageWithBlocksTool: Tool = {
     parentId: z
       .string()
       .uuid()
+      .nullable()
       .optional()
       .describe(
-        "UUID of the parent directory page. If omitted, page will be created at root level."
+        "UUID of the parent directory page. If omitted, page will be created at root level.",
       ),
     blocks: z
       .array(
@@ -31,16 +32,16 @@ export const createPageWithBlocksTool: Tool = {
             .nullable()
             .optional()
             .describe(
-              "UUID of parent block for nesting. Null for root-level blocks."
+              "UUID of parent block for nesting. Null for root-level blocks.",
             ),
           insertAfterBlockId: z
             .string()
             .uuid()
             .optional()
             .describe(
-              "UUID of sibling block to insert after. Controls block order."
+              "UUID of sibling block to insert after. Controls block order.",
             ),
-        })
+        }),
       )
       .describe("Array of blocks to create in the page"),
   }),
@@ -69,7 +70,7 @@ export const createPageWithBlocksTool: Tool = {
       // Create the page
       const newPageId = await pageStore.createPage(
         params.title,
-        params.parentId || undefined
+        params.parentId || undefined,
       );
 
       // Create blocks using Tauri's create_block command directly
@@ -111,7 +112,7 @@ export const createPageWithBlocksTool: Tool = {
         } catch (blockError) {
           console.error(
             "[createPageWithBlocksTool] Failed to create block:",
-            blockError
+            blockError,
           );
         }
       }
