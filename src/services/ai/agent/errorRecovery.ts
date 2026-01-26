@@ -127,7 +127,8 @@ export function classifyError(
     category = ErrorCategory.NOT_FOUND;
     severity = ErrorSeverity.RECOVERABLE;
     suggestedStrategy = RecoveryStrategy.CLARIFY;
-    guidance = "The resource was not found. Ask user for clarification or try alternative resource.";
+    guidance =
+      "The resource was not found. Ask user for clarification or try alternative resource.";
   } else if (
     lowerMessage.includes("invalid") ||
     lowerMessage.includes("malformed")
@@ -135,7 +136,8 @@ export function classifyError(
     category = ErrorCategory.INVALID_INPUT;
     severity = ErrorSeverity.RECOVERABLE;
     suggestedStrategy = RecoveryStrategy.ALTERNATIVE;
-    guidance = "Invalid input provided. Try correcting the input or use alternative tool.";
+    guidance =
+      "Invalid input provided. Try correcting the input or use alternative tool.";
   } else if (
     lowerMessage.includes("permission") ||
     lowerMessage.includes("denied") ||
@@ -144,7 +146,8 @@ export function classifyError(
     category = ErrorCategory.PERMISSION;
     severity = ErrorSeverity.FATAL;
     suggestedStrategy = RecoveryStrategy.ABORT;
-    guidance = "Permission denied. Cannot recover without proper access rights.";
+    guidance =
+      "Permission denied. Cannot recover without proper access rights.";
   } else if (
     lowerMessage.includes("validation") ||
     lowerMessage.includes("indent") ||
@@ -153,7 +156,8 @@ export function classifyError(
     category = ErrorCategory.VALIDATION;
     severity = ErrorSeverity.RECOVERABLE;
     suggestedStrategy = RecoveryStrategy.ALTERNATIVE;
-    guidance = "Validation failed. Regenerate with corrected structure or try alternative tool.";
+    guidance =
+      "Validation failed. Regenerate with corrected structure or try alternative tool.";
   } else if (
     lowerMessage.includes("timeout") ||
     lowerMessage.includes("network") ||
@@ -226,22 +230,26 @@ export function getRecoveryGuidance(errorInfo: ErrorInfo): string {
 
   switch (suggestedStrategy) {
     case RecoveryStrategy.RETRY:
-      recoveryMsg += `**Recovery**: Retrying the same action (attempt ${context.attemptCount || 1})...`;
+      recoveryMsg += `**Recovery**: Retrying the same action (attempt ${
+        context.attemptCount || 1
+      })...`;
       break;
     case RecoveryStrategy.ALTERNATIVE:
-      recoveryMsg += `**Recovery**: Trying alternative approach or tool...`;
+      recoveryMsg += "**Recovery**: Trying alternative approach or tool...";
       break;
     case RecoveryStrategy.CLARIFY:
       recoveryMsg += `**Recovery**: Need clarification from user about: ${message}`;
       break;
     case RecoveryStrategy.SKIP:
-      recoveryMsg += `**Recovery**: Skipping this step, trying next approach...`;
+      recoveryMsg +=
+        "**Recovery**: Skipping this step, trying next approach...";
       break;
     case RecoveryStrategy.ROLLBACK:
-      recoveryMsg += `**Recovery**: Rolling back changes and restarting...`;
+      recoveryMsg += "**Recovery**: Rolling back changes and restarting...";
       break;
     case RecoveryStrategy.ABORT:
-      recoveryMsg += `**Recovery**: Cannot recover from this error. Task aborted.`;
+      recoveryMsg +=
+        "**Recovery**: Cannot recover from this error. Task aborted.";
       break;
   }
 
@@ -259,7 +267,7 @@ export function getAlternativeApproachPrompt(
 ): string {
   const { category, context } = errorInfo;
   let prompt =
-    `The previous attempt encountered an error:\n` +
+    "The previous attempt encountered an error:\n" +
     `- Error type: ${category}\n` +
     `- Tool: ${context.toolName || "N/A"}\n` +
     `- Message: ${errorInfo.message}\n\n`;
@@ -269,47 +277,46 @@ export function getAlternativeApproachPrompt(
   switch (category) {
     case ErrorCategory.NOT_FOUND:
       prompt +=
-        `Try these alternatives:\n` +
-        `1. Ask clarification about which resource to use\n` +
-        `2. List available resources first to see what exists\n` +
-        `3. Use a more specific or corrected resource name`;
+        "Try these alternatives:\n" +
+        "1. Ask clarification about which resource to use\n" +
+        "2. List available resources first to see what exists\n" +
+        "3. Use a more specific or corrected resource name";
       break;
 
     case ErrorCategory.VALIDATION:
       prompt +=
-        `Try these alternatives:\n` +
-        `1. Regenerate the markdown with correct indentation (2 spaces per level)\n` +
-        `2. Ensure each line starts with "- " (dash + space)\n` +
-        `3. Validate again before attempting to create`;
+        "Try these alternatives:\n" +
+        "1. Regenerate the markdown with correct indentation (2 spaces per level)\n" +
+        '2. Ensure each line starts with "- " (dash + space)\n' +
+        "3. Validate again before attempting to create";
       break;
 
     case ErrorCategory.INVALID_INPUT:
       prompt +=
-        `Try these alternatives:\n` +
-        `1. Correct the input format or structure\n` +
-        `2. Use a different, simpler format\n` +
-        `3. Request clarification about the expected input format`;
+        "Try these alternatives:\n" +
+        "1. Correct the input format or structure\n" +
+        "2. Use a different, simpler format\n" +
+        "3. Request clarification about the expected input format";
       break;
 
     case ErrorCategory.INVALID_TOOL:
       prompt +=
-        `Try these alternatives:\n` +
-        `1. Use a different tool that achieves the same result\n` +
-        `2. Break down the task to use basic tools instead\n` +
-        `3. List available tools to verify the correct name`;
+        "Try these alternatives:\n" +
+        "1. Use a different tool that achieves the same result\n" +
+        "2. Break down the task to use basic tools instead\n" +
+        "3. List available tools to verify the correct name";
       break;
 
     case ErrorCategory.TOOL_EXECUTION:
       prompt +=
-        `The tool failed to execute. Try these alternatives:\n` +
-        `1. Simplify the parameters\n` +
-        `2. Break the operation into smaller steps\n` +
-        `3. Try a different tool that achieves similar results`;
+        "The tool failed to execute. Try these alternatives:\n" +
+        "1. Simplify the parameters\n" +
+        "2. Break the operation into smaller steps\n" +
+        "3. Try a different tool that achieves similar results";
       break;
 
     default:
-      prompt +=
-        `Try a different approach or break down the task into smaller steps.`;
+      prompt += `Try a different approach or break down the task into smaller steps.`;
   }
 
   prompt +=

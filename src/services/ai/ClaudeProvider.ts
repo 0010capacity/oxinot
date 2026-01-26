@@ -29,7 +29,7 @@ export class ClaudeProvider implements IAIProvider {
 
   // Tool definition caching
   private cachedClaudeTools: ClaudeTool[] | null = null;
-  private lastToolCount: number = 0;
+  private lastToolCount = 0;
 
   private getClaudeTools(tools: Tool[]): ClaudeTool[] {
     if (this.cachedClaudeTools && tools.length === this.lastToolCount) {

@@ -512,7 +512,7 @@ export function CopilotPanel() {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [toggle]);
+  }, []);
 
   const handleInputChange = (value: string) => {
     setInputValue(value);
