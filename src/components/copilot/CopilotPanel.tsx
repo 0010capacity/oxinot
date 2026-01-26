@@ -182,6 +182,7 @@ export function CopilotPanel() {
   const currentStep = useCopilotUiStore((state) => state.currentStep);
   const currentToolName = useCopilotUiStore((state) => state.currentToolName);
   const setCurrentStep = useCopilotUiStore((state) => state.setCurrentStep);
+  const toggle = useCopilotUiStore((state) => state.toggle);
 
   const chatMessages = useCopilotUiStore((state) => state.chatMessages);
   const addChatMessage = useCopilotUiStore((state) => state.addChatMessage);

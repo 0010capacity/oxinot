@@ -266,11 +266,9 @@ export function getAlternativeApproachPrompt(
   originalGoal: string
 ): string {
   const { category, context } = errorInfo;
-  let prompt =
-    "The previous attempt encountered an error:\n" +
-    `- Error type: ${category}\n` +
-    `- Tool: ${context.toolName || "N/A"}\n` +
-    `- Message: ${errorInfo.message}\n\n`;
+  let prompt = `The previous attempt encountered an error:\n- Error type: ${category}\n- Tool: ${
+    context.toolName || "N/A"
+  }\n- Message: ${errorInfo.message}\n\n`;
 
   prompt += `Original goal: ${originalGoal}\n\n`;
 
@@ -316,12 +314,11 @@ export function getAlternativeApproachPrompt(
       break;
 
     default:
-      prompt += `Try a different approach or break down the task into smaller steps.`;
+      prompt +=
+        "Try a different approach or break down the task into smaller steps.";
   }
 
-  prompt +=
-    `\n\nRemember: Your goal is to complete: "${originalGoal}". ` +
-    `Use the available tools and try alternative approaches if one fails.`;
+  prompt += `\n\nRemember: Your goal is to complete: "${originalGoal}". Use the available tools and try alternative approaches if one fails.`;
 
   return prompt;
 }

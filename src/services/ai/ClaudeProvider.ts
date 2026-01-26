@@ -1,6 +1,7 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import { toolToAIFunction } from "./tools/utils";
-import type { AIRequest, IAIProvider, StreamChunk, Tool } from "./types";
+import type { AIRequest, IAIProvider, StreamChunk } from "./types";
+import type { Tool } from "./tools/types";
 
 interface ClaudeContentBlock {
   type: string;

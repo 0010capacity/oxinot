@@ -26,6 +26,9 @@ export function createLogger(module: string) {
     error: (...args: unknown[]) => {
       if (shouldLog("error")) console.error(`[${module}]`, ...args);
     },
+    log: (...args: unknown[]) => {
+      if (shouldLog("debug")) console.log(`[${module}]`, ...args);
+    },
     group: (label: string) => {
       if (shouldLog("debug")) console.group(`[${module}]`, label);
     },

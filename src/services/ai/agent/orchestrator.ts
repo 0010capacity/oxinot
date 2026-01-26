@@ -4,6 +4,7 @@ import { usePageStore } from "../../../stores/pageStore";
 import { useCopilotUiStore } from "../../../stores/copilotUiStore";
 import { executeTool } from "../tools/executor";
 import { toolRegistry } from "../tools/registry";
+import type { ToolResult } from "../tools/types";
 import type { ChatMessage, IAIProvider } from "../types";
 import {
   RecoveryStrategy,
@@ -89,13 +90,13 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       ) {
         this.state.iterations++;
         console.log(
-          `\n[AgentOrchestrator] ═══════════════════════════════════════`
+          "\n[AgentOrchestrator] ═══════════════════════════════════════"
         );
         console.log(
           `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`
         );
         console.log(
-          `[AgentOrchestrator] ═══════════════════════════════════════`
+          "[AgentOrchestrator] ═══════════════════════════════════════"
         );
 
         this.state.status = "thinking";
@@ -136,7 +137,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               console.log(
                 `[AgentOrchestrator] Tool Called (Iter ${this.state.iterations}): ${toolName}`
               );
-              console.log(`[AgentOrchestrator] Parameters:`, paramsJson);
+              console.log("[AgentOrchestrator] Parameters:", paramsJson);
 
               const toolCallStep: AgentStep = {
                 id: `step_${Date.now()}_${Math.random()
@@ -175,7 +176,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
                   0,
                   200
                 );
-                console.log(`[AgentOrchestrator] Result Data:`, dataPreview);
+                console.log("[AgentOrchestrator] Result Data:", dataPreview);
               } else if (!result.success) {
                 console.log(`[AgentOrchestrator] Error: ${result.error}`);
               }
@@ -364,16 +365,16 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         console.warn(
           `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`
         );
-        console.log(`[AgentOrchestrator] Tool Usage Summary:`);
+        console.log("[AgentOrchestrator] Tool Usage Summary:");
         const toolUsage: Record<string, number> = {};
         for (const step of this.state.steps) {
           if (step.type === "tool_call" && step.toolName) {
             toolUsage[step.toolName] = (toolUsage[step.toolName] || 0) + 1;
           }
         }
-        Object.entries(toolUsage).forEach(([tool, count]) => {
+        for (const [tool, count] of Object.entries(toolUsage)) {
           console.log(`  - ${tool}: ${count} times`);
-        });
+        }
         this.state.status = "failed";
         this.state.error = "Maximum iterations reached without completing task";
       }
@@ -385,7 +386,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     } finally {
       console.log(
-        `[AgentOrchestrator] ═══════════════════════════════════════`
+        "[AgentOrchestrator] ═══════════════════════════════════════"
       );
       console.log(
         `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`
@@ -401,9 +402,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
 
       if (toolSequence.length > 0) {
-        console.log(`[AgentOrchestrator] Tool Sequence:`);
+        console.log("[AgentOrchestrator] Tool Sequence:");
         console.log(`  ${toolSequence.join(" → ")}`);
-        console.log(`[AgentOrchestrator] Tool Call Summary:`);
+        console.log("[AgentOrchestrator] Tool Call Summary:");
         for (const [tool, count] of Object.entries(toolUsageMap)) {
           console.log(`  - ${tool}: ${count} call(s)`);
         }
@@ -413,7 +414,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         `[AgentOrchestrator] Total iterations: ${this.state.iterations}/${this.state.maxIterations}`
       );
       console.log(
-        `[AgentOrchestrator] ═══════════════════════════════════════\n`
+        "[AgentOrchestrator] ═══════════════════════════════════════\n"
       );
     }
   }
@@ -422,19 +423,22 @@ export class AgentOrchestrator implements IAgentOrchestrator {
    * Handle tool execution errors with intelligent recovery
    */
   private async handleToolError(
-    result: any,
+    result: unknown,
     toolName: string,
     params: unknown,
     conversationHistory: ChatMessage[],
     goal: string
-  ): Promise<any> {
+  ): Promise<unknown> {
     console.log(
       `[AgentOrchestrator] Handling tool error from ${toolName}:`,
-      result.error
+      (result as ToolResult<unknown>).error
     );
 
-    // Categorize the error
-    const errorInfo = categorizeToolError(result, toolName);
+    // Categorize error
+    const errorInfo = categorizeToolError(
+      result as ToolResult<unknown>,
+      toolName
+    );
     const isRecoverableError = isRecoverable(errorInfo);
 
     // Track error attempts for this tool
@@ -483,32 +487,32 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         // Let orchestrator retry on next iteration
         return result;
 
-      case RecoveryStrategy.ALTERNATIVE:
+      case RecoveryStrategy.ALTERNATIVE: {
         // Ask AI to try alternative approach
         console.log(
           `[AgentOrchestrator] Requesting alternative approach instead of ${toolName}`
         );
-        const altPrompt = getAlternativeApproachPrompt(errorInfo, goal);
+        const recoveryPrompt = getAlternativeApproachPrompt(errorInfo, goal);
         conversationHistory.push({
           role: "user",
-          content: altPrompt,
+          content: recoveryPrompt,
         });
         return result;
+      }
 
-      case RecoveryStrategy.CLARIFY:
+      case RecoveryStrategy.CLARIFY: {
         // Ask for user clarification
         console.log(
           `[AgentOrchestrator] Need clarification for tool ${toolName}`
         );
         conversationHistory.push({
           role: "user",
-          content:
-            `${recoveryGuidance}\n\n` +
-            `Please ask the user for clarification or try a different approach.`,
+          content: `${recoveryGuidance}\n\nPlease ask the user for clarification or try a different approach.`,
         });
         return result;
+      }
 
-      case RecoveryStrategy.SKIP:
+      case RecoveryStrategy.SKIP: {
         // Skip this step and continue
         console.log(`[AgentOrchestrator] Skipping tool ${toolName}`);
         conversationHistory.push({
@@ -516,11 +520,28 @@ export class AgentOrchestrator implements IAgentOrchestrator {
           content: `${recoveryGuidance}\n\nSkipping this step, let's try a different approach.`,
         });
         return { success: true, message: "Skipped", data: null };
+      }
 
       case RecoveryStrategy.ABORT:
+        // Give up
+        console.log(
+          `[AgentOrchestrator] Aborting due to error from ${toolName}`
+        );
+        conversationHistory.push({
+          role: "user",
+          content: `${recoveryGuidance}\n\nCannot recover. Task aborted.`,
+        });
+        return result;
+
       default:
         // Give up
-        console.log(`[AgentOrchestrator] Aborting due to error in ${toolName}`);
+        console.log(
+          `[AgentOrchestrator] Aborting due to error from ${toolName}`
+        );
+        conversationHistory.push({
+          role: "user",
+          content: `${recoveryGuidance}\n\nCannot recover. Task aborted.`,
+        });
         return result;
     }
   }
