@@ -31,6 +31,10 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   private shouldStop = false;
   private errorContexts: Map<string, ErrorContext> = new Map();
 
+  // System prompt caching
+  private cachedSystemPrompt: string | null = null;
+  private lastContextHash: string | null = null;
+
   constructor(aiProvider: IAIProvider) {
     this.aiProvider = aiProvider;
     this.state = {
@@ -515,7 +519,20 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     this.aiProvider.abort?.();
   }
 
+  private getContextHash(): string {
+    const blockStore = useBlockStore.getState();
+    const uiStore = useBlockUIStore.getState();
+    return `${blockStore.currentPageId}-${uiStore.focusedBlockId || "none"}`;
+  }
+
   private buildSystemPrompt(_config: AgentConfig): string {
+    const contextHash = this.getContextHash();
+
+    // Return cached prompt if context hasn't changed
+    if (this.cachedSystemPrompt && this.lastContextHash === contextHash) {
+      return this.cachedSystemPrompt;
+    }
+
     const blockStore = useBlockStore.getState();
     const pageStore = usePageStore.getState();
     const uiStore = useBlockUIStore.getState();
@@ -540,6 +557,10 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       const pageTitle = page?.title || "Untitled";
       systemPrompt += `- **Current page**: "${pageTitle}" (ID: ${pageId})\n`;
     }
+
+    // Cache the prompt
+    this.cachedSystemPrompt = systemPrompt;
+    this.lastContextHash = contextHash;
 
     return systemPrompt;
   }

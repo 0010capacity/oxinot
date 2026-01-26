@@ -1,6 +1,6 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import { toolToAIFunction } from "./tools/utils";
-import type { AIRequest, IAIProvider, StreamChunk } from "./types";
+import type { AIRequest, IAIProvider, StreamChunk, Tool } from "./types";
 
 interface ClaudeContentBlock {
   type: string;
@@ -17,12 +17,39 @@ interface ClaudeMessage {
   content: string | ClaudeContentBlock[];
 }
 
+interface ClaudeTool {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+}
+
 export class ClaudeProvider implements IAIProvider {
   id = "claude";
   private abortController: AbortController | null = null;
 
+  // Tool definition caching
+  private cachedClaudeTools: ClaudeTool[] | null = null;
+  private lastToolCount: number = 0;
+
+  private getClaudeTools(tools: Tool[]): ClaudeTool[] {
+    if (this.cachedClaudeTools && tools.length === this.lastToolCount) {
+      return this.cachedClaudeTools;
+    }
+
+    this.cachedClaudeTools = tools.map((tool) => {
+      const aiFunc = toolToAIFunction(tool);
+      return {
+        name: aiFunc.name,
+        description: aiFunc.description,
+        input_schema: aiFunc.parameters,
+      };
+    });
+    this.lastToolCount = tools.length;
+    return this.cachedClaudeTools;
+  }
+
   async *generateStream(
-    request: AIRequest,
+    request: AIRequest
   ): AsyncGenerator<StreamChunk, void, unknown> {
     this.abortController = new AbortController();
 
@@ -42,14 +69,9 @@ export class ClaudeProvider implements IAIProvider {
       }
       messages.push({ role: "user", content: request.prompt });
 
-      const claudeTools = request.tools?.map((tool) => {
-        const aiFunc = toolToAIFunction(tool);
-        return {
-          name: aiFunc.name,
-          description: aiFunc.description,
-          input_schema: aiFunc.parameters,
-        };
-      });
+      const claudeTools = request.tools
+        ? this.getClaudeTools(request.tools)
+        : undefined;
 
       let loopCount = 0;
       const MAX_LOOPS = 5;
@@ -60,7 +82,7 @@ export class ClaudeProvider implements IAIProvider {
         console.log("[ClaudeProvider] Sending to API:");
         console.log(
           "  System prompt:",
-          `${request.systemPrompt?.substring(0, 100)}...`,
+          `${request.systemPrompt?.substring(0, 100)}...`
         );
         console.log("  Messages:", messages.length);
         let i = 0;
@@ -68,7 +90,9 @@ export class ClaudeProvider implements IAIProvider {
           const contentStr =
             typeof msg.content === "string"
               ? msg.content
-              : `[${Array.isArray(msg.content) ? msg.content.length : 0} blocks]`;
+              : `[${
+                  Array.isArray(msg.content) ? msg.content.length : 0
+                } blocks]`;
           console.log(`    [${i}] ${msg.role}: ${contentStr}`);
           i++;
         }
@@ -96,7 +120,7 @@ export class ClaudeProvider implements IAIProvider {
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(
-            `Claude API error (${response.status}): ${errorText}`,
+            `Claude API error (${response.status}): ${errorText}`
           );
         }
 
@@ -183,7 +207,7 @@ export class ClaudeProvider implements IAIProvider {
 
                       const result = await request.onToolCall(
                         currentToolName,
-                        args,
+                        args
                       );
                       yield { type: "tool_result", toolResult: result };
 
