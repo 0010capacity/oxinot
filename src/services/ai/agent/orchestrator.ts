@@ -45,7 +45,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
   async *execute(
     goal: string,
-    config: AgentConfig,
+    config: AgentConfig
   ): AsyncGenerator<AgentStep, void, unknown> {
     this.shouldStop = false;
 
@@ -65,7 +65,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     this.errorContexts.clear();
 
     console.log(
-      `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`,
+      `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`
     );
 
     const allTools = toolRegistry.getAll();
@@ -81,13 +81,13 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       ) {
         this.state.iterations++;
         console.log(
-          `\n[AgentOrchestrator] ═══════════════════════════════════════`,
+          `\n[AgentOrchestrator] ═══════════════════════════════════════`
         );
         console.log(
-          `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`,
+          `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`
         );
         console.log(
-          `[AgentOrchestrator] ═══════════════════════════════════════`,
+          `[AgentOrchestrator] ═══════════════════════════════════════`
         );
 
         this.state.status = "thinking";
@@ -123,7 +123,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               const toolStartTime = Date.now();
               const paramsJson = JSON.stringify(params, null, 2);
               console.log(
-                `[AgentOrchestrator] Tool Called (Iter ${this.state.iterations}): ${toolName}`,
+                `[AgentOrchestrator] Tool Called (Iter ${this.state.iterations}): ${toolName}`
               );
               console.log(`[AgentOrchestrator] Parameters:`, paramsJson);
 
@@ -145,18 +145,18 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               const result = await executeTool(
                 toolName,
                 params,
-                config.context,
+                config.context
               );
 
               const toolDuration = Date.now() - toolStartTime;
               const resultStatus = result.success ? "✓ Success" : "✗ Failed";
               console.log(
-                `[AgentOrchestrator] Tool Result: ${toolName} ${resultStatus} (${toolDuration}ms)`,
+                `[AgentOrchestrator] Tool Result: ${toolName} ${resultStatus} (${toolDuration}ms)`
               );
               if (result.success && result.data) {
                 const dataPreview = JSON.stringify(result.data).substring(
                   0,
-                  200,
+                  200
                 );
                 console.log(`[AgentOrchestrator] Result Data:`, dataPreview);
               } else if (!result.success) {
@@ -170,7 +170,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
                   toolName,
                   params,
                   conversationHistory,
-                  goal,
+                  goal
                 );
               }
 
@@ -191,10 +191,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
                 // For failures, provide clear error message
                 conversationHistory.push({
                   role: "user",
-                  content: `Tool '${toolName}' execution failed: ${result.error || "Unknown error"}. Please try an alternative approach.`,
+                  content: `Tool '${toolName}' execution failed: ${
+                    result.error || "Unknown error"
+                  }. Please try an alternative approach.`,
                 });
               } else {
-                // For successes, provide concise result summary
+                // For successes, provide result summary with important data
                 let resultSummary = `Tool '${toolName}' executed successfully.`;
                 if (
                   result.metadata?.message &&
@@ -202,6 +204,38 @@ export class AgentOrchestrator implements IAgentOrchestrator {
                 ) {
                   resultSummary = result.metadata.message;
                 }
+
+                // Include important tool result data so AI can proceed correctly
+                if (result.data) {
+                  if (
+                    toolName === "create_page" &&
+                    typeof result.data === "object" &&
+                    result.data !== null &&
+                    "id" in result.data
+                  ) {
+                    const pageData = result.data as {
+                      id: string;
+                      title?: string;
+                      parentId?: string | null;
+                    };
+                    resultSummary += `\n\nPage created with ID: ${pageData.id}`;
+                    if (pageData.title) {
+                      resultSummary += `\nPage title: ${pageData.title}`;
+                    }
+                    if (pageData.parentId) {
+                      resultSummary += `\nParent page ID: ${pageData.parentId}`;
+                    }
+                  } else {
+                    // For other tools, include data as JSON for full visibility
+                    try {
+                      const dataPreview = JSON.stringify(result.data);
+                      resultSummary += `\n\nResult data: ${dataPreview}`;
+                    } catch {
+                      // Fallback if data is not serializable
+                    }
+                  }
+                }
+
                 conversationHistory.push({
                   role: "user",
                   content: resultSummary,
@@ -222,7 +256,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
           if (accumulatedText.trim()) {
             console.log(
-              `[AgentOrchestrator] AI Response (Iter ${this.state.iterations}): ${accumulatedText.substring(0, 150)}...`,
+              `[AgentOrchestrator] AI Response (Iter ${
+                this.state.iterations
+              }): ${accumulatedText.substring(0, 150)}...`
             );
           }
 
@@ -233,7 +269,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
           if (toolCalls.length > 0) {
             console.log(
-              `[AgentOrchestrator] Tools Called This Iteration: ${toolCalls.join(" → ")}`,
+              `[AgentOrchestrator] Tools Called This Iteration: ${toolCalls.join(
+                " → "
+              )}`
             );
           }
 
@@ -258,7 +296,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             this.state.status = "completed";
 
             console.log(
-              "[AgentOrchestrator] Execution complete: Final answer received",
+              "[AgentOrchestrator] Execution complete: Final answer received"
             );
 
             yield finalStep;
@@ -270,7 +308,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               .substring(0, 100)
               .replace(/\n/g, " ");
             console.log(
-              `[AgentOrchestrator] Iter ${this.state.iterations}: No tool call detected. Response: "${responsePreview}"`,
+              `[AgentOrchestrator] Iter ${this.state.iterations}: No tool call detected. Response: "${responsePreview}"`
             );
 
             conversationHistory.push({
@@ -289,7 +327,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             error instanceof Error ? error.message : "Unknown error";
           console.error(
             `[AgentOrchestrator] Error in iteration ${this.state.iterations}:`,
-            errorMessage,
+            errorMessage
           );
 
           this.state.error = errorMessage;
@@ -304,7 +342,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         this.state.status !== "completed"
       ) {
         console.warn(
-          `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`,
+          `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`
         );
         console.log(`[AgentOrchestrator] Tool Usage Summary:`);
         const toolUsage: Record<string, number> = {};
@@ -327,10 +365,10 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     } finally {
       console.log(
-        `[AgentOrchestrator] ═══════════════════════════════════════`,
+        `[AgentOrchestrator] ═══════════════════════════════════════`
       );
       console.log(
-        `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`,
+        `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`
       );
 
       const toolUsageMap: Record<string, number> = {};
@@ -352,10 +390,10 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
 
       console.log(
-        `[AgentOrchestrator] Total iterations: ${this.state.iterations}/${this.state.maxIterations}`,
+        `[AgentOrchestrator] Total iterations: ${this.state.iterations}/${this.state.maxIterations}`
       );
       console.log(
-        `[AgentOrchestrator] ═══════════════════════════════════════\n`,
+        `[AgentOrchestrator] ═══════════════════════════════════════\n`
       );
     }
   }
@@ -368,11 +406,11 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     toolName: string,
     params: unknown,
     conversationHistory: ChatMessage[],
-    goal: string,
+    goal: string
   ): Promise<any> {
     console.log(
       `[AgentOrchestrator] Handling tool error from ${toolName}:`,
-      result.error,
+      result.error
     );
 
     // Categorize the error
@@ -390,12 +428,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     this.errorContexts.set(errorKey, context);
 
     console.log(
-      `[AgentOrchestrator] Error classified as: ${errorInfo.category} (severity: ${errorInfo.severity})`,
+      `[AgentOrchestrator] Error classified as: ${errorInfo.category} (severity: ${errorInfo.severity})`
     );
 
     if (!isRecoverableError) {
       console.error(
-        `[AgentOrchestrator] Fatal error, cannot recover: ${errorInfo.message}`,
+        `[AgentOrchestrator] Fatal error, cannot recover: ${errorInfo.message}`
       );
       // Return the failed result to stop execution
       return result;
@@ -428,7 +466,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       case RecoveryStrategy.ALTERNATIVE:
         // Ask AI to try alternative approach
         console.log(
-          `[AgentOrchestrator] Requesting alternative approach instead of ${toolName}`,
+          `[AgentOrchestrator] Requesting alternative approach instead of ${toolName}`
         );
         const altPrompt = getAlternativeApproachPrompt(errorInfo, goal);
         conversationHistory.push({
@@ -440,7 +478,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       case RecoveryStrategy.CLARIFY:
         // Ask for user clarification
         console.log(
-          `[AgentOrchestrator] Need clarification for tool ${toolName}`,
+          `[AgentOrchestrator] Need clarification for tool ${toolName}`
         );
         conversationHistory.push({
           role: "user",

@@ -16,13 +16,13 @@ export const validateMarkdownStructureTool: Tool = {
     markdown: z
       .string()
       .describe(
-        "Markdown text with bullet points to validate. Example: '- Item 1\\n  - Item 1.1\\n- Item 2'",
+        "Markdown text with bullet points to validate. Example: '- Item 1\\n  - Item 1.1\\n- Item 2'"
       ),
     expectedBlockCount: z
       .number()
       .optional()
       .describe(
-        "Expected number of blocks (for validation). If provided, returns whether actual count matches.",
+        "Expected number of blocks (for validation). If provided, returns whether actual count matches."
       ),
     maxDepth: z
       .number()
@@ -83,17 +83,19 @@ export const validateMarkdownStructureTool: Tool = {
       const warnings: string[] = [];
       if (!countMatches) {
         warnings.push(
-          `Block count mismatch: got ${blockCount}, expected ${params.expectedBlockCount}`,
+          `Block count mismatch: got ${blockCount}, expected ${params.expectedBlockCount}`
         );
       }
       if (!depthOK) {
         warnings.push(
-          `Nesting depth ${maxDepth} exceeds limit ${params.maxDepth}`,
+          `Nesting depth ${maxDepth} exceeds limit ${params.maxDepth}`
         );
       }
 
+      // Always return success: true for validation tools
+      // The actual validation result is in data.isValid
       return {
-        success: isValid,
+        success: true,
         data: {
           isValid,
           blockCount,
@@ -103,6 +105,7 @@ export const validateMarkdownStructureTool: Tool = {
             depth: 1,
             childCount: node.children.length,
           })),
+          warnings,
         },
         metadata: {
           message: `Parsed ${blockCount} blocks, max depth ${maxDepth}${
@@ -111,6 +114,7 @@ export const validateMarkdownStructureTool: Tool = {
         },
       };
     } catch (error) {
+      // Only return false on actual errors, not validation failures
       return {
         success: false,
         error:
@@ -120,6 +124,7 @@ export const validateMarkdownStructureTool: Tool = {
           blockCount: 0,
           maxDepth: 0,
           structure: [],
+          warnings: [],
         },
         metadata: {
           message: "Unexpected error during validation",
