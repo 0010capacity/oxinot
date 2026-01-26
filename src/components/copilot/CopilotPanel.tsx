@@ -144,7 +144,7 @@ function ModelSelectorDropdown({
                 Object.entries(allConfigs)
                   .filter(
                     ([_, config]) =>
-                      config?.apiKey && config?.models?.length > 0,
+                      config?.apiKey && config?.models?.length > 0
                   )
                   .map(([p]) => p)
                   .pop() && <Menu.Divider />}
@@ -164,7 +164,7 @@ export function CopilotPanel() {
   // Initialize tool registry on first mount
   useEffect(() => {
     console.log(
-      "[CopilotPanel] Initializing tool registry and debug utilities",
+      "[CopilotPanel] Initializing tool registry and debug utilities"
     );
     initializeToolRegistry();
     exposeDebugToWindow();
@@ -179,11 +179,14 @@ export function CopilotPanel() {
   const setIsLoading = useCopilotUiStore((state) => state.setIsLoading);
   const setPanelWidth = useCopilotUiStore((state) => state.setPanelWidth);
   const panelWidth = useCopilotUiStore((state) => state.panelWidth);
+  const currentStep = useCopilotUiStore((state) => state.currentStep);
+  const currentToolName = useCopilotUiStore((state) => state.currentToolName);
+  const setCurrentStep = useCopilotUiStore((state) => state.setCurrentStep);
 
   const chatMessages = useCopilotUiStore((state) => state.chatMessages);
   const addChatMessage = useCopilotUiStore((state) => state.addChatMessage);
   const clearChatMessages = useCopilotUiStore(
-    (state) => state.clearChatMessages,
+    (state) => state.clearChatMessages
   );
 
   // Tool Approval State
@@ -209,7 +212,7 @@ export function CopilotPanel() {
           | "claude"
           | "ollama"
           | "lmstudio"
-          | "custom",
+          | "custom"
       );
   };
 
@@ -473,11 +476,42 @@ export function CopilotPanel() {
       return;
     }
 
+    // Cmd/Ctrl + Enter to send message
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      handleSend();
+      return;
+    }
+
+    // Enter to send (without Shift for newline)
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
+
+    // Escape to stop or close panel
+    if (e.key === "Escape") {
+      if (isLoading && orchestratorRef.current) {
+        handleStop();
+      } else {
+        close();
+      }
+    }
   };
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + Shift + K to toggle panel
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "k") {
+        e.preventDefault();
+        toggle();
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [toggle]);
 
   const handleInputChange = (value: string) => {
     setInputValue(value);
@@ -615,6 +649,28 @@ export function CopilotPanel() {
           zIndex={10}
           overlayProps={{ blur: 1 }}
         />
+
+        {/* Progress Indicator */}
+        {isLoading && chatMessages.length > 0 && (
+          <Group
+            align="center"
+            gap="xs"
+            p="xs"
+            style={{
+              borderBottom: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-bg-secondary)",
+            }}
+          >
+            <Loader size="xs" type="dots" color="var(--color-accent)" />
+            <Text size="xs" c="dimmed">
+              {currentStep === "thinking" && "분석 중..."}
+              {currentStep === "tool_call" &&
+                `${currentToolName || "도구"} 실행 중...`}
+              {currentStep === "observation" && "결과 처리 중..."}
+              {currentStep === "final" && "응답 생성 중..."}
+            </Text>
+          </Group>
+        )}
 
         <ScrollArea h="100%" p="md" viewportRef={scrollViewportRef}>
           <Stack gap="md">
