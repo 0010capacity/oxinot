@@ -7,6 +7,9 @@ export interface PendingToolCall {
   description: string;
   requiresApproval: boolean;
   timestamp: number;
+  isDangerous?: boolean;
+  affectedItems?: string;
+  humanReadableAction?: string;
 }
 
 interface ToolApprovalStore {

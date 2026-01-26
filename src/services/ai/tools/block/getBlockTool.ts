@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
+import { z } from "zod";
 import type { Tool, ToolResult } from "../types";
 
 export const getBlockTool: Tool = {
@@ -10,7 +10,12 @@ export const getBlockTool: Tool = {
   requiresApproval: false, // Read-only operation
 
   parameters: z.object({
-    uuid: z.string().uuid().describe("UUID of the block to retrieve"),
+    blockId: z
+      .string()
+      .uuid()
+      .describe(
+        "UUID of the block to retrieve. Returns block content, metadata, and hierarchy information. Example: '550e8400-e29b-41d4-a716-446655440000'",
+      ),
   }),
 
   async execute(params, context): Promise<ToolResult> {
@@ -19,14 +24,14 @@ export const getBlockTool: Tool = {
       const block = await invoke("get_block", {
         workspacePath: context.workspacePath,
         request: {
-          block_id: params.uuid,
+          block_id: params.blockId,
         },
       });
 
       if (!block) {
         return {
           success: false,
-          error: `Block with UUID ${params.uuid} not found`,
+          error: `Block with UUID ${params.blockId} not found`,
         };
       }
 

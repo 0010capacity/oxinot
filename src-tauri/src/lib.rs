@@ -481,6 +481,7 @@ pub fn run() {
             // Block commands
             commands::block::get_page_blocks,
             commands::block::create_block,
+            commands::block::create_blocks_batch,
             commands::block::update_block,
             commands::block::delete_block,
             commands::block::move_block,

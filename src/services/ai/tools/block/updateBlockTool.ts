@@ -25,11 +25,16 @@ Notes:
   requiresApproval: false,
 
   parameters: z.object({
-    uuid: z.string().uuid().describe("UUID of the block to update"),
+    blockId: z
+      .string()
+      .uuid()
+      .describe(
+        "UUID of the block to update. Example: '550e8400-e29b-41d4-a716-446655440000'",
+      ),
     content: z
       .string()
       .describe(
-        "New content for the block. Can be plain text or include markdown formatting (e.g., **bold**, # heading, `code`)",
+        "New content for the block. Can include markdown formatting: **bold**, # heading, `code`, - list, etc. Example: '**IMPORTANT:** Meeting at 3 PM'",
       ),
   }),
 
@@ -38,7 +43,7 @@ Notes:
       const updatedBlock = await invoke<BlockData>("update_block", {
         workspacePath: context.workspacePath,
         request: {
-          id: params.uuid,
+          id: params.blockId,
           content: params.content,
         },
       });
@@ -48,7 +53,7 @@ Notes:
 
       return {
         success: true,
-        data: { uuid: params.uuid, content: params.content },
+        data: { blockId: params.blockId, content: params.content },
       };
     } catch (error) {
       return {

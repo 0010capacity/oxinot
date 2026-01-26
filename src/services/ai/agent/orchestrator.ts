@@ -1,20 +1,41 @@
+import { useBlockStore } from "../../../stores/blockStore";
+import { useBlockUIStore } from "../../../stores/blockUIStore";
+import { usePageStore } from "../../../stores/pageStore";
+import { useCopilotUiStore } from "../../../stores/copilotUiStore";
 import { executeTool } from "../tools/executor";
 import { toolRegistry } from "../tools/registry";
+import type { ToolResult } from "../tools/types";
 import type { ChatMessage, IAIProvider } from "../types";
+import {
+  RecoveryStrategy,
+  categorizeToolError,
+  getAlternativeApproachPrompt,
+  getRecoveryGuidance,
+  isRecoverable,
+} from "./errorRecovery";
+import systemPromptTemplate from "./system-prompt.md?raw";
 import type {
   AgentConfig,
   AgentState,
   AgentStep,
   IAgentOrchestrator,
 } from "./types";
-import { useBlockStore } from "../../../stores/blockStore";
-import { usePageStore } from "../../../stores/pageStore";
-import { useBlockUIStore } from "../../../stores/blockUIStore";
+
+interface ErrorContext {
+  toolName?: string;
+  toolParams?: unknown;
+  attemptCount: number;
+}
 
 export class AgentOrchestrator implements IAgentOrchestrator {
   private state: AgentState;
   private aiProvider: IAIProvider;
   private shouldStop = false;
+  private errorContexts: Map<string, ErrorContext> = new Map();
+
+  // System prompt caching
+  private cachedSystemPrompt: string | null = null;
+  private lastContextHash: string | null = null;
 
   constructor(aiProvider: IAIProvider) {
     this.aiProvider = aiProvider;
@@ -47,9 +68,14 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       maxIterations: config.maxIterations || 50,
     };
 
+    this.errorContexts.clear();
+
     console.log(
       `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`
     );
+
+    // Initialize UI store for progress tracking
+    const copilotUiStore = useCopilotUiStore.getState();
 
     const allTools = toolRegistry.getAll();
 
@@ -64,10 +90,19 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       ) {
         this.state.iterations++;
         console.log(
+          "\n[AgentOrchestrator] ═══════════════════════════════════════"
+        );
+        console.log(
           `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`
+        );
+        console.log(
+          "[AgentOrchestrator] ═══════════════════════════════════════"
         );
 
         this.state.status = "thinking";
+
+        // Update UI: thinking phase
+        copilotUiStore.setCurrentStep("thinking");
 
         const thoughtStep: AgentStep = {
           id: `step_${Date.now()}_${Math.random().toString(36).substring(7)}`,
@@ -97,10 +132,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             onToolCall: async (toolName: string, params: unknown) => {
               toolWasCalled = true;
 
+              const toolStartTime = Date.now();
+              const paramsJson = JSON.stringify(params, null, 2);
               console.log(
-                `[AgentOrchestrator] Tool called: ${toolName}`,
-                params
+                `[AgentOrchestrator] Tool Called (Iter ${this.state.iterations}): ${toolName}`
               );
+              console.log("[AgentOrchestrator] Parameters:", paramsJson);
 
               const toolCallStep: AgentStep = {
                 id: `step_${Date.now()}_${Math.random()
@@ -117,16 +154,43 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
               this.state.status = "acting";
 
+              // Update UI: tool execution phase
+              copilotUiStore.setCurrentStep("tool_call", toolName);
+
               const result = await executeTool(
                 toolName,
                 params,
                 config.context
               );
 
+              // Update UI: observation phase
+              copilotUiStore.setCurrentStep("observation");
+
+              const toolDuration = Date.now() - toolStartTime;
+              const resultStatus = result.success ? "✓ Success" : "✗ Failed";
               console.log(
-                "[AgentOrchestrator] Tool result:",
-                result.success ? "✓ Success" : "✗ Failed"
+                `[AgentOrchestrator] Tool Result: ${toolName} ${resultStatus} (${toolDuration}ms)`
               );
+              if (result.success && result.data) {
+                const dataPreview = JSON.stringify(result.data).substring(
+                  0,
+                  200
+                );
+                console.log("[AgentOrchestrator] Result Data:", dataPreview);
+              } else if (!result.success) {
+                console.log(`[AgentOrchestrator] Error: ${result.error}`);
+              }
+
+              // Handle tool execution errors with recovery logic
+              if (!result.success) {
+                return this.handleToolError(
+                  result,
+                  toolName,
+                  params,
+                  conversationHistory,
+                  goal
+                );
+              }
 
               const observationStep: AgentStep = {
                 id: `step_${Date.now()}_${Math.random()
@@ -140,16 +204,61 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               this.state.steps.push(observationStep);
               pendingSteps.push(observationStep);
 
-              conversationHistory.push({
-                role: "assistant",
-                content: `I called ${toolName} with params ${JSON.stringify(
-                  params
-                )}`,
-              });
-              conversationHistory.push({
-                role: "user",
-                content: `Tool result: ${JSON.stringify(result)}`,
-              });
+              // Add tool result to conversation history so AI knows what happened
+              if (!result.success) {
+                // For failures, provide clear error message
+                conversationHistory.push({
+                  role: "user",
+                  content: `Tool '${toolName}' execution failed: ${
+                    result.error || "Unknown error"
+                  }. Please try an alternative approach.`,
+                });
+              } else {
+                // For successes, provide result summary with important data
+                let resultSummary = `Tool '${toolName}' executed successfully.`;
+                if (
+                  result.metadata?.message &&
+                  typeof result.metadata.message === "string"
+                ) {
+                  resultSummary = result.metadata.message;
+                }
+
+                // Include important tool result data so AI can proceed correctly
+                if (result.data) {
+                  if (
+                    toolName === "create_page" &&
+                    typeof result.data === "object" &&
+                    result.data !== null &&
+                    "id" in result.data
+                  ) {
+                    const pageData = result.data as {
+                      id: string;
+                      title?: string;
+                      parentId?: string | null;
+                    };
+                    resultSummary += `\n\nPage created with ID: ${pageData.id}`;
+                    if (pageData.title) {
+                      resultSummary += `\nPage title: ${pageData.title}`;
+                    }
+                    if (pageData.parentId) {
+                      resultSummary += `\nParent page ID: ${pageData.parentId}`;
+                    }
+                  } else {
+                    // For other tools, include data as JSON for full visibility
+                    try {
+                      const dataPreview = JSON.stringify(result.data);
+                      resultSummary += `\n\nResult data: ${dataPreview}`;
+                    } catch {
+                      // Fallback if data is not serializable
+                    }
+                  }
+                }
+
+                conversationHistory.push({
+                  role: "user",
+                  content: resultSummary,
+                });
+              }
 
               return result;
             },
@@ -163,6 +272,27 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             }
           }
 
+          if (accumulatedText.trim()) {
+            console.log(
+              `[AgentOrchestrator] AI Response (Iter ${
+                this.state.iterations
+              }): ${accumulatedText.substring(0, 150)}...`
+            );
+          }
+
+          const toolCalls = pendingSteps
+            .filter((step) => step.type === "tool_call")
+            .map((step) => step.toolName)
+            .filter(Boolean);
+
+          if (toolCalls.length > 0) {
+            console.log(
+              `[AgentOrchestrator] Tools Called This Iteration: ${toolCalls.join(
+                " → "
+              )}`
+            );
+          }
+
           for (const step of pendingSteps) {
             yield step;
           }
@@ -170,6 +300,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
           if (accumulatedText.trim() && !toolWasCalled) {
             finalAnswerReceived = true;
+
+            // Update UI: final answer generation phase
+            copilotUiStore.setCurrentStep("final");
 
             const finalStep: AgentStep = {
               id: `step_${Date.now()}_${Math.random()
@@ -184,7 +317,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             this.state.status = "completed";
 
             console.log(
-              "[AgentOrchestrator] Final answer received, completing execution"
+              "[AgentOrchestrator] Execution complete: Final answer received"
             );
 
             yield finalStep;
@@ -192,8 +325,11 @@ export class AgentOrchestrator implements IAgentOrchestrator {
           }
 
           if (!toolWasCalled && !finalAnswerReceived) {
+            const responsePreview = accumulatedText
+              .substring(0, 100)
+              .replace(/\n/g, " ");
             console.log(
-              "[AgentOrchestrator] No tool call and no final answer, AI may need more guidance"
+              `[AgentOrchestrator] Iter ${this.state.iterations}: No tool call detected. Response: "${responsePreview}"`
             );
 
             conversationHistory.push({
@@ -229,6 +365,16 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         console.warn(
           `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`
         );
+        console.log("[AgentOrchestrator] Tool Usage Summary:");
+        const toolUsage: Record<string, number> = {};
+        for (const step of this.state.steps) {
+          if (step.type === "tool_call" && step.toolName) {
+            toolUsage[step.toolName] = (toolUsage[step.toolName] || 0) + 1;
+          }
+        }
+        for (const [tool, count] of Object.entries(toolUsage)) {
+          console.log(`  - ${tool}: ${count} times`);
+        }
         this.state.status = "failed";
         this.state.error = "Maximum iterations reached without completing task";
       }
@@ -240,8 +386,163 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     } finally {
       console.log(
+        "[AgentOrchestrator] ═══════════════════════════════════════"
+      );
+      console.log(
         `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`
       );
+
+      const toolUsageMap: Record<string, number> = {};
+      const toolSequence: string[] = [];
+      for (const step of this.state.steps) {
+        if (step.type === "tool_call" && step.toolName) {
+          toolUsageMap[step.toolName] = (toolUsageMap[step.toolName] || 0) + 1;
+          toolSequence.push(step.toolName);
+        }
+      }
+
+      if (toolSequence.length > 0) {
+        console.log("[AgentOrchestrator] Tool Sequence:");
+        console.log(`  ${toolSequence.join(" → ")}`);
+        console.log("[AgentOrchestrator] Tool Call Summary:");
+        for (const [tool, count] of Object.entries(toolUsageMap)) {
+          console.log(`  - ${tool}: ${count} call(s)`);
+        }
+      }
+
+      console.log(
+        `[AgentOrchestrator] Total iterations: ${this.state.iterations}/${this.state.maxIterations}`
+      );
+      console.log(
+        "[AgentOrchestrator] ═══════════════════════════════════════\n"
+      );
+    }
+  }
+
+  /**
+   * Handle tool execution errors with intelligent recovery
+   */
+  private async handleToolError(
+    result: unknown,
+    toolName: string,
+    params: unknown,
+    conversationHistory: ChatMessage[],
+    goal: string
+  ): Promise<unknown> {
+    console.log(
+      `[AgentOrchestrator] Handling tool error from ${toolName}:`,
+      (result as ToolResult<unknown>).error
+    );
+
+    // Categorize error
+    const errorInfo = categorizeToolError(
+      result as ToolResult<unknown>,
+      toolName
+    );
+    const isRecoverableError = isRecoverable(errorInfo);
+
+    // Track error attempts for this tool
+    const errorKey = toolName;
+    const context = this.errorContexts.get(errorKey) || {
+      toolName,
+      toolParams: params,
+      attemptCount: 0,
+    };
+    context.attemptCount += 1;
+    this.errorContexts.set(errorKey, context);
+
+    console.log(
+      `[AgentOrchestrator] Error classified as: ${errorInfo.category} (severity: ${errorInfo.severity})`
+    );
+
+    if (!isRecoverableError) {
+      console.error(
+        `[AgentOrchestrator] Fatal error, cannot recover: ${errorInfo.message}`
+      );
+      // Return the failed result to stop execution
+      return result;
+    }
+
+    // Determine recovery strategy
+    const strategy = errorInfo.suggestedStrategy;
+    console.log(`[AgentOrchestrator] Suggested recovery strategy: ${strategy}`);
+
+    // Generate recovery guidance
+    const recoveryGuidance = getRecoveryGuidance(errorInfo);
+
+    // Add recovery context to conversation
+    conversationHistory.push({
+      role: "assistant",
+      content: `Tool call failed: ${toolName}`,
+    });
+
+    switch (strategy) {
+      case RecoveryStrategy.RETRY:
+        // Retry the same tool call
+        console.log(`[AgentOrchestrator] Retrying tool ${toolName}`);
+        conversationHistory.push({
+          role: "user",
+          content: `${recoveryGuidance}\n\nRetrying: ${toolName}`,
+        });
+        // Let orchestrator retry on next iteration
+        return result;
+
+      case RecoveryStrategy.ALTERNATIVE: {
+        // Ask AI to try alternative approach
+        console.log(
+          `[AgentOrchestrator] Requesting alternative approach instead of ${toolName}`
+        );
+        const recoveryPrompt = getAlternativeApproachPrompt(errorInfo, goal);
+        conversationHistory.push({
+          role: "user",
+          content: recoveryPrompt,
+        });
+        return result;
+      }
+
+      case RecoveryStrategy.CLARIFY: {
+        // Ask for user clarification
+        console.log(
+          `[AgentOrchestrator] Need clarification for tool ${toolName}`
+        );
+        conversationHistory.push({
+          role: "user",
+          content: `${recoveryGuidance}\n\nPlease ask the user for clarification or try a different approach.`,
+        });
+        return result;
+      }
+
+      case RecoveryStrategy.SKIP: {
+        // Skip this step and continue
+        console.log(`[AgentOrchestrator] Skipping tool ${toolName}`);
+        conversationHistory.push({
+          role: "user",
+          content: `${recoveryGuidance}\n\nSkipping this step, let's try a different approach.`,
+        });
+        return { success: true, message: "Skipped", data: null };
+      }
+
+      case RecoveryStrategy.ABORT:
+        // Give up
+        console.log(
+          `[AgentOrchestrator] Aborting due to error from ${toolName}`
+        );
+        conversationHistory.push({
+          role: "user",
+          content: `${recoveryGuidance}\n\nCannot recover. Task aborted.`,
+        });
+        return result;
+
+      default:
+        // Give up
+        console.log(
+          `[AgentOrchestrator] Aborting due to error from ${toolName}`
+        );
+        conversationHistory.push({
+          role: "user",
+          content: `${recoveryGuidance}\n\nCannot recover. Task aborted.`,
+        });
+        return result;
     }
   }
 
@@ -252,96 +553,51 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   stop(): void {
     console.log("[AgentOrchestrator] Stop requested");
     this.shouldStop = true;
+    this.aiProvider.abort?.();
+  }
+
+  private getContextHash(): string {
+    const blockStore = useBlockStore.getState();
+    const uiStore = useBlockUIStore.getState();
+    return `${blockStore.currentPageId}-${uiStore.focusedBlockId || "none"}`;
   }
 
   private buildSystemPrompt(_config: AgentConfig): string {
+    const contextHash = this.getContextHash();
+
+    // Return cached prompt if context hasn't changed
+    if (this.cachedSystemPrompt && this.lastContextHash === contextHash) {
+      return this.cachedSystemPrompt;
+    }
+
     const blockStore = useBlockStore.getState();
     const pageStore = usePageStore.getState();
     const uiStore = useBlockUIStore.getState();
 
-    let systemPrompt = `You are an AI agent in 'Oxinot', a block-based outliner (like Logseq/Roam).
+    // Load system prompt from external markdown file
+    let systemPrompt = systemPromptTemplate;
 
-AGENT BEHAVIOR:
-1. You MUST use tools to complete tasks - don't just describe what to do
-2. Read current state first (list_pages, get_page_blocks) before making changes
-3. Plan efficiently - avoid creating then deleting blocks
-4. Use update_block instead of delete + create when possible
-5. Only provide text responses when truly complete or need clarification
-6. LEARN FROM FAILURES: If a tool call fails, DO NOT retry the same approach. Analyze the error and try a different strategy.
-7. If you reach max iterations without completing, provide a summary of what you accomplished and what's left.
-
-BLOCK-BASED OUTLINER STRUCTURE:
-- Each block is a bullet point with content
-- Blocks can be nested (parent-child hierarchy)
-- Types: bullet (text), code (triple backticks with language), fence (multiline text)
-- Pages can be regular notes OR directories (folders that contain other pages)
-
-DIRECTORY/FILE HIERARCHY (CRITICAL):
-- The workspace has a hierarchical structure similar to a file system
-- Directories: Pages where isDirectory=true. They contain other pages.
-- Regular pages: isDirectory=false. They contain blocks (content).
-- ROOT LEVEL: Pages with parentId=null are at the top level
-
-WORKFLOW FOR CREATING PAGES IN DIRECTORIES:
-1. First call list_pages(includeDirectories=true) to see what exists
-2. Find the parent directory by its TITLE, then use its UUID as parentId
-3. If the parent directory doesn't exist, create it FIRST with create_page(parentId=null, isDirectory=true)
-4. Then create child pages with create_page(parentId=<parent-UUID>)
-5. NEVER use page titles as parentId - ALWAYS use the UUID from list_pages results
-
-IMPORTANT: UUID vs TITLES:
-- All page references (parentId, pageId) MUST be UUIDs, not titles
-- To find a UUID: call list_pages and search for the title in results
-- Example: If you want to create "Meeting" under "PROJECTS":
-  1. list_pages() → find "PROJECTS" page, get its UUID
-  2. create_page(title="Meeting", parentId="<PROJECTS-UUID>")
-- WRONG: create_page(title="Meeting", parentId="PROJECTS") ← This will fail!
-
-MARKDOWN SYNTAX:
-- Code blocks: Triple backticks with language, e.g. python, javascript, rust
-- Wiki links: [[Page Name]]
-- Block refs: ((block-id))
-- Tasks: - [ ] todo, - [x] done
-
-CODE BLOCK CREATION:
-When creating code blocks, include FULL content in ONE operation.
-Use triple backticks at start and end with language name after opening backticks.
-All code lines go between the backticks.
-
-KEY TOOLS:
-- list_pages: Discover all pages and directories, find UUIDs by title
-- get_page_blocks: See what content exists before changing
-- create_page: Create new pages (set parentId to place in directory)
-- create_block: New block (provide content)
-- update_block: Modify existing (more efficient than delete+create)
-- insert_block_below: Add after specific block
-- query_blocks: Find specific content
-
-COMMON ERRORS AND HOW TO AVOID THEM:
-- "Parent page not found": You used a title instead of UUID. Call list_pages to get the UUID.
-- "Parent is not a directory": The parent is a regular page. Create a directory first or find a different parent.
-- "Page not found": Wrong UUID. Call list_pages to find the correct one.
-
-AVAILABLE CONTEXT:
-`;
+    // Add dynamic context
+    systemPrompt += "\n\n## Dynamic Context\n\n";
 
     const focusedId = uiStore.focusedBlockId;
-    if (focusedId) {
+    if (focusedId != null) {
       const block = blockStore.blocksById[focusedId];
       if (block) {
-        systemPrompt += `- Current focused block: "${block.content}" (ID: ${focusedId})\n`;
+        systemPrompt += `- **Current focused block**: "${block.content}" (ID: ${focusedId})\n`;
       }
     }
 
     const pageId = blockStore.currentPageId;
-    if (pageId) {
+    if (pageId != null) {
       const page = pageStore.pagesById[pageId];
       const pageTitle = page?.title || "Untitled";
-      systemPrompt += `- Current page: "${pageTitle}" (ID: ${pageId})\n`;
+      systemPrompt += `- **Current page**: "${pageTitle}" (ID: ${pageId})\n`;
     }
 
-    systemPrompt +=
-      "\nREMEMBER: You are an autonomous agent. Use tools to accomplish tasks. Think step by step.";
+    // Cache the prompt
+    this.cachedSystemPrompt = systemPrompt;
+    this.lastContextHash = contextHash;
 
     return systemPrompt;
   }

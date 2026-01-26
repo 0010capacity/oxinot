@@ -3,10 +3,12 @@ import type { AIRequest, IAIProvider, StreamChunk } from "./types";
 
 export class OllamaProvider implements IAIProvider {
   id = "ollama";
+  private abortController: AbortController | null = null;
 
   async *generateStream(
-    request: AIRequest
+    request: AIRequest,
   ): AsyncGenerator<StreamChunk, void, unknown> {
+    this.abortController = new AbortController();
     const baseUrl = request.baseUrl || "http://localhost:11434";
     const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/api/chat`;
@@ -49,6 +51,7 @@ export class OllamaProvider implements IAIProvider {
           stream: true,
           temperature: request.temperature ?? 0.3,
         }),
+        signal: this.abortController?.signal,
       });
 
       if (!response.ok) {
@@ -84,6 +87,10 @@ export class OllamaProvider implements IAIProvider {
         }
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        console.log("[OllamaProvider] Stream aborted");
+        return;
+      }
       console.error("Ollama generation failed:", error);
       yield {
         type: "error",
@@ -100,5 +107,9 @@ export class OllamaProvider implements IAIProvider {
       }
     }
     return result;
+  }
+
+  abort(): void {
+    this.abortController?.abort();
   }
 }

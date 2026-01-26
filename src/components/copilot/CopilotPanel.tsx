@@ -14,6 +14,7 @@ import {
   Text,
   Textarea,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import {
   IconArrowUp,
   IconChevronDown,
@@ -178,6 +179,10 @@ export function CopilotPanel() {
   const setIsLoading = useCopilotUiStore((state) => state.setIsLoading);
   const setPanelWidth = useCopilotUiStore((state) => state.setPanelWidth);
   const panelWidth = useCopilotUiStore((state) => state.panelWidth);
+  const currentStep = useCopilotUiStore((state) => state.currentStep);
+  const currentToolName = useCopilotUiStore((state) => state.currentToolName);
+  const setCurrentStep = useCopilotUiStore((state) => state.setCurrentStep);
+  const toggle = useCopilotUiStore((state) => state.toggle);
 
   const chatMessages = useCopilotUiStore((state) => state.chatMessages);
   const addChatMessage = useCopilotUiStore((state) => state.addChatMessage);
@@ -223,8 +228,6 @@ export function CopilotPanel() {
   };
 
   // Local state
-  const [error, setError] = useState<string | null>(null);
-
   // Mention Autocomplete State
   const [mentionAutocomplete, setMentionAutocomplete] = useState<{
     show: boolean;
@@ -324,7 +327,6 @@ export function CopilotPanel() {
 
     const currentInput = inputValue;
     setInputValue("");
-    setError(null);
     setIsLoading(true);
 
     const pageStore = usePageStore.getState();
@@ -395,19 +397,31 @@ export function CopilotPanel() {
         agentStore.addStep(step);
 
         if (step.type === "thought") {
-          addChatMessage("system", `Analyzing: ${step.thought}`);
+          notifications.show({
+            title: "Analyzing",
+            message: step.thought,
+            autoClose: 3000,
+          });
         } else if (step.type === "tool_call") {
-          addChatMessage("system", `Executing tool: ${step.toolName}`);
+          notifications.show({
+            title: "Executing Tool",
+            message: step.toolName,
+            autoClose: 3000,
+          });
         } else if (step.type === "observation") {
           if (step.toolResult?.success) {
-            addChatMessage("system", "Tool execution completed successfully");
+            notifications.show({
+              title: "Tool Result",
+              message: "Tool execution completed successfully",
+              autoClose: 3000,
+            });
           } else {
-            addChatMessage(
-              "system",
-              `Tool execution failed: ${
-                step.toolResult?.error || "Unknown error"
-              }`
-            );
+            notifications.show({
+              title: "Tool Error",
+              message: step.toolResult?.error || "Unknown error",
+              color: "red",
+              autoClose: 3000,
+            });
           }
         } else if (step.type === "final_answer") {
           addChatMessage("assistant", step.content || "");
@@ -423,20 +437,27 @@ export function CopilotPanel() {
       console.log("[Copilot Agent] Final state:", finalState.status);
 
       if (finalState.status === "failed") {
-        setError(finalState.error || "Agent failed to complete task");
-        addChatMessage(
-          "system",
-          `Task incomplete: ${finalState.error || "Unknown error"}`
-        );
+        notifications.show({
+          title: "Task Incomplete",
+          message: finalState.error || "Unknown error",
+          color: "red",
+          autoClose: 3000,
+        });
       }
     } catch (err: unknown) {
       console.error("AI Generation Error:", err);
       const errorMessage =
         err instanceof Error ? err.message : "Failed to generate response";
-      setError(errorMessage);
+      notifications.show({
+        title: "Generation Error",
+        message: errorMessage,
+        color: "red",
+        autoClose: 5000,
+      });
       addChatMessage("assistant", `Error: ${errorMessage}`);
     } finally {
       setIsLoading(false);
+      setCurrentStep(null);
       orchestratorRef.current = null;
     }
   };
@@ -444,7 +465,11 @@ export function CopilotPanel() {
   const handleStop = () => {
     if (orchestratorRef.current) {
       orchestratorRef.current.stop();
-      addChatMessage("system", "Agent stopped by user");
+      notifications.show({
+        title: "Agent Stopped",
+        message: "Agent execution stopped by user",
+        autoClose: 2000,
+      });
     }
   };
 
@@ -453,11 +478,42 @@ export function CopilotPanel() {
       return;
     }
 
+    // Cmd/Ctrl + Enter to send message
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      handleSend();
+      return;
+    }
+
+    // Enter to send (without Shift for newline)
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
+
+    // Escape to stop or close panel
+    if (e.key === "Escape") {
+      if (isLoading && orchestratorRef.current) {
+        handleStop();
+      } else {
+        close();
+      }
+    }
   };
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + Shift + K to toggle panel
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "k") {
+        e.preventDefault();
+        toggle();
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
 
   const handleInputChange = (value: string) => {
     setInputValue(value);
@@ -596,16 +652,26 @@ export function CopilotPanel() {
           overlayProps={{ blur: 1 }}
         />
 
-        {error && (
-          <div
+        {/* Progress Indicator */}
+        {isLoading && chatMessages.length > 0 && (
+          <Group
+            align="center"
+            gap="xs"
+            p="xs"
             style={{
-              padding: "12px",
-              backgroundColor: "var(--mantine-color-red-1)",
-              color: "var(--mantine-color-red-9)",
+              borderBottom: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-bg-secondary)",
             }}
           >
-            <Text size="sm">{error}</Text>
-          </div>
+            <Loader size="xs" type="dots" color="var(--color-accent)" />
+            <Text size="xs" c="dimmed">
+              {currentStep === "thinking" && "분석 중..."}
+              {currentStep === "tool_call" &&
+                `${currentToolName || "도구"} 실행 중...`}
+              {currentStep === "observation" && "결과 처리 중..."}
+              {currentStep === "final" && "응답 생성 중..."}
+            </Text>
+          </Group>
         )}
 
         <ScrollArea h="100%" p="md" viewportRef={scrollViewportRef}>

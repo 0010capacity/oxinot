@@ -1670,6 +1670,104 @@ pub fn deindex_block_fts(conn: &Connection, block_id: &str) -> Result<(), String
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateBlocksBatchRequest {
+    pub page_id: String,
+    pub blocks: Vec<CreateBlockRequest>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateBlocksBatchResponse {
+    pub blocks: Vec<Block>,
+    pub created_count: usize,
+}
+
+#[tauri::command]
+pub async fn create_blocks_batch(
+    app: tauri::AppHandle,
+    workspace_path: String,
+    request: CreateBlocksBatchRequest,
+) -> Result<CreateBlocksBatchResponse, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+    let conn_mutex = Mutex::new(conn);
+
+    let mut created_blocks = Vec::new();
+    let mut last_block_id: Option<String> = None;
+
+    for mut block_request in request.blocks {
+        block_request.page_id = request.page_id.clone();
+
+        let order_weight = {
+            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+            calculate_new_order_weight(
+                &conn,
+                &block_request.page_id,
+                block_request.parent_id.as_deref(),
+                last_block_id.as_deref(),
+            )?
+        };
+
+        let id = Uuid::new_v4().to_string();
+        let now = Utc::now().to_rfc3339();
+        let block_type = block_request.block_type.unwrap_or_default();
+        let content = block_request.content.unwrap_or_default();
+
+        {
+            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+            conn.execute(
+                "INSERT INTO blocks (id, page_id, parent_id, content, order_weight, block_type, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                params![
+                    &id,
+                    &block_request.page_id,
+                    &block_request.parent_id,
+                    &content,
+                    order_weight,
+                    block_type_to_string(&block_type),
+                    &now,
+                    &now
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+
+            index_block_fts(&conn, &id, &block_request.page_id, &content)?;
+        }
+
+        let created_block = {
+            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+            get_block_by_id(&conn, &id)?
+        };
+
+        {
+            let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+            wiki_link_index::index_block_links(
+                &conn,
+                &created_block.id,
+                &created_block.content,
+                &created_block.page_id,
+            )
+            .map_err(|e| e.to_string())?;
+        }
+
+        last_block_id = Some(created_block.id.clone());
+        created_blocks.push(created_block);
+    }
+
+    sync_page_to_markdown(
+        &conn_mutex,
+        &workspace_path,
+        &request.page_id,
+    )
+    .await?;
+
+    crate::utils::events::emit_workspace_changed(&app, &workspace_path);
+
+    Ok(CreateBlocksBatchResponse {
+        created_count: created_blocks.len(),
+        blocks: created_blocks,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

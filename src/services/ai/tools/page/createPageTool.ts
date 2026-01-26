@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { Tool, ToolResult } from "../types";
 import { usePageStore } from "../../../../stores/pageStore";
+import type { Tool, ToolResult } from "../types";
 
 export const createPageTool: Tool = {
   name: "create_page",
@@ -10,13 +10,18 @@ export const createPageTool: Tool = {
   requiresApproval: false,
 
   parameters: z.object({
-    title: z.string().describe("Title of the new page"),
+    title: z
+      .string()
+      .describe(
+        "Title of the new page. Example: 'Project Notes' or 'Meeting 2025-01'",
+      ),
     parentId: z
       .string()
       .uuid()
+      .nullable()
       .optional()
       .describe(
-        "UUID of the parent directory page. If omitted, page will be created at root level."
+        "UUID of the parent directory page. Omit or pass null to create at root level. Example: '550e8400-e29b-41d4-a716-446655440000'",
       ),
   }),
 
@@ -44,7 +49,7 @@ export const createPageTool: Tool = {
       // Create the page
       const newPageId = await pageStore.createPage(
         params.title,
-        params.parentId || undefined
+        params.parentId || undefined,
       );
 
       return {

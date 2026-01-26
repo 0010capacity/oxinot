@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
+import { z } from "zod";
 import { dispatchBlockUpdate } from "../../../../events";
 import type { Tool, ToolResult } from "../types";
 
@@ -12,14 +12,19 @@ export const deleteBlockTool: Tool = {
   isDangerous: true,
 
   parameters: z.object({
-    uuid: z.string().uuid().describe("UUID of the block to delete"),
+    blockId: z
+      .string()
+      .uuid()
+      .describe(
+        "UUID of the block to delete. WARNING: This will also delete all child blocks. Example: '550e8400-e29b-41d4-a716-446655440000'",
+      ),
   }),
 
   async execute(params, context): Promise<ToolResult> {
     try {
       const deletedIds = await invoke<string[]>("delete_block", {
         workspacePath: context.workspacePath,
-        blockId: params.uuid, // Note: argument name matches Rust command signature
+        blockId: params.blockId, // Note: argument name matches Rust command signature
       });
 
       // Update UI via event
@@ -27,7 +32,7 @@ export const deleteBlockTool: Tool = {
 
       return {
         success: true,
-        data: { uuid: params.uuid, deleted: true },
+        data: { blockId: params.blockId, deleted: true },
       };
     } catch (error) {
       return {

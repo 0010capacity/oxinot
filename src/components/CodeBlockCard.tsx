@@ -34,7 +34,10 @@ export const CodeBlockCard: React.FC<CodeBlockCardProps> = ({
   };
 
   const handleButtonMouseDown = (e: React.MouseEvent) => {
-    (e.nativeEvent as any).stopImmediatePropagation?.();
+    const nativeEvent = e.nativeEvent as unknown as {
+      stopImmediatePropagation?: () => void;
+    };
+    nativeEvent.stopImmediatePropagation?.();
     e.preventDefault();
   };
 

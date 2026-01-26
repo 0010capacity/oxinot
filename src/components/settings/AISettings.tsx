@@ -11,20 +11,20 @@ import {
   Textarea,
 } from "@mantine/core";
 import {
-  IconPlus,
-  IconTrash,
-  IconPencil,
   IconCheck,
-  IconX,
+  IconPencil,
+  IconPlus,
   IconRefresh,
+  IconTrash,
+  IconX,
 } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useState, useEffect } from "react";
 import {
-  useAISettingsStore,
   type AIProvider,
   type PromptTemplate,
   type ToolApprovalPolicy,
+  useAISettingsStore,
 } from "../../stores/aiSettingsStore";
 
 interface AISettingsProps {
@@ -41,7 +41,7 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
   const temperature = useAISettingsStore((state) => state.temperature);
   const promptTemplates = useAISettingsStore((state) => state.promptTemplates);
   const toolApprovalPolicy = useAISettingsStore(
-    (state) => state.toolApprovalPolicy
+    (state) => state.toolApprovalPolicy,
   );
 
   const setProvider = useAISettingsStore((state) => state.setProvider);
@@ -50,22 +50,22 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
   const setModels = useAISettingsStore((state) => state.setModels);
   const setTemperature = useAISettingsStore((state) => state.setTemperature);
   const setToolApprovalPolicy = useAISettingsStore(
-    (state) => state.setToolApprovalPolicy
+    (state) => state.setToolApprovalPolicy,
   );
   const addPromptTemplate = useAISettingsStore(
-    (state) => state.addPromptTemplate
+    (state) => state.addPromptTemplate,
   );
   const updatePromptTemplate = useAISettingsStore(
-    (state) => state.updatePromptTemplate
+    (state) => state.updatePromptTemplate,
   );
   const deletePromptTemplate = useAISettingsStore(
-    (state) => state.deletePromptTemplate
+    (state) => state.deletePromptTemplate,
   );
 
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateContent, setNewTemplateContent] = useState("");
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(
-    null
+    null,
   );
   const [editName, setEditName] = useState("");
   const [editContent, setEditContent] = useState("");
@@ -116,7 +116,7 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
   useEffect(() => {
     const recommended = RECOMMENDED_MODELS[provider] || [];
     setModels(recommended);
-  }, [provider]);
+  }, [provider, setModels]);
 
   const handleAddModel = () => {
     if (!newModelInput.trim()) return;
@@ -322,7 +322,7 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                 value={toolApprovalPolicy}
                 onChange={(val) =>
                   setToolApprovalPolicy(
-                    (val as ToolApprovalPolicy) || "dangerous_only"
+                    (val as ToolApprovalPolicy) || "dangerous_only",
                   )
                 }
                 allowDeselect={false}
@@ -354,7 +354,7 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                           value={editName}
                           onChange={(e) => setEditName(e.currentTarget.value)}
                           placeholder={t(
-                            "settings.ai.template_name_placeholder"
+                            "settings.ai.template_name_placeholder",
                           )}
                         />
                         <Textarea
@@ -363,7 +363,7 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                             setEditContent(e.currentTarget.value)
                           }
                           placeholder={t(
-                            "settings.ai.template_content_placeholder"
+                            "settings.ai.template_content_placeholder",
                           )}
                           autosize
                           minRows={2}
@@ -437,7 +437,7 @@ export function AISettings({ matchesSearch }: AISettingsProps) {
                     />
                     <Textarea
                       placeholder={t(
-                        "settings.ai.template_content_placeholder"
+                        "settings.ai.template_content_placeholder",
                       )}
                       value={newTemplateContent}
                       onChange={(e) =>

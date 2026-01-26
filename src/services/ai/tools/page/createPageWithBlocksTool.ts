@@ -1,9 +1,9 @@
-import { z } from "zod";
 import { invoke } from "@tauri-apps/api/core";
-import type { Tool, ToolResult } from "../types";
-import { usePageStore } from "../../../../stores/pageStore";
+import { z } from "zod";
 import { dispatchBlockUpdate } from "../../../../events";
 import type { BlockData } from "../../../../stores/blockStore";
+import { usePageStore } from "../../../../stores/pageStore";
+import type { Tool, ToolResult } from "../types";
 
 export const createPageWithBlocksTool: Tool = {
   name: "create_page_with_blocks",
@@ -13,34 +13,41 @@ export const createPageWithBlocksTool: Tool = {
   requiresApproval: false,
 
   parameters: z.object({
-    title: z.string().describe("Title of the new page"),
+    title: z
+      .string()
+      .describe("Title of the new page. Example: 'Meeting Notes'"),
     parentId: z
       .string()
       .uuid()
+      .nullable()
       .optional()
       .describe(
-        "UUID of the parent directory page. If omitted, page will be created at root level."
+        "UUID of the parent directory page. Omit or pass null to create at root level. Example: '550e8400-e29b-41d4-a716-446655440000'",
       ),
     blocks: z
       .array(
         z.object({
-          content: z.string().describe("Markdown content of the block"),
+          content: z
+            .string()
+            .describe(
+              "Markdown content of the block. Example: '# Title' or '- Task item'",
+            ),
           parentBlockId: z
             .string()
             .uuid()
             .nullable()
             .optional()
             .describe(
-              "UUID of parent block for nesting. Null for root-level blocks."
+              "UUID of parent block for nesting. Null for root-level blocks. Example: '550e8400-e29b-41d4-a716-446655440001'",
             ),
           insertAfterBlockId: z
             .string()
             .uuid()
             .optional()
             .describe(
-              "UUID of sibling block to insert after. Controls block order."
+              "UUID of sibling block to insert after (controls order). Example: '550e8400-e29b-41d4-a716-446655440002'",
             ),
-        })
+        }),
       )
       .describe("Array of blocks to create in the page"),
   }),
@@ -69,7 +76,7 @@ export const createPageWithBlocksTool: Tool = {
       // Create the page
       const newPageId = await pageStore.createPage(
         params.title,
-        params.parentId || undefined
+        params.parentId || undefined,
       );
 
       // Create blocks using Tauri's create_block command directly
@@ -111,7 +118,7 @@ export const createPageWithBlocksTool: Tool = {
         } catch (blockError) {
           console.error(
             "[createPageWithBlocksTool] Failed to create block:",
-            blockError
+            blockError,
           );
         }
       }
