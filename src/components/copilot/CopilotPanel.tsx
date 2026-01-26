@@ -456,6 +456,7 @@ export function CopilotPanel() {
       addChatMessage("assistant", `Error: ${errorMessage}`);
     } finally {
       setIsLoading(false);
+      setCurrentStep(null);
       orchestratorRef.current = null;
     }
   };

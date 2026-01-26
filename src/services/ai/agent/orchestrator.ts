@@ -1,6 +1,7 @@
 import { useBlockStore } from "../../../stores/blockStore";
 import { useBlockUIStore } from "../../../stores/blockUIStore";
 import { usePageStore } from "../../../stores/pageStore";
+import { useCopilotUiStore } from "../../../stores/copilotUiStore";
 import { executeTool } from "../tools/executor";
 import { toolRegistry } from "../tools/registry";
 import type { ChatMessage, IAIProvider } from "../types";
@@ -72,6 +73,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`
     );
 
+    // Initialize UI store for progress tracking
+    const copilotUiStore = useCopilotUiStore.getState();
+
     const allTools = toolRegistry.getAll();
 
     const systemPrompt = this.buildSystemPrompt(config);
@@ -95,6 +99,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         );
 
         this.state.status = "thinking";
+
+        // Update UI: thinking phase
+        copilotUiStore.setCurrentStep("thinking");
 
         const thoughtStep: AgentStep = {
           id: `step_${Date.now()}_${Math.random().toString(36).substring(7)}`,
@@ -146,11 +153,17 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
               this.state.status = "acting";
 
+              // Update UI: tool execution phase
+              copilotUiStore.setCurrentStep("tool_call", toolName);
+
               const result = await executeTool(
                 toolName,
                 params,
                 config.context
               );
+
+              // Update UI: observation phase
+              copilotUiStore.setCurrentStep("observation");
 
               const toolDuration = Date.now() - toolStartTime;
               const resultStatus = result.success ? "✓ Success" : "✗ Failed";
@@ -286,6 +299,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
           if (accumulatedText.trim() && !toolWasCalled) {
             finalAnswerReceived = true;
+
+            // Update UI: final answer generation phase
+            copilotUiStore.setCurrentStep("final");
 
             const finalStep: AgentStep = {
               id: `step_${Date.now()}_${Math.random()
