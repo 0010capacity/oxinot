@@ -44,7 +44,7 @@ pub fn string_to_block_type(s: &str) -> BlockType {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateBlockRequest {
     pub page_id: String,

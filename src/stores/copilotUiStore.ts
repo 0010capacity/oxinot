@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export type CopilotMode = "edit" | "generate" | "chat";
 export type CopilotScope = "block" | "selection" | "page";
+export type AgentStepType = "thinking" | "tool_call" | "observation" | "final";
 
 export interface ChatMessage {
   id: string;
@@ -16,6 +17,10 @@ interface CopilotUiStore {
   scope: CopilotScope;
   inputValue: string;
   isLoading: boolean;
+
+  // Progress Tracking
+  currentStep: AgentStepType | null;
+  currentToolName: string | null;
 
   // Panel Width
   panelWidth: number;
@@ -38,11 +43,12 @@ interface CopilotUiStore {
   setPreviewContent: (content: string) => void;
   setOriginalContent: (content: string | null) => void;
   setPanelWidth: (width: number) => void;
+  setCurrentStep: (step: AgentStepType | null, toolName?: string) => void;
 
   // Chat Actions
   addChatMessage: (
     role: "user" | "assistant" | "system",
-    content: string,
+    content: string
   ) => void;
   updateLastChatMessage: (content: string) => void;
   clearChatMessages: () => void;
@@ -57,6 +63,8 @@ export const useCopilotUiStore = create<CopilotUiStore>((set) => ({
   scope: "block",
   inputValue: "",
   isLoading: false,
+  currentStep: null,
+  currentToolName: null,
   previewContent: "",
   originalContent: null,
   chatMessages: [],
@@ -74,6 +82,8 @@ export const useCopilotUiStore = create<CopilotUiStore>((set) => ({
   setOriginalContent: (originalContent) => set({ originalContent }),
   setPanelWidth: (width) =>
     set({ panelWidth: Math.max(300, Math.min(800, width)) }),
+  setCurrentStep: (step, toolName) =>
+    set({ currentStep: step, currentToolName: toolName || null }),
 
   addChatMessage: (role, content) =>
     set((state) => ({
@@ -124,6 +134,8 @@ export const useCopilotUiStore = create<CopilotUiStore>((set) => ({
       scope: "block",
       inputValue: "",
       isLoading: false,
+      currentStep: null,
+      currentToolName: null,
       previewContent: "",
       originalContent: null,
       chatMessages: [],

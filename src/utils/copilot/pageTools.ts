@@ -1,38 +1,6 @@
 import { tauriAPI, type SearchResult } from "../../tauri-api";
 import { usePageStore } from "../../stores/pageStore";
-
-// Logger utility
-const createLogger = (moduleName: string) => {
-  const prefix = `[${moduleName}]`;
-  const isDev = import.meta.env.DEV;
-
-  return {
-    log: (...args: unknown[]) => {
-      if (isDev) console.log(prefix, ...args);
-    },
-    info: (...args: unknown[]) => {
-      console.info(prefix, ...args);
-    },
-    warn: (...args: unknown[]) => {
-      console.warn(prefix, ...args);
-    },
-    error: (...args: unknown[]) => {
-      console.error(prefix, ...args);
-    },
-    debug: (...args: unknown[]) => {
-      if (isDev) console.debug(prefix, ...args);
-    },
-    group: (label: string) => {
-      if (isDev) console.group(prefix, label);
-    },
-    groupEnd: () => {
-      if (isDev) console.groupEnd();
-    },
-    table: (data: unknown) => {
-      if (isDev) console.table(data);
-    },
-  };
-};
+import { createLogger } from "../logger";
 
 const logger = createLogger("pageTools");
 
@@ -84,7 +52,7 @@ export const openPageTool = {
  */
 export async function executeSearchNotes(
   workspacePath: string,
-  query: string,
+  query: string
 ): Promise<SearchResult[]> {
   logger.group("executeSearchNotes");
   logger.info("Starting search with query:", query);
@@ -123,7 +91,7 @@ export async function executeSearchNotes(
         resultType: r.resultType,
         rank: r.rank,
         snippet: `${r.snippet.substring(0, 50)}...`,
-      })),
+      }))
     );
 
     logger.groupEnd();
@@ -140,7 +108,7 @@ export async function executeSearchNotes(
     throw new Error(
       `Failed to search notes: ${
         error instanceof Error ? error.message : "Unknown error"
-      }`,
+      }`
     );
   }
 }
@@ -179,7 +147,7 @@ export async function executeOpenPage(pageId: string): Promise<void> {
     const currentPageId = usePageStore.getState().currentPageId;
     if (currentPageId === pageId) {
       logger.info(
-        `✓ Verification successful: currentPageId matches "${pageId}"`,
+        `✓ Verification successful: currentPageId matches "${pageId}"`
       );
     } else {
       logger.warn(`✗ Verification failed: currentPageId is "${currentPageId}"`);
@@ -199,7 +167,7 @@ export async function executeOpenPage(pageId: string): Promise<void> {
     throw new Error(
       `Failed to open page: ${
         error instanceof Error ? error.message : "Unknown error"
-      }`,
+      }`
     );
   }
 }
@@ -211,7 +179,7 @@ export async function executeOpenPage(pageId: string): Promise<void> {
 export async function processPageToolCall(
   toolName: string,
   toolInput: Record<string, unknown>,
-  workspacePath: string,
+  workspacePath: string
 ): Promise<unknown> {
   logger.group(`processPageToolCall - ${toolName}`);
   logger.info(`Tool: ${toolName}`);
