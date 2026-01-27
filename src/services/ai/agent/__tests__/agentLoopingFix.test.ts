@@ -13,19 +13,19 @@ describe("Agent Looping Fix - System Prompt Validation", () => {
   describe("Page Creation ≠ Task Completion", () => {
     it("should state that creating page alone is incomplete", () => {
       expect(systemPromptContent).toContain(
-        "Creating a page alone is INCOMPLETE",
+        "Creating a page alone is INCOMPLETE"
       );
     });
 
     it("should emphasize MUST CREATE BLOCKS after page", () => {
       expect(systemPromptContent).toContain(
-        "AFTER CREATING A PAGE, YOU MUST CREATE BLOCKS",
+        "AFTER CREATING A PAGE, YOU MUST CREATE BLOCKS"
       );
     });
 
     it("should warn never to provide final answer for empty pages", () => {
       expect(systemPromptContent).toContain(
-        "NEVER provide final answer for empty pages",
+        "NEVER provide final answer for empty pages"
       );
     });
   });
@@ -41,11 +41,11 @@ describe("Agent Looping Fix - System Prompt Validation", () => {
     it("should show that Step 6 (Create Blocks) includes validation and creation", () => {
       const workflowSection = systemPromptContent.substring(
         systemPromptContent.indexOf("### Standard Execution Pattern"),
-        systemPromptContent.indexOf("### When to Stop"),
+        systemPromptContent.indexOf("### When to Stop")
       );
       expect(workflowSection).toContain("6. **Create Blocks**");
       expect(workflowSection).toContain("validate_markdown_structure");
-      expect(workflowSection).toContain("create_blocks_batch");
+      expect(workflowSection).toContain("create_blocks_from_markdown");
     });
   });
 
@@ -57,7 +57,7 @@ describe("Agent Looping Fix - System Prompt Validation", () => {
     it("should show complete Solar System workflow with all steps", () => {
       const exampleSection = systemPromptContent.substring(
         systemPromptContent.indexOf("COMPLETE WORKFLOW EXAMPLE"),
-        systemPromptContent.indexOf("INCOMPLETE (DO NOT DO THIS)"),
+        systemPromptContent.indexOf("INCOMPLETE (DO NOT DO THIS)")
       );
       expect(exampleSection).toContain("Step 1:");
       expect(exampleSection).toContain("Step 2:");
@@ -69,17 +69,17 @@ describe("Agent Looping Fix - System Prompt Validation", () => {
     it("should show create_page in Solar System example", () => {
       const exampleSection = systemPromptContent.substring(
         systemPromptContent.indexOf("COMPLETE WORKFLOW EXAMPLE"),
-        systemPromptContent.indexOf("INCOMPLETE (DO NOT DO THIS)"),
+        systemPromptContent.indexOf("INCOMPLETE (DO NOT DO THIS)")
       );
       expect(exampleSection).toContain("create_page");
     });
 
-    it("should show create_blocks_batch in Solar System example", () => {
+    it("should show create_blocks_from_markdown in Solar System example", () => {
       const exampleSection = systemPromptContent.substring(
         systemPromptContent.indexOf("COMPLETE WORKFLOW EXAMPLE"),
-        systemPromptContent.indexOf("INCOMPLETE (DO NOT DO THIS)"),
+        systemPromptContent.indexOf("INCOMPLETE (DO NOT DO THIS)")
       );
-      expect(exampleSection).toContain("create_blocks_batch");
+      expect(exampleSection).toContain("create_blocks_from_markdown");
     });
   });
 
@@ -87,14 +87,14 @@ describe("Agent Looping Fix - System Prompt Validation", () => {
     it("should show what is NOT complete", () => {
       expect(systemPromptContent).toContain("**INCOMPLETE (DO NOT DO THIS)**");
       expect(systemPromptContent).toContain(
-        "Creating a page then immediately stopping",
+        "Creating a page then immediately stopping"
       );
     });
 
     it("should show what IS complete", () => {
       expect(systemPromptContent).toContain("**COMPLETE**:");
       expect(systemPromptContent).toContain(
-        "Page created AND blocks added AND properly nested",
+        "Page created AND blocks added AND properly nested"
       );
     });
   });
@@ -102,28 +102,28 @@ describe("Agent Looping Fix - System Prompt Validation", () => {
   describe("Anti-Pattern: Looping on Queries", () => {
     it("should explicitly forbid looping on list_pages", () => {
       expect(systemPromptContent).toContain(
-        "**ANTI-PATTERN - LOOPING ON QUERIES**",
+        "**ANTI-PATTERN - LOOPING ON QUERIES**"
       );
       expect(systemPromptContent).toContain(
-        "Don't call `list_pages` multiple times",
+        "DON'T call `list_pages` multiple times"
       );
     });
 
     it("should forbid looping on query_pages", () => {
       expect(systemPromptContent).toContain(
-        "Don't call `query_pages` repeatedly",
+        "DON'T call `query_pages` repeatedly"
       );
     });
 
     it("should state looping wastes iterations", () => {
       expect(systemPromptContent).toContain(
-        "Don't loop on page listing tools - it wastes iterations",
+        "DON'T loop on page listing/query tools - it wastes iterations and locks you in a loop"
       );
     });
 
     it("should recommend immediate block creation after page", () => {
       expect(systemPromptContent).toContain(
-        "After creating a page, IMMEDIATELY proceed to block creation",
+        "IMMEDIATELY proceed to `validate_markdown_structure` → `create_blocks_from_markdown`"
       );
     });
   });
@@ -135,7 +135,7 @@ describe("Agent Looping Fix - System Prompt Validation", () => {
 
     it("should emphasize blocks must be created immediately", () => {
       expect(systemPromptContent).toContain(
-        "AFTER CREATING A PAGE, YOU MUST CREATE BLOCKS IMMEDIATELY",
+        "AFTER CREATING A PAGE, YOU MUST CREATE BLOCKS IMMEDIATELY"
       );
     });
 
@@ -150,16 +150,16 @@ describe("Agent Looping Fix - System Prompt Validation", () => {
     it("should have anti-looping guidance in recovery", () => {
       const recoverySection = systemPromptContent.substring(
         systemPromptContent.indexOf("### Recovery Strategy"),
-        systemPromptContent.indexOf("### When to Ask for Clarification"),
+        systemPromptContent.indexOf("### When to Ask for Clarification")
       );
       expect(recoverySection).toContain(
-        "**ANTI-PATTERN - LOOPING ON QUERIES**",
+        "**ANTI-PATTERN - LOOPING ON QUERIES**"
       );
     });
 
     it("should forbid list_pages looping", () => {
       expect(systemPromptContent).toContain(
-        "❌ Don't call `list_pages` multiple times",
+        'DON\'T call `list_pages` multiple times to "verify" a page exists'
       );
     });
   });
