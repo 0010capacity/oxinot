@@ -32,6 +32,35 @@ export interface AgentStep {
 /**
  * Agent execution state
  */
+/**
+ * Task execution progress state
+ */
+export interface TaskProgress {
+  /** Current workflow phase */
+  phase:
+    | "analyzing"
+    | "planning"
+    | "creating_page"
+    | "creating_blocks"
+    | "verifying"
+    | "complete";
+
+  /** Completed steps (summary) */
+  completedSteps: string[];
+
+  /** Pending steps (what's left to do) */
+  pendingSteps: string[];
+
+  /** Resources created during execution */
+  createdResources: {
+    pages: Array<{ id: string; title: string }>;
+    blocks: Array<{ id: string; pageId: string }>;
+  };
+}
+
+/**
+ * Agent execution state
+ */
 export interface AgentState {
   /** Current execution ID */
   executionId: string;
@@ -53,6 +82,9 @@ export interface AgentState {
 
   /** Error message if failed */
   error?: string;
+
+  /** Task execution progress */
+  taskProgress: TaskProgress;
 }
 
 /**

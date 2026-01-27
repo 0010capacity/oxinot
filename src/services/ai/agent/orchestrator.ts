@@ -33,6 +33,15 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       steps: [],
       iterations: 0,
       maxIterations: 10,
+      taskProgress: {
+        phase: "idle",
+        completedSteps: [],
+        pendingSteps: [],
+        createdResources: {
+          pages: [],
+          blocks: [],
+        },
+      },
     };
   }
 
@@ -406,6 +415,62 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   /**
    * Build system prompt using system-prompt.md file + dynamic context
    */
+  /**
+   * Update task progress based on actions taken
+   */
+  private updateTaskProgress(toolName?: string, result?: ToolResult): void {
+    // Determine new phase based on tool call
+    if (toolName?.includes("create_page") && result?.success) {
+      this.state.taskProgress.phase = "creating_page";
+      this.state.taskProgress.completedSteps.push("Page created");
+      this.state.taskProgress.pendingSteps = [
+        "Generate markdown",
+        "Validate markdown",
+        "Create blocks",
+        "Verify results",
+      ];
+      if (result.data) {
+        const data = result.data as { id: string; title: string };
+        this.state.taskProgress.createdResources.pages.push({
+          id: data.id,
+          title: data.title,
+        });
+      }
+    } else if (toolName === "validate_markdown_structure" && result?.success) {
+      this.state.taskProgress.phase = "creating_blocks";
+      this.state.taskProgress.completedSteps.push("Markdown validated");
+      this.state.taskProgress.pendingSteps = ["Create blocks"];
+    } else if (toolName === "create_blocks_from_markdown" && result?.success) {
+      this.state.taskProgress.phase = "verifying";
+      this.state.taskProgress.completedSteps.push("Blocks created");
+      this.state.taskProgress.pendingSteps = ["Verify results"];
+      if (result.data) {
+        const data = result.data as { blocksCreated: number };
+        this.state.taskProgress.createdResources.blocks.push({
+          id: `page:${result.data?.pageId || "unknown"}`,
+          pageId: result.data?.pageId || "unknown",
+        });
+      }
+    } else if (this.state.taskProgress.phase === "verifying" && toolName !== "create_blocks_from_markdown") {
+      // Still in verification phase
+      if (toolName === "get_page_blocks") {
+        this.state.taskProgress.completedSteps.push("Blocks retrieved");
+        this.state.taskProgress.pendingSteps = [];
+      }
+    }
+
+    // Mark as complete if all done
+    if (
+      this.state.taskProgress.createdResources.pages.length > 0 &&
+      this.state.taskProgress.createdResources.blocks.length > 0 &&
+      this.state.taskProgress.phase === "verifying"
+    ) {
+      this.state.taskProgress.phase = "complete";
+      this.state.taskProgress.completedSteps.push("Task completed");
+      this.state.taskProgress.pendingSteps = [];
+    }
+  }
+
   private buildSystemPrompt(_config: AgentConfig): string {
     let prompt = systemPromptContent;
 
@@ -434,11 +499,24 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         if (page.isDirectory) {
           prompt += "  - This is a **directory** (contains other pages)\n";
         } else {
-          prompt += "  - This is a **regular page** (contains blocks)\n";
-        }
-      }
-    }
+          prompt += `  - This is a **regular page** (contains blocks)\n`;
+            }
+          }
 
+        // Inject task progress
+        const progress = this.state.taskProgress;
+        if (progress.phase !== "idle") {
+          prompt += `\n\n## Task Progress\n\n`;
+          prompt += `- **Current Phase**: ${progress.phase}\n`;
+          if (progress.completedSteps.length > 0) {
+            prompt += `- **Completed**: ${progress.completedSteps.join(", ")}\n`;
+          }
+          if (progress.pendingSteps.length > 0) {
+            prompt += `- **Pending**: ${progress.pendingSteps.join(", ")}\n`;
+          }
+        }
+
+        return prompt;
     // Selected blocks
     const selectedIds = uiStore.selectedBlockIds;
     if (selectedIds.length > 0) {
