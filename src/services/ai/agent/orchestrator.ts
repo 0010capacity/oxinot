@@ -3,6 +3,7 @@ import { useBlockUIStore } from "../../../stores/blockUIStore";
 import { usePageStore } from "../../../stores/pageStore";
 import { executeTool } from "../tools/executor";
 import { toolRegistry } from "../tools/registry";
+import type { ToolResult } from "../tools/types";
 import type { ChatMessage, IAIProvider } from "../types";
 import type {
   AgentConfig,
@@ -274,16 +275,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
           }
         } catch (error) {
           // Use intelligent error recovery system
-          const errorInfo = classifyError(error, {
-            toolName:
-              this.toolCallHistory[this.toolCallHistory.length - 1]?.toolName,
-            toolParams:
-              this.toolCallHistory[this.toolCallHistory.length - 1]?.params,
-            goal: this.state.goal,
-            attemptCount: this.getToolAttemptCount(
-              this.toolCallHistory[this.toolCallHistory.length - 1]?.toolName
-            ),
-          });
+          const errorInfo = classifyError(error as Error | string);
 
           console.error(
             `[AgentOrchestrator] Error classified: ${errorInfo.category} (${errorInfo.severity})`,
@@ -485,7 +477,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       this.state.taskProgress.completedSteps.push("Blocks created");
       this.state.taskProgress.pendingSteps = ["Verify results"];
       if (result.data) {
-        const data = result.data as { blocksCreated: number };
         this.state.taskProgress.createdResources.blocks.push({
           id: `page:${result.data?.pageId || "unknown"}`,
           pageId: result.data?.pageId || "unknown",
@@ -517,11 +508,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   /**
    * Get number of attempts for a specific tool
    */
-  private getToolAttemptCount(toolName?: string): number {
-    if (!toolName) return 0;
-    return this.toolCallHistory.filter((call) => call.toolName === toolName)
-      .length;
-  }
 
   /**
    * Build system prompt using system-prompt.md file + dynamic context
@@ -579,7 +565,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     // Inject task progress
     const progress = this.state.taskProgress;
     if (progress.phase !== "idle") {
-      prompt += `\n\n## Task Progress\n\n`;
+      prompt += "\n\n## Task Progress\n\n";
       prompt += `- **Current Phase**: ${progress.phase}\n`;
       if (progress.completedSteps.length > 0) {
         prompt += `- **Completed**: ${progress.completedSteps.join(", ")}\n`;

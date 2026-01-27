@@ -17,6 +17,15 @@ const initialState: AgentState = {
   steps: [],
   iterations: 0,
   maxIterations: 10,
+  taskProgress: {
+    phase: "idle",
+    completedSteps: [],
+    pendingSteps: [],
+    createdResources: {
+      pages: [],
+      blocks: [],
+    },
+  },
 };
 
 export const useAgentStore = create<AgentStore>((set) => ({
@@ -30,7 +39,7 @@ export const useAgentStore = create<AgentStore>((set) => ({
   updateStep: (stepId, updates) =>
     set((state) => ({
       steps: state.steps.map((s) =>
-        s.id === stepId ? { ...s, ...updates } : s,
+        s.id === stepId ? { ...s, ...updates } : s
       ),
     })),
 

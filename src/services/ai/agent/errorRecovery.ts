@@ -220,10 +220,11 @@ export function getRecoveryGuidance(errorInfo: ErrorInfo): string {
 
   switch (suggestedStrategy) {
     case RecoveryStrategy.RETRY:
-      recoveryMsg += `**Recovery**: Retrying the same action...\n`;
+      recoveryMsg += "**Recovery**: Retrying the same action...\n";
       break;
     case RecoveryStrategy.ALTERNATIVE:
-      recoveryMsg += `**Recovery**: Trying an alternative approach or tool...\n`;
+      recoveryMsg +=
+        "**Recovery**: Trying an alternative approach or tool...\n";
       break;
     case RecoveryStrategy.CLARIFY:
       recoveryMsg += `**Recovery**: Requesting clarification from user about: ${message}\n`;
