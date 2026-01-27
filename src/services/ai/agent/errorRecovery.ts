@@ -69,17 +69,6 @@ export interface ErrorInfo {
   category: ErrorCategory;
   /** Severity level */
   severity: ErrorSeverity;
-  /** Context about what was happening */
-  context: {
-    /** Tool that was called */
-    toolName?: string;
-    /** Tool parameters that caused the error */
-    toolParams?: unknown;
-    /** User's goal/intent */
-    goal?: string;
-    /** Previous failures (for retry logic) */
-    attemptCount?: number;
-  };
   /** Suggested recovery strategy */
   suggestedStrategy: RecoveryStrategy;
   /** Optional guidance for recovery */
@@ -89,15 +78,7 @@ export interface ErrorInfo {
 /**
  * Classify error and determine recovery strategy
  */
-export function classifyError(
-  error: Error | string | ToolResult,
-  context?: {
-    toolName?: string;
-    toolParams?: unknown;
-    goal?: string;
-    attemptCount?: number;
-  }
-): ErrorInfo {
+export function classifyError(error: Error | string | ToolResult): ErrorInfo {
   let message: string;
   let category: ErrorCategory = ErrorCategory.UNKNOWN;
   let severity: ErrorSeverity = ErrorSeverity.FATAL;
@@ -117,9 +98,6 @@ export function classifyError(
   }
 
   const lowerMessage = message.toLowerCase();
-  const toolName = context?.toolName;
-  const goal = context?.goal;
-  const attemptCount = context?.attemptCount ?? 1;
 
   // Classify error by message pattern
   if (
@@ -141,7 +119,7 @@ export function classifyError(
     severity = ErrorSeverity.RECOVERABLE;
     suggestedStrategy = RecoveryStrategy.ALTERNATIVE;
     guidance =
-      "The input format or structure is incorrect. Fix the format or provide correct input.";
+      "The input format or structure is incorrect. Fix format or provide correct input.";
   } else if (
     lowerMessage.includes("permission") ||
     lowerMessage.includes("denied") ||
@@ -169,8 +147,7 @@ export function classifyError(
   ) {
     category = ErrorCategory.TOOL_EXECUTION;
     severity = ErrorSeverity.TRANSIENT;
-    suggestedStrategy =
-      attemptCount < 3 ? RecoveryStrategy.RETRY : RecoveryStrategy.ABORT;
+    suggestedStrategy = RecoveryStrategy.RETRY;
     guidance = "Temporary network error. Safe to retry a few times.";
   } else if (
     lowerMessage.includes("invalid tool") ||
@@ -179,7 +156,9 @@ export function classifyError(
     category = ErrorCategory.INVALID_TOOL;
     severity = ErrorSeverity.RECOVERABLE;
     suggestedStrategy = RecoveryStrategy.ALTERNATIVE;
-    guidance = `Tool '${toolName}' is not available. Use a different tool.`;
+    guidance = `Tool '${extractToolName(
+      error
+    )}' is not available. Use a different tool.`;
   } else if (
     lowerMessage.includes("api") ||
     lowerMessage.includes("openai") ||
@@ -188,8 +167,7 @@ export function classifyError(
   ) {
     category = ErrorCategory.AI_PROVIDER;
     severity = ErrorSeverity.TRANSIENT;
-    suggestedStrategy =
-      attemptCount < 2 ? RecoveryStrategy.RETRY : RecoveryStrategy.ABORT;
+    suggestedStrategy = RecoveryStrategy.RETRY;
     guidance = "AI provider issue. May be temporary. Safe to retry once.";
   } else if (lowerMessage.includes("tool execution failed")) {
     category = ErrorCategory.TOOL_EXECUTION;
@@ -203,15 +181,22 @@ export function classifyError(
     message,
     category,
     severity,
-    context: {
-      toolName,
-      toolParams: context?.toolParams,
-      goal,
-      attemptCount,
-    },
     suggestedStrategy,
     guidance,
   };
+}
+
+/**
+ * Extract tool name from error message for better error messages
+ */
+function extractToolName(
+  error: Error | string | ToolResult
+): string | undefined {
+  if (typeof error === "string") {
+    const match = error.match(/tool ['"]([^'"]+)['"]/);
+    return match ? match[1] : undefined;
+  }
+  return undefined;
 }
 
 /**
@@ -225,7 +210,7 @@ export function isRecoverable(errorInfo: ErrorInfo): boolean {
  * Get recovery guidance message for AI (simple format)
  */
 export function getRecoveryGuidance(errorInfo: ErrorInfo): string {
-  const { message, category, suggestedStrategy, guidance, context } = errorInfo;
+  const { message, category, suggestedStrategy, guidance } = errorInfo;
 
   let recoveryMsg = `**Error occurred** (${category}):\n${message}\n\n`;
 
@@ -235,35 +220,29 @@ export function getRecoveryGuidance(errorInfo: ErrorInfo): string {
 
   switch (suggestedStrategy) {
     case RecoveryStrategy.RETRY:
-      recoveryMsg += `**Recovery**: Retrying the same action (attempt ${
-        errorInfo.context.attemptCount || 1
-      })...`;
+      recoveryMsg += `**Recovery**: Retrying the same action...\n`;
       break;
     case RecoveryStrategy.ALTERNATIVE:
-      recoveryMsg += "**Recovery**: Trying an alternative approach or tool...";
+      recoveryMsg += `**Recovery**: Trying an alternative approach or tool...\n`;
       break;
     case RecoveryStrategy.CLARIFY:
-      recoveryMsg += `**Recovery**: Requesting clarification from user about: ${message}`;
+      recoveryMsg += `**Recovery**: Requesting clarification from user about: ${message}\n`;
       break;
     case RecoveryStrategy.SKIP:
       recoveryMsg +=
-        "**Recovery**: Skipping this step, trying next approach...";
+        "**Recovery**: Skipping this step, trying next approach...\n";
       break;
     case RecoveryStrategy.ROLLBACK:
-      recoveryMsg += "**Recovery**: Rolling back changes and restarting...";
+      recoveryMsg += "**Recovery**: Rolling back changes and restarting...\n";
       break;
     case RecoveryStrategy.ABORT:
       recoveryMsg +=
-        "**Recovery**: Cannot recover from this error. Task aborted.";
+        "**Recovery**: Cannot recover from this error. Task aborted.\n";
       break;
     default:
       recoveryMsg +=
-        "**Recovery**: Unknown strategy - please try an alternative approach.";
+        "**Recovery**: Unknown strategy - please try an alternative approach.\n";
   }
-
-  recoveryMsg += `\nRemember: Your goal is to complete: "${
-    errorInfo.context.goal || "unknown"
-  }". Use available tools and try alternative approaches.`;
 
   return recoveryMsg;
 }
