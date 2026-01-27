@@ -3,6 +3,7 @@ import { useBlockUIStore } from "../../../stores/blockUIStore";
 import { usePageStore } from "../../../stores/pageStore";
 import { executeTool } from "../tools/executor";
 import { toolRegistry } from "../tools/registry";
+import type { ToolResult } from "../tools/types";
 import type { ChatMessage, IAIProvider } from "../types";
 import type {
   AgentConfig,
@@ -11,6 +12,11 @@ import type {
   IAgentOrchestrator,
 } from "./types";
 import systemPromptContent from "./system-prompt.md?raw";
+import {
+  classifyError,
+  getRecoveryGuidance,
+  isRecoverable,
+} from "./errorRecovery";
 
 interface ToolCallHistory {
   toolName: string;
@@ -33,6 +39,15 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       steps: [],
       iterations: 0,
       maxIterations: 10,
+      taskProgress: {
+        phase: "idle",
+        completedSteps: [],
+        pendingSteps: [],
+        createdResources: {
+          pages: [],
+          blocks: [],
+        },
+      },
     };
   }
 
@@ -54,6 +69,15 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       steps: [],
       iterations: 0,
       maxIterations: config.maxIterations || 50,
+      taskProgress: {
+        phase: "idle",
+        completedSteps: [],
+        pendingSteps: [],
+        createdResources: {
+          pages: [],
+          blocks: [],
+        },
+      },
     };
 
     console.log(
@@ -125,10 +149,10 @@ export class AgentOrchestrator implements IAgentOrchestrator {
                   role: "user",
                   content: `⚠️ LOOPING DETECTED: ${
                     loopCheck.reason
-                  }\n\nYou are repeating the same actions without making progress. Based on the information you already have:\n\n${this.getProgressSummary()}\n\nContinue with the next logical step. If you cannot complete the task with available information, provide a final answer summarizing what you've accomplished.`,
+                  }\n\nYou are repeating the same actions without making progress. Based on information you already have:\n\n${this.getProgressSummary()}\n\nContinue with the next logical step. If you cannot complete the task with the available information, provide a final answer summarizing what you've accomplished.`,
                 });
 
-                // Clear recent history to break the loop
+                // Clear recent history to break loop
                 const lastAssistantIdx =
                   conversationHistory.length - 2 >= 0
                     ? conversationHistory.length - 2
@@ -178,6 +202,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
               this.state.steps.push(observationStep);
               pendingSteps.push(observationStep);
+
+              // Update task progress based on tool call
+              this.updateTaskProgress(toolName, result);
 
               conversationHistory.push({
                 role: "assistant",
@@ -247,17 +274,34 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             });
           }
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
+          // Use intelligent error recovery system
+          const errorInfo = classifyError(error as Error | string);
+
           console.error(
-            `[AgentOrchestrator] Error in iteration ${this.state.iterations}:`,
-            errorMessage
+            `[AgentOrchestrator] Error classified: ${errorInfo.category} (${errorInfo.severity})`,
+            errorInfo.message
           );
 
-          this.state.error = errorMessage;
-          this.state.status = "failed";
+          // Check if error is recoverable
+          if (isRecoverable(errorInfo)) {
+            // Inject recovery guidance into conversation history
+            const recoveryPrompt = getRecoveryGuidance(errorInfo);
+            conversationHistory.push({
+              role: "user",
+              content: recoveryPrompt,
+            });
 
-          throw error;
+            // Mark as recovered and continue
+            console.log(
+              "[AgentOrchestrator] Recovery strategy:",
+              errorInfo.suggestedStrategy
+            );
+          } else {
+            // Fatal error - mark as failed
+            this.state.error = errorInfo.message;
+            this.state.status = "failed";
+            throw error;
+          }
         }
       }
 
@@ -313,7 +357,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     }
 
-    // Pattern 2: Only read-only tools called repeatedly (list_pages, query_pages, get_page_blocks, query_blocks)
+    // Pattern 2: Only read-only tools called repeatedly
     const readOnlyTools = [
       "list_pages",
       "query_pages",
@@ -332,7 +376,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       };
     }
 
-    // Pattern 3: Create operation followed by repeated list/query calls (verification loop)
+    // Pattern 3: Create operation followed by repeated list/query calls
     if (recentCalls.length >= 3) {
       const hasCreate = recentCalls.some((call) =>
         call.toolName.includes("create")
@@ -404,6 +448,68 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   }
 
   /**
+   * Update task progress based on actions taken
+   */
+  private updateTaskProgress(toolName?: string, result?: ToolResult): void {
+    // Determine new phase based on tool call
+    if (toolName?.includes("create_page") && result?.success) {
+      this.state.taskProgress.phase = "creating_page";
+      this.state.taskProgress.completedSteps.push("Page created");
+      this.state.taskProgress.pendingSteps = [
+        "Generate markdown",
+        "Validate markdown",
+        "Create blocks",
+        "Verify results",
+      ];
+      if (result.data) {
+        const data = result.data as { id: string; title: string };
+        this.state.taskProgress.createdResources.pages.push({
+          id: data.id,
+          title: data.title,
+        });
+      }
+    } else if (toolName === "validate_markdown_structure" && result?.success) {
+      this.state.taskProgress.phase = "creating_blocks";
+      this.state.taskProgress.completedSteps.push("Markdown validated");
+      this.state.taskProgress.pendingSteps = ["Create blocks"];
+    } else if (toolName === "create_blocks_from_markdown" && result?.success) {
+      this.state.taskProgress.phase = "verifying";
+      this.state.taskProgress.completedSteps.push("Blocks created");
+      this.state.taskProgress.pendingSteps = ["Verify results"];
+      if (result.data) {
+        this.state.taskProgress.createdResources.blocks.push({
+          id: `page:${result.data?.pageId || "unknown"}`,
+          pageId: result.data?.pageId || "unknown",
+        });
+      }
+    } else if (
+      this.state.taskProgress.phase === "verifying" &&
+      toolName !== "create_blocks_from_markdown"
+    ) {
+      // Still in verification phase
+      if (toolName === "get_page_blocks") {
+        this.state.taskProgress.completedSteps.push("Blocks retrieved");
+        this.state.taskProgress.pendingSteps = [];
+      }
+    }
+
+    // Mark as complete if all done
+    if (
+      this.state.taskProgress.createdResources.pages.length > 0 &&
+      this.state.taskProgress.createdResources.blocks.length > 0 &&
+      this.state.taskProgress.phase === "verifying"
+    ) {
+      this.state.taskProgress.phase = "complete";
+      this.state.taskProgress.completedSteps.push("Task completed");
+      this.state.taskProgress.pendingSteps = [];
+    }
+  }
+
+  /**
+   * Get number of attempts for a specific tool
+   */
+
+  /**
    * Build system prompt using system-prompt.md file + dynamic context
    */
   private buildSystemPrompt(_config: AgentConfig): string {
@@ -425,7 +531,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     }
 
-    // Current page
+    // Current page with type
     const pageId = blockStore.currentPageId;
     if (pageId) {
       const page = pageStore.pagesById[pageId];
@@ -439,7 +545,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     }
 
-    // Selected blocks
+    // Selected blocks (up to 3)
     const selectedIds = uiStore.selectedBlockIds;
     if (selectedIds.length > 0) {
       prompt += `- **Selected blocks**: ${selectedIds.length} block(s) selected\n`;
@@ -453,6 +559,19 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
       if (selectedIds.length > 3) {
         prompt += `  - ... and ${selectedIds.length - 3} more\n`;
+      }
+    }
+
+    // Inject task progress
+    const progress = this.state.taskProgress;
+    if (progress.phase !== "idle") {
+      prompt += "\n\n## Task Progress\n\n";
+      prompt += `- **Current Phase**: ${progress.phase}\n`;
+      if (progress.completedSteps.length > 0) {
+        prompt += `- **Completed**: ${progress.completedSteps.join(", ")}\n`;
+      }
+      if (progress.pendingSteps.length > 0) {
+        prompt += `- **Pending**: ${progress.pendingSteps.join(", ")}\n`;
       }
     }
 
