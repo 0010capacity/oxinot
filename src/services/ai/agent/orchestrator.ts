@@ -11,6 +11,11 @@ import type {
   IAgentOrchestrator,
 } from "./types";
 import systemPromptContent from "./system-prompt.md?raw";
+import {
+  classifyError,
+  getRecoveryGuidance,
+  isRecoverable,
+} from "./errorRecovery";
 
 interface ToolCallHistory {
   toolName: string;
@@ -63,6 +68,15 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       steps: [],
       iterations: 0,
       maxIterations: config.maxIterations || 50,
+      taskProgress: {
+        phase: "idle",
+        completedSteps: [],
+        pendingSteps: [],
+        createdResources: {
+          pages: [],
+          blocks: [],
+        },
+      },
     };
 
     console.log(
@@ -134,10 +148,10 @@ export class AgentOrchestrator implements IAgentOrchestrator {
                   role: "user",
                   content: `⚠️ LOOPING DETECTED: ${
                     loopCheck.reason
-                  }\n\nYou are repeating the same actions without making progress. Based on the information you already have:\n\n${this.getProgressSummary()}\n\nContinue with the next logical step. If you cannot complete the task with available information, provide a final answer summarizing what you've accomplished.`,
+                  }\n\nYou are repeating the same actions without making progress. Based on information you already have:\n\n${this.getProgressSummary()}\n\nContinue with the next logical step. If you cannot complete the task with the available information, provide a final answer summarizing what you've accomplished.`,
                 });
 
-                // Clear recent history to break the loop
+                // Clear recent history to break loop
                 const lastAssistantIdx =
                   conversationHistory.length - 2 >= 0
                     ? conversationHistory.length - 2
@@ -187,6 +201,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
               this.state.steps.push(observationStep);
               pendingSteps.push(observationStep);
+
+              // Update task progress based on tool call
+              this.updateTaskProgress(toolName, result);
 
               conversationHistory.push({
                 role: "assistant",
@@ -256,17 +273,43 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             });
           }
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
+          // Use intelligent error recovery system
+          const errorInfo = classifyError(error, {
+            toolName:
+              this.toolCallHistory[this.toolCallHistory.length - 1]?.toolName,
+            toolParams:
+              this.toolCallHistory[this.toolCallHistory.length - 1]?.params,
+            goal: this.state.goal,
+            attemptCount: this.getToolAttemptCount(
+              this.toolCallHistory[this.toolCallHistory.length - 1]?.toolName
+            ),
+          });
+
           console.error(
-            `[AgentOrchestrator] Error in iteration ${this.state.iterations}:`,
-            errorMessage
+            `[AgentOrchestrator] Error classified: ${errorInfo.category} (${errorInfo.severity})`,
+            errorInfo.message
           );
 
-          this.state.error = errorMessage;
-          this.state.status = "failed";
+          // Check if error is recoverable
+          if (isRecoverable(errorInfo)) {
+            // Inject recovery guidance into conversation history
+            const recoveryPrompt = getRecoveryGuidance(errorInfo);
+            conversationHistory.push({
+              role: "user",
+              content: recoveryPrompt,
+            });
 
-          throw error;
+            // Mark as recovered and continue
+            console.log(
+              "[AgentOrchestrator] Recovery strategy:",
+              errorInfo.suggestedStrategy
+            );
+          } else {
+            // Fatal error - mark as failed
+            this.state.error = errorInfo.message;
+            this.state.status = "failed";
+            throw error;
+          }
         }
       }
 
@@ -322,7 +365,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     }
 
-    // Pattern 2: Only read-only tools called repeatedly (list_pages, query_pages, get_page_blocks, query_blocks)
+    // Pattern 2: Only read-only tools called repeatedly
     const readOnlyTools = [
       "list_pages",
       "query_pages",
@@ -341,7 +384,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       };
     }
 
-    // Pattern 3: Create operation followed by repeated list/query calls (verification loop)
+    // Pattern 3: Create operation followed by repeated list/query calls
     if (recentCalls.length >= 3) {
       const hasCreate = recentCalls.some((call) =>
         call.toolName.includes("create")
@@ -413,9 +456,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   }
 
   /**
-   * Build system prompt using system-prompt.md file + dynamic context
-   */
-  /**
    * Update task progress based on actions taken
    */
   private updateTaskProgress(toolName?: string, result?: ToolResult): void {
@@ -451,7 +491,10 @@ export class AgentOrchestrator implements IAgentOrchestrator {
           pageId: result.data?.pageId || "unknown",
         });
       }
-    } else if (this.state.taskProgress.phase === "verifying" && toolName !== "create_blocks_from_markdown") {
+    } else if (
+      this.state.taskProgress.phase === "verifying" &&
+      toolName !== "create_blocks_from_markdown"
+    ) {
       // Still in verification phase
       if (toolName === "get_page_blocks") {
         this.state.taskProgress.completedSteps.push("Blocks retrieved");
@@ -471,6 +514,18 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     }
   }
 
+  /**
+   * Get number of attempts for a specific tool
+   */
+  private getToolAttemptCount(toolName?: string): number {
+    if (!toolName) return 0;
+    return this.toolCallHistory.filter((call) => call.toolName === toolName)
+      .length;
+  }
+
+  /**
+   * Build system prompt using system-prompt.md file + dynamic context
+   */
   private buildSystemPrompt(_config: AgentConfig): string {
     let prompt = systemPromptContent;
 
@@ -490,7 +545,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     }
 
-    // Current page
+    // Current page with type
     const pageId = blockStore.currentPageId;
     if (pageId) {
       const page = pageStore.pagesById[pageId];
@@ -499,25 +554,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         if (page.isDirectory) {
           prompt += "  - This is a **directory** (contains other pages)\n";
         } else {
-          prompt += `  - This is a **regular page** (contains blocks)\n`;
-            }
-          }
-
-        // Inject task progress
-        const progress = this.state.taskProgress;
-        if (progress.phase !== "idle") {
-          prompt += `\n\n## Task Progress\n\n`;
-          prompt += `- **Current Phase**: ${progress.phase}\n`;
-          if (progress.completedSteps.length > 0) {
-            prompt += `- **Completed**: ${progress.completedSteps.join(", ")}\n`;
-          }
-          if (progress.pendingSteps.length > 0) {
-            prompt += `- **Pending**: ${progress.pendingSteps.join(", ")}\n`;
-          }
+          prompt += "  - This is a **regular page** (contains blocks)\n";
         }
+      }
+    }
 
-        return prompt;
-    // Selected blocks
+    // Selected blocks (up to 3)
     const selectedIds = uiStore.selectedBlockIds;
     if (selectedIds.length > 0) {
       prompt += `- **Selected blocks**: ${selectedIds.length} block(s) selected\n`;
@@ -531,6 +573,19 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
       if (selectedIds.length > 3) {
         prompt += `  - ... and ${selectedIds.length - 3} more\n`;
+      }
+    }
+
+    // Inject task progress
+    const progress = this.state.taskProgress;
+    if (progress.phase !== "idle") {
+      prompt += `\n\n## Task Progress\n\n`;
+      prompt += `- **Current Phase**: ${progress.phase}\n`;
+      if (progress.completedSteps.length > 0) {
+        prompt += `- **Completed**: ${progress.completedSteps.join(", ")}\n`;
+      }
+      if (progress.pendingSteps.length > 0) {
+        prompt += `- **Pending**: ${progress.pendingSteps.join(", ")}\n`;
       }
     }
 

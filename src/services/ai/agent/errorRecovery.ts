@@ -45,7 +45,7 @@ export enum ErrorCategory {
  * Recovery strategies
  */
 export enum RecoveryStrategy {
-  /** Retry the same action */
+  /** Retry same action */
   RETRY = "retry",
   /** Try alternative tool or approach */
   ALTERNATIVE = "alternative",
@@ -75,10 +75,10 @@ export interface ErrorInfo {
     toolName?: string;
     /** Tool parameters that caused the error */
     toolParams?: unknown;
-    /** Previous failures (for retry logic) */
-    attemptCount?: number;
     /** User's goal/intent */
     goal?: string;
+    /** Previous failures (for retry logic) */
+    attemptCount?: number;
   };
   /** Suggested recovery strategy */
   suggestedStrategy: RecoveryStrategy;
@@ -110,34 +110,38 @@ export function classifyError(
   } else if (error instanceof Error) {
     message = error.message;
   } else if (typeof error === "object" && error !== null && "error" in error) {
-    message = String((error as { error: unknown }).error);
+    const toolResult = error as ToolResult;
+    message = toolResult.error || "Tool execution failed";
   } else {
-    message = JSON.stringify(error);
+    message = String(error);
   }
 
   const lowerMessage = message.toLowerCase();
   const toolName = context?.toolName;
+  const goal = context?.goal;
   const attemptCount = context?.attemptCount ?? 1;
 
   // Classify error by message pattern
   if (
     lowerMessage.includes("not found") ||
-    lowerMessage.includes("not exist")
+    lowerMessage.includes("not exist") ||
+    lowerMessage.includes("doesn't exist")
   ) {
     category = ErrorCategory.NOT_FOUND;
     severity = ErrorSeverity.RECOVERABLE;
-    suggestedStrategy = RecoveryStrategy.CLARIFY;
+    suggestedStrategy = RecoveryStrategy.ALTERNATIVE;
     guidance =
-      "The resource was not found. Ask user for clarification or try alternative resource.";
+      "The resource was not found. Check if it exists, or try a different name or identifier.";
   } else if (
     lowerMessage.includes("invalid") ||
-    lowerMessage.includes("malformed")
+    lowerMessage.includes("malformed") ||
+    lowerMessage.includes("parse error")
   ) {
     category = ErrorCategory.INVALID_INPUT;
     severity = ErrorSeverity.RECOVERABLE;
     suggestedStrategy = RecoveryStrategy.ALTERNATIVE;
     guidance =
-      "Invalid input provided. Try correcting the input or use alternative tool.";
+      "The input format or structure is incorrect. Fix the format or provide correct input.";
   } else if (
     lowerMessage.includes("permission") ||
     lowerMessage.includes("denied") ||
@@ -157,7 +161,7 @@ export function classifyError(
     severity = ErrorSeverity.RECOVERABLE;
     suggestedStrategy = RecoveryStrategy.ALTERNATIVE;
     guidance =
-      "Validation failed. Regenerate with corrected structure or try alternative tool.";
+      "Validation failed. Fix indentation (2 spaces per level), ensure all lines start with '- ', or regenerate structure.";
   } else if (
     lowerMessage.includes("timeout") ||
     lowerMessage.includes("network") ||
@@ -167,7 +171,7 @@ export function classifyError(
     severity = ErrorSeverity.TRANSIENT;
     suggestedStrategy =
       attemptCount < 3 ? RecoveryStrategy.RETRY : RecoveryStrategy.ABORT;
-    guidance = "Temporary network error. Safe to retry.";
+    guidance = "Temporary network error. Safe to retry a few times.";
   } else if (
     lowerMessage.includes("invalid tool") ||
     lowerMessage.includes("unknown tool")
@@ -175,12 +179,12 @@ export function classifyError(
     category = ErrorCategory.INVALID_TOOL;
     severity = ErrorSeverity.RECOVERABLE;
     suggestedStrategy = RecoveryStrategy.ALTERNATIVE;
-    guidance = `Tool '${toolName}' not available. Use alternative tool or check tool name.`;
+    guidance = `Tool '${toolName}' is not available. Use a different tool.`;
   } else if (
-    lowerMessage.includes("ai provider") ||
     lowerMessage.includes("api") ||
     lowerMessage.includes("openai") ||
-    lowerMessage.includes("anthropic")
+    lowerMessage.includes("anthropic") ||
+    lowerMessage.includes("ai provider")
   ) {
     category = ErrorCategory.AI_PROVIDER;
     severity = ErrorSeverity.TRANSIENT;
@@ -191,7 +195,8 @@ export function classifyError(
     category = ErrorCategory.TOOL_EXECUTION;
     severity = ErrorSeverity.RECOVERABLE;
     suggestedStrategy = RecoveryStrategy.ALTERNATIVE;
-    guidance = "Tool execution failed. Try alternative approach or tool.";
+    guidance =
+      "Tool execution failed. Try a different approach or alternative tool.";
   }
 
   return {
@@ -201,7 +206,7 @@ export function classifyError(
     context: {
       toolName,
       toolParams: context?.toolParams,
-      goal: context?.goal,
+      goal,
       attemptCount,
     },
     suggestedStrategy,
@@ -217,7 +222,7 @@ export function isRecoverable(errorInfo: ErrorInfo): boolean {
 }
 
 /**
- * Get recovery guidance message for user/AI
+ * Get recovery guidance message for AI (simple format)
  */
 export function getRecoveryGuidance(errorInfo: ErrorInfo): string {
   const { message, category, suggestedStrategy, guidance, context } = errorInfo;
@@ -225,20 +230,20 @@ export function getRecoveryGuidance(errorInfo: ErrorInfo): string {
   let recoveryMsg = `**Error occurred** (${category}):\n${message}\n\n`;
 
   if (guidance) {
-    recoveryMsg += `**What happened**: ${guidance}\n\n`;
+    recoveryMsg += `**Guidance**: ${guidance}\n\n`;
   }
 
   switch (suggestedStrategy) {
     case RecoveryStrategy.RETRY:
       recoveryMsg += `**Recovery**: Retrying the same action (attempt ${
-        context.attemptCount || 1
+        errorInfo.context.attemptCount || 1
       })...`;
       break;
     case RecoveryStrategy.ALTERNATIVE:
-      recoveryMsg += "**Recovery**: Trying alternative approach or tool...";
+      recoveryMsg += "**Recovery**: Trying an alternative approach or tool...";
       break;
     case RecoveryStrategy.CLARIFY:
-      recoveryMsg += `**Recovery**: Need clarification from user about: ${message}`;
+      recoveryMsg += `**Recovery**: Requesting clarification from user about: ${message}`;
       break;
     case RecoveryStrategy.SKIP:
       recoveryMsg +=
@@ -251,91 +256,14 @@ export function getRecoveryGuidance(errorInfo: ErrorInfo): string {
       recoveryMsg +=
         "**Recovery**: Cannot recover from this error. Task aborted.";
       break;
+    default:
+      recoveryMsg +=
+        "**Recovery**: Unknown strategy - please try an alternative approach.";
   }
+
+  recoveryMsg += `\nRemember: Your goal is to complete: "${
+    errorInfo.context.goal || "unknown"
+  }". Use available tools and try alternative approaches.`;
 
   return recoveryMsg;
-}
-
-/**
- * Generate alternative approach prompt for AI
- *
- * Tells the AI to try a different strategy based on the error
- */
-export function getAlternativeApproachPrompt(
-  errorInfo: ErrorInfo,
-  originalGoal: string
-): string {
-  const { category, context } = errorInfo;
-  let prompt = `The previous attempt encountered an error:\n- Error type: ${category}\n- Tool: ${
-    context.toolName || "N/A"
-  }\n- Message: ${errorInfo.message}\n\n`;
-
-  prompt += `Original goal: ${originalGoal}\n\n`;
-
-  switch (category) {
-    case ErrorCategory.NOT_FOUND:
-      prompt +=
-        "Try these alternatives:\n" +
-        "1. Ask clarification about which resource to use\n" +
-        "2. List available resources first to see what exists\n" +
-        "3. Use a more specific or corrected resource name";
-      break;
-
-    case ErrorCategory.VALIDATION:
-      prompt +=
-        "Try these alternatives:\n" +
-        "1. Regenerate the markdown with correct indentation (2 spaces per level)\n" +
-        '2. Ensure each line starts with "- " (dash + space)\n' +
-        "3. Validate again before attempting to create";
-      break;
-
-    case ErrorCategory.INVALID_INPUT:
-      prompt +=
-        "Try these alternatives:\n" +
-        "1. Correct the input format or structure\n" +
-        "2. Use a different, simpler format\n" +
-        "3. Request clarification about the expected input format";
-      break;
-
-    case ErrorCategory.INVALID_TOOL:
-      prompt +=
-        "Try these alternatives:\n" +
-        "1. Use a different tool that achieves the same result\n" +
-        "2. Break down the task to use basic tools instead\n" +
-        "3. List available tools to verify the correct name";
-      break;
-
-    case ErrorCategory.TOOL_EXECUTION:
-      prompt +=
-        "The tool failed to execute. Try these alternatives:\n" +
-        "1. Simplify the parameters\n" +
-        "2. Break the operation into smaller steps\n" +
-        "3. Try a different tool that achieves similar results";
-      break;
-
-    default:
-      prompt +=
-        "Try a different approach or break down the task into smaller steps.";
-  }
-
-  prompt += `\n\nRemember: Your goal is to complete: "${originalGoal}". Use the available tools and try alternative approaches if one fails.`;
-
-  return prompt;
-}
-
-/**
- * Categorize error from tool result
- *
- * Useful when a tool returns success=false
- */
-export function categorizeToolError(
-  result: ToolResult,
-  toolName?: string
-): ErrorInfo {
-  const message = result.error || "Tool execution failed";
-
-  return classifyError(message, {
-    toolName,
-    attemptCount: 1,
-  });
 }
