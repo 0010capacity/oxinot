@@ -123,13 +123,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
                 // Inject guidance into conversation history
                 conversationHistory.push({
                   role: "user",
-                  content:
-                    `⚠️ LOOPING DETECTED: ${loopCheck.reason}\n\n` +
-                    `You are repeating the same actions without making progress. ` +
-                    `Based on the information you already have:\n\n` +
-                    this.getProgressSummary() +
-                    `\n\nContinue with the next logical step. ` +
-                    `If you cannot complete the task with available information, provide a final answer summarizing what you've accomplished.`,
+                  content: `⚠️ LOOPING DETECTED: ${
+                    loopCheck.reason
+                  }\n\nYou are repeating the same actions without making progress. Based on the information you already have:\n\n${this.getProgressSummary()}\n\nContinue with the next logical step. If you cannot complete the task with available information, provide a final answer summarizing what you've accomplished.`,
                 });
 
                 // Clear recent history to break the loop
@@ -373,12 +369,15 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     // Analyze tool results to find created resources
     for (const step of this.state.steps) {
       if (step.type === "observation" && step.toolResult?.success) {
-        const data = step.toolResult.data as any;
+        const data = step.toolResult.data as Record<string, unknown>;
         if (data?.pageId) {
-          createdPages.add(data.pageId);
+          createdPages.add(String(data.pageId));
         }
-        if (data?.blocksCreated || data?.blocks?.length) {
-          const count = data.blocksCreated ?? data.blocks?.length ?? 0;
+        if (data?.blocksCreated || data?.blocks) {
+          const count =
+            (data.blocksCreated as number) ??
+            (data.blocks as unknown[]).length ??
+            0;
           createdBlocks.add(`page:${data.pageId}:${count} blocks`);
         }
       }
@@ -395,7 +394,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       summary += "- Page blocks have been retrieved\n";
     }
     if (createdBlocks.size > 0) {
-      summary += `- Blocks have been created\n`;
+      summary += "- Blocks have been created\n";
     }
     if (summary === "") {
       summary = "- No significant progress made yet\n";
@@ -433,9 +432,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       if (page) {
         prompt += `- **Current page**: "${page.title}" (ID: ${pageId})\n`;
         if (page.isDirectory) {
-          prompt += `  - This is a **directory** (contains other pages)\n`;
+          prompt += "  - This is a **directory** (contains other pages)\n";
         } else {
-          prompt += `  - This is a **regular page** (contains blocks)\n`;
+          prompt += "  - This is a **regular page** (contains blocks)\n";
         }
       }
     }
