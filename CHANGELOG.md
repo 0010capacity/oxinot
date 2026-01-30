@@ -1,5 +1,1185 @@
 # oxinot
 
+## 0.23.0
+
+### Minor Changes
+
+- 44d06ff: - enhance AI provider and model management
+  - add markdown-to-blocks conversion guide and fix TypeScript type error
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - add markdown block parser utility and enhance AI system prompt for nested blocks
+  - implement markdown-to-blocks parsing with AI tool
+  - emphasize create_blocks_from_markdown tool in AI system prompt
+  - add explicit markdown outline recognition instruction to agent
+  - strengthen guidance on create_blocks_from_markdown tool usage
+  - add explicit input handling guidance for markdown detection
+  - refocus system prompt on proper create_block usage for hierarchies
+  - add detailed examples for nested block creation
+  - register create_blocks_batch command in invoke handler
+  - don't pollute conversation history with tool call metadata
+  - preserve tool success results in conversation history
+  - prioritize create_blocks_batch for markdown with indentation
+  - Fix copilot performance issues - Add AbortController and replace system badges with toasts
+  - Improve agent orchestrator logging and system prompt for block creation workflow
+  - Add detailed tool call logging for debugging
+  - Remove 'always list_pages' guidance that causes infinite looping
+  - Add explicit query_pages looping prevention
+  - resolve infinite loop and block creation failures
+  - UX 및 로깅 시스템 개선
+  - 캐싱 시스템으로 성능 최적화
+  - 진행 상황 추적 시스템 통합
+  - TypeScript 및 lint 오류 수정
+  - Phase 1 improvements - integrate system-prompt.md & add looping detection
+  - fix Biome linting errors and warnings
+  - Phase 2.1 - add task progress tracking
+  - Phase 2.1-2 - system prompt optimization + task progress + error recovery (partial)
+  - resolve TypeScript and linting errors for Phase 2
+- 9d43961: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+  - add keyboard shortcuts for mode and scope selection
+  - add keyboard shortcut for toggling copilot panel
+  - add OS-aware keyboard shortcut hints in UI
+  - remove context sharing from chat mode
+  - disable scope buttons in chat mode
+  - redesign with tool-based architecture (MCP style)
+  - simplify UI for tool-based architecture
+  - use Portal for mention autocomplete to fix positioning
+  - properly resolve mentions to context content
+  - restore Portal wrapper for mention autocomplete
+  - enhance system prompt for natural language context resolution
+  - enable multi-turn conversation context
+  - force AI to use tools for content modification
+  - implement tool-call loop and robust multi-turn context
+  - fix multi-turn conversation context staleness
+  - prevent history loss in multi-turn conversations
+  - convert chat history to AI provider format for multi-turn conversations
+  - filter out empty messages from conversation history
+  - move context hints to system prompt for consistent message format
+  - track page context changes and add navigation messages to history
+  - add history support to Google Provider for multi-turn conversations
+  - add history support to Ollama Provider using /api/chat endpoint
+  - limit conversation history to last 20 messages to prevent token overflow
+  - add page navigation tools (open_page, query_pages)
+  - add function calling support to Google Provider
+  - clean JSON schema for Gemini compatibility
+  - allow create_block to accept page ID as parent
+  - properly handle page ID fallback in create_block tool
+  - rewrite create_block to prioritize page ID detection
+  - add get_page_blocks tool and update create_block workflow
+  - update create_block tool to support root blocks and ordering
+  - enable immediate UI updates for block operations
+  - decouple store updates using global events
+  - move Copilot panel to right sidebar
+  - ensure UI updates when AI tools modify blocks
+  - add configurable tool approval policy
+  - add intuitive wrapper tools for common operations
+  - add LM Studio provider support
+  - correct message bubbling and styling
+  - filter empty messages and unify message styling
+  - add detailed message type classification logging
+  - hide tool names for security and reduce badge prominence
+  - add keyboard shortcut hints to input placeholder
+  - apply i18n to input placeholder with keyboard shortcuts
+  - correct translation key path for input placeholder
+  - fix TypeScript type errors in AI service providers and tools
+  - resolve remaining TypeScript any types in AI services
+  - revert AI types to use any for flexibility with runtime validation
+  - copilot open page
+  - prevent block merge when text is selected on backspace
+  - prevent Tab key from moving focus to other elements
+  - resolve build errors and lint warnings in AI tools
+  - support custom API endpoints with version paths (v2, v3, v4, etc.)
+  - fix right-click on nested blocks selecting parent instead of clicked block
+  - prevent event bubbling in nested file tree nodes
+  - add delete confirmation modal
+  - commit draft before block split to fix cursor at start
+  - add missing translation keys for context menu
+  - enhance GitHub Actions workflow stability and prevent race conditions
+  - transform copilot into autonomous agent with multi-step task execution
+  - prevent content duplication when splitting blocks with children
+  - add resizable panel with drag handle (#522)
+  - allow changeset generation even with existing pending changesets (#523)
+- ccbdad7: - enhance AI provider and model management
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - add markdown block parser utility and enhance AI system prompt for nested blocks
+  - implement markdown-to-blocks parsing with AI tool
+  - emphasize create_blocks_from_markdown tool in AI system prompt
+  - add explicit markdown outline recognition instruction to agent
+  - strengthen guidance on create_blocks_from_markdown tool usage
+  - add explicit input handling guidance for markdown detection
+  - refocus system prompt on proper create_block usage for hierarchies
+  - add detailed examples for nested block creation
+  - register create_blocks_batch command in invoke handler
+  - don't pollute conversation history with tool call metadata
+  - preserve tool success results in conversation history
+  - prioritize create_blocks_batch for markdown with indentation
+  - Fix copilot performance issues - Add AbortController and replace system badges with toasts
+  - Improve agent orchestrator logging and system prompt for block creation workflow
+  - Add detailed tool call logging for debugging
+  - Remove 'always list_pages' guidance that causes infinite looping
+  - Add explicit query_pages looping prevention
+  - resolve infinite loop and block creation failures
+  - UX 및 로깅 시스템 개선
+  - 캐싱 시스템으로 성능 최적화
+  - 진행 상황 추적 시스템 통합
+  - TypeScript 및 lint 오류 수정
+- 30b9f13: - enhance AI provider and model management
+  - add markdown-to-blocks conversion guide and fix TypeScript type error
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - add markdown block parser utility and enhance AI system prompt for nested blocks
+  - implement markdown-to-blocks parsing with AI tool
+  - emphasize create_blocks_from_markdown tool in AI system prompt
+  - add explicit markdown outline recognition instruction to agent
+  - strengthen guidance on create_blocks_from_markdown tool usage
+  - add explicit input handling guidance for markdown detection
+  - refocus system prompt on proper create_block usage for hierarchies
+  - add detailed examples for nested block creation
+  - register create_blocks_batch command in invoke handler
+  - don't pollute conversation history with tool call metadata
+  - preserve tool success results in conversation history
+  - prioritize create_blocks_batch for markdown with indentation
+  - Fix copilot performance issues - Add AbortController and replace system badges with toasts
+  - Improve agent orchestrator logging and system prompt for block creation workflow
+  - Add detailed tool call logging for debugging
+  - Remove 'always list_pages' guidance that causes infinite looping
+  - Add explicit query_pages looping prevention
+  - resolve infinite loop and block creation failures
+  - UX 및 로깅 시스템 개선
+  - 캐싱 시스템으로 성능 최적화
+  - 진행 상황 추적 시스템 통합
+  - TypeScript 및 lint 오류 수정
+- 022d128: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+  - add keyboard shortcuts for mode and scope selection
+  - add keyboard shortcut for toggling copilot panel
+  - add OS-aware keyboard shortcut hints in UI
+  - remove context sharing from chat mode
+  - disable scope buttons in chat mode
+  - redesign with tool-based architecture (MCP style)
+  - simplify UI for tool-based architecture
+  - use Portal for mention autocomplete to fix positioning
+  - properly resolve mentions to context content
+  - restore Portal wrapper for mention autocomplete
+  - enhance system prompt for natural language context resolution
+  - enable multi-turn conversation context
+  - force AI to use tools for content modification
+  - implement tool-call loop and robust multi-turn context
+  - fix multi-turn conversation context staleness
+  - prevent history loss in multi-turn conversations
+  - convert chat history to AI provider format for multi-turn conversations
+  - filter out empty messages from conversation history
+  - move context hints to system prompt for consistent message format
+  - track page context changes and add navigation messages to history
+  - add history support to Google Provider for multi-turn conversations
+  - add history support to Ollama Provider using /api/chat endpoint
+  - limit conversation history to last 20 messages to prevent token overflow
+  - add page navigation tools (open_page, query_pages)
+  - add function calling support to Google Provider
+  - clean JSON schema for Gemini compatibility
+  - allow create_block to accept page ID as parent
+  - properly handle page ID fallback in create_block tool
+  - rewrite create_block to prioritize page ID detection
+  - add get_page_blocks tool and update create_block workflow
+  - update create_block tool to support root blocks and ordering
+  - enable immediate UI updates for block operations
+  - decouple store updates using global events
+  - move Copilot panel to right sidebar
+  - ensure UI updates when AI tools modify blocks
+  - add configurable tool approval policy
+  - add intuitive wrapper tools for common operations
+  - add LM Studio provider support
+  - correct message bubbling and styling
+  - filter empty messages and unify message styling
+  - add detailed message type classification logging
+  - hide tool names for security and reduce badge prominence
+  - add keyboard shortcut hints to input placeholder
+  - apply i18n to input placeholder with keyboard shortcuts
+  - correct translation key path for input placeholder
+  - fix TypeScript type errors in AI service providers and tools
+  - resolve remaining TypeScript any types in AI services
+  - revert AI types to use any for flexibility with runtime validation
+  - copilot open page
+  - prevent block merge when text is selected on backspace
+  - prevent Tab key from moving focus to other elements
+  - resolve build errors and lint warnings in AI tools
+  - support custom API endpoints with version paths (v2, v3, v4, etc.)
+  - fix right-click on nested blocks selecting parent instead of clicked block
+  - prevent event bubbling in nested file tree nodes
+  - add delete confirmation modal
+  - commit draft before block split to fix cursor at start
+  - add missing translation keys for context menu
+  - enhance GitHub Actions workflow stability and prevent race conditions
+  - transform copilot into autonomous agent with multi-step task execution
+  - prevent content duplication when splitting blocks with children
+  - add resizable panel with drag handle (#522)
+  - allow changeset generation even with existing pending changesets (#523)
+  - add interactive code block widget with copy/edit buttons
+  - remove isEditMode check to allow widget rendering
+  - use isEditMode instead of cursor position for widget rendering
+  - remove debug logs and fix inline widget styling for code blocks
+  - hide code block lines individually to avoid line break error
+  - place task checkbox at marker
+  - prevent code block widget clicks from entering edit mode
+  - add language and title support for code blocks
+  - increase markdown marker visibility
+  - enhance code block header visibility
+  - brighten code syntax highlighting using CSS variables
+  - force brighten code block fence markers with inline styles
+  - override CodeMirror syntax colors with theme variables
+  - target only code fence markers for dimming
+  - improve resizable handle UX with 4px hotspot and expand-on-hover
+  - support modern OpenAI tools API format
+  - improve agent efficiency and fix double tool call execution
+- 3e87ed6: - enhance AI provider and model management
+  - add markdown-to-blocks conversion guide and fix TypeScript type error
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - add markdown block parser utility and enhance AI system prompt for nested blocks
+  - implement markdown-to-blocks parsing with AI tool
+  - emphasize create_blocks_from_markdown tool in AI system prompt
+  - add explicit markdown outline recognition instruction to agent
+  - strengthen guidance on create_blocks_from_markdown tool usage
+  - add explicit input handling guidance for markdown detection
+  - refocus system prompt on proper create_block usage for hierarchies
+  - add detailed examples for nested block creation
+  - register create_blocks_batch command in invoke handler
+  - don't pollute conversation history with tool call metadata
+  - preserve tool success results in conversation history
+  - prioritize create_blocks_batch for markdown with indentation
+  - Fix copilot performance issues - Add AbortController and replace system badges with toasts
+  - Improve agent orchestrator logging and system prompt for block creation workflow
+  - Add detailed tool call logging for debugging
+  - Remove 'always list_pages' guidance that causes infinite looping
+  - Add explicit query_pages looping prevention
+  - resolve infinite loop and block creation failures
+  - UX 및 로깅 시스템 개선
+  - 캐싱 시스템으로 성능 최적화
+  - 진행 상황 추적 시스템 통합
+  - TypeScript 및 lint 오류 수정
+  - Phase 1 improvements - integrate system-prompt.md & add looping detection
+  - fix Biome linting errors and warnings
+  - Phase 2.1 - add task progress tracking
+  - Phase 2.1-2 - system prompt optimization + task progress + error recovery (partial)
+  - resolve TypeScript and linting errors for Phase 2
+- e800040: - enhance AI provider and model management
+  - add markdown-to-blocks conversion guide and fix TypeScript type error
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - add markdown block parser utility and enhance AI system prompt for nested blocks
+  - implement markdown-to-blocks parsing with AI tool
+  - emphasize create_blocks_from_markdown tool in AI system prompt
+  - add explicit markdown outline recognition instruction to agent
+  - strengthen guidance on create_blocks_from_markdown tool usage
+  - add explicit input handling guidance for markdown detection
+  - refocus system prompt on proper create_block usage for hierarchies
+  - add detailed examples for nested block creation
+  - register create_blocks_batch command in invoke handler
+  - don't pollute conversation history with tool call metadata
+  - preserve tool success results in conversation history
+  - prioritize create_blocks_batch for markdown with indentation
+  - Fix copilot performance issues - Add AbortController and replace system badges with toasts
+  - Improve agent orchestrator logging and system prompt for block creation workflow
+  - Add detailed tool call logging for debugging
+  - Remove 'always list_pages' guidance that causes infinite looping
+  - Add explicit query_pages looping prevention
+  - resolve infinite loop and block creation failures
+  - UX 및 로깅 시스템 개선
+  - 캐싱 시스템으로 성능 최적화
+  - 진행 상황 추적 시스템 통합
+  - TypeScript 및 lint 오류 수정
+  - Phase 1 improvements - integrate system-prompt.md & add looping detection
+  - fix Biome linting errors and warnings
+  - Phase 2.1 - add task progress tracking
+  - Phase 2.1-2 - system prompt optimization + task progress + error recovery (partial)
+  - resolve TypeScript and linting errors for Phase 2
+- 0d9c5a7: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+  - add keyboard shortcuts for mode and scope selection
+  - add keyboard shortcut for toggling copilot panel
+  - add OS-aware keyboard shortcut hints in UI
+  - remove context sharing from chat mode
+  - disable scope buttons in chat mode
+- dd70578: - enhance AI provider and model management
+  - add markdown-to-blocks conversion guide and fix TypeScript type error
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - add markdown block parser utility and enhance AI system prompt for nested blocks
+  - implement markdown-to-blocks parsing with AI tool
+  - emphasize create_blocks_from_markdown tool in AI system prompt
+  - add explicit markdown outline recognition instruction to agent
+  - strengthen guidance on create_blocks_from_markdown tool usage
+  - add explicit input handling guidance for markdown detection
+  - refocus system prompt on proper create_block usage for hierarchies
+  - add detailed examples for nested block creation
+  - register create_blocks_batch command in invoke handler
+  - don't pollute conversation history with tool call metadata
+  - preserve tool success results in conversation history
+  - prioritize create_blocks_batch for markdown with indentation
+  - Fix copilot performance issues - Add AbortController and replace system badges with toasts
+  - Improve agent orchestrator logging and system prompt for block creation workflow
+  - Add detailed tool call logging for debugging
+  - Remove 'always list_pages' guidance that causes infinite looping
+  - Add explicit query_pages looping prevention
+  - resolve infinite loop and block creation failures
+  - UX 및 로깅 시스템 개선
+  - 캐싱 시스템으로 성능 최적화
+  - 진행 상황 추적 시스템 통합
+  - TypeScript 및 lint 오류 수정
+  - Phase 1 improvements - integrate system-prompt.md & add looping detection
+  - fix Biome linting errors and warnings
+  - Phase 2.1 - add task progress tracking
+  - Phase 2.1-2 - system prompt optimization + task progress + error recovery (partial)
+  - resolve TypeScript and linting errors for Phase 2
+- 50d6e52: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+  - add keyboard shortcuts for mode and scope selection
+  - add keyboard shortcut for toggling copilot panel
+  - add OS-aware keyboard shortcut hints in UI
+  - remove context sharing from chat mode
+  - disable scope buttons in chat mode
+  - redesign with tool-based architecture (MCP style)
+  - simplify UI for tool-based architecture
+  - use Portal for mention autocomplete to fix positioning
+  - properly resolve mentions to context content
+  - restore Portal wrapper for mention autocomplete
+  - enhance system prompt for natural language context resolution
+  - enable multi-turn conversation context
+  - force AI to use tools for content modification
+  - implement tool-call loop and robust multi-turn context
+  - fix multi-turn conversation context staleness
+  - prevent history loss in multi-turn conversations
+  - convert chat history to AI provider format for multi-turn conversations
+  - filter out empty messages from conversation history
+  - move context hints to system prompt for consistent message format
+  - track page context changes and add navigation messages to history
+  - add history support to Google Provider for multi-turn conversations
+  - add history support to Ollama Provider using /api/chat endpoint
+  - limit conversation history to last 20 messages to prevent token overflow
+  - add page navigation tools (open_page, query_pages)
+  - add function calling support to Google Provider
+  - clean JSON schema for Gemini compatibility
+  - allow create_block to accept page ID as parent
+  - properly handle page ID fallback in create_block tool
+  - rewrite create_block to prioritize page ID detection
+  - add get_page_blocks tool and update create_block workflow
+  - update create_block tool to support root blocks and ordering
+  - enable immediate UI updates for block operations
+  - decouple store updates using global events
+  - move Copilot panel to right sidebar
+  - ensure UI updates when AI tools modify blocks
+  - add configurable tool approval policy
+  - add intuitive wrapper tools for common operations
+  - add LM Studio provider support
+  - correct message bubbling and styling
+  - filter empty messages and unify message styling
+  - add detailed message type classification logging
+  - hide tool names for security and reduce badge prominence
+  - add keyboard shortcut hints to input placeholder
+  - apply i18n to input placeholder with keyboard shortcuts
+  - correct translation key path for input placeholder
+  - fix TypeScript type errors in AI service providers and tools
+  - resolve remaining TypeScript any types in AI services
+  - revert AI types to use any for flexibility with runtime validation
+  - copilot open page
+  - prevent block merge when text is selected on backspace
+  - prevent Tab key from moving focus to other elements
+  - resolve build errors and lint warnings in AI tools
+  - support custom API endpoints with version paths (v2, v3, v4, etc.)
+  - fix right-click on nested blocks selecting parent instead of clicked block
+  - prevent event bubbling in nested file tree nodes
+  - add delete confirmation modal
+  - commit draft before block split to fix cursor at start
+  - add missing translation keys for context menu
+  - enhance GitHub Actions workflow stability and prevent race conditions
+  - transform copilot into autonomous agent with multi-step task execution
+  - prevent content duplication when splitting blocks with children
+  - add resizable panel with drag handle (#522)
+  - allow changeset generation even with existing pending changesets (#523)
+- 0d9c5a7: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+- e82a2ec: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+  - add keyboard shortcuts for mode and scope selection
+  - add keyboard shortcut for toggling copilot panel
+  - add OS-aware keyboard shortcut hints in UI
+  - remove context sharing from chat mode
+  - disable scope buttons in chat mode
+  - redesign with tool-based architecture (MCP style)
+  - simplify UI for tool-based architecture
+  - use Portal for mention autocomplete to fix positioning
+  - properly resolve mentions to context content
+  - restore Portal wrapper for mention autocomplete
+  - enhance system prompt for natural language context resolution
+  - enable multi-turn conversation context
+  - force AI to use tools for content modification
+  - implement tool-call loop and robust multi-turn context
+  - fix multi-turn conversation context staleness
+  - prevent history loss in multi-turn conversations
+  - convert chat history to AI provider format for multi-turn conversations
+  - filter out empty messages from conversation history
+  - move context hints to system prompt for consistent message format
+  - track page context changes and add navigation messages to history
+  - add history support to Google Provider for multi-turn conversations
+  - add history support to Ollama Provider using /api/chat endpoint
+  - limit conversation history to last 20 messages to prevent token overflow
+  - add page navigation tools (open_page, query_pages)
+  - add function calling support to Google Provider
+  - clean JSON schema for Gemini compatibility
+  - allow create_block to accept page ID as parent
+  - properly handle page ID fallback in create_block tool
+  - rewrite create_block to prioritize page ID detection
+  - add get_page_blocks tool and update create_block workflow
+  - update create_block tool to support root blocks and ordering
+  - enable immediate UI updates for block operations
+  - decouple store updates using global events
+  - move Copilot panel to right sidebar
+  - ensure UI updates when AI tools modify blocks
+  - add configurable tool approval policy
+  - add intuitive wrapper tools for common operations
+  - add LM Studio provider support
+  - correct message bubbling and styling
+  - filter empty messages and unify message styling
+  - add detailed message type classification logging
+  - hide tool names for security and reduce badge prominence
+  - add keyboard shortcut hints to input placeholder
+  - apply i18n to input placeholder with keyboard shortcuts
+  - correct translation key path for input placeholder
+  - fix TypeScript type errors in AI service providers and tools
+  - resolve remaining TypeScript any types in AI services
+  - revert AI types to use any for flexibility with runtime validation
+  - copilot open page
+  - prevent block merge when text is selected on backspace
+  - prevent Tab key from moving focus to other elements
+  - resolve build errors and lint warnings in AI tools
+  - support custom API endpoints with version paths (v2, v3, v4, etc.)
+  - fix right-click on nested blocks selecting parent instead of clicked block
+  - prevent event bubbling in nested file tree nodes
+  - add delete confirmation modal
+  - commit draft before block split to fix cursor at start
+  - add missing translation keys for context menu
+  - enhance GitHub Actions workflow stability and prevent race conditions
+  - transform copilot into autonomous agent with multi-step task execution
+  - prevent content duplication when splitting blocks with children
+  - add resizable panel with drag handle (#522)
+  - allow changeset generation even with existing pending changesets (#523)
+  - add interactive code block widget with copy/edit buttons
+  - remove isEditMode check to allow widget rendering
+  - use isEditMode instead of cursor position for widget rendering
+  - remove debug logs and fix inline widget styling for code blocks
+  - hide code block lines individually to avoid line break error
+  - place task checkbox at marker
+  - prevent code block widget clicks from entering edit mode
+  - add language and title support for code blocks
+  - increase markdown marker visibility
+  - enhance code block header visibility
+  - brighten code syntax highlighting using CSS variables
+  - force brighten code block fence markers with inline styles
+  - override CodeMirror syntax colors with theme variables
+  - target only code fence markers for dimming
+  - improve resizable handle UX with 4px hotspot and expand-on-hover
+  - support modern OpenAI tools API format
+  - improve agent efficiency and fix double tool call execution
+- 4597062: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+  - add keyboard shortcuts for mode and scope selection
+  - add keyboard shortcut for toggling copilot panel
+  - add OS-aware keyboard shortcut hints in UI
+  - remove context sharing from chat mode
+  - disable scope buttons in chat mode
+  - redesign with tool-based architecture (MCP style)
+  - simplify UI for tool-based architecture
+  - use Portal for mention autocomplete to fix positioning
+  - properly resolve mentions to context content
+  - restore Portal wrapper for mention autocomplete
+  - enhance system prompt for natural language context resolution
+  - enable multi-turn conversation context
+  - force AI to use tools for content modification
+  - implement tool-call loop and robust multi-turn context
+  - fix multi-turn conversation context staleness
+  - prevent history loss in multi-turn conversations
+  - convert chat history to AI provider format for multi-turn conversations
+  - filter out empty messages from conversation history
+  - move context hints to system prompt for consistent message format
+  - track page context changes and add navigation messages to history
+  - add history support to Google Provider for multi-turn conversations
+  - add history support to Ollama Provider using /api/chat endpoint
+  - limit conversation history to last 20 messages to prevent token overflow
+  - add page navigation tools (open_page, query_pages)
+  - add function calling support to Google Provider
+  - clean JSON schema for Gemini compatibility
+  - allow create_block to accept page ID as parent
+  - properly handle page ID fallback in create_block tool
+  - rewrite create_block to prioritize page ID detection
+  - add get_page_blocks tool and update create_block workflow
+  - update create_block tool to support root blocks and ordering
+  - enable immediate UI updates for block operations
+  - decouple store updates using global events
+  - move Copilot panel to right sidebar
+  - ensure UI updates when AI tools modify blocks
+  - add configurable tool approval policy
+  - add intuitive wrapper tools for common operations
+  - add LM Studio provider support
+  - correct message bubbling and styling
+  - filter empty messages and unify message styling
+  - add detailed message type classification logging
+  - hide tool names for security and reduce badge prominence
+  - add keyboard shortcut hints to input placeholder
+  - apply i18n to input placeholder with keyboard shortcuts
+  - correct translation key path for input placeholder
+  - fix TypeScript type errors in AI service providers and tools
+  - resolve remaining TypeScript any types in AI services
+  - revert AI types to use any for flexibility with runtime validation
+  - copilot open page
+  - prevent block merge when text is selected on backspace
+  - prevent Tab key from moving focus to other elements
+  - resolve build errors and lint warnings in AI tools
+  - support custom API endpoints with version paths (v2, v3, v4, etc.)
+  - fix right-click on nested blocks selecting parent instead of clicked block
+  - prevent event bubbling in nested file tree nodes
+  - add delete confirmation modal
+  - commit draft before block split to fix cursor at start
+  - add missing translation keys for context menu
+  - enhance GitHub Actions workflow stability and prevent race conditions
+  - transform copilot into autonomous agent with multi-step task execution
+  - prevent content duplication when splitting blocks with children
+  - add resizable panel with drag handle (#522)
+  - allow changeset generation even with existing pending changesets (#523)
+  - add interactive code block widget with copy/edit buttons
+  - remove isEditMode check to allow widget rendering
+  - use isEditMode instead of cursor position for widget rendering
+  - remove debug logs and fix inline widget styling for code blocks
+  - hide code block lines individually to avoid line break error
+  - place task checkbox at marker
+  - prevent code block widget clicks from entering edit mode
+  - add language and title support for code blocks
+  - increase markdown marker visibility
+  - enhance code block header visibility
+  - brighten code syntax highlighting using CSS variables
+  - force brighten code block fence markers with inline styles
+  - override CodeMirror syntax colors with theme variables
+  - target only code fence markers for dimming
+  - improve resizable handle UX with 4px hotspot and expand-on-hover
+  - support modern OpenAI tools API format
+  - improve agent efficiency and fix double tool call execution
+- 87d39ec: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+  - add keyboard shortcuts for mode and scope selection
+  - add keyboard shortcut for toggling copilot panel
+  - add OS-aware keyboard shortcut hints in UI
+  - remove context sharing from chat mode
+  - disable scope buttons in chat mode
+  - redesign with tool-based architecture (MCP style)
+  - simplify UI for tool-based architecture
+  - use Portal for mention autocomplete to fix positioning
+  - properly resolve mentions to context content
+  - restore Portal wrapper for mention autocomplete
+  - enhance system prompt for natural language context resolution
+  - enable multi-turn conversation context
+  - force AI to use tools for content modification
+  - implement tool-call loop and robust multi-turn context
+  - fix multi-turn conversation context staleness
+  - prevent history loss in multi-turn conversations
+  - convert chat history to AI provider format for multi-turn conversations
+  - filter out empty messages from conversation history
+  - move context hints to system prompt for consistent message format
+  - track page context changes and add navigation messages to history
+  - add history support to Google Provider for multi-turn conversations
+  - add history support to Ollama Provider using /api/chat endpoint
+  - limit conversation history to last 20 messages to prevent token overflow
+  - add page navigation tools (open_page, query_pages)
+  - add function calling support to Google Provider
+  - clean JSON schema for Gemini compatibility
+  - allow create_block to accept page ID as parent
+  - properly handle page ID fallback in create_block tool
+  - rewrite create_block to prioritize page ID detection
+  - add get_page_blocks tool and update create_block workflow
+  - update create_block tool to support root blocks and ordering
+  - enable immediate UI updates for block operations
+  - decouple store updates using global events
+  - move Copilot panel to right sidebar
+  - ensure UI updates when AI tools modify blocks
+  - add configurable tool approval policy
+  - add intuitive wrapper tools for common operations
+  - add LM Studio provider support
+  - correct message bubbling and styling
+  - filter empty messages and unify message styling
+  - add detailed message type classification logging
+  - hide tool names for security and reduce badge prominence
+  - add keyboard shortcut hints to input placeholder
+  - apply i18n to input placeholder with keyboard shortcuts
+  - correct translation key path for input placeholder
+  - fix TypeScript type errors in AI service providers and tools
+  - resolve remaining TypeScript any types in AI services
+  - revert AI types to use any for flexibility with runtime validation
+  - copilot open page
+  - prevent block merge when text is selected on backspace
+  - prevent Tab key from moving focus to other elements
+  - resolve build errors and lint warnings in AI tools
+  - support custom API endpoints with version paths (v2, v3, v4, etc.)
+  - fix right-click on nested blocks selecting parent instead of clicked block
+  - prevent event bubbling in nested file tree nodes
+  - add delete confirmation modal
+  - commit draft before block split to fix cursor at start
+  - add missing translation keys for context menu
+  - enhance GitHub Actions workflow stability and prevent race conditions
+  - transform copilot into autonomous agent with multi-step task execution
+  - prevent content duplication when splitting blocks with children
+  - add resizable panel with drag handle (#522)
+  - allow changeset generation even with existing pending changesets (#523)
+  - add interactive code block widget with copy/edit buttons
+  - remove isEditMode check to allow widget rendering
+  - use isEditMode instead of cursor position for widget rendering
+  - remove debug logs and fix inline widget styling for code blocks
+  - hide code block lines individually to avoid line break error
+  - place task checkbox at marker
+  - prevent code block widget clicks from entering edit mode
+  - add language and title support for code blocks
+  - increase markdown marker visibility
+  - enhance code block header visibility
+  - brighten code syntax highlighting using CSS variables
+  - force brighten code block fence markers with inline styles
+  - override CodeMirror syntax colors with theme variables
+  - target only code fence markers for dimming
+  - improve resizable handle UX with 4px hotspot and expand-on-hover
+  - support modern OpenAI tools API format
+  - improve agent efficiency and fix double tool call execution
+- 82948ce: - enhance AI provider and model management
+  - add markdown-to-blocks conversion guide and fix TypeScript type error
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - implement Phase 1 - standardize ID parameter naming across tools
+  - implement Phases 2-5 - Complete tool parameter standardization
+  - resolve remaining lint errors in OpenAIProvider
+  - add markdown block parser utility and enhance AI system prompt for nested blocks
+  - implement markdown-to-blocks parsing with AI tool
+  - emphasize create_blocks_from_markdown tool in AI system prompt
+  - add explicit markdown outline recognition instruction to agent
+  - strengthen guidance on create_blocks_from_markdown tool usage
+  - add explicit input handling guidance for markdown detection
+  - refocus system prompt on proper create_block usage for hierarchies
+  - add detailed examples for nested block creation
+  - register create_blocks_batch command in invoke handler
+  - don't pollute conversation history with tool call metadata
+  - preserve tool success results in conversation history
+  - prioritize create_blocks_batch for markdown with indentation
+  - Fix copilot performance issues - Add AbortController and replace system badges with toasts
+  - Improve agent orchestrator logging and system prompt for block creation workflow
+  - Add detailed tool call logging for debugging
+  - Remove 'always list_pages' guidance that causes infinite looping
+  - Add explicit query_pages looping prevention
+  - resolve infinite loop and block creation failures
+  - UX 및 로깅 시스템 개선
+  - 캐싱 시스템으로 성능 최적화
+  - 진행 상황 추적 시스템 통합
+  - TypeScript 및 lint 오류 수정
+  - Phase 1 improvements - integrate system-prompt.md & add looping detection
+  - fix Biome linting errors and warnings
+- 1e2e438: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+  - add keyboard shortcuts for mode and scope selection
+  - add keyboard shortcut for toggling copilot panel
+  - add OS-aware keyboard shortcut hints in UI
+  - remove context sharing from chat mode
+  - disable scope buttons in chat mode
+  - redesign with tool-based architecture (MCP style)
+  - simplify UI for tool-based architecture
+  - use Portal for mention autocomplete to fix positioning
+  - properly resolve mentions to context content
+  - restore Portal wrapper for mention autocomplete
+  - enhance system prompt for natural language context resolution
+  - enable multi-turn conversation context
+  - force AI to use tools for content modification
+  - implement tool-call loop and robust multi-turn context
+  - fix multi-turn conversation context staleness
+  - prevent history loss in multi-turn conversations
+  - convert chat history to AI provider format for multi-turn conversations
+  - filter out empty messages from conversation history
+  - move context hints to system prompt for consistent message format
+  - track page context changes and add navigation messages to history
+  - add history support to Google Provider for multi-turn conversations
+  - add history support to Ollama Provider using /api/chat endpoint
+  - limit conversation history to last 20 messages to prevent token overflow
+  - add page navigation tools (open_page, query_pages)
+  - add function calling support to Google Provider
+  - clean JSON schema for Gemini compatibility
+  - allow create_block to accept page ID as parent
+  - properly handle page ID fallback in create_block tool
+  - rewrite create_block to prioritize page ID detection
+  - add get_page_blocks tool and update create_block workflow
+  - update create_block tool to support root blocks and ordering
+  - enable immediate UI updates for block operations
+  - decouple store updates using global events
+  - move Copilot panel to right sidebar
+  - ensure UI updates when AI tools modify blocks
+  - add configurable tool approval policy
+  - add intuitive wrapper tools for common operations
+  - add LM Studio provider support
+  - correct message bubbling and styling
+  - filter empty messages and unify message styling
+  - add detailed message type classification logging
+  - hide tool names for security and reduce badge prominence
+  - add keyboard shortcut hints to input placeholder
+  - apply i18n to input placeholder with keyboard shortcuts
+  - correct translation key path for input placeholder
+  - fix TypeScript type errors in AI service providers and tools
+  - resolve remaining TypeScript any types in AI services
+  - revert AI types to use any for flexibility with runtime validation
+  - copilot open page
+  - prevent block merge when text is selected on backspace
+  - prevent Tab key from moving focus to other elements
+  - resolve build errors and lint warnings in AI tools
+  - support custom API endpoints with version paths (v2, v3, v4, etc.)
+  - fix right-click on nested blocks selecting parent instead of clicked block
+  - prevent event bubbling in nested file tree nodes
+  - add delete confirmation modal
+  - commit draft before block split to fix cursor at start
+  - add missing translation keys for context menu
+  - enhance GitHub Actions workflow stability and prevent race conditions
+  - transform copilot into autonomous agent with multi-step task execution
+  - prevent content duplication when splitting blocks with children
+  - add resizable panel with drag handle (#522)
+  - allow changeset generation even with existing pending changesets (#523)
+  - add interactive code block widget with copy/edit buttons
+  - remove isEditMode check to allow widget rendering
+  - use isEditMode instead of cursor position for widget rendering
+  - remove debug logs and fix inline widget styling for code blocks
+  - hide code block lines individually to avoid line break error
+  - place task checkbox at marker
+  - prevent code block widget clicks from entering edit mode
+  - add language and title support for code blocks
+  - increase markdown marker visibility
+  - enhance code block header visibility
+  - brighten code syntax highlighting using CSS variables
+  - force brighten code block fence markers with inline styles
+  - override CodeMirror syntax colors with theme variables
+  - target only code fence markers for dimming
+  - improve resizable handle UX with 4px hotspot and expand-on-hover
+  - support modern OpenAI tools API format
+  - improve agent efficiency and fix double tool call execution
+- e50f62b: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+  - add keyboard shortcuts for mode and scope selection
+  - add keyboard shortcut for toggling copilot panel
+  - add OS-aware keyboard shortcut hints in UI
+  - remove context sharing from chat mode
+  - disable scope buttons in chat mode
+  - redesign with tool-based architecture (MCP style)
+  - simplify UI for tool-based architecture
+  - use Portal for mention autocomplete to fix positioning
+  - properly resolve mentions to context content
+  - restore Portal wrapper for mention autocomplete
+  - enhance system prompt for natural language context resolution
+  - enable multi-turn conversation context
+  - force AI to use tools for content modification
+  - implement tool-call loop and robust multi-turn context
+  - fix multi-turn conversation context staleness
+  - prevent history loss in multi-turn conversations
+  - convert chat history to AI provider format for multi-turn conversations
+  - filter out empty messages from conversation history
+  - move context hints to system prompt for consistent message format
+  - track page context changes and add navigation messages to history
+  - add history support to Google Provider for multi-turn conversations
+  - add history support to Ollama Provider using /api/chat endpoint
+  - limit conversation history to last 20 messages to prevent token overflow
+  - add page navigation tools (open_page, query_pages)
+  - add function calling support to Google Provider
+  - clean JSON schema for Gemini compatibility
+  - allow create_block to accept page ID as parent
+  - properly handle page ID fallback in create_block tool
+  - rewrite create_block to prioritize page ID detection
+  - add get_page_blocks tool and update create_block workflow
+  - update create_block tool to support root blocks and ordering
+  - enable immediate UI updates for block operations
+  - decouple store updates using global events
+  - move Copilot panel to right sidebar
+  - ensure UI updates when AI tools modify blocks
+  - add configurable tool approval policy
+  - add intuitive wrapper tools for common operations
+  - add LM Studio provider support
+  - correct message bubbling and styling
+  - filter empty messages and unify message styling
+  - add detailed message type classification logging
+  - hide tool names for security and reduce badge prominence
+  - add keyboard shortcut hints to input placeholder
+  - apply i18n to input placeholder with keyboard shortcuts
+  - correct translation key path for input placeholder
+  - fix TypeScript type errors in AI service providers and tools
+  - resolve remaining TypeScript any types in AI services
+  - revert AI types to use any for flexibility with runtime validation
+  - copilot open page
+  - prevent block merge when text is selected on backspace
+  - prevent Tab key from moving focus to other elements
+  - resolve build errors and lint warnings in AI tools
+  - support custom API endpoints with version paths (v2, v3, v4, etc.)
+  - fix right-click on nested blocks selecting parent instead of clicked block
+  - prevent event bubbling in nested file tree nodes
+  - add delete confirmation modal
+  - commit draft before block split to fix cursor at start
+  - add missing translation keys for context menu
+  - enhance GitHub Actions workflow stability and prevent race conditions
+  - transform copilot into autonomous agent with multi-step task execution
+  - prevent content duplication when splitting blocks with children
+  - add resizable panel with drag handle (#522)
+  - allow changeset generation even with existing pending changesets (#523)
+  - add interactive code block widget with copy/edit buttons
+  - remove isEditMode check to allow widget rendering
+  - use isEditMode instead of cursor position for widget rendering
+- 5ce24f5: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+  - add keyboard shortcuts for mode and scope selection
+  - add keyboard shortcut for toggling copilot panel
+  - add OS-aware keyboard shortcut hints in UI
+  - remove context sharing from chat mode
+  - disable scope buttons in chat mode
+  - redesign with tool-based architecture (MCP style)
+  - simplify UI for tool-based architecture
+  - use Portal for mention autocomplete to fix positioning
+  - properly resolve mentions to context content
+  - restore Portal wrapper for mention autocomplete
+  - enhance system prompt for natural language context resolution
+  - enable multi-turn conversation context
+  - force AI to use tools for content modification
+  - implement tool-call loop and robust multi-turn context
+  - fix multi-turn conversation context staleness
+  - prevent history loss in multi-turn conversations
+  - convert chat history to AI provider format for multi-turn conversations
+  - filter out empty messages from conversation history
+  - move context hints to system prompt for consistent message format
+  - track page context changes and add navigation messages to history
+  - add history support to Google Provider for multi-turn conversations
+  - add history support to Ollama Provider using /api/chat endpoint
+  - limit conversation history to last 20 messages to prevent token overflow
+  - add page navigation tools (open_page, query_pages)
+  - add function calling support to Google Provider
+  - clean JSON schema for Gemini compatibility
+  - allow create_block to accept page ID as parent
+  - properly handle page ID fallback in create_block tool
+  - rewrite create_block to prioritize page ID detection
+  - add get_page_blocks tool and update create_block workflow
+  - update create_block tool to support root blocks and ordering
+  - enable immediate UI updates for block operations
+  - decouple store updates using global events
+  - move Copilot panel to right sidebar
+  - ensure UI updates when AI tools modify blocks
+  - add configurable tool approval policy
+  - add intuitive wrapper tools for common operations
+  - add LM Studio provider support
+  - correct message bubbling and styling
+  - filter empty messages and unify message styling
+  - add detailed message type classification logging
+  - hide tool names for security and reduce badge prominence
+  - add keyboard shortcut hints to input placeholder
+  - apply i18n to input placeholder with keyboard shortcuts
+  - correct translation key path for input placeholder
+  - fix TypeScript type errors in AI service providers and tools
+  - resolve remaining TypeScript any types in AI services
+  - revert AI types to use any for flexibility with runtime validation
+  - copilot open page
+  - prevent block merge when text is selected on backspace
+  - prevent Tab key from moving focus to other elements
+  - resolve build errors and lint warnings in AI tools
+  - support custom API endpoints with version paths (v2, v3, v4, etc.)
+  - fix right-click on nested blocks selecting parent instead of clicked block
+  - prevent event bubbling in nested file tree nodes
+  - add delete confirmation modal
+  - commit draft before block split to fix cursor at start
+  - add missing translation keys for context menu
+  - enhance GitHub Actions workflow stability and prevent race conditions
+  - transform copilot into autonomous agent with multi-step task execution
+  - prevent content duplication when splitting blocks with children
+  - add resizable panel with drag handle (#522)
+  - allow changeset generation even with existing pending changesets (#523)
+  - add interactive code block widget with copy/edit buttons
+  - remove isEditMode check to allow widget rendering
+  - use isEditMode instead of cursor position for widget rendering
+  - remove debug logs and fix inline widget styling for code blocks
+  - hide code block lines individually to avoid line break error
+  - place task checkbox at marker
+  - prevent code block widget clicks from entering edit mode
+  - add language and title support for code blocks
+  - increase markdown marker visibility
+  - enhance code block header visibility
+  - brighten code syntax highlighting using CSS variables
+  - force brighten code block fence markers with inline styles
+  - override CodeMirror syntax colors with theme variables
+  - target only code fence markers for dimming
+  - improve resizable handle UX with 4px hotspot and expand-on-hover
+  - support modern OpenAI tools API format
+  - improve agent efficiency and fix double tool call execution
+- 1e3a840: - add AI settings store and UI
+  - add Copilot UI components (Button, Panel)
+  - implement AI service adapters (Ollama, OpenAI, Google)
+  - integrate copilot logic with editor
+  - resolve build errors and lint warnings in AI components
+  - add dynamic model fetching for AI providers
+  - add http plugin for CORS bypass
+  - use tauri-plugin-http fetch for CORS bypass
+  - add dynamic model fetching for AI providers (#503)
+  - add http fetch permissions for AI providers
+  - add logging for model fetching
+  - resolve merge conflict and add logging
+  - update model list with 2026 flagship models
+  - enhance copilot chat mode and fix ui overlap
+  - use unique uuid for chat messages to prevent duplicate keys
+  - finalize per-provider settings and remove model fetching
+  - add keyboard shortcuts for mode and scope selection
+  - add keyboard shortcut for toggling copilot panel
+  - add OS-aware keyboard shortcut hints in UI
+  - remove context sharing from chat mode
+  - disable scope buttons in chat mode
+  - redesign with tool-based architecture (MCP style)
+  - simplify UI for tool-based architecture
+  - use Portal for mention autocomplete to fix positioning
+  - properly resolve mentions to context content
+  - restore Portal wrapper for mention autocomplete
+  - enhance system prompt for natural language context resolution
+  - enable multi-turn conversation context
+  - force AI to use tools for content modification
+  - implement tool-call loop and robust multi-turn context
+  - fix multi-turn conversation context staleness
+  - prevent history loss in multi-turn conversations
+  - convert chat history to AI provider format for multi-turn conversations
+  - filter out empty messages from conversation history
+  - move context hints to system prompt for consistent message format
+  - track page context changes and add navigation messages to history
+  - add history support to Google Provider for multi-turn conversations
+  - add history support to Ollama Provider using /api/chat endpoint
+  - limit conversation history to last 20 messages to prevent token overflow
+  - add page navigation tools (open_page, query_pages)
+  - add function calling support to Google Provider
+  - clean JSON schema for Gemini compatibility
+  - allow create_block to accept page ID as parent
+  - properly handle page ID fallback in create_block tool
+  - rewrite create_block to prioritize page ID detection
+  - add get_page_blocks tool and update create_block workflow
+  - update create_block tool to support root blocks and ordering
+  - enable immediate UI updates for block operations
+  - decouple store updates using global events
+  - move Copilot panel to right sidebar
+  - ensure UI updates when AI tools modify blocks
+  - add configurable tool approval policy
+  - add intuitive wrapper tools for common operations
+  - add LM Studio provider support
+  - correct message bubbling and styling
+  - filter empty messages and unify message styling
+  - add detailed message type classification logging
+  - hide tool names for security and reduce badge prominence
+  - add keyboard shortcut hints to input placeholder
+  - apply i18n to input placeholder with keyboard shortcuts
+  - correct translation key path for input placeholder
+  - fix TypeScript type errors in AI service providers and tools
+  - resolve remaining TypeScript any types in AI services
+  - revert AI types to use any for flexibility with runtime validation
+  - copilot open page
+  - prevent block merge when text is selected on backspace
+  - prevent Tab key from moving focus to other elements
+  - resolve build errors and lint warnings in AI tools
+  - support custom API endpoints with version paths (v2, v3, v4, etc.)
+  - fix right-click on nested blocks selecting parent instead of clicked block
+  - prevent event bubbling in nested file tree nodes
+  - add delete confirmation modal
+  - commit draft before block split to fix cursor at start
+  - add missing translation keys for context menu
+  - enhance GitHub Actions workflow stability and prevent race conditions
+  - transform copilot into autonomous agent with multi-step task execution
+  - prevent content duplication when splitting blocks with children
+  - add resizable panel with drag handle (#522)
+  - allow changeset generation even with existing pending changesets (#523)
+  - add interactive code block widget with copy/edit buttons
+  - remove isEditMode check to allow widget rendering
+  - use isEditMode instead of cursor position for widget rendering
+  - remove debug logs and fix inline widget styling for code blocks
+  - hide code block lines individually to avoid line break error
+  - place task checkbox at marker
+  - prevent code block widget clicks from entering edit mode
+  - add language and title support for code blocks
+  - increase markdown marker visibility
+  - enhance code block header visibility
+  - brighten code syntax highlighting using CSS variables
+  - force brighten code block fence markers with inline styles
+  - override CodeMirror syntax colors with theme variables
+  - target only code fence markers for dimming
+- 5b85b92: - enhance AI provider and model management
+
 ## 0.22.0
 
 ### Minor Changes
