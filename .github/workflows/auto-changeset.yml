@@ -165,7 +165,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Check for changesets
+        id: check_changesets
+        run: |
+          # Check if there are any changeset files (excluding .md files)
+          CHANGESET_COUNT=$(find .changeset -name "*.md" ! -name "README.md" 2>/dev/null | wc -l)
+          echo "has_changesets=$([ "$CHANGESET_COUNT" -gt 0 ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
+
       - name: Create Version Packages PR
+        if: steps.check_changesets.outputs.has_changesets == 'true'
         uses: changesets/action@v1
         with:
           publish: false
