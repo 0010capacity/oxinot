@@ -1,0 +1,41 @@
+---
+"oxinot": minor
+---
+
+- enhance AI provider and model management
+- add markdown-to-blocks conversion guide and fix TypeScript type error
+- implement Phase 1 - standardize ID parameter naming across tools
+- implement Phases 2-5 - Complete tool parameter standardization
+- resolve remaining lint errors in OpenAIProvider
+- implement Phase 1 - standardize ID parameter naming across tools
+- implement Phases 2-5 - Complete tool parameter standardization
+- resolve remaining lint errors in OpenAIProvider
+- add markdown block parser utility and enhance AI system prompt for nested blocks
+- implement markdown-to-blocks parsing with AI tool
+- emphasize create_blocks_from_markdown tool in AI system prompt
+- add explicit markdown outline recognition instruction to agent
+- strengthen guidance on create_blocks_from_markdown tool usage
+- add explicit input handling guidance for markdown detection
+- refocus system prompt on proper create_block usage for hierarchies
+- add detailed examples for nested block creation
+- register create_blocks_batch command in invoke handler
+- don't pollute conversation history with tool call metadata
+- preserve tool success results in conversation history
+- prioritize create_blocks_batch for markdown with indentation
+- Fix copilot performance issues - Add AbortController and replace system badges with toasts
+- Improve agent orchestrator logging and system prompt for block creation workflow
+- Add detailed tool call logging for debugging
+- Remove 'always list_pages' guidance that causes infinite looping
+- Add explicit query_pages looping prevention
+- resolve infinite loop and block creation failures
+- UX 및 로깅 시스템 개선
+- 캐싱 시스템으로 성능 최적화
+- 진행 상황 추적 시스템 통합
+- TypeScript 및 lint 오류 수정
+- Phase 1 improvements - integrate system-prompt.md & add looping detection
+- fix Biome linting errors and warnings
+- Phase 2.1 - add task progress tracking
+- Phase 2.1-2 - system prompt optimization + task progress + error recovery (partial)
+- resolve TypeScript and linting errors for Phase 2
+- normalize indentation for AI markdown
+- check for changesets before running action
