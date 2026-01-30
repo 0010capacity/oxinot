@@ -19,10 +19,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Step 1: Generate changeset files and create PR for new commits
   auto-changeset:
-    name: auto-changeset
+    name: Generate Changeset PR
     # Only run when CI succeeded on main
     if: >
+      github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-22.04
@@ -89,40 +91,6 @@ jobs:
         if: steps.check_skip.outputs.skip == 'false' && env.changeset_generated == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Step 2: Create Version Packages PR when changeset PR is merged
-  create-version-packages-pr:
-    name: Create Version Packages PR
-    if: >
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      !contains(github.event.head_commit.message, 'chore: auto-generate changeset')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Create Version Packages PR
-        uses: changesets/action@v1
-        with:
-          publish: false
-          commit: "chore: version packages"
-          title: "chore: version packages"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -169,3 +137,39 @@ jobs:
               --head changeset-auto \
               --label "automated"
           fi
+
+  # Step 2: Create Version Packages PR when changeset PR is merged
+  create-version-packages-pr:
+    name: Create Version Packages PR
+    # Only run on push events, when the last commit is not from auto-changeset workflow
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      !contains(github.event.head_commit.message, 'chore: auto-generate changeset')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create Version Packages PR
+        uses: changesets/action@v1
+        with:
+          publish: false
+          commit: "chore: version packages"
+          title: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
