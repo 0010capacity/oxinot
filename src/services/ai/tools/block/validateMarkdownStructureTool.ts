@@ -8,7 +8,7 @@ import type { Tool, ToolResult } from "../types";
 export const validateMarkdownStructureTool: Tool = {
   name: "validate_markdown_structure",
   description:
-    "Validate markdown bullet structure BEFORE creating blocks. Returns structure details and catches syntax errors early. Call this before create_blocks_from_markdown to ensure your markdown will parse correctly.",
+    "Validate markdown bullet structure BEFORE creating blocks. Returns structure details and catches syntax errors early. Call this before create_blocks_from_markdown to ensure your markdown will parse correctly. CRITICAL: Markdown MUST use EXACTLY 2 spaces per indent level. Siblings MUST have SAME indentation (not staircase pattern).",
   category: "block",
   requiresApproval: false,
 
@@ -16,7 +16,7 @@ export const validateMarkdownStructureTool: Tool = {
     markdown: z
       .string()
       .describe(
-        "Markdown text with bullet points to validate. Example: '- Item 1\\n  - Item 1.1\\n- Item 2'"
+        "Markdown text with bullet points to validate. MUST use EXACTLY 2 spaces per indent level (not 1 space, not tabs). Siblings at same level MUST have same indentation. CORRECT: '- Parent\\n  - Child1\\n  - Child2\\n  - Child3' (all children 2 spaces). WRONG: '- Parent\\n - Child1' (1 space) or '- Parent\\n  - Child1\\n    - Child2\\n      - Child3' (staircase)."
       ),
     expectedBlockCount: z
       .number()

@@ -6,6 +6,9 @@ on:
     branches: ["main"]
     types:
       - completed
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -86,6 +89,40 @@ jobs:
         if: steps.check_skip.outputs.skip == 'false' && env.changeset_generated == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Step 2: Create Version Packages PR when changeset PR is merged
+  create-version-packages-pr:
+    name: Create Version Packages PR
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      !contains(github.event.head_commit.message, 'chore: auto-generate changeset')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create Version Packages PR
+        uses: changesets/action@v1
+        with:
+          publish: false
+          commit: "chore: version packages"
+          title: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -107,13 +144,13 @@ jobs:
             git checkout changeset-auto
             git pull origin changeset-auto
             git add .changeset
-            
+
             # Check if there are actual changes
             if git diff --cached --quiet; then
               echo "No new changes to commit"
               exit 0
             fi
-            
+
             # Create a new commit instead of amending
             git commit -m "chore: update auto-generated changeset"
             git push origin changeset-auto

@@ -5,8 +5,58 @@ export interface ParsedBlockNode {
   lineNumber: number;
 }
 
-export function parseMarkdownToBlocks(markdown: string): ParsedBlockNode[] {
+/**
+ * Normalize markdown indentation to fix common AI spacing issues.
+ * AI models often generate "- Item\n - SubItem" (1 space) instead of "- Item\n  - SubItem" (2 spaces).
+ * This function detects and corrects these patterns.
+ */
+function normalizeMarkdownIndentation(markdown: string): string {
   const lines = markdown.split("\n");
+  const normalized: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Skip empty lines
+    if (!line.trim()) {
+      normalized.push(line);
+      continue;
+    }
+
+    // Match bullet list items with leading whitespace
+    const match = line.match(/^(\s*)([*\-+])\s+(.*)$/);
+    if (!match) {
+      normalized.push(line);
+      continue;
+    }
+
+    const [, leadingWhitespace, bullet, content] = match;
+    const spaceCount = leadingWhitespace.length;
+
+    // If odd number of spaces (1, 3, 5, etc.), normalize to even (2, 4, 6, etc.)
+    // This fixes AI's common mistake of using 1 space instead of 2
+    if (spaceCount % 2 === 1 && spaceCount > 0) {
+      const normalizedSpaces = spaceCount + 1;
+      normalized.push(`${" ".repeat(normalizedSpaces)}${bullet} ${content}`);
+      console.log(
+        `[markdownBlockParser] Normalized indent: ${spaceCount} spaces → ${normalizedSpaces} spaces for line: "${content.substring(
+          0,
+          40
+        )}..."`
+      );
+    } else {
+      normalized.push(line);
+    }
+  }
+
+  return normalized.join("\n");
+}
+
+export function parseMarkdownToBlocks(markdown: string): ParsedBlockNode[] {
+  // Normalize indentation before parsing
+  const normalizedMarkdown = normalizeMarkdownIndentation(markdown);
+
+  const lines = normalizedMarkdown.split("\n");
   const parsedLines: Array<{
     content: string;
     indent: number;
@@ -46,7 +96,7 @@ interface HierarchyResult {
 function buildHierarchyImpl(
   items: Array<{ content: string; indent: number; lineNumber: number }>,
   parentIndent: number,
-  startIndex: number,
+  startIndex: number
 ): HierarchyResult {
   const result: ParsedBlockNode[] = [];
   let i = startIndex;
@@ -87,10 +137,10 @@ export interface FlattenedBlock {
 
 export function flattenBlockHierarchy(
   nodes: ParsedBlockNode[],
-  parentBlockId: string | null = null,
+  parentBlockId: string | null = null
 ): Array<FlattenedBlock & { sourceLineNumber: number }> {
   const result: Array<FlattenedBlock & { sourceLineNumber: number }> = [];
-  let lastCreatedId: string | null = null;
+  let lastSiblingId: string | null = null;
 
   for (const node of nodes) {
     const tempBlockId = `temp_${Math.random().toString(36).substring(7)}`;
@@ -98,7 +148,7 @@ export function flattenBlockHierarchy(
     result.push({
       content: node.content,
       parentBlockId,
-      insertAfterBlockId: lastCreatedId,
+      insertAfterBlockId: lastSiblingId,
       sourceLineNumber: node.lineNumber,
     });
 
@@ -107,7 +157,7 @@ export function flattenBlockHierarchy(
       result.push(...childResults);
     }
 
-    lastCreatedId = tempBlockId;
+    lastSiblingId = tempBlockId;
   }
 
   return result;
