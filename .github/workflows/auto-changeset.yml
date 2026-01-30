@@ -141,11 +141,11 @@ jobs:
   # Step 2: Create Version Packages PR when changeset PR is merged
   create-version-packages-pr:
     name: Create Version Packages PR
-    # Only run on push events, when the last commit is not from auto-changeset workflow
+    # Only run on push events to main when changesets were added (ignore bot commits)
     if: >
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
-      !contains(github.event.head_commit.message, 'chore: auto-generate changeset')
+      github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: write
