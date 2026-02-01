@@ -92,6 +92,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const blockComponentRef = useRef<HTMLDivElement>(null);
     const blockRowRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLElement | null>(null);
 
     const editorRef = useRef<EditorRef>(null);
     const appliedPositionRef = useRef<number | null>(null);
@@ -333,6 +334,24 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       };
     }, []);
 
+    // Cache scroll container on mount to avoid repeated DOM traversal during scroll operations
+    // This runs once per block and significantly improves performance for deeply nested structures
+    useEffect(() => {
+      if (scrollContainerRef.current || !blockRowRef.current) {
+        return;
+      }
+
+      let element: HTMLElement | null = blockRowRef.current;
+      while (element && element !== document.documentElement) {
+        const computed = window.getComputedStyle(element);
+        if (computed.overflowY === "auto" || computed.overflowY === "scroll") {
+          scrollContainerRef.current = element;
+          break;
+        }
+        element = element.parentElement;
+      }
+    }, []);
+
     // Auto-scroll the focused block into view when focused
     // Positions block at ~40% from top of viewport for better readability
     useEffect(() => {
@@ -344,20 +363,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       const scrollFrame = requestAnimationFrame(() => {
         if (!blockRowRef.current) return;
 
-        // Find parent scroll container (overflow-y: auto or scroll)
-        let scrollContainer: HTMLElement | null = null;
-        let element: HTMLElement | null = blockRowRef.current;
-        while (element && element !== document.documentElement) {
-          const computed = window.getComputedStyle(element);
-          if (
-            computed.overflowY === "auto" ||
-            computed.overflowY === "scroll"
-          ) {
-            scrollContainer = element;
-            break;
-          }
-          element = element.parentElement;
-        }
+        // Use cached scroll container to avoid expensive DOM traversal
+        const scrollContainer = scrollContainerRef.current;
 
         if (scrollContainer && blockRowRef.current) {
           // Calculate scroll position to place block at 40% from viewport top
