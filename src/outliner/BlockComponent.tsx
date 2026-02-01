@@ -30,7 +30,6 @@ import {
 } from "../stores/blockUIStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
-import { useBlockOrder } from "../stores/viewStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
@@ -49,14 +48,13 @@ import {
 interface BlockComponentProps {
   blockId: string;
   depth: number;
+  blockOrder?: string[];
 }
 
 export const BlockComponent: React.FC<BlockComponentProps> = memo(
-  ({ blockId, depth }: BlockComponentProps) => {
+  ({ blockId, depth, blockOrder = [] }: BlockComponentProps) => {
     const computedColorScheme = useComputedColorScheme("light");
     const isDark = computedColorScheme === "dark";
-
-    const blockOrder = useBlockOrder();
 
     const block = useBlock(blockId);
     const childIds = useChildrenIds(blockId);
@@ -1247,6 +1245,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   key={childId}
                   blockId={childId}
                   depth={depth + 1}
+                  blockOrder={blockOrder}
                 />
               ))}
             </div>
@@ -1288,5 +1287,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         />
       </ContextMenu>
     );
+  },
+  (prevProps, nextProps) => {
+    if (
+      prevProps.blockId !== nextProps.blockId ||
+      prevProps.depth !== nextProps.depth
+    ) {
+      return false;
+    }
+    return true;
   },
 );

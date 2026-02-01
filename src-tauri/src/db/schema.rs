@@ -72,7 +72,6 @@ CREATE TABLE IF NOT EXISTS block_metadata (
 
 CREATE INDEX IF NOT EXISTS idx_block_metadata_block ON block_metadata(block_id);
 CREATE INDEX IF NOT EXISTS idx_block_metadata_key ON block_metadata(key);
-CREATE INDEX IF NOT EXISTS idx_block_metadata_block_key ON block_metadata(block_id, key);
 
 -- FTS: 링크 제안/검색을 위한 블록 검색 인덱스 (content + anchor id + path 캐시)
 -- NOTE: 이 테이블은 파생 데이터이며, 리빌드/리인덱싱 시 재생성될 수 있음.

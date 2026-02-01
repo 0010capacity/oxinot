@@ -15,7 +15,6 @@ interface NavigationState {
   zoomPath: string[]; // Array of block IDs from root to current zoom level
   breadcrumb: string[];
   pagePathIds: string[]; // Array of page IDs from workspace to current page
-  blockOrder: string[]; // Visible blocks in order (for keyboard navigation and selection)
 }
 
 interface ViewState extends NavigationState {
@@ -28,7 +27,6 @@ interface ViewState extends NavigationState {
     parentNames?: string[],
     pagePathIds?: string[],
   ) => void;
-  setBlockOrder: (blockOrder: string[]) => void;
   zoomIntoBlock: (blockId: string) => void;
   zoomOut: () => void;
   zoomOutToNote: () => void;
@@ -45,7 +43,6 @@ const initialState: NavigationState = {
   zoomPath: [],
   breadcrumb: [],
   pagePathIds: [],
-  blockOrder: [],
 };
 
 export const useViewStore = createWithEqualityFn<ViewState>()(
@@ -106,12 +103,6 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
 
       // Add to navigation history
       useNavigationStore.getState().pushHistory(notePath, noteName);
-    },
-
-    setBlockOrder: (blockOrder: string[]) => {
-      set((state) => {
-        state.blockOrder = blockOrder;
-      });
     },
 
     zoomIntoBlock: (blockId: string) => {
@@ -185,4 +176,3 @@ export const useBreadcrumb = () => useViewStore((state) => state.breadcrumb);
 export const useFocusedBlockId = () =>
   useViewStore((state) => state.focusedBlockId);
 export const useZoomPath = () => useViewStore((state) => state.zoomPath);
-export const useBlockOrder = () => useViewStore((state) => state.blockOrder);

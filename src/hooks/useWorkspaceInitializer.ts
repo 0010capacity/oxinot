@@ -1,10 +1,9 @@
-import { warmPageCacheFromStorage } from "@/stores/blockStore";
 import { useErrorStore } from "@/stores/errorStore";
 import { usePageStore } from "@/stores/pageStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import { tauriAPI } from "@/tauri-api";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
+import { tauriAPI } from "@/tauri-api";
 
 export interface WorkspaceInitializerState {
   isChecking: boolean;
@@ -84,7 +83,6 @@ export const useWorkspaceInitializer = (
         clearWorkspaceError();
 
         const workspaceName = workspacePath.split("/").pop() || "Workspace";
-        await warmPageCacheFromStorage(`page-cache-${workspacePath}`);
         onWorkspaceNameSetRef.current(workspaceName);
 
         onInitialCompleteRef.current();
@@ -151,7 +149,6 @@ export const useWorkspaceInitializer = (
       clearWorkspaceError();
 
       const workspaceName = workspacePath.split("/").pop() || "Workspace";
-      await warmPageCacheFromStorage(`page-cache-${workspacePath}`);
       onWorkspaceNameSetRef.current(workspaceName);
 
       onInitialCompleteRef.current();

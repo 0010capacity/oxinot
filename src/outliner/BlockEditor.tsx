@@ -38,7 +38,6 @@ export function BlockEditor({
   const blocksById = useBlockStore((state) => state.blocksById);
 
   const focusedBlockId = useViewStore((state) => state.focusedBlockId);
-  const setBlockOrder = useViewStore((state) => state.setBlockOrder);
 
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
@@ -91,7 +90,7 @@ export function BlockEditor({
     ? [focusedBlockId]
     : childrenMap.root || [];
 
-  useEffect(() => {
+  const blockOrder = useMemo(() => {
     const memoComputeStart = performance.now();
     const getAllVisibleBlocks = (blockIds: string[]): string[] => {
       const result: string[] = [];
@@ -108,10 +107,10 @@ export function BlockEditor({
     const computed = getAllVisibleBlocks(blocksToShow);
     const memoComputeTime = performance.now() - memoComputeStart;
     console.log(
-      `[BlockEditor:timing] useEffect blockOrder computed in ${memoComputeTime.toFixed(2)}ms (${computed.length} visible blocks)`,
+      `[BlockEditor:timing] useMemo blockOrder computed in ${memoComputeTime.toFixed(2)}ms (${computed.length} visible blocks)`,
     );
-    setBlockOrder(computed);
-  }, [blocksToShow, blocksById, childrenMap, setBlockOrder]);
+    return computed;
+  }, [blocksToShow, blocksById, childrenMap]);
 
   if (error) {
     return (
@@ -162,6 +161,7 @@ export function BlockEditor({
               const result = (
                 <VirtualBlockList
                   blockIds={blocksToShow}
+                  blockOrder={blockOrder}
                   editorFontSize={editorFontSize}
                   editorLineHeight={editorLineHeight}
                 />
@@ -181,7 +181,12 @@ export function BlockEditor({
                 `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`,
               );
               const blocks = blocksToShow.map((blockId) => (
-                <BlockComponent key={blockId} blockId={blockId} depth={0} />
+                <BlockComponent
+                  key={blockId}
+                  blockId={blockId}
+                  depth={0}
+                  blockOrder={blockOrder}
+                />
               ));
               requestAnimationFrame(() => {
                 const mapTime = performance.now() - mapStart;
