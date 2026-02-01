@@ -237,6 +237,148 @@ export const useBlockStore = create<BlockStore>()(
         }
       },
 
+      openPageProgressive: async (pageId: string) => {
+        if (get().currentPageId === pageId && get().isLoading) return;
+
+        set((state) => {
+          state.isLoading = true;
+          state.error = null;
+        });
+
+        try {
+          const workspacePath = useWorkspaceStore.getState().workspacePath;
+          if (!workspacePath) {
+            throw new Error("No workspace selected");
+          }
+
+          console.log(`[blockStore] Loading root blocks for page ${pageId}...`);
+          const startTime = performance.now();
+          const rootBlocks: BlockData[] = await invoke("get_page_blocks_root", {
+            workspacePath,
+            pageId,
+          });
+          const rootLoadTime = performance.now() - startTime;
+          console.log(
+            `[blockStore] Loaded ${rootBlocks.length} root blocks in ${rootLoadTime.toFixed(2)}ms`,
+          );
+
+          const {
+            blocksById: initialBlocksById,
+            childrenMap: initialChildrenMap,
+          } = normalizeBlocks(rootBlocks);
+
+          const isRootEmpty = (initialChildrenMap.root ?? []).length === 0;
+
+          set((state) => {
+            state.blocksById = initialBlocksById;
+            state.childrenMap = initialChildrenMap;
+            state.currentPageId = pageId;
+            if (!isRootEmpty) {
+              state.isLoading = false;
+            }
+          });
+
+          if (isRootEmpty) {
+            console.log(
+              `[blockStore] Creating initial block for page ${pageId}...`,
+            );
+            try {
+              await get().createBlock(null, "");
+              console.log(
+                `[blockStore] Initial block created successfully for page ${pageId}`,
+              );
+            } catch (blockError) {
+              console.error(
+                `[blockStore] Failed to create initial block for page ${pageId}:`,
+                blockError,
+              );
+              throw new Error(
+                `Failed to create initial block: ${
+                  blockError instanceof Error
+                    ? blockError.message
+                    : String(blockError)
+                }`,
+              );
+            }
+
+            set((state) => {
+              state.isLoading = false;
+            });
+          }
+
+          const rootBlockIds = rootBlocks.map((b) => b.id);
+          if (rootBlockIds.length > 0) {
+            invoke<BlockData[]>("get_page_blocks_children", {
+              workspacePath,
+              parentIds: rootBlockIds,
+            })
+              .then((childBlocks) => {
+                console.log(
+                  `[blockStore] Loaded ${childBlocks.length} child blocks progressively`,
+                );
+                set((state) => {
+                  const {
+                    blocksById: newBlocksById,
+                    childrenMap: newChildrenMap,
+                  } = normalizeBlocks(childBlocks);
+                  Object.assign(state.blocksById, newBlocksById);
+                  Object.assign(state.childrenMap, newChildrenMap);
+                });
+              })
+              .catch((err) => {
+                console.error("[blockStore] Failed to load child blocks:", err);
+              });
+          }
+
+          const blockIds = rootBlocks.map((b) => b.id);
+          if (blockIds.length > 0) {
+            invoke<Record<string, Record<string, string>>>(
+              "get_page_blocks_metadata",
+              {
+                workspacePath,
+                blockIds,
+              },
+            )
+              .then((metadataMap) => {
+                console.log(
+                  `[blockStore] Loaded metadata for ${Object.keys(metadataMap).length} root blocks`,
+                );
+                set((state) => {
+                  for (const [blockId, metadata] of Object.entries(
+                    metadataMap,
+                  )) {
+                    if (state.blocksById[blockId]) {
+                      state.blocksById[blockId].metadata = metadata;
+                    }
+                  }
+                });
+              })
+              .catch((err) => {
+                console.error(
+                  "[blockStore] Failed to load root block metadata:",
+                  err,
+                );
+              });
+          }
+        } catch (error) {
+          console.error(
+            `[blockStore] Failed to load page ${pageId}:`,
+            error,
+            "Workspace:",
+            useWorkspaceStore.getState().workspacePath,
+          );
+          set((state) => {
+            state.error =
+              typeof error === "string"
+                ? error
+                : error instanceof Error
+                  ? error.message
+                  : "Failed to load page";
+            state.isLoading = false;
+          });
+        }
+      },
+
       loadPage: async (pageId: string) => {
         // Legacy wrapper: use openPage
         return get().openPage(pageId);

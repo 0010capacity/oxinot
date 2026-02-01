@@ -458,6 +458,114 @@ pub async fn get_page_blocks_metadata(
     load_blocks_metadata(&conn, &block_ids)
 }
 
+/// Progressive loading: Get only root blocks (parent_id = NULL) for immediate display
+/// Children are loaded separately via `get_page_blocks_children`
+#[tauri::command]
+pub async fn get_page_blocks_root(
+    workspace_path: String,
+    page_id: String,
+) -> Result<Vec<Block>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    // Check if page exists first
+    let page_exists: bool = conn
+        .query_row("SELECT 1 FROM pages WHERE id = ?", [&page_id], |_| Ok(true))
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or(false);
+
+    if !page_exists {
+        return Ok(Vec::new());
+    }
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, page_id, parent_id, content, order_weight,
+                is_collapsed, block_type, language, created_at, updated_at
+             FROM blocks
+             WHERE page_id = ? AND parent_id IS NULL
+             ORDER BY order_weight",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let blocks = stmt
+        .query_map([page_id], |row| {
+            Ok(Block {
+                id: row.get(0)?,
+                page_id: row.get(1)?,
+                parent_id: row.get(2)?,
+                content: row.get(3)?,
+                order_weight: row.get(4)?,
+                is_collapsed: row.get::<_, i32>(5)? != 0,
+                block_type: parse_block_type(row.get::<_, String>(6)?),
+                language: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+                metadata: HashMap::new(),
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(blocks)
+}
+
+/// Get children for specific parent blocks - used for progressive loading
+#[tauri::command]
+pub async fn get_page_blocks_children(
+    workspace_path: String,
+    parent_ids: Vec<String>,
+) -> Result<Vec<Block>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+
+    if parent_ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Build placeholders: ?1, ?2, ?3, ...
+    let placeholders = (1..=parent_ids.len())
+        .map(|i| format!("?{}", i))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let sql = format!(
+        "SELECT id, page_id, parent_id, content, order_weight,
+                is_collapsed, block_type, language, created_at, updated_at
+         FROM blocks
+         WHERE parent_id IN ({})
+         ORDER BY parent_id, order_weight",
+        placeholders
+    );
+
+    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+
+    let blocks = stmt
+        .query_map(
+            rusqlite::params_from_iter(parent_ids.iter()),
+            |row| {
+                Ok(Block {
+                    id: row.get(0)?,
+                    page_id: row.get(1)?,
+                    parent_id: row.get(2)?,
+                    content: row.get(3)?,
+                    order_weight: row.get(4)?,
+                    is_collapsed: row.get::<_, i32>(5)? != 0,
+                    block_type: parse_block_type(row.get::<_, String>(6)?),
+                    language: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                    metadata: HashMap::new(),
+                })
+            },
+        )
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(blocks)
+}
+
 /// Helper function to query blocks for a page (avoids lifetime issues)
 fn query_blocks_for_page(conn: &Connection, page_id: &str) -> Result<Vec<Block>, String> {
     let mut stmt = conn
