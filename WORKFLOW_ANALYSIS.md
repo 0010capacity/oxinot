@@ -239,10 +239,11 @@ c6b3c49  Merge pull request #542 from 0010capacity/changeset-auto  ← changeset
 
 ## 📝 변경사항 상세
 
+### 커밋 1: Main Logic Fix
 **커밋**: `92f3e83`
 **메시지**: `fix(workflow): detect changeset files directly instead of relying on actor check`
 
-### 변경 전
+#### 변경 전
 ```yaml
 if: >
   github.event_name == 'push' &&
@@ -257,7 +258,7 @@ steps:
       echo "has_changesets=$([ "$CHANGESET_COUNT" -gt 0 ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
 ```
 
-### 변경 후
+#### 변경 후
 ```yaml
 if: >
   github.event_name == 'push' &&
@@ -271,6 +272,27 @@ steps:
       HAS_CHANGESET_FILES=$(echo "$CHANGED_FILES" | grep -E "\.changeset/[^/]+\.md$" | grep -v README.md | wc -l)
       echo "has_changesets=$([ "$HAS_CHANGESET_FILES" -gt 0 ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
 ```
+
+### 커밋 2: Script Robustness Fix
+**커밋**: `06c44e1`
+**메시지**: `fix(workflow): handle grep exit code when no changesets found`
+
+**문제**: `set -euo pipefail`이 활성화되어 있을 때, grep이 매칭되는 항목이 없으면 exit code 1을 반환하여 전체 스크립트 실패
+
+**해결**: grep 파이프라인에 `|| true` 추가
+
+```bash
+# 변경 전 (실패 가능)
+HAS_CHANGESET_FILES=$(echo "$CHANGED_FILES" | grep -E "\.changeset/[^/]+\.md$" | grep -v README.md | wc -l)
+
+# 변경 후 (안정적)
+HAS_CHANGESET_FILES=$(echo "$CHANGED_FILES" | grep -E "\.changeset/[^/]+\.md$" | grep -v README.md | wc -l || true)
+```
+
+**동작**:
+- grep이 실패해도 `|| true`가 exit code를 0으로 만듦
+- 파이프라인이 계속 실행되고 wc -l이 0을 반환
+- 변수 할당 성공, 스크립트 계속 실행
 
 ---
 
@@ -308,3 +330,15 @@ steps:
 ---
 
 **최종 상태**: ✅ Version Packages PR이 정상 생성됨
+
+---
+
+## 📋 최종 커밋 목록
+
+| 커밋 | 메시지 | 설명 |
+|------|-------|------|
+| `06c44e1` | fix(workflow): handle grep exit code | grep 실패 시 스크립트 강제 종료 문제 해결 |
+| `45b2c3d` | docs: add comprehensive workflow analysis | 상세 분석 문서 작성 |
+| `92f3e83` | fix(workflow): detect changeset files | changeset 파일 직접 감지로 로직 개선 |
+
+**배포 준비 완료** ✨
