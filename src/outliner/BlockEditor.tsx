@@ -68,10 +68,22 @@ export function BlockEditor({
     onClose: undefined,
   });
 
-  // Load page blocks
   useEffect(() => {
     if (pageId) {
+      const renderStartTime = performance.now();
+      console.log(
+        `[BlockEditor:timing] Component rendering started for page ${pageId}`,
+      );
+
       openPage(pageId);
+
+      // Log after render completes
+      requestAnimationFrame(() => {
+        const renderTime = performance.now() - renderStartTime;
+        console.log(
+          `[BlockEditor:timing] Component render completed in ${renderTime.toFixed(2)}ms`,
+        );
+      });
     }
   }, [pageId, openPage]);
 

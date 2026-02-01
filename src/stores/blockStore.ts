@@ -577,6 +577,8 @@ export const useBlockStore = create<BlockStore>()(
       // ============ Page Operations ============
 
       openPage: async (pageId: string) => {
+        const pageLoadStartTime = performance.now();
+
         if (get().currentPageId === pageId && get().isLoading) return;
 
         set((state) => {
@@ -590,16 +592,20 @@ export const useBlockStore = create<BlockStore>()(
             throw new Error("No workspace selected");
           }
 
-          console.log(`[blockStore] Loading blocks for page ${pageId}...`);
+          console.log(`[blockStore:timing] Page load started for ${pageId}`);
 
           const cached = pageCache.get(pageId);
           if (cached) {
+            const cacheStartTime = performance.now();
             console.log(
               `[blockStore] Cache hit: Using cached blocks for page ${pageId}`,
             );
             const { blocksById, childrenMap } = normalizeBlocks(
               cached.rootBlocks,
             );
+            const normalizeTime = performance.now() - cacheStartTime;
+
+            const stateStartTime = performance.now();
             set((state) => {
               state.blocksById = blocksById;
               state.childrenMap = childrenMap;
@@ -614,10 +620,16 @@ export const useBlockStore = create<BlockStore>()(
                 }
               }
             });
+            const stateTime = performance.now() - stateStartTime;
+            const totalTime = performance.now() - pageLoadStartTime;
+
+            console.log(
+              `[blockStore:timing] Cache hit complete: normalize=${normalizeTime.toFixed(2)}ms, setState=${stateTime.toFixed(2)}ms, total=${totalTime.toFixed(2)}ms`,
+            );
             return;
           }
 
-          const startTime = performance.now();
+          const ipcStartTime = performance.now();
           const response = await invoke<{
             rootBlocks: BlockData[];
             childrenByParent: Record<string, BlockData[]>;
@@ -626,17 +638,23 @@ export const useBlockStore = create<BlockStore>()(
             workspacePath,
             pageId,
           });
-          const loadTime = performance.now() - startTime;
+          const ipcTime = performance.now() - ipcStartTime;
           console.log(
-            `[blockStore] Loaded ${response.rootBlocks.length} blocks for page ${pageId} in ${loadTime.toFixed(2)}ms (batched)`,
+            `[blockStore:timing] IPC call completed in ${ipcTime.toFixed(2)}ms`,
           );
 
+          const normalizeStartTime = performance.now();
           const { blocksById, childrenMap } = normalizeBlocks(
             response.rootBlocks,
+          );
+          const normalizeTime = performance.now() - normalizeStartTime;
+          console.log(
+            `[blockStore:timing] Normalization completed in ${normalizeTime.toFixed(2)}ms`,
           );
 
           const isRootEmpty = (childrenMap.root ?? []).length === 0;
 
+          const metadataStartTime = performance.now();
           set((state) => {
             state.blocksById = blocksById;
             state.childrenMap = childrenMap;
@@ -654,6 +672,10 @@ export const useBlockStore = create<BlockStore>()(
               state.isLoading = false;
             }
           });
+          const metadataTime = performance.now() - metadataStartTime;
+          console.log(
+            `[blockStore:timing] State update (with metadata) completed in ${metadataTime.toFixed(2)}ms`,
+          );
 
           pageCache.set(pageId, {
             rootBlocks: response.rootBlocks,
@@ -691,6 +713,11 @@ export const useBlockStore = create<BlockStore>()(
               state.isLoading = false;
             });
           }
+
+          const totalTime = performance.now() - pageLoadStartTime;
+          console.log(
+            `[blockStore:timing] === TOTAL PAGE LOAD TIME: ${totalTime.toFixed(2)}ms (IPC: ${ipcTime.toFixed(2)}ms, Normalize: ${normalizeTime.toFixed(2)}ms, Metadata: ${metadataTime.toFixed(2)}ms) ===`,
+          );
         } catch (error) {
           console.error(
             `[blockStore] Failed to load page ${pageId}:`,

@@ -13,15 +13,15 @@ import {
 } from "@tabler/icons-react";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { INDENT_PER_LEVEL } from "../../constants/layout";
 import { useBlockStore } from "../../stores/blockStore";
 import { type PageData, usePageStore } from "../../stores/pageStore";
 import { useViewStore } from "../../stores/viewStore";
 import { BulletPoint } from "../common/BulletPoint";
 import { CollapseToggle } from "../common/CollapseToggle";
-import { IndentGuide } from "../common/IndentGuide";
 import { ContextMenu, type ContextMenuSection } from "../common/ContextMenu";
-import { useTranslation } from "react-i18next";
-import { INDENT_PER_LEVEL } from "../../constants/layout";
+import { IndentGuide } from "../common/IndentGuide";
 
 // Extract basename from path (e.g., "A/B/C" -> "C")
 function getPageBasename(title: string): string {
@@ -135,10 +135,12 @@ export function PageTreeItem({
   );
 
   const handlePageClick = async (e: React.MouseEvent) => {
+    const clickStartTime = performance.now();
     e.stopPropagation();
     if (isEditing) return;
 
-    // Build parent path for breadcrumb
+    console.log(`[PageTreeItem:timing] Click started for page ${page.id}`);
+
     const parentNames: string[] = [];
     const pagePathIds: string[] = [];
     let currentParentId = page.parentId;
@@ -155,12 +157,24 @@ export function PageTreeItem({
       }
     }
 
-    // Add current page ID at the end
     pagePathIds.push(page.id);
 
+    const selectStartTime = performance.now();
     await selectPage(page.id);
+    const selectTime = performance.now() - selectStartTime;
+
+    const loadStartTime = performance.now();
     await loadPage(page.id);
+    const loadTime = performance.now() - loadStartTime;
+
+    const openStartTime = performance.now();
     openNote(page.id, page.title, parentNames, pagePathIds);
+    const openTime = performance.now() - openStartTime;
+
+    const totalTime = performance.now() - clickStartTime;
+    console.log(
+      `[PageTreeItem:timing] === CLICK HANDLER COMPLETE: select=${selectTime.toFixed(2)}ms, load=${loadTime.toFixed(2)}ms, open=${openTime.toFixed(2)}ms, total=${totalTime.toFixed(2)}ms ===`,
+    );
   };
 
   const handleBulletClick = (e: React.MouseEvent) => {
