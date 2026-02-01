@@ -359,37 +359,30 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         return;
       }
 
-      // requestAnimationFrame ensures smooth scrolling aligned with browser's paint cycle
-      const scrollFrame = requestAnimationFrame(() => {
-        if (!blockRowRef.current) return;
+      // Use cached scroll container to avoid expensive DOM traversal
+      const scrollContainer = scrollContainerRef.current;
 
-        // Use cached scroll container to avoid expensive DOM traversal
-        const scrollContainer = scrollContainerRef.current;
+      if (scrollContainer && blockRowRef.current) {
+        // Calculate scroll position to place block at 40% from viewport top
+        const blockRect = blockRowRef.current.getBoundingClientRect();
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const targetScrollTop =
+          scrollContainer.scrollTop +
+          blockRect.top -
+          containerRect.top -
+          containerRect.height * 0.4;
 
-        if (scrollContainer && blockRowRef.current) {
-          // Calculate scroll position to place block at 40% from viewport top
-          const blockRect = blockRowRef.current.getBoundingClientRect();
-          const containerRect = scrollContainer.getBoundingClientRect();
-          const targetScrollTop =
-            scrollContainer.scrollTop +
-            blockRect.top -
-            containerRect.top -
-            containerRect.height * 0.4;
-
-          scrollContainer.scrollTo({
-            top: targetScrollTop,
-            behavior: "smooth",
-          });
-        } else if (blockRowRef.current) {
-          // Fallback: use scrollIntoView for window-level scrolling
-          blockRowRef.current.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
-        }
-      });
-
-      return () => cancelAnimationFrame(scrollFrame);
+        scrollContainer.scrollTo({
+          top: targetScrollTop,
+          behavior: "smooth",
+        });
+      } else if (blockRowRef.current) {
+        // Fallback: use scrollIntoView for window-level scrolling
+        blockRowRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
     }, [focusedBlockId, blockId]);
 
     // Handle outside clicks to close metadata editor
