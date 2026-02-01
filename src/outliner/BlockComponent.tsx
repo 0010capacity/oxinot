@@ -1288,4 +1288,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       </ContextMenu>
     );
   },
+  (prevProps, nextProps) => {
+    if (
+      prevProps.blockId !== nextProps.blockId ||
+      prevProps.depth !== nextProps.depth
+    ) {
+      return false;
+    }
+    return true;
+  },
 );
