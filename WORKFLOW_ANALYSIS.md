@@ -357,6 +357,49 @@ if [[ "$LAST_COMMIT_MESSAGE" == *"version packages"* ]] || [[ "$LAST_COMMIT_MESS
 - changesets/action 커밋도 여전히 감지 ✅
 - 릴리즈 workflow 정상 작동 ✅
 
+### 커밋 8: Fix PR Creation Commit Ordering Issue
+**커밋**: `012837a`
+**메시지**: `fix(workflow): commit version changes to main before creating PR branch`
+
+**문제**: Version Packages PR 생성 실패
+```
+pull request create failed: GraphQL: No commits between main and changeset-release/main
+Error: Process completed with exit code 1
+```
+
+**근본 원인**: 변경사항 커밋 순서 오류
+
+**이전 로직**:
+```bash
+1. npm run version (CHANGELOG, package.json 수정)
+2. 변경사항 확인
+3. changeset-release/main 브랜치 생성
+4. gh pr create (실패!)
+```
+
+**문제점**:
+- `npm run version`은 파일만 수정하고 커밋하지 않음
+- changeset-release/main 브랜치를 생성했지만 new commits이 없음
+- main과 changeset-release/main이 같은 HEAD를 가리킴
+- gh pr create가 "두 브랜치 사이 커밋이 없다"고 거부
+
+**해결**: main 브랜치에 먼저 커밋 후 release 브랜치 생성
+
+```bash
+# 변경 후
+1. npm run version (파일 수정)
+2. git add -A && git commit "chore: version packages"
+3. git push origin main (main에 커밋!)
+4. changeset-release/main 브랜치 생성
+5. gh pr create (성공!)
+```
+
+**효과**:
+- main 브랜치에 버전 업데이트 커밋 존재 ✅
+- release 브랜치가 main보다 앞서감 ✅
+- gh pr create가 인식할 수 있는 commit diff 생성 ✅
+- Version Packages PR 정상 생성 ✅
+
 ---
 
 ## 🚀 검증
@@ -405,8 +448,9 @@ if [[ "$LAST_COMMIT_MESSAGE" == *"version packages"* ]] || [[ "$LAST_COMMIT_MESS
 | 3 | `261185a` | reorder steps before installing | 실행 순서 최적화 (불필요한 npm install 제거) |
 | 4 | `cbf8099` | replace changesets/action with custom npm version script | changesets/action의 npm publish 에러 완전 제거 ⭐ |
 | 5 | `62c7a6e` | detect 'chore: version packages' commit | 릴리즈 workflow 스킵 문제 해결 ⭐ |
-| 6 | `00fa327` | update analysis with grep exit code fix details | 분석 문서 업데이트 |
-| 7 | `02c3aa1` | add final optimization fix details | 최종 최적화 설명 |
-| 8 | `9294575` | add changesets/action replacement explanation | changesets/action 교체 설명 |
+| 6 | `012837a` | commit version changes to main before creating PR branch | Version PR 생성 실패 문제 해결 ⭐ |
+| 7 | `00fa327` | update analysis with grep exit code fix details | 분석 문서 업데이트 |
+| 8 | `02c3aa1` | add final optimization fix details | 최종 최적화 설명 |
+| 9 | `9294575` | add changesets/action replacement explanation | changesets/action 교체 설명 |
 
 **배포 준비 완료** ✨
