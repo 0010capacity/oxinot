@@ -340,61 +340,56 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       };
     }, []);
 
-    // Auto-scroll the focused block into view with proper positioning
+    // Auto-scroll the focused block into view when focused
+    // Positions block at ~40% from top of viewport for better readability
     useEffect(() => {
-      if (focusedBlockId === blockId && blockRowRef.current) {
-        const timeoutId = setTimeout(() => {
-          if (!blockRowRef.current) return;
-
-          // Create a temporary proxy element positioned where we want the block to appear
-          // This uses scrollIntoView to handle scroll container detection automatically
-          const tempElement = document.createElement("div");
-          tempElement.style.position = "absolute";
-          tempElement.style.pointerEvents = "none";
-          tempElement.style.visibility = "hidden";
-
-          // Get the scroll container (parent with overflow auto)
-          let scrollContainer: HTMLElement | null = null;
-          let element: HTMLElement | null = blockRowRef.current;
-          while (element) {
-            const computed = window.getComputedStyle(element);
-            if (
-              computed.overflowY === "auto" ||
-              computed.overflowY === "scroll"
-            ) {
-              scrollContainer = element;
-              break;
-            }
-            element = element.parentElement;
-          }
-
-          if (scrollContainer) {
-            // Position the temp element at 40% of the viewport height
-            const targetOffsetInParent =
-              blockRowRef.current.offsetTop - window.innerHeight * 0.4;
-
-            tempElement.style.top = `${targetOffsetInParent}px`;
-            tempElement.style.height = "1px";
-            scrollContainer.appendChild(tempElement);
-
-            // Scroll to the temp element
-            tempElement.scrollIntoView({ behavior: "smooth", block: "start" });
-
-            // Clean up
-            setTimeout(() => {
-              scrollContainer?.removeChild(tempElement);
-            }, 1000);
-          } else {
-            // Fallback if no scroll container found
-            blockRowRef.current.scrollIntoView({
-              behavior: "smooth",
-              block: "center",
-            });
-          }
-        }, 0);
-
-        return () => clearTimeout(timeoutId);
+      if (focusedBlockId !== blockId || !blockRowRef.current) {
+        return;
       }
+
+      // requestAnimationFrame ensures smooth scrolling aligned with browser's paint cycle
+      const scrollFrame = requestAnimationFrame(() => {
+        if (!blockRowRef.current) return;
+
+        // Find parent scroll container (overflow-y: auto or scroll)
+        let scrollContainer: HTMLElement | null = null;
+        let element: HTMLElement | null = blockRowRef.current;
+        while (element && element !== document.documentElement) {
+          const computed = window.getComputedStyle(element);
+          if (
+            computed.overflowY === "auto" ||
+            computed.overflowY === "scroll"
+          ) {
+            scrollContainer = element;
+            break;
+          }
+          element = element.parentElement;
+        }
+
+        if (scrollContainer && blockRowRef.current) {
+          // Calculate scroll position to place block at 40% from viewport top
+          const blockRect = blockRowRef.current.getBoundingClientRect();
+          const containerRect = scrollContainer.getBoundingClientRect();
+          const targetScrollTop =
+            scrollContainer.scrollTop +
+            blockRect.top -
+            containerRect.top -
+            containerRect.height * 0.4;
+
+          scrollContainer.scrollTo({
+            top: targetScrollTop,
+            behavior: "smooth",
+          });
+        } else if (blockRowRef.current) {
+          // Fallback: use scrollIntoView for window-level scrolling
+          blockRowRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      });
+
+      return () => cancelAnimationFrame(scrollFrame);
     }, [focusedBlockId, blockId]);
 
     // Handle outside clicks to close metadata editor
