@@ -77,7 +77,6 @@ export function BlockEditor({
 
       openPage(pageId);
 
-      // Log after render completes
       requestAnimationFrame(() => {
         const renderTime = performance.now() - renderStartTime;
         console.log(
@@ -87,27 +86,30 @@ export function BlockEditor({
     }
   }, [pageId, openPage]);
 
-  // Determine which blocks to show based on zoom level
   const blocksToShow = focusedBlockId
     ? [focusedBlockId]
     : childrenMap.root || [];
 
-  // Get all visible block IDs in tree order (including nested children) for range selection
   const blockOrder = useMemo(() => {
+    const memoComputeStart = performance.now();
     const getAllVisibleBlocks = (blockIds: string[]): string[] => {
       const result: string[] = [];
       for (const blockId of blockIds) {
         result.push(blockId);
         const block = blocksById[blockId];
         const children = childrenMap[blockId];
-        // Include children only if block exists, has children, and is not collapsed
         if (block && children && children.length > 0 && !block.isCollapsed) {
           result.push(...getAllVisibleBlocks(children));
         }
       }
       return result;
     };
-    return getAllVisibleBlocks(blocksToShow);
+    const computed = getAllVisibleBlocks(blocksToShow);
+    const memoComputeTime = performance.now() - memoComputeStart;
+    console.log(
+      `[BlockEditor:timing] useMemo blockOrder computed in ${memoComputeTime.toFixed(2)}ms (${computed.length} visible blocks)`,
+    );
+    return computed;
   }, [blocksToShow, blocksById, childrenMap]);
 
   if (error) {
