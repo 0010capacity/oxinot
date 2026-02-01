@@ -324,6 +324,38 @@ steps:
 - changesets/action이 "no changesets" 에러 던지지 않음 ✅
 - 더 빠른 실행 시간 ✅
 
+### 커밋 6: Replace changesets/action with Custom Script
+**커밋**: `cbf8099`
+**메시지**: `fix(workflow): replace changesets/action with custom npm version script`
+
+**문제**: changesets/action이 여전히 "No changesets found" 상황에서 npm publish 시도
+```
+No changesets found. Attempting to publish any unpublished packages to npm
+No user .npmrc file found, creating one
+/usr/bin/false failed with exit code 1
+```
+
+**근본 원인**: changesets/action@v1의 동작 방식
+- changeset 파일이 있으면 → Version Packages PR 생성 ✅
+- changeset 파일이 없으면 → npm publish 시도 (우리는 publish를 원하지 않음) ❌
+
+**해결**: changesets/action을 완전히 제거하고 `npm run version` 직접 실행
+
+```bash
+# 대신 우리가 수행하는 작업
+1. git config user.name/email 설정
+2. npm run version 실행 (package.json 버전 업데이트 + CHANGELOG 생성)
+3. git status로 변경사항 확인
+4. 변경이 있으면 changeset-release/main 브랜치 생성/업데이트
+5. gh cli로 PR 생성
+```
+
+**장점**:
+- npm publish 시도 완벽히 제거 ✅
+- changeset이 없어도 정상 작동 ✅
+- 기존 release PR이 있으면 자동 업데이트 ✅
+- 더 많은 제어 가능 ✅
+
 ---
 
 ## 🚀 검증
@@ -365,12 +397,13 @@ steps:
 
 ## 📋 최종 커밋 목록
 
-| 커밋 | 메시지 | 설명 |
-|------|-------|------|
-| `261185a` | fix(workflow): reorder steps to check changesets before installing | changeset 체크를 먼저 실행해서 불필요한 npm install 방지 |
-| `00fa327` | docs: update analysis with grep exit code fix details | grep 실패 처리 문서화 |
-| `06c44e1` | fix(workflow): handle grep exit code when no changesets found | grep 실패 시 스크립트 강제 종료 문제 해결 |
-| `45b2c3d` | docs: add comprehensive workflow analysis and fix explanation | 상세 분석 문서 작성 |
-| `92f3e83` | fix(workflow): detect changeset files directly instead of relying on actor check | changeset 파일 직접 감지로 로직 개선 |
+| # | 커밋 | 메시지 | 설명 |
+|---|------|-------|------|
+| 1 | `92f3e83` | detect changeset files directly | changeset 파일 직접 감지 (근본 원인 해결) |
+| 2 | `06c44e1` | handle grep exit code | grep 실패 처리 (스크립트 안정성) |
+| 3 | `261185a` | reorder steps before installing | 실행 순서 최적화 (불필요한 npm install 제거) |
+| 4 | `cbf8099` | replace changesets/action with custom npm version script | changesets/action의 npm publish 에러 완전 제거 ⭐ |
+| 5 | `00fa327` | update analysis with grep exit code fix details | 분석 문서 업데이트 |
+| 6 | `02c3aa1` | add final optimization fix details | 최종 최적화 설명 |
 
 **배포 준비 완료** ✨
