@@ -127,7 +127,6 @@ export function BlockEditor({
   return (
     <PageContainer className={isDark ? "theme-dark" : "theme-light"}>
       <ContentWrapper>
-        {/* Breadcrumb */}
         {workspaceName && onNavigateHome && (
           <PageHeader
             showBreadcrumb
@@ -154,28 +153,54 @@ export function BlockEditor({
               </div>
             </div>
           ) : blocksToShow.length > 100 ? (
-            <VirtualBlockList
-              blockIds={blocksToShow}
-              blockOrder={blockOrder}
-              editorFontSize={editorFontSize}
-              editorLineHeight={editorLineHeight}
-            />
+            (() => {
+              const virtualListStart = performance.now();
+              console.log(
+                `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with VirtualBlockList`,
+              );
+              const result = (
+                <VirtualBlockList
+                  blockIds={blocksToShow}
+                  blockOrder={blockOrder}
+                  editorFontSize={editorFontSize}
+                  editorLineHeight={editorLineHeight}
+                />
+              );
+              requestAnimationFrame(() => {
+                const virtualListTime = performance.now() - virtualListStart;
+                console.log(
+                  `[BlockEditor:timing] VirtualBlockList rendered in ${virtualListTime.toFixed(2)}ms`,
+                );
+              });
+              return result;
+            })()
           ) : (
-            blocksToShow.map((blockId) => (
-              <BlockComponent
-                key={blockId}
-                blockId={blockId}
-                depth={0}
-                blockOrder={blockOrder}
-              />
-            ))
+            (() => {
+              const mapStart = performance.now();
+              console.log(
+                `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`,
+              );
+              const blocks = blocksToShow.map((blockId) => (
+                <BlockComponent
+                  key={blockId}
+                  blockId={blockId}
+                  depth={0}
+                  blockOrder={blockOrder}
+                />
+              ));
+              requestAnimationFrame(() => {
+                const mapTime = performance.now() - mapStart;
+                console.log(
+                  `[BlockEditor:timing] BlockComponent .map() rendered in ${mapTime.toFixed(2)}ms`,
+                );
+              });
+              return blocks;
+            })()
           )}
         </div>
 
-        {/* Sub Pages */}
         <SubPagesSection currentPageId={pageId} />
 
-        {/* Linked References */}
         <LinkedReferences pageId={pageId} />
       </ContentWrapper>
     </PageContainer>
