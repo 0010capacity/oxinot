@@ -324,37 +324,38 @@ steps:
 - changesets/action이 "no changesets" 에러 던지지 않음 ✅
 - 더 빠른 실행 시간 ✅
 
-### 커밋 6: Replace changesets/action with Custom Script
-**커밋**: `cbf8099`
-**메시지**: `fix(workflow): replace changesets/action with custom npm version script`
+### 커밋 7: Fix Release Workflow to Detect Custom Version Script Commit
+**커밋**: `62c7a6e`
+**메시지**: `fix(release): detect 'chore: version packages' commit message`
 
-**문제**: changesets/action이 여전히 "No changesets found" 상황에서 npm publish 시도
+**문제**: Version Packages PR 병합 후 releasewml의 `create-version-tag` job이 스킵됨
 ```
-No changesets found. Attempting to publish any unpublished packages to npm
-No user .npmrc file found, creating one
-/usr/bin/false failed with exit code 1
+건프-and-release job: Skipped (needs.create-version-tag.outputs.should_tag != 'true')
 ```
 
-**근본 원인**: changesets/action@v1의 동작 방식
-- changeset 파일이 있으면 → Version Packages PR 생성 ✅
-- changeset 파일이 없으면 → npm publish 시도 (우리는 publish를 원하지 않음) ❌
+**근본 원인**: release.yml의 commit 메시지 감지 로직이 잘못됨
 
-**해결**: changesets/action을 완전히 제거하고 `npm run version` 직접 실행
+**이전 코드** (line 75):
+```bash
+if [[ "$LAST_COMMIT_MESSAGE" == *"Version Packages"* ]]; then
+```
+
+**문제점**:
+- changesets/action은 커밋 메시지를 **"Version Packages"** (대문자)로 생성
+- 우리의 커스텀 `npm run version` 스크립트는 **"chore: version packages"** (소문자)로 생성
+- release.yml이 대문자만 찾아서 우리 커밋을 인식하지 못함
+
+**해결**: 두 형식 모두 감지
 
 ```bash
-# 대신 우리가 수행하는 작업
-1. git config user.name/email 설정
-2. npm run version 실행 (package.json 버전 업데이트 + CHANGELOG 생성)
-3. git status로 변경사항 확인
-4. 변경이 있으면 changeset-release/main 브랜치 생성/업데이트
-5. gh cli로 PR 생성
+# 변경 후
+if [[ "$LAST_COMMIT_MESSAGE" == *"version packages"* ]] || [[ "$LAST_COMMIT_MESSAGE" == *"Version Packages"* ]]; then
 ```
 
-**장점**:
-- npm publish 시도 완벽히 제거 ✅
-- changeset이 없어도 정상 작동 ✅
-- 기존 release PR이 있으면 자동 업데이트 ✅
-- 더 많은 제어 가능 ✅
+**효과**:
+- 커스텀 npm 스크립트 커밋 감지 ✅
+- changesets/action 커밋도 여전히 감지 ✅
+- 릴리즈 workflow 정상 작동 ✅
 
 ---
 
@@ -403,7 +404,9 @@ No user .npmrc file found, creating one
 | 2 | `06c44e1` | handle grep exit code | grep 실패 처리 (스크립트 안정성) |
 | 3 | `261185a` | reorder steps before installing | 실행 순서 최적화 (불필요한 npm install 제거) |
 | 4 | `cbf8099` | replace changesets/action with custom npm version script | changesets/action의 npm publish 에러 완전 제거 ⭐ |
-| 5 | `00fa327` | update analysis with grep exit code fix details | 분석 문서 업데이트 |
-| 6 | `02c3aa1` | add final optimization fix details | 최종 최적화 설명 |
+| 5 | `62c7a6e` | detect 'chore: version packages' commit | 릴리즈 workflow 스킵 문제 해결 ⭐ |
+| 6 | `00fa327` | update analysis with grep exit code fix details | 분석 문서 업데이트 |
+| 7 | `02c3aa1` | add final optimization fix details | 최종 최적화 설명 |
+| 8 | `9294575` | add changesets/action replacement explanation | changesets/action 교체 설명 |
 
 **배포 준비 완료** ✨
