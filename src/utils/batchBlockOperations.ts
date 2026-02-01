@@ -50,9 +50,8 @@ export async function outdentBlocks(blockIds: string[]): Promise<void> {
 export async function toggleCollapseBlocks(blockIds: string[]): Promise<void> {
   if (blockIds.length === 0) return;
 
-  const toggleCollapse = useBlockStore.getState().toggleCollapse;
-  const blocksById = useBlockStore.getState().blocksById;
-  const childrenMap = useBlockStore.getState().childrenMap;
+  const state = useBlockStore.getState();
+  const { toggleCollapse, blocksById, childrenMap } = state;
 
   for (const blockId of blockIds) {
     const block = blocksById[blockId];
@@ -114,10 +113,9 @@ export function canOutdentBlocks(blockIds: string[]): boolean {
   if (blockIds.length === 0) return false;
 
   const blocksById = useBlockStore.getState().blocksById;
-  return blockIds.some((id) => {
-    const block = blocksById[id];
-    return block && block.parentId !== null;
-  });
+  return blockIds.some(
+    (id) => blocksById[id] && blocksById[id].parentId !== null,
+  );
 }
 
 /**
@@ -128,14 +126,10 @@ export function canCollapseBlocks(blockIds: string[]): boolean {
 
   const childrenMap = useBlockStore.getState().childrenMap;
 
-  for (const blockId of blockIds) {
+  return blockIds.some((blockId) => {
     const children = childrenMap[blockId];
-    if (children && children.length > 0) {
-      return true;
-    }
-  }
-
-  return false;
+    return children && children.length > 0;
+  });
 }
 
 /**
