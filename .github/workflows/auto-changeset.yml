@@ -190,10 +190,36 @@ jobs:
 
       - name: Create Version Packages PR
         if: steps.check_changesets.outputs.has_changesets == 'true'
-        uses: changesets/action@v1
-        with:
-          publish: false
-          commit: "chore: version packages"
-          title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          npm run version
+
+          if git status --porcelain | grep -q .; then
+            BRANCH_NAME="changeset-release/main"
+            
+            if git rev-parse "origin/$BRANCH_NAME" >/dev/null 2>&1; then
+              git checkout "$BRANCH_NAME"
+              git pull origin "$BRANCH_NAME"
+              git merge main --no-edit
+              git push origin "$BRANCH_NAME"
+              echo "Updated existing release branch"
+            else
+              git checkout -b "$BRANCH_NAME"
+              git push origin "$BRANCH_NAME" -u
+              
+              gh pr create \
+                --title "chore: version packages" \
+                --body "This PR updates version numbers and generates changelogs based on changesets." \
+                --base main \
+                --head "$BRANCH_NAME" \
+                --label "automated"
+            fi
+          else
+            echo "No changes after version update"
+          fi
