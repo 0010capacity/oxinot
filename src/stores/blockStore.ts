@@ -18,51 +18,173 @@ interface CachedPageData {
   childrenByParent: Record<string, BlockData[]>;
   metadata: Record<string, Record<string, string>>;
   timestamp: number;
+  loadTime?: number; // Time to load this page in ms
+}
+
+interface CacheStatistics {
+  size: number;
+  capacity: number;
+  hits: number;
+  misses: number;
+  hitRate: number; // percentage
+  evictions: number;
+  ttlExpirations: number;
+  invalidations: number;
+  avgLoadTime: number;
+  totalMemoryBytes: number;
+  oldestPageAge: number; // ms
+  newestPageAge: number; // ms
 }
 
 class PageCache {
   private cache = new Map<string, CachedPageData>();
   private readonly MAX_ENTRIES = 50;
   private readonly TTL_MS = 30 * 60 * 1000;
+  
+  // Statistics tracking
+  private hits = 0;
+  private misses = 0;
+  private evictions = 0;
+  private ttlExpirations = 0;
+  private invalidations = 0;
+  private loadTimes: number[] = [];
 
   set(pageId: string, data: CachedPageData): void {
+    // Track load time if available
+    if (data.loadTime !== undefined) {
+      this.loadTimes.push(data.loadTime);
+      // Keep only last 100 load times for average calculation
+      if (this.loadTimes.length > 100) {
+        this.loadTimes.shift();
+      }
+    }
+
     if (this.cache.size >= this.MAX_ENTRIES) {
       const oldest = Array.from(this.cache.entries()).sort(
         ([, a], [, b]) => a.timestamp - b.timestamp,
       )[0];
       if (oldest) {
         this.cache.delete(oldest[0]);
+        this.evictions++;
+        console.log(
+          `[blockStore cache] Evicted oldest page: ${oldest[0]}. Cache size: ${this.cache.size}/${this.MAX_ENTRIES}`,
+        );
       }
     }
     this.cache.set(pageId, data);
+    console.log(
+      `[blockStore cache] Cached page ${pageId}. Cache size: ${this.cache.size}/${this.MAX_ENTRIES}`,
+    );
   }
 
   get(pageId: string): CachedPageData | undefined {
     const data = this.cache.get(pageId);
-    if (!data) return undefined;
+    if (!data) {
+      this.misses++;
+      return undefined;
+    }
 
     const age = Date.now() - data.timestamp;
     if (age > this.TTL_MS) {
       this.cache.delete(pageId);
+      this.ttlExpirations++;
+      console.log(
+        `[blockStore cache] TTL expired for page ${pageId} (age: ${(age / 1000).toFixed(1)}s)`,
+      );
       return undefined;
     }
 
+    this.hits++;
+    console.log(
+      `[blockStore cache] Cache hit for page ${pageId}. Hit rate: ${this.getHitRate().toFixed(1)}%`,
+    );
     return data;
   }
 
   invalidate(pageId: string): void {
-    this.cache.delete(pageId);
+    if (this.cache.has(pageId)) {
+      this.cache.delete(pageId);
+      this.invalidations++;
+      console.log(`[blockStore cache] Invalidated page ${pageId}`);
+    }
   }
 
   invalidateAll(): void {
+    const previousSize = this.cache.size;
     this.cache.clear();
+    if (previousSize > 0) {
+      this.invalidations += previousSize;
+      console.log(`[blockStore cache] Invalidated all ${previousSize} cached pages`);
+    }
   }
 
-  stats(): { size: number; capacity: number } {
+  private getHitRate(): number {
+    const total = this.hits + this.misses;
+    if (total === 0) return 0;
+    return (this.hits / total) * 100;
+  }
+
+  private getEstimatedMemory(): number {
+    let totalBytes = 0;
+    for (const data of this.cache.values()) {
+      // Rough estimation: JSON.stringify size
+      totalBytes += JSON.stringify(data).length;
+    }
+    return totalBytes;
+  }
+
+  stats(): CacheStatistics {
+    const now = Date.now();
+    const pages = Array.from(this.cache.values());
+    const ages = pages.map((p) => now - p.timestamp);
+
     return {
       size: this.cache.size,
       capacity: this.MAX_ENTRIES,
+      hits: this.hits,
+      misses: this.misses,
+      hitRate: this.getHitRate(),
+      evictions: this.evictions,
+      ttlExpirations: this.ttlExpirations,
+      invalidations: this.invalidations,
+      avgLoadTime:
+        this.loadTimes.length > 0
+          ? this.loadTimes.reduce((a, b) => a + b, 0) / this.loadTimes.length
+          : 0,
+      totalMemoryBytes: this.getEstimatedMemory(),
+      oldestPageAge: ages.length > 0 ? Math.max(...ages) : 0,
+      newestPageAge: ages.length > 0 ? Math.min(...ages) : 0,
     };
+  }
+
+  resetStats(): void {
+    this.hits = 0;
+    this.misses = 0;
+    this.evictions = 0;
+    this.ttlExpirations = 0;
+    this.invalidations = 0;
+    this.loadTimes = [];
+    console.log(`[blockStore cache] Statistics reset`);
+  }
+
+  /**
+   * Get a detailed report of cache statistics
+   */
+  getReport(): string {
+    const s = this.stats();
+    return `
+=== Cache Statistics Report ===
+Size: ${s.size}/${s.capacity} entries (${((s.size / s.capacity) * 100).toFixed(1)}% full)
+Hit Rate: ${s.hits} hits / ${s.misses} misses = ${s.hitRate.toFixed(1)}%
+Evictions: ${s.evictions}
+TTL Expirations: ${s.ttlExpirations}
+Invalidations: ${s.invalidations}
+Avg Load Time: ${s.avgLoadTime.toFixed(2)}ms
+Memory Usage: ${(s.totalMemoryBytes / 1024).toFixed(2)}KB
+Oldest Entry: ${(s.oldestPageAge / 1000).toFixed(1)}s ago
+Newest Entry: ${(s.newestPageAge / 1000).toFixed(1)}s ago
+==============================
+    `.trim();
   }
 }
 
@@ -1278,3 +1400,36 @@ export const useChildrenIds = (parentId: string | null) =>
   );
 
 export const useBlocksLoading = () => useBlockStore((state) => state.isLoading);
+
+// ============ Cache Monitoring Export ============
+
+/**
+ * Get current cache statistics
+ * Returns detailed cache performance metrics
+ */
+export function getCacheStats() {
+  return pageCache.stats();
+}
+
+/**
+ * Get formatted cache statistics report
+ * Returns a human-readable string with cache metrics
+ */
+export function getCacheReport(): string {
+  return pageCache.getReport();
+}
+
+/**
+ * Reset cache statistics
+ * Clears hit/miss counters but keeps cached data
+ */
+export function resetCacheStats(): void {
+  pageCache.resetStats();
+}
+
+/**
+ * Clear all cached pages
+ */
+export function clearPageCache(): void {
+  pageCache.invalidateAll();
+}
