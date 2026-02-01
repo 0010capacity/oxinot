@@ -181,13 +181,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           : [blockId];
       const isBatchOperation = targetBlocks.length > 1;
 
-      console.log("[BlockComponent] Context menu opened:");
-      console.log("  blockId:", blockId);
-      console.log("  currentIsSelected:", currentIsSelected);
-      console.log("  currentSelectedIds:", currentSelectedIds);
-      console.log("  targetBlocks:", targetBlocks);
-      console.log("  isBatchOperation:", isBatchOperation);
-
       return [
         {
           items: [
