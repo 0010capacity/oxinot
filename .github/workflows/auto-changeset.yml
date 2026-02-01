@@ -201,6 +201,10 @@ jobs:
           npm run version
 
           if git status --porcelain | grep -q .; then
+            git add -A
+            git commit -m "chore: version packages"
+            git push origin main
+
             BRANCH_NAME="changeset-release/main"
             
             if git rev-parse "origin/$BRANCH_NAME" >/dev/null 2>&1; then
