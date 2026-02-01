@@ -1,18 +1,19 @@
 import { useComputedColorScheme } from "@mantine/core";
-import { useEffect, useMemo } from "react";
 import { IconCopy } from "@tabler/icons-react";
+import { useEffect, useMemo } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
 import { PageContainer } from "../components/layout/PageContainer";
 import { PageHeader } from "../components/layout/PageHeader";
+import { useBlockEditorCommands } from "../hooks/useBlockEditorCommands";
 import { useBlockStore } from "../stores/blockStore";
+import { useRegisterCommands } from "../stores/commandStore";
 import { useThemeStore } from "../stores/themeStore";
 import { useViewStore } from "../stores/viewStore";
-import { useRegisterCommands } from "../stores/commandStore";
 import { showToast } from "../utils/toast";
-import { useBlockEditorCommands } from "../hooks/useBlockEditorCommands";
 import { BlockComponent } from "./BlockComponent";
+import { VirtualBlockList } from "./VirtualBlockList";
 import "./BlockEditor.css";
 
 interface BlockEditorProps {
@@ -127,6 +128,7 @@ export function BlockEditor({
           style={{
             fontSize: `${editorFontSize}px`,
             lineHeight: editorLineHeight,
+            height: "100%",
           }}
         >
           {blocksToShow.length === 0 ? (
@@ -137,6 +139,13 @@ export function BlockEditor({
                 Start typing to create your first block...
               </div>
             </div>
+          ) : blocksToShow.length > 100 ? (
+            <VirtualBlockList
+              blockIds={blocksToShow}
+              blockOrder={blockOrder}
+              editorFontSize={editorFontSize}
+              editorLineHeight={editorLineHeight}
+            />
           ) : (
             blocksToShow.map((blockId) => (
               <BlockComponent
