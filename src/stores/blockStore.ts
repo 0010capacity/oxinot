@@ -11,6 +11,63 @@ import {
 import { useBlockUIStore } from "./blockUIStore";
 import { useWorkspaceStore } from "./workspaceStore";
 
+// ============ Caching ============
+
+interface CachedPageData {
+  rootBlocks: BlockData[];
+  childrenByParent: Record<string, BlockData[]>;
+  metadata: Record<string, Record<string, string>>;
+  timestamp: number;
+}
+
+class PageCache {
+  private cache = new Map<string, CachedPageData>();
+  private readonly MAX_ENTRIES = 50;
+  private readonly TTL_MS = 30 * 60 * 1000;
+
+  set(pageId: string, data: CachedPageData): void {
+    if (this.cache.size >= this.MAX_ENTRIES) {
+      const oldest = Array.from(this.cache.entries()).sort(
+        ([, a], [, b]) => a.timestamp - b.timestamp,
+      )[0];
+      if (oldest) {
+        this.cache.delete(oldest[0]);
+      }
+    }
+    this.cache.set(pageId, data);
+  }
+
+  get(pageId: string): CachedPageData | undefined {
+    const data = this.cache.get(pageId);
+    if (!data) return undefined;
+
+    const age = Date.now() - data.timestamp;
+    if (age > this.TTL_MS) {
+      this.cache.delete(pageId);
+      return undefined;
+    }
+
+    return data;
+  }
+
+  invalidate(pageId: string): void {
+    this.cache.delete(pageId);
+  }
+
+  invalidateAll(): void {
+    this.cache.clear();
+  }
+
+  stats(): { size: number; capacity: number } {
+    return {
+      size: this.cache.size,
+      capacity: this.MAX_ENTRIES,
+    };
+  }
+}
+
+const pageCache = new PageCache();
+
 // ============ Types ============
 
 export interface BlockData {
@@ -99,6 +156,15 @@ interface BlockActions {
 
 type BlockStore = BlockState & BlockActions;
 
+// ============ Cache Invalidation Helper ============
+
+function invalidatePageCache(get: any): void {
+  const { currentPageId } = get();
+  if (currentPageId) {
+    pageCache.invalidate(currentPageId);
+  }
+}
+
 // ============ Store Implementation ============
 
 export const useBlockStore = create<BlockStore>()(
@@ -132,6 +198,33 @@ export const useBlockStore = create<BlockStore>()(
           }
 
           console.log(`[blockStore] Loading blocks for page ${pageId}...`);
+
+          // Check cache first
+          const cached = pageCache.get(pageId);
+          if (cached) {
+            console.log(
+              `[blockStore] Cache hit: Using cached blocks for page ${pageId}`,
+            );
+            const { blocksById, childrenMap } = normalizeBlocks(
+              cached.rootBlocks,
+            );
+            set((state) => {
+              state.blocksById = blocksById;
+              state.childrenMap = childrenMap;
+              state.currentPageId = pageId;
+              state.isLoading = false;
+
+              for (const [blockId, metadata] of Object.entries(
+                cached.metadata,
+              )) {
+                if (state.blocksById[blockId]) {
+                  state.blocksById[blockId].metadata = metadata;
+                }
+              }
+            });
+            return;
+          }
+
           const startTime = performance.now();
           const blocks: BlockData[] = await invoke("get_page_blocks_fast", {
             workspacePath,
@@ -180,6 +273,13 @@ export const useBlockStore = create<BlockStore>()(
                       state.blocksById[blockId].metadata = metadata;
                     }
                   }
+                });
+
+                pageCache.set(pageId, {
+                  rootBlocks: blocks,
+                  childrenByParent: {},
+                  metadata: metadataMap,
+                  timestamp: Date.now(),
                 });
               })
               .catch((err) => {
@@ -432,6 +532,8 @@ export const useBlockStore = create<BlockStore>()(
           // 5. Also update childrenMap reference to ensure consistency
           state.childrenMap = { ...state.childrenMap };
         });
+
+        invalidatePageCache(get);
       },
 
       // ============ Block CRUD ============
@@ -641,6 +743,8 @@ export const useBlockStore = create<BlockStore>()(
                 metadata: updates.metadata,
               },
             });
+
+            invalidatePageCache(get);
           }
         } catch (error) {
           console.error("Failed to update block:", error);
