@@ -25,7 +25,7 @@ class CacheMonitor {
    * Start monitoring cache statistics
    * Automatically updates cache stats store at regular intervals
    */
-  start(intervalMs: number = 5000): void {
+  start(intervalMs = 5000): void {
     if (this.isMonitoring) {
       console.warn("[cacheMonitor] Already monitoring cache");
       return;

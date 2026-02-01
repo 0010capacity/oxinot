@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import type React from "react";
+import { useEffect, useState } from "react";
 import { cachePrefetcher } from "@/utils/cachePrefetcher";
 import "./CachePrefetcherPanel.css";
 
@@ -132,7 +133,7 @@ export const CachePrefetcherPanel: React.FC<{ isOpen?: boolean }> = ({
                 max={10}
                 value={config.minVisitsToPreload}
                 onChange={(e) =>
-                  handleConfigChange("minVisitsToPreload", parseInt(e.target.value))
+                  handleConfigChange("minVisitsToPreload", Number.parseInt(e.target.value))
                 }
               />
             </div>
@@ -144,7 +145,7 @@ export const CachePrefetcherPanel: React.FC<{ isOpen?: boolean }> = ({
                 step={500}
                 value={config.idleTimeMs}
                 onChange={(e) =>
-                  handleConfigChange("idleTimeMs", parseInt(e.target.value))
+                  handleConfigChange("idleTimeMs", Number.parseInt(e.target.value))
                 }
               />
             </div>
@@ -156,7 +157,7 @@ export const CachePrefetcherPanel: React.FC<{ isOpen?: boolean }> = ({
                 max={10}
                 value={config.maxPrefetchQueue}
                 onChange={(e) =>
-                  handleConfigChange("maxPrefetchQueue", parseInt(e.target.value))
+                  handleConfigChange("maxPrefetchQueue", Number.parseInt(e.target.value))
                 }
               />
             </div>

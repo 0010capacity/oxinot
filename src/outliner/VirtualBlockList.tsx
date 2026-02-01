@@ -4,7 +4,6 @@ import { BlockComponent } from "./BlockComponent";
 
 interface VirtualBlockListProps {
   blockIds: string[];
-  blockOrder: string[];
   editorFontSize: number;
   editorLineHeight: number;
   onEmptyState?: () => React.ReactNode;
@@ -27,7 +26,6 @@ interface VirtualBlockListProps {
  */
 export function VirtualBlockList({
   blockIds,
-  blockOrder,
   editorFontSize,
   editorLineHeight,
   onEmptyState,
@@ -58,7 +56,7 @@ export function VirtualBlockList({
       data={blockIds}
       itemContent={(_, blockId) => (
         <div style={blockListStyle}>
-          <BlockComponent blockId={blockId} depth={0} blockOrder={blockOrder} />
+          <BlockComponent blockId={blockId} depth={0} />
         </div>
       )}
       overscan={5}
