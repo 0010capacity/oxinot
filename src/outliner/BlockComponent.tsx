@@ -347,7 +347,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         const timeoutId = setTimeout(() => {
           blockRowRef.current?.scrollIntoView({
             behavior: "smooth",
-            block: "center", // 블록을 화면 중앙에 위치시켜서 여유있게 보임
+            block: "start", // 스크롤 영역 상단에서 배치 (하단 여백으로 인해 중앙처럼 보임)
           });
         }, 0);
 
