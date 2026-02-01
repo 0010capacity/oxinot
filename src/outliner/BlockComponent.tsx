@@ -363,8 +363,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           const blockHeight = blockRowRef.current.offsetHeight;
           const containerHeight = scrollContainer.clientHeight;
 
-          // Center the block in the scroll container
-          const targetScroll = blockTop + blockHeight / 2 - containerHeight / 2;
+          // Position block at 40% from top of viewport for comfortable viewing
+          const targetScroll =
+            blockTop + blockHeight / 2 - containerHeight * 0.4;
 
           scrollContainer.scrollTo({
             top: targetScroll,
