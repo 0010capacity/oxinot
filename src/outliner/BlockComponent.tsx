@@ -366,24 +366,40 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             return;
           }
 
-          const blockTop = blockRowRef.current.offsetTop;
-          const blockHeight = blockRowRef.current.offsetHeight;
+          // Get position relative to scroll container
+          const blockRect = blockRowRef.current.getBoundingClientRect();
+          const containerRect = scrollContainer.getBoundingClientRect();
+
+          const blockCenterRelativeToViewport =
+            blockRect.top + blockRect.height / 2;
+          const containerTopRelativeToViewport = containerRect.top;
           const containerHeight = scrollContainer.clientHeight;
 
-          // Calculate position relative to scrollContainer
-          let relativeBlockTop = blockTop;
-          let parent = blockRowRef.current.offsetParent as HTMLElement | null;
-          while (parent && parent !== scrollContainer) {
-            relativeBlockTop += parent.offsetTop;
-            parent = parent.offsetParent as HTMLElement | null;
-          }
+          // How much to scroll: position block at 40% from container top
+          const targetPositionInContainer = containerHeight * 0.4;
+          const currentPositionInContainer =
+            blockCenterRelativeToViewport - containerTopRelativeToViewport;
+          const scrollDelta =
+            currentPositionInContainer - targetPositionInContainer;
 
-          // Position block at 40% from top of viewport for comfortable viewing
-          const targetScroll =
-            relativeBlockTop + blockHeight / 2 - containerHeight * 0.4;
+          const newScrollTop = scrollContainer.scrollTop + scrollDelta;
+
+          console.log(
+            "[Auto-scroll]",
+            "blockId:",
+            blockId,
+            "blockRect.top:",
+            blockRect.top,
+            "containerRect.top:",
+            containerRect.top,
+            "scrollDelta:",
+            scrollDelta,
+            "newScrollTop:",
+            newScrollTop,
+          );
 
           scrollContainer.scrollTo({
-            top: Math.max(0, targetScroll),
+            top: Math.max(0, newScrollTop),
             behavior: "smooth",
           });
         }, 0);
