@@ -1,5 +1,20 @@
 # oxinot
 
+## 0.24.2
+
+### Patch Changes
+
+- 844a843: - detect changeset files directly instead of relying on actor check
+  - handle grep exit code when no changesets found
+  - reorder steps to check changesets before installing dependencies
+- 10b8db7: - detect changeset files directly instead of relying on actor check
+  - handle grep exit code when no changesets found
+- 4dcfed1: - detect changeset files directly instead of relying on actor check
+  - handle grep exit code when no changesets found
+  - reorder steps to check changesets before installing dependencies
+- 86826e1: - detect changeset files directly instead of relying on actor check
+  - handle grep exit code when no changesets found
+
 ## 0.24.1
 
 ### Patch Changes
