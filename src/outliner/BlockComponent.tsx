@@ -340,18 +340,25 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       };
     }, []);
 
-    // Auto-scroll the focused block into view with proper centering
+    // Auto-scroll the focused block into view with proper positioning
     useEffect(() => {
       if (focusedBlockId === blockId && blockRowRef.current) {
         const timeoutId = setTimeout(() => {
           if (!blockRowRef.current) return;
 
-          const scrollContainer = blockRowRef.current.closest(
-            'div[style*="overflow"]',
-          ) as HTMLElement | null;
+          // Find the nearest scrollable parent container
+          let scrollContainer: HTMLElement | null = null;
+          let element: HTMLElement | null = blockRowRef.current;
+
+          while (element) {
+            if (element.scrollHeight > element.clientHeight) {
+              scrollContainer = element;
+              break;
+            }
+            element = element.parentElement;
+          }
 
           if (!scrollContainer) {
-            // Fallback to standard scrollIntoView if container not found
             blockRowRef.current.scrollIntoView({
               behavior: "smooth",
               block: "center",
@@ -363,12 +370,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           const blockHeight = blockRowRef.current.offsetHeight;
           const containerHeight = scrollContainer.clientHeight;
 
+          // Calculate position relative to scrollContainer
+          let relativeBlockTop = blockTop;
+          let parent = blockRowRef.current.offsetParent as HTMLElement | null;
+          while (parent && parent !== scrollContainer) {
+            relativeBlockTop += parent.offsetTop;
+            parent = parent.offsetParent as HTMLElement | null;
+          }
+
           // Position block at 40% from top of viewport for comfortable viewing
           const targetScroll =
-            blockTop + blockHeight / 2 - containerHeight * 0.4;
+            relativeBlockTop + blockHeight / 2 - containerHeight * 0.4;
 
           scrollContainer.scrollTo({
-            top: targetScroll,
+            top: Math.max(0, targetScroll),
             behavior: "smooth",
           });
         }, 0);
