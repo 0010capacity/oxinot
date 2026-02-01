@@ -2651,7 +2651,7 @@ dependencies = [
 
 [[package]]
 name = "oxinot"
-version = "0.22.0"
+version = "0.24.3"
 dependencies = [
  "async-recursion",
  "chrono",

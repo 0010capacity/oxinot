@@ -1,5 +1,11 @@
 # oxinot
 
+## 0.24.3
+
+### Patch Changes
+
+- 9db54ba: - commit version changes to main before creating PR branch
+
 ## 0.24.2
 
 ### Patch Changes
