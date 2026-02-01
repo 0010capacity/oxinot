@@ -91,6 +91,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     }
 
     const blockComponentRef = useRef<HTMLDivElement>(null);
+    const blockRowRef = useRef<HTMLDivElement>(null);
 
     const editorRef = useRef<EditorRef>(null);
     const appliedPositionRef = useRef<number | null>(null);
@@ -338,6 +339,21 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         }
       };
     }, []);
+
+    // Auto-scroll the focused block into view
+    useEffect(() => {
+      if (focusedBlockId === blockId && blockRowRef.current) {
+        // Use a small delay to ensure the DOM is fully updated after focus
+        const timeoutId = setTimeout(() => {
+          blockRowRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest", // 'nearest' keeps the block visible without jumping
+          });
+        }, 0);
+
+        return () => clearTimeout(timeoutId);
+      }
+    }, [focusedBlockId, blockId]);
 
     // Handle outside clicks to close metadata editor
     useEffect(() => {
@@ -1032,6 +1048,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           {indentGuide}
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: Selection via mouse is the primary UX; keyboard navigation is handled by collapse button and arrow keys */}
           <div
+            ref={blockRowRef}
             className="block-row"
             style={{
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
