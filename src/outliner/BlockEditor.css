@@ -23,9 +23,7 @@
 .blocks-list {
   max-width: var(--layout-max-content-width);
   margin: 0 auto;
-  /* Add bottom padding so blocks can scroll to center of viewport,
-     providing comfortable reading/writing space with whitespace above and below */
-  padding-bottom: 8vh;
+  padding-bottom: 24px;
   padding-left: var(--spacing-sm);
 }
 

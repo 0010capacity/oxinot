@@ -340,14 +340,35 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       };
     }, []);
 
-    // Auto-scroll the focused block into view
+    // Auto-scroll the focused block into view with proper centering
     useEffect(() => {
       if (focusedBlockId === blockId && blockRowRef.current) {
-        // Use a small delay to ensure the DOM is fully updated after focus
         const timeoutId = setTimeout(() => {
-          blockRowRef.current?.scrollIntoView({
+          if (!blockRowRef.current) return;
+
+          const scrollContainer = blockRowRef.current.closest(
+            'div[style*="overflow"]',
+          ) as HTMLElement | null;
+
+          if (!scrollContainer) {
+            // Fallback to standard scrollIntoView if container not found
+            blockRowRef.current.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
+            return;
+          }
+
+          const blockTop = blockRowRef.current.offsetTop;
+          const blockHeight = blockRowRef.current.offsetHeight;
+          const containerHeight = scrollContainer.clientHeight;
+
+          // Center the block in the scroll container
+          const targetScroll = blockTop + blockHeight / 2 - containerHeight / 2;
+
+          scrollContainer.scrollTo({
+            top: targetScroll,
             behavior: "smooth",
-            block: "start", // 스크롤 영역 상단에서 배치 (하단 여백으로 인해 중앙처럼 보임)
           });
         }, 0);
 
