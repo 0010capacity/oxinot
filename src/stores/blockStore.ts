@@ -132,12 +132,14 @@ export const useBlockStore = create<BlockStore>()(
           }
 
           console.log(`[blockStore] Loading blocks for page ${pageId}...`);
-          const blocks: BlockData[] = await invoke("get_page_blocks", {
+          const startTime = performance.now();
+          const blocks: BlockData[] = await invoke("get_page_blocks_fast", {
             workspacePath,
             pageId,
           });
+          const loadTime = performance.now() - startTime;
           console.log(
-            `[blockStore] Loaded ${blocks.length} blocks for page ${pageId}`,
+            `[blockStore] Loaded ${blocks.length} blocks for page ${pageId} in ${loadTime.toFixed(2)}ms`,
           );
 
           // Normalize
@@ -155,6 +157,38 @@ export const useBlockStore = create<BlockStore>()(
               state.isLoading = false;
             }
           });
+
+          // Load metadata asynchronously in the background (non-blocking)
+          const blockIds = blocks.map((b) => b.id);
+          if (blockIds.length > 0) {
+            invoke<Record<string, Record<string, string>>>(
+              "get_page_blocks_metadata",
+              {
+                workspacePath,
+                blockIds,
+              },
+            )
+              .then((metadataMap) => {
+                console.log(
+                  `[blockStore] Loaded metadata for ${Object.keys(metadataMap).length} blocks`,
+                );
+                set((state) => {
+                  for (const [blockId, metadata] of Object.entries(
+                    metadataMap,
+                  )) {
+                    if (state.blocksById[blockId]) {
+                      state.blocksById[blockId].metadata = metadata;
+                    }
+                  }
+                });
+              })
+              .catch((err) => {
+                console.error(
+                  "[blockStore] Failed to load block metadata:",
+                  err,
+                );
+              });
+          }
 
           if (isRootEmpty) {
             console.log(

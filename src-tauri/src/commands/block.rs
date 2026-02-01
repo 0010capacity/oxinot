@@ -390,6 +390,74 @@ pub async fn get_page_blocks(
     }
 }
 
+/// Optimized page loading: get blocks without metadata for faster initial render
+/// Metadata is loaded separately in the background via `get_page_blocks_metadata`
+#[tauri::command]
+pub async fn get_page_blocks_fast(
+    workspace_path: String,
+    page_id: String,
+) -> Result<Vec<Block>, String> {
+    let mut conn = open_workspace_db(&workspace_path)?;
+
+    // Check if page exists first
+    let page_exists: bool = conn
+        .query_row("SELECT 1 FROM pages WHERE id = ?", [&page_id], |_| Ok(true))
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or(false);
+
+    if !page_exists {
+        return Ok(Vec::new());
+    }
+
+    // Try to query blocks without metadata, and repair if constraint violation occurs
+    loop {
+        let query_result = query_blocks_for_page(&conn, &page_id);
+
+        match query_result {
+            Ok(blocks) => {
+                // Return blocks WITHOUT metadata for fast initial load
+                // Metadata will be loaded separately via get_page_blocks_metadata
+                return Ok(blocks);
+            }
+            Err(e) => {
+                if e.contains("FOREIGN KEY constraint") {
+                    eprintln!(
+                        "[get_page_blocks_fast] FOREIGN KEY constraint failed for page {}: {}",
+                        page_id, e
+                    );
+                    eprintln!("[get_page_blocks_fast] Attempting database repair...");
+                    match perform_db_repair(&mut conn) {
+                        Ok(()) => {
+                            eprintln!("[get_page_blocks_fast] Database repair completed successfully, retrying query");
+                            continue;
+                        }
+                        Err(repair_err) => {
+                            eprintln!("[get_page_blocks_fast] Database repair failed: {}", repair_err);
+                            return Err(format!(
+                                "FOREIGN KEY constraint failed and repair unsuccessful: {}",
+                                e
+                            ));
+                        }
+                    }
+                } else {
+                    return Err(e);
+                }
+            }
+        }
+    }
+}
+
+/// Load metadata for multiple blocks - called asynchronously after initial page load
+#[tauri::command]
+pub async fn get_page_blocks_metadata(
+    workspace_path: String,
+    block_ids: Vec<String>,
+) -> Result<std::collections::HashMap<String, std::collections::HashMap<String, String>>, String> {
+    let conn = open_workspace_db(&workspace_path)?;
+    load_blocks_metadata(&conn, &block_ids)
+}
+
 /// Helper function to query blocks for a page (avoids lifetime issues)
 fn query_blocks_for_page(conn: &Connection, page_id: &str) -> Result<Vec<Block>, String> {
     let mut stmt = conn
