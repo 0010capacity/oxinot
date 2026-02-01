@@ -39,6 +39,10 @@ import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { MacroContentWrapper } from "./MacroContentWrapper";
 import "./BlockComponent.css";
 import { INDENT_PER_LEVEL } from "../constants/layout";
+import {
+  calculateNextBlockCursorPosition,
+  calculatePrevBlockCursorPosition,
+} from "./cursorPositionUtils";
 
 interface BlockComponentProps {
   blockId: string;
@@ -908,17 +912,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   .getState()
                   .getBlock(prevBlockId);
                 if (prevBlock) {
-                  const prevContent = prevBlock.content;
-                  const lines = prevContent.split("\n");
-                  const lastLine = lines[lines.length - 1];
-
-                  // Calculate position: sum of all previous lines + target column
-                  let targetPos = 0;
-                  for (let i = 0; i < lines.length - 1; i++) {
-                    targetPos += lines[i].length + 1; // +1 for newline
-                  }
-                  targetPos += Math.min(columnPos, lastLine.length);
-
+                  const targetPos = calculatePrevBlockCursorPosition(
+                    columnPos,
+                    prevBlock.content,
+                  );
                   setFocusedBlock(prevBlockId, targetPos);
                 } else {
                   setFocusedBlock(prevBlockId);
@@ -952,10 +949,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   .getState()
                   .getBlock(nextBlockId);
                 if (nextBlock) {
-                  const nextContent = nextBlock.content;
-                  const firstLine = nextContent.split("\n")[0];
-                  const targetPos = Math.min(columnPos, firstLine.length);
-
+                  const targetPos = calculateNextBlockCursorPosition(
+                    columnPos,
+                    nextBlock.content,
+                  );
                   setFocusedBlock(nextBlockId, targetPos);
                 } else {
                   setFocusedBlock(nextBlockId);
