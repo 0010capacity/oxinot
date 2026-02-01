@@ -39,6 +39,7 @@ import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { MacroContentWrapper } from "./MacroContentWrapper";
 import "./BlockComponent.css";
 import { INDENT_PER_LEVEL } from "../constants/layout";
+import { useIsBlockSelected } from "../hooks/useBlockSelection";
 import {
   calculateNextBlockCursorPosition,
   calculatePrevBlockCursorPosition,
@@ -81,11 +82,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       (state) => state.toggleBlockSelection,
     );
     const selectBlockRange = useBlockUIStore((state) => state.selectBlockRange);
-    const selectedBlockIds = useBlockUIStore((state) => state.selectedBlockIds);
     const lastSelectedBlockId = useBlockUIStore(
       (state) => state.lastSelectedBlockId,
     );
-    const isSelected = selectedBlockIds.includes(blockId);
+    const isSelected = useIsBlockSelected(blockId);
 
     const { t } = useTranslation();
 
