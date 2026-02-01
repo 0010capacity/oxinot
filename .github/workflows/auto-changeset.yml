@@ -153,15 +153,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm install
-
       - name: Check for changesets in this push
         id: check_changesets
         run: |
@@ -184,7 +175,18 @@ jobs:
 
       - name: Skip if no changesets
         if: steps.check_changesets.outputs.has_changesets == 'false'
-        run: echo "No changeset files were added in this push"
+        run: echo "No changeset files were added in this push - skipping Version Packages PR creation"
+
+      - name: Setup Node
+        if: steps.check_changesets.outputs.has_changesets == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: Install dependencies
+        if: steps.check_changesets.outputs.has_changesets == 'true'
+        run: npm install
 
       - name: Create Version Packages PR
         if: steps.check_changesets.outputs.has_changesets == 'true'
