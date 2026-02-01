@@ -273,7 +273,7 @@ steps:
       echo "has_changesets=$([ "$HAS_CHANGESET_FILES" -gt 0 ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
 ```
 
-### 커밋 2: Script Robustness Fix
+### 커밋 3: Script Robustness Fix
 **커밋**: `06c44e1`
 **메시지**: `fix(workflow): handle grep exit code when no changesets found`
 
@@ -293,6 +293,36 @@ HAS_CHANGESET_FILES=$(echo "$CHANGED_FILES" | grep -E "\.changeset/[^/]+\.md$" |
 - grep이 실패해도 `|| true`가 exit code를 0으로 만듦
 - 파이프라인이 계속 실행되고 wc -l이 0을 반환
 - 변수 할당 성공, 스크립트 계속 실행
+
+### 커밋 4: Execution Order Optimization
+**커밋**: `261185a`
+**메시지**: `fix(workflow): reorder steps to check changesets before installing dependencies`
+
+**문제**: changesets/action이 no changesets 상황에서도 실행되어 npm publish 에러 발생
+
+**해결**: changeset 체크를 먼저 실행해서 필요 없는 경우 이후 단계 skip
+
+```yaml
+# 변경 전: Node setup → npm install → changesets 체크 (실패 가능)
+steps:
+  - Setup Node
+  - npm install
+  - Check changesets
+  - changesets/action (항상 실행)
+
+# 변경 후: changesets 체크 → Node setup → npm install → changesets/action (조건부)
+steps:
+  - Check changesets
+  - if has_changesets:
+      - Setup Node
+      - npm install
+      - changesets/action
+```
+
+**효과**:
+- changeset이 없는 경우 불필요한 npm install 생략 ✅
+- changesets/action이 "no changesets" 에러 던지지 않음 ✅
+- 더 빠른 실행 시간 ✅
 
 ---
 
@@ -337,8 +367,10 @@ HAS_CHANGESET_FILES=$(echo "$CHANGED_FILES" | grep -E "\.changeset/[^/]+\.md$" |
 
 | 커밋 | 메시지 | 설명 |
 |------|-------|------|
-| `06c44e1` | fix(workflow): handle grep exit code | grep 실패 시 스크립트 강제 종료 문제 해결 |
-| `45b2c3d` | docs: add comprehensive workflow analysis | 상세 분석 문서 작성 |
-| `92f3e83` | fix(workflow): detect changeset files | changeset 파일 직접 감지로 로직 개선 |
+| `261185a` | fix(workflow): reorder steps to check changesets before installing | changeset 체크를 먼저 실행해서 불필요한 npm install 방지 |
+| `00fa327` | docs: update analysis with grep exit code fix details | grep 실패 처리 문서화 |
+| `06c44e1` | fix(workflow): handle grep exit code when no changesets found | grep 실패 시 스크립트 강제 종료 문제 해결 |
+| `45b2c3d` | docs: add comprehensive workflow analysis and fix explanation | 상세 분석 문서 작성 |
+| `92f3e83` | fix(workflow): detect changeset files directly instead of relying on actor check | changeset 파일 직접 감지로 로직 개선 |
 
 **배포 준비 완료** ✨
