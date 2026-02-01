@@ -23,10 +23,9 @@
 .blocks-list {
   max-width: var(--layout-max-content-width);
   margin: 0 auto;
-  /* Add generous bottom padding so the last block can be positioned
-     in the middle of the viewport when scrolled to the bottom,
-     providing comfortable reading/writing space below the active block */
-  padding-bottom: calc(100vh - 200px);
+  /* Add bottom padding so blocks can scroll to center of viewport,
+     providing comfortable reading/writing space with whitespace above and below */
+  padding-bottom: 45vh;
   padding-left: var(--spacing-sm);
 }
 
