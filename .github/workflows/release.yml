@@ -69,10 +69,10 @@ jobs:
             exit 0
           fi
 
-          # Check if the last commit is a version bump commit (from changesets/action)
-          # Changesets action creates commits with the version info in the message
+          # Check if the last commit is a version bump commit
+          # Can be from changesets/action or our custom npm version script
           LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
-          if [[ "$LAST_COMMIT_MESSAGE" == *"Version Packages"* ]]; then
+          if [[ "$LAST_COMMIT_MESSAGE" == *"version packages"* ]] || [[ "$LAST_COMMIT_MESSAGE" == *"Version Packages"* ]]; then
             echo "Version bump commit detected - will create tag $TAG_NAME"
             echo "should_tag=true" >> "$GITHUB_OUTPUT"
             echo "version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
