@@ -25,7 +25,7 @@
   margin: 0 auto;
   /* Add bottom padding so blocks can scroll to center of viewport,
      providing comfortable reading/writing space with whitespace above and below */
-  padding-bottom: 45vh;
+  padding-bottom: 20vh;
   padding-left: var(--spacing-sm);
 }
 
