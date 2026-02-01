@@ -480,6 +480,11 @@ pub fn run() {
             get_path_info,
             // Block commands
             commands::block::get_page_blocks,
+            commands::block::get_page_blocks_fast,
+            commands::block::get_page_blocks_metadata,
+            commands::block::get_page_blocks_root,
+            commands::block::get_page_blocks_children,
+            commands::block::get_page_blocks_complete,
             commands::block::create_block,
             commands::block::create_blocks_batch,
             commands::block::update_block,

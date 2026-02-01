@@ -454,8 +454,14 @@ pub async fn get_page_blocks_metadata(
     workspace_path: String,
     block_ids: Vec<String>,
 ) -> Result<std::collections::HashMap<String, std::collections::HashMap<String, String>>, String> {
-    let conn = open_workspace_db(&workspace_path)?;
-    load_blocks_metadata(&conn, &block_ids)
+    let result = tokio::task::spawn_blocking(move || {
+        let conn = open_workspace_db(&workspace_path)?;
+        load_blocks_metadata(&conn, &block_ids)
+    })
+    .await
+    .map_err(|e| format!("Metadata load task failed: {e}"))?;
+
+    result
 }
 
 /// Progressive loading: Get only root blocks (parent_id = NULL) for immediate display
@@ -564,6 +570,102 @@ pub async fn get_page_blocks_children(
         .map_err(|e| e.to_string())?;
 
     Ok(blocks)
+}
+
+/// Load page blocks with metadata and children hierarchy in a single database round-trip.
+/// Combines three IPC calls into one for significantly better performance.
+#[tauri::command]
+pub async fn get_page_blocks_complete(
+    workspace_path: String,
+    page_id: String,
+) -> Result<crate::models::block::PageBlocksComplete, String> {
+    let result = tokio::task::spawn_blocking(move || {
+        get_page_blocks_complete_impl(&workspace_path, &page_id)
+    })
+    .await
+    .map_err(|e| format!("Block loading task failed: {e}"))?;
+
+    result
+}
+
+fn get_page_blocks_complete_impl(
+    workspace_path: &str,
+    page_id: &str,
+) -> Result<crate::models::block::PageBlocksComplete, String> {
+    let mut conn = open_workspace_db(workspace_path)?;
+
+    let page_exists: bool = conn
+        .query_row("SELECT 1 FROM pages WHERE id = ?", [page_id], |_| Ok(true))
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or(false);
+
+    if !page_exists {
+        return Ok(crate::models::block::PageBlocksComplete {
+            root_blocks: Vec::new(),
+            children_by_parent: HashMap::new(),
+            metadata: HashMap::new(),
+        });
+    }
+
+    loop {
+        let query_result = query_blocks_for_page(&conn, page_id);
+
+        match query_result {
+            Ok(all_blocks) => {
+                let block_ids: Vec<String> = all_blocks.iter().map(|b| b.id.clone()).collect();
+                let mut metadata_map = load_blocks_metadata(&conn, &block_ids)?;
+
+                let mut root_blocks = Vec::new();
+                let mut children_by_parent: HashMap<String, Vec<Block>> = HashMap::new();
+
+                for mut block in all_blocks {
+                    block.metadata = metadata_map
+                        .remove(&block.id)
+                        .unwrap_or_default();
+
+                    if block.parent_id.is_none() {
+                        root_blocks.push(block);
+                    } else if let Some(parent_id) = &block.parent_id {
+                        children_by_parent
+                            .entry(parent_id.clone())
+                            .or_insert_with(Vec::new)
+                            .push(block);
+                    }
+                }
+
+                return Ok(crate::models::block::PageBlocksComplete {
+                    root_blocks,
+                    children_by_parent,
+                    metadata: metadata_map,
+                });
+            }
+            Err(e) => {
+                if e.contains("FOREIGN KEY constraint") {
+                    eprintln!(
+                        "[get_page_blocks_complete] FOREIGN KEY constraint failed for page {}: {}",
+                        page_id, e
+                    );
+                    eprintln!("[get_page_blocks_complete] Attempting database repair...");
+                    match perform_db_repair(&mut conn) {
+                        Ok(()) => {
+                            eprintln!("[get_page_blocks_complete] Database repair completed successfully, retrying query");
+                            continue;
+                        }
+                        Err(repair_err) => {
+                            eprintln!("[get_page_blocks_complete] Database repair failed: {}", repair_err);
+                            return Err(format!(
+                                "FOREIGN KEY constraint failed and repair unsuccessful: {}",
+                                e
+                            ));
+                        }
+                    }
+                } else {
+                    return Err(e);
+                }
+            }
+        }
+    }
 }
 
 /// Helper function to query blocks for a page (avoids lifetime issues)
@@ -1670,7 +1772,7 @@ fn load_blocks_metadata(
         .join(",");
 
     let sql = format!(
-        "SELECT block_id, key, value FROM block_metadata WHERE block_id IN ({}) ORDER BY block_id, key",
+        "SELECT block_id, key, value FROM block_metadata WHERE block_id IN ({})",
         placeholders
     );
 

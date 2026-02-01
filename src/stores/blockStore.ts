@@ -19,6 +19,8 @@ interface CachedPageData {
   metadata: Record<string, Record<string, string>>;
   timestamp: number;
   loadTime?: number; // Time to load this page in ms
+  accessCount: number;
+  lastAccess: number;
 }
 
 interface CacheStatistics {
@@ -40,7 +42,12 @@ class PageCache {
   private cache = new Map<string, CachedPageData>();
   private readonly MAX_ENTRIES = 50;
   private readonly TTL_MS = 30 * 60 * 1000;
-  
+  private readonly MIN_TTL_MS = 5 * 60 * 1000;
+  private readonly MAX_TTL_MS = 2 * 60 * 60 * 1000;
+  private storageKey = "page-cache-v1";
+  private warmed = false;
+  private saveTimeout: ReturnType<typeof setTimeout> | null = null;
+
   // Statistics tracking
   private hits = 0;
   private misses = 0;
@@ -71,7 +78,15 @@ class PageCache {
         );
       }
     }
-    this.cache.set(pageId, data);
+    const now = Date.now();
+    const existing = this.cache.get(pageId);
+    const accessCount = existing ? existing.accessCount : 0;
+    this.cache.set(pageId, {
+      ...data,
+      accessCount,
+      lastAccess: now,
+    });
+    this.scheduleSave();
     console.log(
       `[blockStore cache] Cached page ${pageId}. Cache size: ${this.cache.size}/${this.MAX_ENTRIES}`,
     );
@@ -84,27 +99,40 @@ class PageCache {
       return undefined;
     }
 
-    const age = Date.now() - data.timestamp;
-    if (age > this.TTL_MS) {
+    const now = Date.now();
+    const age = now - data.timestamp;
+    const ttlMs = this.getAdaptiveTtl(data);
+    if (age > ttlMs) {
       this.cache.delete(pageId);
       this.ttlExpirations++;
       console.log(
-        `[blockStore cache] TTL expired for page ${pageId} (age: ${(age / 1000).toFixed(1)}s)`,
+        `[blockStore cache] TTL expired for page ${pageId} (age: ${(age / 1000).toFixed(1)}s, ttl: ${(ttlMs / 1000).toFixed(1)}s)`,
       );
       return undefined;
     }
 
     this.hits++;
+    data.accessCount += 1;
+    data.lastAccess = now;
+    this.scheduleSave();
     console.log(
       `[blockStore cache] Cache hit for page ${pageId}. Hit rate: ${this.getHitRate().toFixed(1)}%`,
     );
     return data;
   }
 
+  private getAdaptiveTtl(data: CachedPageData): number {
+    const scaled = this.TTL_MS * (1 + Math.log2(1 + data.accessCount) * 0.5);
+    if (scaled < this.MIN_TTL_MS) return this.MIN_TTL_MS;
+    if (scaled > this.MAX_TTL_MS) return this.MAX_TTL_MS;
+    return scaled;
+  }
+
   invalidate(pageId: string): void {
     if (this.cache.has(pageId)) {
       this.cache.delete(pageId);
       this.invalidations++;
+      this.scheduleSave();
       console.log(`[blockStore cache] Invalidated page ${pageId}`);
     }
   }
@@ -114,8 +142,220 @@ class PageCache {
     this.cache.clear();
     if (previousSize > 0) {
       this.invalidations += previousSize;
-      console.log(`[blockStore cache] Invalidated all ${previousSize} cached pages`);
+      this.scheduleSave();
+      console.log(
+        `[blockStore cache] Invalidated all ${previousSize} cached pages`,
+      );
     }
+  }
+
+  private scheduleSave(): void {
+    if (!this.getStorage()) return;
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+    this.saveTimeout = setTimeout(() => {
+      this.saveTimeout = null;
+      void this.saveToStorage();
+    }, 1000);
+  }
+
+  async warmFromStorage(storageKey: string): Promise<void> {
+    if (!storageKey || this.warmed) return;
+    this.storageKey = storageKey;
+    this.cache.clear();
+    await this.loadFromStorage();
+    this.warmed = true;
+  }
+
+  private getStorage(): Storage | null {
+    if (typeof window === "undefined") return null;
+    return window.localStorage ?? null;
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+  }
+
+  private encodeBase64(data: Uint8Array): string {
+    let binary = "";
+    for (const byte of data) {
+      binary += String.fromCharCode(byte);
+    }
+    return btoa(binary);
+  }
+
+  private decodeBase64(data: string): Uint8Array {
+    const binary = atob(data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  private async compressString(
+    data: string,
+  ): Promise<{ compressed: boolean; data: string }> {
+    if (
+      typeof CompressionStream === "undefined" ||
+      typeof TextEncoder === "undefined"
+    ) {
+      return { compressed: false, data };
+    }
+
+    try {
+      const encoder = new TextEncoder();
+      const input = encoder.encode(data);
+      const stream = new Blob([new Uint8Array(input)])
+        .stream()
+        .pipeThrough(new CompressionStream("gzip"));
+      const buffer = await new Response(stream).arrayBuffer();
+      return {
+        compressed: true,
+        data: this.encodeBase64(new Uint8Array(buffer)),
+      };
+    } catch (error) {
+      console.error("[blockStore cache] Failed to compress cache:", error);
+      return { compressed: false, data };
+    }
+  }
+
+  private async decompressString(
+    data: string,
+    compressed: boolean,
+  ): Promise<string> {
+    if (!compressed) return data;
+    if (
+      typeof DecompressionStream === "undefined" ||
+      typeof TextDecoder === "undefined"
+    ) {
+      return data;
+    }
+
+    try {
+      const bytes = this.decodeBase64(data);
+      const stream = new Blob([new Uint8Array(bytes)])
+        .stream()
+        .pipeThrough(new DecompressionStream("gzip"));
+      const buffer = await new Response(stream).arrayBuffer();
+      return new TextDecoder().decode(buffer);
+    } catch (error) {
+      console.error("[blockStore cache] Failed to decompress cache:", error);
+      return data;
+    }
+  }
+
+  private async loadFromStorage(): Promise<void> {
+    const storage = this.getStorage();
+    if (!storage) return;
+
+    try {
+      const raw = storage.getItem(this.storageKey);
+      if (!raw) return;
+      const envelope: unknown = JSON.parse(raw);
+      if (!this.isRecord(envelope)) return;
+      const compressed = envelope.compressed === true;
+      const data = envelope.data;
+      if (typeof data !== "string") return;
+
+      const payloadText = await this.decompressString(data, compressed);
+      const payload: unknown = JSON.parse(payloadText);
+      if (!this.isRecord(payload)) return;
+
+      const entries = payload.entries;
+      if (!Array.isArray(entries)) return;
+
+      const now = Date.now();
+      for (const item of entries) {
+        if (!this.isRecord(item)) continue;
+        const pageId = item.pageId;
+        const dataEntry = item.data;
+        if (typeof pageId !== "string") continue;
+        if (!this.isRecord(dataEntry)) continue;
+        const timestamp = dataEntry.timestamp;
+        if (typeof timestamp !== "number") continue;
+
+        const cached: CachedPageData = {
+          rootBlocks: Array.isArray(dataEntry.rootBlocks)
+            ? (dataEntry.rootBlocks as BlockData[])
+            : [],
+          childrenByParent: this.isRecord(dataEntry.childrenByParent)
+            ? (dataEntry.childrenByParent as Record<string, BlockData[]>)
+            : {},
+          metadata: this.isRecord(dataEntry.metadata)
+            ? (dataEntry.metadata as Record<string, Record<string, string>>)
+            : {},
+          timestamp,
+          loadTime:
+            typeof dataEntry.loadTime === "number"
+              ? dataEntry.loadTime
+              : undefined,
+          accessCount:
+            typeof dataEntry.accessCount === "number"
+              ? dataEntry.accessCount
+              : 0,
+          lastAccess:
+            typeof dataEntry.lastAccess === "number"
+              ? dataEntry.lastAccess
+              : timestamp,
+        };
+
+        const age = now - cached.timestamp;
+        if (age > this.getAdaptiveTtl(cached)) {
+          continue;
+        }
+
+        this.cache.set(pageId, cached);
+      }
+    } catch (error) {
+      console.error(
+        "[blockStore cache] Failed to load cache from storage:",
+        error,
+      );
+      storage.removeItem(this.storageKey);
+    }
+  }
+
+  private async saveToStorage(): Promise<void> {
+    const storage = this.getStorage();
+    if (!storage) return;
+
+    const now = Date.now();
+    const entries: Array<{ pageId: string; data: CachedPageData }> = [];
+    for (const [pageId, data] of this.cache.entries()) {
+      const age = now - data.timestamp;
+      if (age > this.getAdaptiveTtl(data)) continue;
+      entries.push({ pageId, data });
+    }
+
+    try {
+      const payload = JSON.stringify({
+        version: 1,
+        savedAt: now,
+        entries,
+      });
+      const compressed = await this.compressString(payload);
+      storage.setItem(
+        this.storageKey,
+        JSON.stringify({
+          version: 1,
+          savedAt: now,
+          compressed: compressed.compressed,
+          data: compressed.data,
+        }),
+      );
+    } catch (error) {
+      console.error(
+        "[blockStore cache] Failed to save cache to storage:",
+        error,
+      );
+    }
+  }
+
+  async setStorageKey(storageKey: string): Promise<void> {
+    if (!storageKey || this.storageKey === storageKey) return;
+    await this.warmFromStorage(storageKey);
   }
 
   private getHitRate(): number {
@@ -164,7 +404,7 @@ class PageCache {
     this.ttlExpirations = 0;
     this.invalidations = 0;
     this.loadTimes = [];
-    console.log(`[blockStore cache] Statistics reset`);
+    console.log("[blockStore cache] Statistics reset");
   }
 
   /**
@@ -287,6 +527,38 @@ function invalidatePageCache(get: any): void {
   }
 }
 
+function invalidatePagesByIds(pageIds: Iterable<string>): void {
+  for (const pageId of pageIds) {
+    pageCache.invalidate(pageId);
+  }
+}
+
+function invalidatePagesForBlocks(
+  get: any,
+  blocks: BlockData[],
+  deletedBlockIds?: string[],
+): void {
+  const { blocksById } = get();
+  const pageIds = new Set<string>();
+
+  for (const block of blocks) {
+    pageIds.add(block.pageId);
+  }
+
+  if (deletedBlockIds) {
+    for (const blockId of deletedBlockIds) {
+      const pageId = blocksById[blockId]?.pageId;
+      if (pageId) pageIds.add(pageId);
+    }
+  }
+
+  if (pageIds.size > 0) {
+    invalidatePagesByIds(pageIds);
+  } else {
+    invalidatePageCache(get);
+  }
+}
+
 // ============ Store Implementation ============
 
 export const useBlockStore = create<BlockStore>()(
@@ -305,7 +577,6 @@ export const useBlockStore = create<BlockStore>()(
       // ============ Page Operations ============
 
       openPage: async (pageId: string) => {
-        // Prevent duplicate loads
         if (get().currentPageId === pageId && get().isLoading) return;
 
         set((state) => {
@@ -321,7 +592,6 @@ export const useBlockStore = create<BlockStore>()(
 
           console.log(`[blockStore] Loading blocks for page ${pageId}...`);
 
-          // Check cache first
           const cached = pageCache.get(pageId);
           if (cached) {
             console.log(
@@ -348,76 +618,57 @@ export const useBlockStore = create<BlockStore>()(
           }
 
           const startTime = performance.now();
-          const blocks: BlockData[] = await invoke("get_page_blocks_fast", {
+          const response = await invoke<{
+            rootBlocks: BlockData[];
+            childrenByParent: Record<string, BlockData[]>;
+            metadata: Record<string, Record<string, string>>;
+          }>("get_page_blocks_complete", {
             workspacePath,
             pageId,
           });
           const loadTime = performance.now() - startTime;
           console.log(
-            `[blockStore] Loaded ${blocks.length} blocks for page ${pageId} in ${loadTime.toFixed(2)}ms`,
+            `[blockStore] Loaded ${response.rootBlocks.length} blocks for page ${pageId} in ${loadTime.toFixed(2)}ms (batched)`,
           );
 
-          // Normalize
-          const { blocksById, childrenMap } = normalizeBlocks(blocks);
+          const { blocksById, childrenMap } = normalizeBlocks(
+            response.rootBlocks,
+          );
 
-          // Check for empty page and handle initial block
           const isRootEmpty = (childrenMap.root ?? []).length === 0;
 
           set((state) => {
             state.blocksById = blocksById;
             state.childrenMap = childrenMap;
             state.currentPageId = pageId;
-            // Keep isLoading = true if we are about to create an initial block
+
+            for (const [blockId, metadata] of Object.entries(
+              response.metadata,
+            )) {
+              if (state.blocksById[blockId]) {
+                state.blocksById[blockId].metadata = metadata;
+              }
+            }
+
             if (!isRootEmpty) {
               state.isLoading = false;
             }
           });
 
-          // Load metadata asynchronously in the background (non-blocking)
-          const blockIds = blocks.map((b) => b.id);
-          if (blockIds.length > 0) {
-            invoke<Record<string, Record<string, string>>>(
-              "get_page_blocks_metadata",
-              {
-                workspacePath,
-                blockIds,
-              },
-            )
-              .then((metadataMap) => {
-                console.log(
-                  `[blockStore] Loaded metadata for ${Object.keys(metadataMap).length} blocks`,
-                );
-                set((state) => {
-                  for (const [blockId, metadata] of Object.entries(
-                    metadataMap,
-                  )) {
-                    if (state.blocksById[blockId]) {
-                      state.blocksById[blockId].metadata = metadata;
-                    }
-                  }
-                });
-
-                pageCache.set(pageId, {
-                  rootBlocks: blocks,
-                  childrenByParent: {},
-                  metadata: metadataMap,
-                  timestamp: Date.now(),
-                });
-              })
-              .catch((err) => {
-                console.error(
-                  "[blockStore] Failed to load block metadata:",
-                  err,
-                );
-              });
-          }
+          pageCache.set(pageId, {
+            rootBlocks: response.rootBlocks,
+            childrenByParent: response.childrenByParent,
+            metadata: response.metadata,
+            timestamp: Date.now(),
+            accessCount: 0,
+            lastAccess: Date.now(),
+          });
 
           if (isRootEmpty) {
             console.log(
               `[blockStore] Creating initial block for page ${pageId}...`,
             );
             try {
-              // Create initial block optimistically
               await get().createBlock(null, "");
               console.log(
                 `[blockStore] Initial block created successfully for page ${pageId}`,
@@ -655,7 +906,7 @@ export const useBlockStore = create<BlockStore>()(
           state.childrenMap = { ...state.childrenMap };
         });
 
-        invalidatePageCache(get);
+        invalidatePagesForBlocks(get, blocks, deletedBlockIds);
       },
 
       // ============ Block CRUD ============
@@ -1432,4 +1683,10 @@ export function resetCacheStats(): void {
  */
 export function clearPageCache(): void {
   pageCache.invalidateAll();
+}
+
+export async function warmPageCacheFromStorage(
+  storageKey: string,
+): Promise<void> {
+  await pageCache.warmFromStorage(storageKey);
 }

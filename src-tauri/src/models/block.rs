@@ -72,3 +72,16 @@ pub struct MoveBlockRequest {
     pub new_parent_id: Option<String>,
     pub after_block_id: Option<String>,
 }
+
+/// Response for batched page blocks loading with metadata and children
+/// Combines 3 separate IPC calls into 1 for performance
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PageBlocksComplete {
+    /// All root blocks (parent_id = NULL) for the page
+    pub root_blocks: Vec<Block>,
+    /// All children organized by parent block ID
+    pub children_by_parent: HashMap<String, Vec<Block>>,
+    /// Metadata for all blocks organized by block ID
+    pub metadata: HashMap<String, HashMap<String, String>>,
+}
