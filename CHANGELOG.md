@@ -1,5 +1,13 @@
 # oxinot
 
+## 0.24.1
+
+### Patch Changes
+
+- fb5169b: - detect changeset files directly instead of relying on actor check
+- 0b2c662: - detect changeset files directly instead of relying on actor check
+  - handle grep exit code when no changesets found
+
 ## 0.24.0
 
 ### Minor Changes
