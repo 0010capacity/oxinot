@@ -1,0 +1,354 @@
+/* Cache Prefetcher Panel Styles */
+
+.cache-prefetcher-panel {
+  position: relative;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.cache-prefetcher-toggle {
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.4);
+  margin-left: 8px;
+}
+
+.cache-prefetcher-toggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.6);
+}
+
+.cache-prefetcher-toggle:active {
+  transform: translateY(0);
+}
+
+.cache-prefetcher-content {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  padding: 20px;
+  width: 520px;
+  max-height: 650px;
+  overflow-y: auto;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.prefetcher-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 12px;
+}
+
+.prefetcher-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+
+.status-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #f0f0f0;
+}
+
+.status-badge.active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.inactive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.prefetcher-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.prefetcher-section {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 4px solid #06b6d4;
+}
+
+.prefetcher-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.prefetcher-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 6px 0;
+}
+
+.prefetcher-item:last-child {
+  margin-bottom: 0;
+}
+
+.prefetcher-item .label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.prefetcher-item .value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #06b6d4;
+  font-family: "Monaco", "Courier New", monospace;
+}
+
+.prefetcher-item .value.error {
+  color: #dc2626;
+}
+
+.prefetcher-top-pages {
+  margin-bottom: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 4px solid #06b6d4;
+}
+
+.prefetcher-top-pages h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.page-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  font-size: 12px;
+}
+
+.page-rank {
+  font-weight: 700;
+  color: #06b6d4;
+  min-width: 25px;
+}
+
+.page-id {
+  flex: 1;
+  color: #555;
+  font-family: "Monaco", "Courier New", monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-visits {
+  font-weight: 600;
+  color: #666;
+  min-width: 40px;
+  text-align: right;
+}
+
+.prefetched-badge {
+  font-size: 11px;
+  background: #d1fae5;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.prefetcher-config {
+  margin-bottom: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 4px solid #06b6d4;
+}
+
+.prefetcher-config h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.config-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.config-item:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.config-item label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  flex: 1;
+}
+
+.config-item input {
+  width: 70px;
+  padding: 4px 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: "Monaco", "Courier New", monospace;
+}
+
+.config-item input:focus {
+  outline: none;
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.1);
+}
+
+.prefetcher-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+}
+
+.prefetcher-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+  flex: 1;
+  min-width: fit-content;
+}
+
+.prefetcher-checkbox input {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+.prefetcher-controls button {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: #06b6d4;
+  color: white;
+  border: 1px solid #0891b2;
+}
+
+.btn-primary:hover {
+  background: #0891b2;
+  border-color: #0e7490;
+}
+
+.btn-secondary {
+  background: #f0f0f0;
+  color: #333;
+  border: 1px solid #e0e0e0;
+}
+
+.btn-secondary:hover {
+  background: #e8e8e8;
+  border-color: #d0d0d0;
+}
+
+.prefetcher-footer {
+  font-size: 11px;
+  color: #999;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 12px;
+  text-align: center;
+}
+
+.prefetcher-footer code {
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: "Monaco", "Courier New", monospace;
+  color: #06b6d4;
+  font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .cache-prefetcher-content {
+    width: calc(100vw - 32px);
+    max-width: 520px;
+  }
+
+  .prefetcher-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Scrollbar Styling */
+.cache-prefetcher-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cache-prefetcher-content::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 10px;
+}
+
+.cache-prefetcher-content::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 10px;
+}
+
+.cache-prefetcher-content::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
