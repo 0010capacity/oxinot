@@ -346,62 +346,51 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         const timeoutId = setTimeout(() => {
           if (!blockRowRef.current) return;
 
-          // Find the nearest scrollable parent container
+          // Create a temporary proxy element positioned where we want the block to appear
+          // This uses scrollIntoView to handle scroll container detection automatically
+          const tempElement = document.createElement("div");
+          tempElement.style.position = "absolute";
+          tempElement.style.pointerEvents = "none";
+          tempElement.style.visibility = "hidden";
+
+          // Get the scroll container (parent with overflow auto)
           let scrollContainer: HTMLElement | null = null;
           let element: HTMLElement | null = blockRowRef.current;
-
           while (element) {
-            if (element.scrollHeight > element.clientHeight) {
+            const computed = window.getComputedStyle(element);
+            if (
+              computed.overflowY === "auto" ||
+              computed.overflowY === "scroll"
+            ) {
               scrollContainer = element;
               break;
             }
             element = element.parentElement;
           }
 
-          if (!scrollContainer) {
+          if (scrollContainer) {
+            // Position the temp element at 40% of the viewport height
+            const targetOffsetInParent =
+              blockRowRef.current.offsetTop - window.innerHeight * 0.4;
+
+            tempElement.style.top = `${targetOffsetInParent}px`;
+            tempElement.style.height = "1px";
+            scrollContainer.appendChild(tempElement);
+
+            // Scroll to the temp element
+            tempElement.scrollIntoView({ behavior: "smooth", block: "start" });
+
+            // Clean up
+            setTimeout(() => {
+              scrollContainer?.removeChild(tempElement);
+            }, 1000);
+          } else {
+            // Fallback if no scroll container found
             blockRowRef.current.scrollIntoView({
               behavior: "smooth",
               block: "center",
             });
-            return;
           }
-
-          // Get position relative to scroll container
-          const blockRect = blockRowRef.current.getBoundingClientRect();
-          const containerRect = scrollContainer.getBoundingClientRect();
-
-          const blockCenterRelativeToViewport =
-            blockRect.top + blockRect.height / 2;
-          const containerTopRelativeToViewport = containerRect.top;
-          const containerHeight = scrollContainer.clientHeight;
-
-          // How much to scroll: position block at 40% from container top
-          const targetPositionInContainer = containerHeight * 0.4;
-          const currentPositionInContainer =
-            blockCenterRelativeToViewport - containerTopRelativeToViewport;
-          const scrollDelta =
-            currentPositionInContainer - targetPositionInContainer;
-
-          const newScrollTop = scrollContainer.scrollTop + scrollDelta;
-
-          console.log(
-            "[Auto-scroll]",
-            "blockId:",
-            blockId,
-            "blockRect.top:",
-            blockRect.top,
-            "containerRect.top:",
-            containerRect.top,
-            "scrollDelta:",
-            scrollDelta,
-            "newScrollTop:",
-            newScrollTop,
-          );
-
-          scrollContainer.scrollTo({
-            top: Math.max(0, newScrollTop),
-            behavior: "smooth",
-          });
         }, 0);
 
         return () => clearTimeout(timeoutId);
