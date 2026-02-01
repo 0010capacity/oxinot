@@ -174,7 +174,7 @@ jobs:
             CHANGED_FILES=$(git show --name-only --pretty="" ${{ github.sha }})
           fi
 
-          HAS_CHANGESET_FILES=$(echo "$CHANGED_FILES" | grep -E "\.changeset/[^/]+\.md$" | grep -v README.md | wc -l)
+          HAS_CHANGESET_FILES=$(echo "$CHANGED_FILES" | grep -E "\.changeset/[^/]+\.md$" | grep -v README.md | wc -l || true)
 
           if [ "$HAS_CHANGESET_FILES" -gt 0 ]; then
             echo "has_changesets=true" >> "$GITHUB_OUTPUT"
