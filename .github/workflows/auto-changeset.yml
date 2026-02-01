@@ -136,16 +136,13 @@ jobs:
               --base main \
               --head changeset-auto \
               --label "automated"
-          fi
+           fi
 
-  # Step 2: Create Version Packages PR when changeset PR is merged
   create-version-packages-pr:
     name: Create Version Packages PR
-    # Only run on push events to main when changesets were added (ignore bot commits)
     if: >
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      github.actor != 'github-actions[bot]'
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -165,12 +162,29 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Check for changesets
+      - name: Check for changesets in this push
         id: check_changesets
         run: |
-          # Check if there are any changeset files (excluding .md files)
-          CHANGESET_COUNT=$(find .changeset -name "*.md" ! -name "README.md" 2>/dev/null | wc -l)
-          echo "has_changesets=$([ "$CHANGESET_COUNT" -gt 0 ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+
+          CHANGED_FILES=""
+          if [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          else
+            CHANGED_FILES=$(git show --name-only --pretty="" ${{ github.sha }})
+          fi
+
+          HAS_CHANGESET_FILES=$(echo "$CHANGED_FILES" | grep -E "\.changeset/[^/]+\.md$" | grep -v README.md | wc -l)
+
+          if [ "$HAS_CHANGESET_FILES" -gt 0 ]; then
+            echo "has_changesets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changesets=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip if no changesets
+        if: steps.check_changesets.outputs.has_changesets == 'false'
+        run: echo "No changeset files were added in this push"
 
       - name: Create Version Packages PR
         if: steps.check_changesets.outputs.has_changesets == 'true'
