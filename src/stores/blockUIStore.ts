@@ -236,6 +236,14 @@ export const useBlockUIStore = create<BlockUIStore>()(
 export const useFocusedBlockId = () =>
   useBlockUIStore((state) => state.focusedBlockId);
 
+/**
+ * Check if a specific block is focused (boolean only).
+ * Re-renders only when THIS block's focus status changes.
+ * Much better for performance than useFocusedBlockId() + comparing in render.
+ */
+export const useIsBlockFocused = (blockId: string) =>
+  useBlockUIStore((state) => state.focusedBlockId === blockId);
+
 export const useTargetCursorPosition = () =>
   useBlockUIStore((state) => state.targetCursorPosition);
 

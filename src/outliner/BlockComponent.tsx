@@ -21,6 +21,10 @@ import {
 import {
   type BlockData,
   useBlock,
+  useBlockContent,
+  useBlockHasChildren,
+  useBlockIsCollapsed,
+  useBlockMetadata,
   useBlockStore,
   useChildrenIds,
 } from "../stores/blockStore";
@@ -57,8 +61,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const isDark = computedColorScheme === "dark";
 
     const block = useBlock(blockId);
-    const childIds = useChildrenIds(blockId);
-    const hasChildren = childIds.length > 0;
+    const blockContent = useBlockContent(blockId);
+    const isCollapsed = useBlockIsCollapsed(blockId);
+    const hasChildren = useBlockHasChildren(blockId);
+    const blockMetadata = useBlockMetadata(blockId);
     const focusedBlockId = useFocusedBlockId();
     const showIndentGuides = useOutlinerSettingsStore(
       (state) => state.showIndentGuides,
@@ -123,8 +129,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
       const markdown = orderedBlocks
         .map((id) => {
-          const block = blocksById[id];
-          if (!block) return "";
+          const blk = blocksById[id];
+          if (!blk) return "";
 
           let depth = 0;
           let currentId: string | null = id;
@@ -138,7 +144,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
           const indent = "  ".repeat(depth);
 
-          return `${indent}- ${block.content}`;
+          return `${indent}- ${blk.content}`;
         })
         .filter((line) => line.length > 0)
         .join("\n");
@@ -529,12 +535,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
       if (focusedBlockId !== blockId || isProgrammaticNav) {
         // Only update if content is actually different to prevent unnecessary renders
-        if (block.content !== draftRef.current) {
-          setDraft(block.content);
-          draftRef.current = block.content;
+        if (blockContent !== draftRef.current) {
+          setDraft(blockContent ?? "");
+          draftRef.current = blockContent ?? "";
         }
       }
-    }, [block.content, focusedBlockId, blockId, targetCursorPosition]);
+    }, [blockContent, focusedBlockId, blockId, targetCursorPosition]);
 
     // Commit helper: stable callback reading from refs (doesn't change every keystroke).
     const commitDraft = useCallback(async () => {
@@ -1113,13 +1119,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             {hasChildren ? (
               <button
                 type="button"
-                className={`collapse-toggle ${
-                  block.isCollapsed ? "collapsed" : ""
-                }`}
+                className={`collapse-toggle ${isCollapsed ? "collapsed" : ""}`}
                 onClick={() => toggleCollapse(blockId)}
-                aria-label={block.isCollapsed ? "Expand" : "Collapse"}
+                aria-label={isCollapsed ? "Expand" : "Collapse"}
               >
-                {block.isCollapsed ? "▶" : "▼"}
+                {isCollapsed ? "▶" : "▼"}
               </button>
             ) : (
               <div className="collapse-toggle-placeholder" />
@@ -1222,14 +1226,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               </MacroContentWrapper>
 
               {/* Metadata Badge - small indicator with tooltip */}
-              {block.metadata && (
+              {blockMetadata && (
                 <Box
                   onClick={(e) => {
                     e.stopPropagation();
                   }}
                 >
                   <MetadataBadges
-                    metadata={block.metadata}
+                    metadata={blockMetadata}
                     onBadgeClick={() => setIsMetadataOpen(true)}
                   />
                 </Box>
@@ -1238,9 +1242,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           </div>
 
           {/* Render children recursively if not collapsed */}
-          {hasChildren && !block.isCollapsed && (
+          {hasChildren && !isCollapsed && (
             <div className="block-children">
-              {childIds.map((childId) => (
+              {useChildrenIds(blockId).map((childId: string) => (
                 <BlockComponent
                   key={childId}
                   blockId={childId}

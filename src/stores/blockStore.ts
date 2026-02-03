@@ -1668,9 +1668,19 @@ export const useBlockStore = create<BlockStore>()(
 
 // ============ Selector Hooks ============
 
+/**
+ * Get a specific block by ID.
+ * NOTE: This subscribes to the entire block object reference.
+ * Consider using granular selectors (useBlockContent, etc.) for better performance.
+ */
 export const useBlock = (id: string) =>
   useBlockStore((state) => state.blocksById[id]);
 
+/**
+ * Get children IDs for a parent.
+ * NOTE: This subscribes to the entire children array.
+ * Consider using useBlockHasChildren if you only need to know if children exist.
+ */
 export const useChildrenIds = (parentId: string | null) =>
   useBlockStore(
     (state) => state.childrenMap[parentId ?? "root"] ?? [],
@@ -1678,6 +1688,54 @@ export const useChildrenIds = (parentId: string | null) =>
   );
 
 export const useBlocksLoading = () => useBlockStore((state) => state.isLoading);
+
+// ============ Granular Performance-Optimized Selectors ============
+/**
+ * These selectors subscribe to minimal state slices to prevent unnecessary re-renders.
+ * Use these instead of useBlock/useChildrenIds when you only need specific properties.
+ */
+
+/**
+ * Get block content only.
+ * Re-renders only when THIS block's content changes.
+ */
+export const useBlockContent = (id: string) =>
+  useBlockStore((state) => state.blocksById[id]?.content);
+
+/**
+ * Get block collapse state only.
+ * Re-renders only when THIS block's collapse state changes.
+ */
+export const useBlockIsCollapsed = (id: string) =>
+  useBlockStore((state) => state.blocksById[id]?.isCollapsed);
+
+/**
+ * Check if block has any children (boolean only, not the array).
+ * Re-renders only when children count for THIS block changes.
+ */
+export const useBlockHasChildren = (id: string) =>
+  useBlockStore((state) => (state.childrenMap[id]?.length ?? 0) > 0);
+
+/**
+ * Get block metadata only.
+ * Re-renders only when THIS block's metadata changes.
+ */
+export const useBlockMetadata = (id: string) =>
+  useBlockStore((state) => state.blocksById[id]?.metadata);
+
+/**
+ * Get block type only.
+ * Re-renders only when THIS block's type changes.
+ */
+export const useBlockType = (id: string) =>
+  useBlockStore((state) => state.blocksById[id]?.blockType);
+
+/**
+ * Get block status only (synced/syncing/error/optimistic).
+ * Re-renders only when THIS block's sync status changes.
+ */
+export const useBlockStatus = (id: string) =>
+  useBlockStore((state) => state.blockStatus[id]);
 
 // ============ Cache Monitoring Export ============
 

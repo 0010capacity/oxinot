@@ -175,4 +175,14 @@ export const useCurrentNotePath = () =>
 export const useBreadcrumb = () => useViewStore((state) => state.breadcrumb);
 export const useFocusedBlockId = () =>
   useViewStore((state) => state.focusedBlockId);
+
+/**
+ * Check if a specific block is currently focused.
+ * Re-renders only when focus state for THIS block changes.
+ * Use this instead of useFocusedBlockId() in BlockComponent to prevent
+ * all blocks from re-rendering on focus changes.
+ */
+export const useIsBlockFocused = (blockId: string) =>
+  useViewStore((state) => state.focusedBlockId === blockId);
+
 export const useZoomPath = () => useViewStore((state) => state.zoomPath);
