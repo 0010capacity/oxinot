@@ -1048,9 +1048,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 indentBlock(blockId)
                   .then(() => {
                     console.log("[BlockComponent:Tab] indentBlock done");
-                    if (cursorPos !== null) {
-                      setFocusedBlock(blockId, cursorPos);
-                    }
+                    // Re-focus the block after indent to restore editor state
+                    // Use setTimeout to allow React to settle after structural changes
+                    setTimeout(() => {
+                      if (cursorPos !== null) {
+                        setFocusedBlock(blockId, cursorPos);
+                      }
+                    }, 0);
                   })
                   .catch((err) => {
                     console.error(

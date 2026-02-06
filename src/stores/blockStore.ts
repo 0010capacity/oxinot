@@ -1365,6 +1365,9 @@ export const useBlockStore = create<BlockStore>()(
 
         if (index <= 0) {
           // No previous sibling, cannot indent. Fail silently.
+          console.log(
+            "[blockStore:indentBlock] Cannot indent: no previous sibling",
+          );
           return;
         }
 
@@ -1374,15 +1377,24 @@ export const useBlockStore = create<BlockStore>()(
             throw new Error("No workspace selected");
           }
 
+          console.log(
+            "[blockStore:indentBlock] Calling backend indent_block for:",
+            id,
+          );
           // Backend returns the updated block
           const updatedBlock: BlockData = await invoke("indent_block", {
             workspacePath,
             blockId: id,
           });
 
+          console.log(
+            "[blockStore:indentBlock] Backend returned, new parentId:",
+            updatedBlock.parentId,
+          );
           // Update only the changed block without invalidating page cache
           // This prevents the Hook error that occurs when all blocks briefly become undefined
           get().updatePartialBlocks([updatedBlock], undefined, true);
+          console.log("[blockStore:indentBlock] updatePartialBlocks completed");
         } catch (error) {
           console.error("Failed to indent block:", error);
           const pageId = get().currentPageId;
