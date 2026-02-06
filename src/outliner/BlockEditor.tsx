@@ -1,6 +1,6 @@
 import { useComputedColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
-import { memo, useEffect, useMemo, useRef } from "react";
+import { createContext, memo, useEffect, useMemo, useRef } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
@@ -15,27 +15,26 @@ import { BlockComponent } from "./BlockComponent";
 import { VirtualBlockList } from "./VirtualBlockList";
 import "./BlockEditor.css";
 
+export const BlockOrderContext = createContext<string[]>([]);
+
 interface BlockListProps {
   blocksToShow: string[];
-  blockOrder: string[];
 }
 
-const BlockList = memo(function BlockList({
-  blocksToShow,
-  blockOrder,
-}: BlockListProps) {
+const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
   const mapStart = performance.now();
   console.log(
     `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`,
   );
-  const blocks = blocksToShow.map((blockId: string) => (
-    <BlockComponent
-      key={blockId}
-      blockId={blockId}
-      depth={0}
-      blockOrder={blockOrder}
-    />
-  ));
+
+  const blocks = useMemo(
+    () =>
+      blocksToShow.map((blockId: string) => (
+        <BlockComponent key={blockId} blockId={blockId} depth={0} />
+      )),
+    [blocksToShow],
+  );
+
   requestAnimationFrame(() => {
     const mapTime = performance.now() - mapStart;
     console.log(
@@ -196,31 +195,35 @@ export function BlockEditor({
               </div>
             </div>
           ) : blocksToShow.length > 100 ? (
-            (() => {
-              const virtualListStart = performance.now();
-              console.log(
-                `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with VirtualBlockList`,
-              );
-              const result = (
-                <VirtualBlockList
-                  blockIds={blocksToShow}
-                  blockOrder={blockOrder}
-                  editorFontSize={editorFontSize}
-                  editorLineHeight={editorLineHeight}
-                />
-              );
-              requestAnimationFrame(() => {
-                const virtualListTime = performance.now() - virtualListStart;
+            <BlockOrderContext.Provider value={blockOrder}>
+              {(() => {
+                const virtualListStart = performance.now();
                 console.log(
-                  `[BlockEditor:timing] VirtualBlockList rendered in ${virtualListTime.toFixed(
-                    2,
-                  )}ms`,
+                  `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with VirtualBlockList`,
                 );
-              });
-              return result;
-            })()
+                const result = (
+                  <VirtualBlockList
+                    blockIds={blocksToShow}
+                    blockOrder={blockOrder}
+                    editorFontSize={editorFontSize}
+                    editorLineHeight={editorLineHeight}
+                  />
+                );
+                requestAnimationFrame(() => {
+                  const virtualListTime = performance.now() - virtualListStart;
+                  console.log(
+                    `[BlockEditor:timing] VirtualBlockList rendered in ${virtualListTime.toFixed(
+                      2,
+                    )}ms`,
+                  );
+                });
+                return result;
+              })()}
+            </BlockOrderContext.Provider>
           ) : (
-            <BlockList blocksToShow={blocksToShow} blockOrder={blockOrder} />
+            <BlockOrderContext.Provider value={blockOrder}>
+              <BlockList blocksToShow={blocksToShow} />
+            </BlockOrderContext.Provider>
           )}
         </div>
 

@@ -12,6 +12,7 @@ import type React from "react";
 import {
   memo,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -51,6 +52,7 @@ import { editorStateCache } from "./editorStateCache";
 import "./BlockComponent.css";
 import { INDENT_PER_LEVEL } from "../constants/layout";
 import { useIsBlockSelected } from "../hooks/useBlockSelection";
+import { BlockOrderContext } from "./BlockEditor";
 import {
   calculateNextBlockCursorPosition,
   calculatePrevBlockCursorPosition,
@@ -59,11 +61,11 @@ import {
 interface BlockComponentProps {
   blockId: string;
   depth: number;
-  blockOrder?: string[];
 }
 
 export const BlockComponent: React.FC<BlockComponentProps> = memo(
-  ({ blockId, depth, blockOrder = [] }: BlockComponentProps) => {
+  ({ blockId, depth }: BlockComponentProps) => {
+    const blockOrder = useContext(BlockOrderContext);
     const computedColorScheme = useComputedColorScheme("light");
     const isDark = computedColorScheme === "dark";
 
@@ -1320,7 +1322,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   key={childId}
                   blockId={childId}
                   depth={depth + 1}
-                  blockOrder={blockOrder}
                 />
               ))}
             </div>
