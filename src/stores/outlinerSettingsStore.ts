@@ -91,6 +91,7 @@ interface OutlinerSettings {
   showBlockCount: boolean;
   showCodeBlockLineNumbers: boolean;
   indentSize: number;
+  virtualizationThreshold: number;
 }
 
 interface OutlinerSettingsStore extends OutlinerSettings {
@@ -102,6 +103,7 @@ interface OutlinerSettingsStore extends OutlinerSettings {
   setShowBlockCount: (value: boolean) => void;
   setShowCodeBlockLineNumbers: (value: boolean) => void;
   setIndentSize: (size: number) => void;
+  setVirtualizationThreshold: (threshold: number) => void;
 }
 
 export const useOutlinerSettingsStore =
@@ -115,6 +117,7 @@ export const useOutlinerSettingsStore =
         showBlockCount: false,
         showCodeBlockLineNumbers: true,
         indentSize: 24,
+        virtualizationThreshold: 100,
 
         // Actions
         toggleIndentGuides: () =>
@@ -132,6 +135,9 @@ export const useOutlinerSettingsStore =
           set({ showCodeBlockLineNumbers: value }),
 
         setIndentSize: (size: number) => set({ indentSize: size }),
+
+        setVirtualizationThreshold: (threshold: number) =>
+          set({ virtualizationThreshold: threshold }),
 
         setFontFamily: (font: FontFamily) => {
           set({ fontFamily: font });
