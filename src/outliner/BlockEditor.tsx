@@ -1,6 +1,6 @@
 import { useComputedColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
@@ -86,7 +86,18 @@ export function BlockEditor({
     }
   }, [pageId, currentPageId, openPage]);
 
-  const blocksToShow = childrenMap.root || [];
+  const blocksToShowRef = useRef<string[]>([]);
+  const blocksToShow = useMemo(() => {
+    const root = childrenMap.root || [];
+    // Only update if the array actually changed (not just a new reference)
+    if (
+      blocksToShowRef.current.length !== root.length ||
+      !blocksToShowRef.current.every((id: string, i: number) => id === root[i])
+    ) {
+      blocksToShowRef.current = root;
+    }
+    return blocksToShowRef.current;
+  }, [childrenMap.root]);
 
   const blockOrder = useMemo(() => {
     const memoComputeStart = performance.now();
@@ -182,7 +193,7 @@ export function BlockEditor({
               console.log(
                 `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`,
               );
-              const blocks = blocksToShow.map((blockId) => (
+              const blocks = blocksToShow.map((blockId: string) => (
                 <BlockComponent
                   key={blockId}
                   blockId={blockId}
