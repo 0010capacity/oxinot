@@ -27,14 +27,21 @@ const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
     `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`,
   );
 
-  const allBlocksRef = useRef<Set<string>>(new Set(blocksToShow));
+  const allBlocksRef = useRef<string[]>([]);
+
   for (const blockId of blocksToShow) {
-    allBlocksRef.current.add(blockId);
+    if (!allBlocksRef.current.includes(blockId)) {
+      allBlocksRef.current.push(blockId);
+    }
   }
+
+  console.log(
+    `[BlockEditor:timing] allBlocksRef has ${allBlocksRef.current.length} blocks`,
+  );
 
   const visibleSet = useMemo(() => new Set(blocksToShow), [blocksToShow]);
 
-  const blocks = Array.from(allBlocksRef.current).map((blockId: string) => {
+  const blocks = allBlocksRef.current.map((blockId: string) => {
     const isVisible = visibleSet.has(blockId);
     return (
       <div
@@ -53,7 +60,7 @@ const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
     console.log(
       `[BlockEditor:timing] BlockComponent .map() rendered in ${mapTime.toFixed(
         2,
-      )}ms`,
+      )}ms (${allBlocksRef.current.length} total blocks in ref)`,
     );
   });
   return <>{blocks}</>;
