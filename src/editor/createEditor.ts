@@ -5,18 +5,17 @@ import {
   closeBrackets,
   closeBracketsKeymap,
   closeCompletion,
-  startCompletion,
   completionKeymap,
+  startCompletion,
 } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import {
+  HighlightStyle,
   bracketMatching,
   indentOnInput,
   syntaxHighlighting,
-  HighlightStyle,
 } from "@codemirror/language";
-import { tags as t } from "@lezer/highlight";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import { EditorState, type Extension } from "@codemirror/state";
 import {
@@ -27,6 +26,7 @@ import {
   lineNumbers,
   tooltips,
 } from "@codemirror/view";
+import { tags as t } from "@lezer/highlight";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 
@@ -307,7 +307,10 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
         },
       },
 
-      ...defaultKeymap,
+      // Filter out Tab from defaultKeymap to allow block indentation
+      ...defaultKeymap.filter(
+        (binding) => binding.key !== "Tab" && binding.key !== "Shift-Tab",
+      ),
       ...historyKeymap,
       ...closeBracketsKeymap,
       ...searchKeymap,

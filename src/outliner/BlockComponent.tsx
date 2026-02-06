@@ -1025,19 +1025,43 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           key: "Tab",
           preventDefault: true,
           run: () => {
+            console.log(
+              "[BlockComponent:Tab] Tab key pressed, blockId:",
+              blockId,
+            );
             // Preserve current cursor position inside the editor when indenting.
             // Without this, the block re-parenting can cause the cursor to jump to the start.
             const view = editorRef.current?.getView();
             const cursorPos = view?.state.selection.main.head ?? null;
 
+            console.log(
+              "[BlockComponent:Tab] Indenting block, cursorPos:",
+              cursorPos,
+            );
+
             // Start async operations but return true immediately to prevent default behavior
-            commitDraft().then(() => {
-              indentBlock(blockId).then(() => {
-                if (cursorPos !== null) {
-                  setFocusedBlock(blockId, cursorPos);
-                }
+            commitDraft()
+              .then(() => {
+                console.log(
+                  "[BlockComponent:Tab] commitDraft done, calling indentBlock",
+                );
+                indentBlock(blockId)
+                  .then(() => {
+                    console.log("[BlockComponent:Tab] indentBlock done");
+                    if (cursorPos !== null) {
+                      setFocusedBlock(blockId, cursorPos);
+                    }
+                  })
+                  .catch((err) => {
+                    console.error(
+                      "[BlockComponent:Tab] indentBlock failed:",
+                      err,
+                    );
+                  });
+              })
+              .catch((err) => {
+                console.error("[BlockComponent:Tab] commitDraft failed:", err);
               });
-            });
             return true;
           },
         },
