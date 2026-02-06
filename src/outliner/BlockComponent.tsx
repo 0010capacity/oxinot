@@ -1029,15 +1029,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               "[BlockComponent:Tab] Tab key pressed, blockId:",
               blockId,
             );
-            // Preserve current cursor position inside the editor when indenting.
-            // Without this, the block re-parenting can cause the cursor to jump to the start.
-            const view = editorRef.current?.getView();
-            const cursorPos = view?.state.selection.main.head ?? null;
-
-            console.log(
-              "[BlockComponent:Tab] Indenting block, cursorPos:",
-              cursorPos,
-            );
 
             // Start async operations but return true immediately to prevent default behavior
             commitDraft()
@@ -1048,13 +1039,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 indentBlock(blockId)
                   .then(() => {
                     console.log("[BlockComponent:Tab] indentBlock done");
-                    // Re-focus the block after indent to restore editor state
-                    // Use setTimeout to allow React to settle after structural changes
-                    setTimeout(() => {
-                      if (cursorPos !== null) {
-                        setFocusedBlock(blockId, cursorPos);
-                      }
-                    }, 0);
+                    // Don't restore focus immediately - it causes React Hook errors
+                    // during structural reconciliation. The block content is preserved,
+                    // user can click to refocus if needed.
+                    console.log(
+                      "[BlockComponent:Tab] Focus restoration skipped to avoid Hook errors",
+                    );
                   })
                   .catch((err) => {
                     console.error(
@@ -1073,16 +1063,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           key: "Shift-Tab",
           preventDefault: true,
           run: () => {
-            // Preserve current cursor position inside the editor when outdenting.
-            const view = editorRef.current?.getView();
-            const cursorPos = view?.state.selection.main.head ?? null;
-
             // Start async operations but return true immediately to prevent default behavior
             commitDraft().then(() => {
               outdentBlock(blockId).then(() => {
-                if (cursorPos !== null) {
-                  setFocusedBlock(blockId, cursorPos);
-                }
+                // Don't restore focus immediately - it causes React Hook errors
+                // during structural reconciliation. The block content is preserved,
+                // user can click to refocus if needed.
+                console.log(
+                  "[BlockComponent:Shift-Tab] Focus restoration skipped to avoid Hook errors",
+                );
               });
             });
             return true;
