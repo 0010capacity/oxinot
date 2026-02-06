@@ -131,7 +131,7 @@ export function PageTreeItem({
         ],
       },
     ],
-    [page.id, page.title, page.parentId, onAddChild, onEdit, onDelete, t],
+    [page.id, page.title, page.parentId, onAddChild, onEdit, onDelete, t]
   );
 
   const handlePageClick = async (e: React.MouseEvent) => {
@@ -159,22 +159,26 @@ export function PageTreeItem({
 
     pagePathIds.push(page.id);
 
-    const selectStartTime = performance.now();
-    await selectPage(page.id);
-    const selectTime = performance.now() - selectStartTime;
+    // Batch state updates: load data first, then switch view
+    const dataLoadStartTime = performance.now();
+    await Promise.all([selectPage(page.id), loadPage(page.id)]);
+    const dataLoadTime = performance.now() - dataLoadStartTime;
 
-    const loadStartTime = performance.now();
-    await loadPage(page.id);
-    const loadTime = performance.now() - loadStartTime;
+    // Switch view in the next animation frame to batch render cycles
+    requestAnimationFrame(() => {
+      const openStartTime = performance.now();
+      openNote(page.id, page.title, parentNames, pagePathIds);
+      const openTime = performance.now() - openStartTime;
 
-    const openStartTime = performance.now();
-    openNote(page.id, page.title, parentNames, pagePathIds);
-    const openTime = performance.now() - openStartTime;
-
-    const totalTime = performance.now() - clickStartTime;
-    console.log(
-      `[PageTreeItem:timing] === CLICK HANDLER COMPLETE: select=${selectTime.toFixed(2)}ms, load=${loadTime.toFixed(2)}ms, open=${openTime.toFixed(2)}ms, total=${totalTime.toFixed(2)}ms ===`,
-    );
+      const totalTime = performance.now() - clickStartTime;
+      console.log(
+        `[PageTreeItem:timing] === CLICK HANDLER COMPLETE: dataLoad=${dataLoadTime.toFixed(
+          2
+        )}ms, open=${openTime.toFixed(2)}ms, total=${totalTime.toFixed(
+          2
+        )}ms ===`
+      );
+    });
   };
 
   const handleBulletClick = (e: React.MouseEvent) => {
@@ -219,7 +223,7 @@ export function PageTreeItem({
 
   const moveFocus = (direction: number) => {
     const buttons = Array.from(
-      document.querySelectorAll(".page-tree-item-button"),
+      document.querySelectorAll(".page-tree-item-button")
     ) as HTMLElement[];
     const currentIndex = buttons.indexOf(document.activeElement as HTMLElement);
     if (currentIndex !== -1) {
@@ -314,8 +318,8 @@ export function PageTreeItem({
                     ? isCollapsed
                       ? "var(--opacity-disabled)"
                       : isHovered
-                        ? "var(--opacity-dimmed)"
-                        : 0
+                      ? "var(--opacity-dimmed)"
+                      : 0
                     : 0,
                   visibility: hasChildren ? "visible" : "hidden",
                 }}
@@ -458,7 +462,7 @@ export function PageTreeItem({
                             id: page.id,
                             title: page.title,
                             parentId: page.parentId,
-                          },
+                          }
                         );
                         onDelete(page.id);
                       }}

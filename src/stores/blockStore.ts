@@ -1724,42 +1724,42 @@ export const useBlocksLoading = () => useBlockStore((state) => state.isLoading);
  * Re-renders only when THIS block's content changes.
  */
 export const useBlockContent = (id: string) =>
-  useBlockStore((state) => state.blocksById[id]?.content);
+  useBlockStore((state) => state.blocksById[id]?.content, shallow);
 
 /**
  * Get block collapse state only.
  * Re-renders only when THIS block's collapse state changes.
  */
 export const useBlockIsCollapsed = (id: string) =>
-  useBlockStore((state) => state.blocksById[id]?.isCollapsed);
+  useBlockStore((state) => state.blocksById[id]?.isCollapsed, shallow);
 
 /**
  * Check if block has any children (boolean only, not the array).
  * Re-renders only when children count for THIS block changes.
  */
 export const useBlockHasChildren = (id: string) =>
-  useBlockStore((state) => (state.childrenMap[id]?.length ?? 0) > 0);
+  useBlockStore((state) => (state.childrenMap[id]?.length ?? 0) > 0, shallow);
 
 /**
  * Get block metadata only.
  * Re-renders only when THIS block's metadata changes.
  */
 export const useBlockMetadata = (id: string) =>
-  useBlockStore((state) => state.blocksById[id]?.metadata);
+  useBlockStore((state) => state.blocksById[id]?.metadata, shallow);
 
 /**
  * Get block type only.
  * Re-renders only when THIS block's type changes.
  */
 export const useBlockType = (id: string) =>
-  useBlockStore((state) => state.blocksById[id]?.blockType);
+  useBlockStore((state) => state.blocksById[id]?.blockType, shallow);
 
 /**
  * Get block status only (synced/syncing/error/optimistic).
  * Re-renders only when THIS block's sync status changes.
  */
 export const useBlockStatus = (id: string) =>
-  useBlockStore((state) => state.blockStatus[id]);
+  useBlockStore((state) => state.blockStatus[id], shallow);
 
 // ============ Cache Monitoring Export ============
 

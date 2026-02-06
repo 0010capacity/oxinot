@@ -20,7 +20,6 @@ import {
 } from "../components/common/ContextMenu";
 import {
   type BlockData,
-  useBlock,
   useBlockContent,
   useBlockHasChildren,
   useBlockIsCollapsed,
@@ -32,6 +31,7 @@ import {
   useFocusedBlockId,
   useTargetCursorPosition,
 } from "../stores/blockUIStore";
+import { useIsBlockFocused } from "../stores/viewStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
@@ -60,14 +60,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const computedColorScheme = useComputedColorScheme("light");
     const isDark = computedColorScheme === "dark";
 
-    const block = useBlock(blockId);
     const blockContent = useBlockContent(blockId);
     const isCollapsed = useBlockIsCollapsed(blockId);
     const hasChildren = useBlockHasChildren(blockId);
     const blockMetadata = useBlockMetadata(blockId);
-    const focusedBlockId = useFocusedBlockId();
+    const isFocused = useIsBlockFocused(blockId);
     const showIndentGuides = useOutlinerSettingsStore(
-      (state) => state.showIndentGuides,
+      (state) => state.showIndentGuides
     );
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
@@ -76,27 +75,26 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
     const splitBlockAtCursor = useBlockStore(
-      (state) => state.splitBlockAtCursor,
+      (state) => state.splitBlockAtCursor
     );
     const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const targetCursorPosition = useTargetCursorPosition();
     const setFocusedBlock = useBlockUIStore((state) => state.setFocusedBlock);
     const clearTargetCursorPosition = useBlockUIStore(
-      (state) => state.clearTargetCursorPosition,
+      (state) => state.clearTargetCursorPosition
     );
     const toggleBlockSelection = useBlockUIStore(
-      (state) => state.toggleBlockSelection,
+      (state) => state.toggleBlockSelection
     );
     const selectBlockRange = useBlockUIStore((state) => state.selectBlockRange);
     const lastSelectedBlockId = useBlockUIStore(
-      (state) => state.lastSelectedBlockId,
+      (state) => state.lastSelectedBlockId
     );
     const isSelected = useIsBlockSelected(blockId);
 
     const { t } = useTranslation();
-
     // Guard against undefined block (can happen during navigation between pages)
-    if (!block) {
+    if (blockContent === undefined && blockMetadata === undefined) {
       return null;
     }
 
@@ -122,7 +120,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         currentSelectedIds.length > 0 ? currentSelectedIds : [blockId];
 
       const orderedBlocks = blockOrder.filter((id) =>
-        targetBlocks.includes(id),
+        targetBlocks.includes(id)
       );
 
       const blocksById = useBlockStore.getState().blocksById;
@@ -332,7 +330,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           ],
         },
       ],
-      [t],
+      [t]
     );
 
     // Cleanup timeout on unmount
@@ -765,7 +763,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           editorRef.current?.focus();
         }
       },
-      [blockId, hasChildren, setFocusedBlock],
+      [blockId, hasChildren, setFocusedBlock]
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
@@ -781,7 +779,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         }
         handleContentChange(value);
       },
-      [handleContentChange],
+      [handleContentChange]
     );
 
     const keybindings: KeyBinding[] = useMemo(() => {
@@ -920,7 +918,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 if (prevBlock) {
                   const targetPos = calculatePrevBlockCursorPosition(
                     columnPos,
-                    prevBlock.content,
+                    prevBlock.content
                   );
                   setFocusedBlock(prevBlockId, targetPos);
                 } else {
@@ -957,7 +955,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 if (nextBlock) {
                   const targetPos = calculateNextBlockCursorPosition(
                     columnPos,
-                    nextBlock.content,
+                    nextBlock.content
                   );
                   setFocusedBlock(nextBlockId, targetPos);
                 } else {
@@ -1019,8 +1017,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       mergeWithPrevious,
       splitBlockAtCursor,
     ]);
-
-    if (!block) return null;
+    if (blockContent === undefined && blockMetadata === undefined) return null;
 
     // Render only one indent guide at this block's depth level
     const indentGuide =
@@ -1283,10 +1280,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           blocksToDelete={blocksToDelete}
           totalBlocksCount={blocksToDelete.reduce(
             (sum, id) => sum + 1 + countDescendantBlocks(id),
-            0,
+            0
           )}
           hasDescendants={blocksToDelete.some(
-            (id) => countDescendantBlocks(id) > 0,
+            (id) => countDescendantBlocks(id) > 0
           )}
         />
       </ContextMenu>
@@ -1298,5 +1295,5 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       prevProps.blockId === nextProps.blockId &&
       prevProps.depth === nextProps.depth
     );
-  },
+  }
 );
