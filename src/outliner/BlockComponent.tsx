@@ -9,7 +9,15 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import type React from "react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
@@ -605,6 +613,37 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         appliedPositionRef.current = null;
       }
     }, [isFocused, blockId, targetCursorPosition, clearTargetCursorPosition]);
+
+    // Apply cursor position from click coordinates when Editor mounts
+    // This converts screen coordinates (from StaticMarkdownRenderer click) to text position
+    useLayoutEffect(() => {
+      if (!isFocused) return;
+
+      const view = editorRef.current?.getView();
+      if (!view) return;
+
+      const pendingSelection = useBlockUIStore.getState().pendingFocusSelection;
+      if (!pendingSelection || pendingSelection.blockId !== blockId) return;
+
+      // Use CodeMirror's native coordinate→position mapping
+      const pos = view.posAtCoords({
+        x: pendingSelection.clientX,
+        y: pendingSelection.clientY,
+      });
+
+      if (pos !== null) {
+        // Clamp to document bounds
+        const clampedPos = Math.min(Math.max(0, pos), view.state.doc.length);
+
+        // Dispatch selection to place cursor at the mapped position
+        view.dispatch({
+          selection: { anchor: clampedPos, head: clampedPos },
+        });
+      }
+
+      // Clear pending selection after applying
+      useBlockUIStore.getState().clearPendingFocusSelection();
+    }, [isFocused, blockId]);
 
     // Handle IME composition events: track state and execute pending block operations
     useEffect(() => {
