@@ -12,7 +12,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { INDENT_PER_LEVEL } from "../../constants/layout";
 import { useBlockStore } from "../../stores/blockStore";
@@ -164,21 +164,19 @@ export function PageTreeItem({
     await Promise.all([selectPage(page.id), loadPage(page.id)]);
     const dataLoadTime = performance.now() - dataLoadStartTime;
 
-    // Switch view in the next animation frame to batch render cycles
-    requestAnimationFrame(() => {
-      const openStartTime = performance.now();
+    // Use startTransition for view switch to allow React to prioritize user input
+    const openStartTime = performance.now();
+    startTransition(() => {
       openNote(page.id, page.title, parentNames, pagePathIds);
-      const openTime = performance.now() - openStartTime;
-
-      const totalTime = performance.now() - clickStartTime;
-      console.log(
-        `[PageTreeItem:timing] === CLICK HANDLER COMPLETE: dataLoad=${dataLoadTime.toFixed(
-          2
-        )}ms, open=${openTime.toFixed(2)}ms, total=${totalTime.toFixed(
-          2
-        )}ms ===`
-      );
     });
+    const openTime = performance.now() - openStartTime;
+
+    const totalTime = performance.now() - clickStartTime;
+    console.log(
+      `[PageTreeItem:timing] === CLICK HANDLER COMPLETE: dataLoad=${dataLoadTime.toFixed(
+        2
+      )}ms, open=${openTime.toFixed(2)}ms, total=${totalTime.toFixed(2)}ms ===`
+    );
   };
 
   const handleBulletClick = (e: React.MouseEvent) => {
