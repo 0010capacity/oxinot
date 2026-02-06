@@ -28,6 +28,7 @@ interface ViewState extends NavigationState {
     pagePathIds?: string[],
   ) => void;
   zoomIntoBlock: (blockId: string) => void;
+  setFocusedBlockId: (blockId: string | null) => void;
   zoomOut: () => void;
   zoomOutToNote: () => void;
   goBack: () => void;
@@ -108,10 +109,15 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
     zoomIntoBlock: (blockId: string) => {
       set((state) => {
         state.focusedBlockId = blockId;
-        // Add to zoom path if not already there
         if (!state.zoomPath.includes(blockId)) {
           state.zoomPath.push(blockId);
         }
+      });
+    },
+
+    setFocusedBlockId: (blockId: string | null) => {
+      set((state) => {
+        state.focusedBlockId = blockId;
       });
     },
 

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import { useViewStore } from "./viewStore";
 
 // ============ Types ============
 
@@ -109,6 +110,7 @@ export const useBlockUIStore = create<BlockUIStore>()(
         state.focusedBlockId = id;
         state.targetCursorPosition = cursorPos ?? null;
       });
+      useViewStore.getState().setFocusedBlockId(id);
     },
 
     clearFocusedBlock: () => {
@@ -116,6 +118,7 @@ export const useBlockUIStore = create<BlockUIStore>()(
         state.focusedBlockId = null;
         state.targetCursorPosition = null;
       });
+      useViewStore.getState().setFocusedBlockId(null);
     },
 
     setSelectedBlocks: (ids: string[]) => {
