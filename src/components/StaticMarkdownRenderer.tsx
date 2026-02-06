@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
 import { renderOutlinerBulletPreviewHtml } from "../outliner/markdownRenderer";
+import { useBlockUIStore } from "../stores/blockUIStore";
 
 interface StaticMarkdownRendererProps {
   content: string;
@@ -10,18 +11,6 @@ interface StaticMarkdownRendererProps {
   style?: React.CSSProperties;
 }
 
-/**
- * Static HTML renderer for unfocused blocks.
- *
- * Purpose: Render block content as static HTML (no CodeMirror instance)
- * to avoid initializing 36+ CodeMirror instances on page load.
- *
- * Only focused blocks get Editor (CodeMirror). Unfocused blocks use this
- * component to display rendered markdown HTML with `dangerouslySetInnerHTML`.
- *
- * The renderer uses the existing `renderOutlinerBulletPreviewHtml()` function
- * from markdownRenderer.ts (markdown-it singleton instance).
- */
 export const StaticMarkdownRenderer = memo(
   ({
     content,
@@ -31,6 +20,8 @@ export const StaticMarkdownRenderer = memo(
     className = "static-markdown-renderer",
     style,
   }: StaticMarkdownRendererProps) => {
+    const isComposing = useBlockUIStore((state) => state.isComposing);
+
     // Memoize HTML rendering - only recompute when content changes
     const html = useMemo(() => {
       if (!content || content.trim().length === 0) {
@@ -39,23 +30,43 @@ export const StaticMarkdownRenderer = memo(
       return renderOutlinerBulletPreviewHtml(content);
     }, [content]);
 
+    const handleMouseDownCapture = (e: React.MouseEvent) => {
+      if (isComposing) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      onMouseDownCapture?.(e);
+    };
+
+    const handlePointerDownCapture = (e: React.PointerEvent) => {
+      if (isComposing) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      onPointerDownCapture?.(e);
+    };
+
     // Default styles (can be overridden with style prop)
     const defaultStyle: React.CSSProperties = {
-      minHeight: "24px", // Ensure consistent height even for empty blocks
+      minHeight: "24px",
       fontSize: "inherit",
       lineHeight: "inherit",
       cursor: "text",
       whiteSpace: "pre-wrap",
       wordBreak: "break-word",
-      padding: "2px 0", // Match CodeMirror's padding
+      padding: "2px 0",
     };
 
     return (
       <div
         className={className}
         onClick={onClick}
-        onMouseDownCapture={onMouseDownCapture}
-        onPointerDownCapture={onPointerDownCapture}
+        onMouseDownCapture={handleMouseDownCapture}
+        onPointerDownCapture={handlePointerDownCapture}
         dangerouslySetInnerHTML={{ __html: html }}
         style={{ ...defaultStyle, ...style }}
       />

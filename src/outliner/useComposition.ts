@@ -1,40 +1,24 @@
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
+import { useBlockUIStore } from "../stores/blockUIStore";
 
-/**
- * Custom hook for handling IME (Input Method Editor) composition state.
- * Used for proper Korean, Japanese, and Chinese input handling.
- *
- * @returns Object with composition state and event handlers
- *
- * @example
- * const { isComposing, onCompositionStart, onCompositionEnd } = useComposition();
- *
- * <textarea
- *   onCompositionStart={onCompositionStart}
- *   onCompositionEnd={onCompositionEnd}
- *   onKeyDown={(e) => {
- *     if (isComposing()) return; // Skip special key handling during composition
- *     // ... handle special keys
- *   }}
- * />
- */
 export function useComposition() {
-  const isComposingRef = useRef(false);
+  const setIsComposing = useBlockUIStore((state) => state.setIsComposing);
+  const isComposing = useBlockUIStore((state) => state.isComposing);
 
   const onCompositionStart = useCallback(() => {
-    isComposingRef.current = true;
-  }, []);
+    setIsComposing(true);
+  }, [setIsComposing]);
 
   const onCompositionEnd = useCallback(() => {
-    isComposingRef.current = false;
-  }, []);
+    setIsComposing(false);
+  }, [setIsComposing]);
 
-  const isComposing = useCallback(() => {
-    return isComposingRef.current;
-  }, []);
+  const getIsComposing = useCallback(() => {
+    return isComposing;
+  }, [isComposing]);
 
   return {
-    isComposing,
+    isComposing: getIsComposing,
     onCompositionStart,
     onCompositionEnd,
   };
