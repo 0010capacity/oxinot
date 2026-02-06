@@ -1292,4 +1292,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       </ContextMenu>
     );
   },
+  (prevProps, nextProps) => {
+    // blockOrder prop changes are ignored - only re-render if blockId or depth changes
+    return (
+      prevProps.blockId === nextProps.blockId &&
+      prevProps.depth === nextProps.depth
+    );
+  },
 );
