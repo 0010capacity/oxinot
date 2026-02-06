@@ -3,20 +3,6 @@ import type { EditorView } from "@codemirror/view";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { editorStateCache } from "../editorStateCache";
 
-/**
- * Integration tests for BlockComponent focus/state switching behavior.
- *
- * These tests verify the behavioral contracts for:
- * 1. Focus switching between Editor and StaticMarkdownRenderer
- * 2. EditorState caching and restoration
- * 3. Click coordinate handling for cursor positioning
- * 4. IME composition blocking
- *
- * We test the logic/behavior directly rather than rendering the full component,
- * as CodeMirror is too complex to render in JSDOM tests.
- */
-
-// Mock EditorState for testing
 function createMockEditorState(content = "test content"): EditorState {
   return {
     doc: {
@@ -29,7 +15,6 @@ function createMockEditorState(content = "test content"): EditorState {
   } as unknown as EditorState;
 }
 
-// Mock EditorView for testing
 function createMockEditorView(content = "test content"): EditorView {
   const state = createMockEditorState(content);
   return {
@@ -39,7 +24,7 @@ function createMockEditorView(content = "test content"): EditorView {
     dispatch: vi.fn(),
     setState: vi.fn(),
     posAtCoords: vi.fn().mockReturnValue(5),
-    dom: document.createElement("div"),
+    dom: { nodeType: 1 },
   } as unknown as EditorView;
 }
 
@@ -51,13 +36,9 @@ describe("BlockComponent Integration", () => {
 
   describe("Focus Switching Behavior", () => {
     it("should determine correct component based on focus state", () => {
-      // This tests the conditional logic: isFocused ? Editor : StaticMarkdownRenderer
-      const blockId = "block-1";
-
-      // When not focused, StaticMarkdownRenderer should be shown
       const isFocused = false;
-      const shouldRenderEditor = isFocused === true;
-      const shouldRenderStatic = isFocused === false;
+      const shouldRenderEditor = isFocused;
+      const shouldRenderStatic = !isFocused;
 
       expect(shouldRenderEditor).toBe(false);
       expect(shouldRenderStatic).toBe(true);
@@ -65,15 +46,14 @@ describe("BlockComponent Integration", () => {
 
     it("should determine Editor rendering when focused", () => {
       const isFocused = true;
-      const shouldRenderEditor = isFocused === true;
-      const shouldRenderStatic = isFocused === false;
+      const shouldRenderEditor = isFocused;
+      const shouldRenderStatic = !isFocused;
 
       expect(shouldRenderEditor).toBe(true);
       expect(shouldRenderStatic).toBe(false);
     });
 
     it("should correctly handle focus state transitions", () => {
-      // Simulate focus state changes
       let isFocused = false;
       expect(isFocused ? "Editor" : "StaticMarkdownRenderer").toBe(
         "StaticMarkdownRenderer",
@@ -93,10 +73,7 @@ describe("BlockComponent Integration", () => {
     it("should save EditorState to cache on focus loss", () => {
       const blockId = "block-1";
       const mockState = createMockEditorState("Hello World");
-      const mockView = createMockEditorView("Hello World");
 
-      // Simulate the effect that runs when isFocused changes to false
-      // This mimics: if (!isFocused) { editorStateCache.set(blockId, view.state); }
       const isFocused = false;
       if (!isFocused) {
         editorStateCache.set(blockId, mockState);
@@ -111,11 +88,8 @@ describe("BlockComponent Integration", () => {
       const cachedState = createMockEditorState("Cached content");
       const mockView = createMockEditorView("Cached content");
 
-      // Pre-populate cache
       editorStateCache.set(blockId, cachedState);
 
-      // Simulate the effect that runs when isFocused changes to true
-      // This mimics: if (isFocused) { const cached = editorStateCache.get(blockId); if (cached) view.setState(cached); }
       const isFocused = true;
       if (isFocused) {
         const cached = editorStateCache.get(blockId);
@@ -131,7 +105,6 @@ describe("BlockComponent Integration", () => {
       const blockId = "block-new";
       const mockView = createMockEditorView("New content");
 
-      // No cached state for this block
       expect(editorStateCache.has(blockId)).toBe(false);
 
       const isFocused = true;
@@ -161,7 +134,6 @@ describe("BlockComponent Integration", () => {
 
   describe("Click Coordinate Handling", () => {
     it("should capture click coordinates in handleStaticMouseDown", () => {
-      // Simulate the pendingFocusSelection state structure
       interface PendingFocusSelection {
         blockId: string;
         clientX: number;
@@ -170,7 +142,6 @@ describe("BlockComponent Integration", () => {
 
       let pendingFocusSelection: PendingFocusSelection | null = null;
 
-      // Simulate mouse event
       const mockEvent = {
         clientX: 100,
         clientY: 50,
@@ -180,7 +151,6 @@ describe("BlockComponent Integration", () => {
 
       const blockId = "block-1";
 
-      // This mimics handleStaticMouseDown behavior
       mockEvent.preventDefault();
       mockEvent.stopPropagation();
       pendingFocusSelection = {
@@ -206,22 +176,20 @@ describe("BlockComponent Integration", () => {
         clientY: 50,
       };
 
-      // Simulate the useLayoutEffect that converts coordinates to position
       const pos = mockView.posAtCoords({
         x: pendingSelection.clientX,
         y: pendingSelection.clientY,
       });
 
       expect(mockView.posAtCoords).toHaveBeenCalledWith({ x: 100, y: 50 });
-      expect(pos).toBe(5); // Mocked return value
+      expect(pos).toBe(5);
     });
 
     it("should dispatch selection to editor view after position calculation", () => {
       const mockView = createMockEditorView("Hello World");
       const pos = 5;
-      const docLength = 11; // "Hello World".length
+      const docLength = 11;
 
-      // Clamp position to document bounds
       const clampedPos = Math.min(Math.max(0, pos), docLength);
 
       mockView.dispatch({
@@ -236,17 +204,14 @@ describe("BlockComponent Integration", () => {
     it("should clamp position to document bounds", () => {
       const docLength = 10;
 
-      // Test clamping high value
       let pos = 100;
       let clampedPos = Math.min(Math.max(0, pos), docLength);
       expect(clampedPos).toBe(10);
 
-      // Test clamping negative value
       pos = -5;
       clampedPos = Math.min(Math.max(0, pos), docLength);
       expect(clampedPos).toBe(0);
 
-      // Test valid value (no clamping)
       pos = 5;
       clampedPos = Math.min(Math.max(0, pos), docLength);
       expect(clampedPos).toBe(5);
@@ -263,11 +228,9 @@ describe("BlockComponent Integration", () => {
       const isComposing = true;
       let onMouseDownCaptureCalled = false;
 
-      // This mimics StaticMarkdownRenderer's handleMouseDownCapture
       if (isComposing) {
         mockEvent.preventDefault();
         mockEvent.stopPropagation();
-        // Early return - don't call onMouseDownCapture
       } else {
         onMouseDownCaptureCalled = true;
       }
@@ -286,7 +249,6 @@ describe("BlockComponent Integration", () => {
       const isComposing = false;
       let onMouseDownCaptureCalled = false;
 
-      // This mimics StaticMarkdownRenderer's handleMouseDownCapture
       if (isComposing) {
         mockEvent.preventDefault();
         mockEvent.stopPropagation();
@@ -308,7 +270,6 @@ describe("BlockComponent Integration", () => {
       const isComposing = true;
       let onPointerDownCaptureCalled = false;
 
-      // This mimics StaticMarkdownRenderer's handlePointerDownCapture
       if (isComposing) {
         mockEvent.preventDefault();
         mockEvent.stopPropagation();
@@ -328,12 +289,11 @@ describe("BlockComponent Integration", () => {
       const docLength = 11;
       const targetCursorPosition = null;
 
-      // This mimics the focus effect logic
       let pos: number;
       if (targetCursorPosition !== null) {
         pos = Math.min(targetCursorPosition, docLength);
       } else {
-        pos = docLength; // Default to end
+        pos = docLength;
       }
 
       mockView.dispatch({
@@ -367,9 +327,9 @@ describe("BlockComponent Integration", () => {
     });
 
     it("should clamp targetCursorPosition to document length", () => {
-      const mockView = createMockEditorView("Hi"); // length = 2
+      const mockView = createMockEditorView("Hi");
       const docLength = 2;
-      const targetCursorPosition = 100; // Way beyond document
+      const targetCursorPosition = 100;
 
       const pos = Math.min(targetCursorPosition, docLength);
 
@@ -391,7 +351,6 @@ describe("BlockComponent Integration", () => {
       const isFocused = true;
       const viewHasFocus = mockView.hasFocus;
 
-      // This mimics: if (isFocused && view && !view.hasFocus) { view.focus(); }
       if (isFocused && !viewHasFocus) {
         mockView.focus();
       }
