@@ -218,3 +218,15 @@
   position: relative;
   margin-left: 0;
 }
+
+/* Static Markdown Renderer - Visual parity with CodeMirror editor */
+.block-static-content {
+  font-family: inherit;
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  padding: 2px var(--spacing-xs);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 24px;
+}

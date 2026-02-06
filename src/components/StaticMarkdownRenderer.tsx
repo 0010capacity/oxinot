@@ -63,7 +63,7 @@ export const StaticMarkdownRenderer = memo(
 
     return (
       <div
-        className={className}
+        className={`${className} block-static-content`}
         onClick={onClick}
         onMouseDownCapture={handleMouseDownCapture}
         onPointerDownCapture={handlePointerDownCapture}
