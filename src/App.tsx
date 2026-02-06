@@ -1,12 +1,12 @@
 import { AppShell, Container, Stack, Text } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import "@mantine/notifications/styles.css";
 
 import { invoke } from "@tauri-apps/api/core";
-import { showToast } from "./utils/toast";
 import { useTelemetryStore } from "./stores/telemetryStore";
 import { analytics } from "./utils/analytics";
+import { showToast } from "./utils/toast";
 
 // Prevent default context menu globally
 if (typeof window !== "undefined") {
@@ -15,40 +15,42 @@ if (typeof window !== "undefined") {
   });
 }
 
-import { CommandPalette } from "./components/CommandPalette";
 import { ErrorNotifications } from "./components/ErrorNotifications";
-import { FileTreeIndex } from "./components/FileTreeIndex";
 import { GitStatusIndicator } from "./components/GitStatusIndicator";
-import { GraphViewModal } from "./components/GraphViewModal";
-import { HelpModal } from "./components/HelpModal";
-import { MigrationDialog } from "./components/MigrationDialog";
-import { SearchModal } from "./components/SearchModal";
-import { SettingsModal } from "./components/SettingsModal";
+import { SnowEffect } from "./components/SnowEffect";
 import { SyncProgress } from "./components/SyncProgress";
 import { TitleBar } from "./components/TitleBar";
-import { Updater } from "./components/Updater";
-import { SnowEffect } from "./components/SnowEffect";
-import { BottomLeftControls } from "./components/layout/BottomLeftControls";
-import { BlockEditor } from "./outliner/BlockEditor";
 import { CopilotButton } from "./components/copilot/CopilotButton";
-import { CopilotPanel } from "./components/copilot/CopilotPanel";
+import { BottomLeftControls } from "./components/layout/BottomLeftControls";
+
+// Lazy load non-critical components for code splitting
+const CommandPalette = lazy(() => import("./components/CommandPalette"));
+const FileTreeIndex = lazy(() => import("./components/FileTreeIndex"));
+const GraphViewModal = lazy(() => import("./components/GraphViewModal"));
+const HelpModal = lazy(() => import("./components/HelpModal"));
+const MigrationDialog = lazy(() => import("./components/MigrationDialog"));
+const SearchModal = lazy(() => import("./components/SearchModal"));
+const SettingsModal = lazy(() => import("./components/SettingsModal"));
+const Updater = lazy(() => import("./components/Updater"));
+const BlockEditor = lazy(() => import("./outliner/BlockEditor"));
+const CopilotPanel = lazy(() => import("./components/copilot/CopilotPanel"));
 import { useCopilotUiStore } from "./stores/copilotUiStore";
 
-import { usePageStore } from "./stores/pageStore";
+import { useTranslation } from "react-i18next";
+import { useAdvancedSettingsStore } from "./stores/advancedSettingsStore";
+import { useAppSettingsStore } from "./stores/appSettingsStore";
 import { useBlockStore } from "./stores/blockStore";
+import { usePageStore } from "./stores/pageStore";
+import { useThemeStore } from "./stores/themeStore";
 import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
 import { useWorkspaceStore } from "./stores/workspaceStore";
-import { useTranslation } from "react-i18next";
-import { useAppSettingsStore } from "./stores/appSettingsStore";
-import { useThemeStore } from "./stores/themeStore";
-import { useAdvancedSettingsStore } from "./stores/advancedSettingsStore";
 
+import { BLOCK_UPDATE_EVENT, type BlockUpdateEventDetail } from "./events";
+import { useCoreCommands } from "./hooks/useCoreCommands";
 import { useHomepage } from "./hooks/useHomepage";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useWorkspaceInitializer } from "./hooks/useWorkspaceInitializer";
-import { useCoreCommands } from "./hooks/useCoreCommands";
 import { ThemeProvider } from "./theme/ThemeProvider";
-import { BLOCK_UPDATE_EVENT, type BlockUpdateEventDetail } from "./events";
 
 function WorkspaceSelector() {
   const {
@@ -364,19 +366,39 @@ function AppContent({ workspacePath }: AppContentProps) {
                 </Text>
               </Container>
             ) : viewMode === "index" ? (
-              <FileTreeIndex />
-            ) : currentPageId ? (
-              <BlockEditor
-                pageId={currentPageId}
-                workspaceName={workspaceName}
-                pageName={
-                  breadcrumb.length > 0 &&
-                  breadcrumb[breadcrumb.length - 1] !== workspaceName
-                    ? breadcrumb[breadcrumb.length - 1]
-                    : undefined
+              <Suspense
+                fallback={
+                  <Container size="sm" py="xl" mt={50}>
+                    <Text ta="center" c="dimmed">
+                      Loading index...
+                    </Text>
+                  </Container>
                 }
-                onNavigateHome={showIndex}
-              />
+              >
+                <FileTreeIndex />
+              </Suspense>
+            ) : currentPageId ? (
+              <Suspense
+                fallback={
+                  <Container size="sm" py="xl" mt={50}>
+                    <Text ta="center" c="dimmed">
+                      Loading editor...
+                    </Text>
+                  </Container>
+                }
+              >
+                <BlockEditor
+                  pageId={currentPageId}
+                  workspaceName={workspaceName}
+                  pageName={
+                    breadcrumb.length > 0 &&
+                    breadcrumb[breadcrumb.length - 1] !== workspaceName
+                      ? breadcrumb[breadcrumb.length - 1]
+                      : undefined
+                  }
+                  onNavigateHome={showIndex}
+                />
+              </Suspense>
             ) : (
               <Container size="sm" py="xl" mt={50}>
                 <Text ta="center" c="dimmed">
@@ -391,87 +413,105 @@ function AppContent({ workspacePath }: AppContentProps) {
         </AppShell.Main>
 
         <AppShell.Aside>
-          <CopilotPanel />
+          <Suspense fallback={null}>
+            <CopilotPanel />
+          </Suspense>
         </AppShell.Aside>
       </AppShell>
 
       {/* Migration Dialog */}
-      <MigrationDialog
-        workspacePath={workspacePath}
-        isOpen={showMigration}
-        onComplete={handleMigrationComplete}
-        onCancel={handleMigrationCancelWithWorkspace}
-      />
+      <Suspense fallback={null}>
+        <MigrationDialog
+          workspacePath={workspacePath}
+          isOpen={showMigration}
+          onComplete={handleMigrationComplete}
+          onCancel={handleMigrationCancelWithWorkspace}
+        />
+      </Suspense>
 
       {/* Search Modal */}
-      <SearchModal
-        opened={searchOpened}
-        onClose={() => setSearchOpened(false)}
-      />
+      <Suspense fallback={null}>
+        <SearchModal
+          opened={searchOpened}
+          onClose={() => setSearchOpened(false)}
+        />
+      </Suspense>
 
       {/* Command Palette */}
-      <CommandPalette
-        opened={commandPaletteOpened}
-        onClose={() => setCommandPaletteOpened(false)}
-      />
+      <Suspense fallback={null}>
+        <CommandPalette
+          opened={commandPaletteOpened}
+          onClose={() => setCommandPaletteOpened(false)}
+        />
+      </Suspense>
 
       {/* Help Modal */}
-      <HelpModal opened={helpOpened} onClose={() => setHelpOpened(false)} />
+      <Suspense fallback={null}>
+        <HelpModal opened={helpOpened} onClose={() => setHelpOpened(false)} />
+      </Suspense>
 
       {/* Settings Modal */}
-      <SettingsModal
-        opened={settingsOpened}
-        onClose={() => setSettingsOpened(false)}
-        workspacePath={workspacePath}
-        pagesById={pagesById}
-        pageIds={pageIds}
-        vacuumDatabase={async () => {
-          if (workspacePath) {
-            try {
-              await invoke("vacuum_db", { workspacePath });
-              showToast({
-                message: t("settings.advanced.vacuum_db_success"),
-                type: "success",
-              });
-            } catch (error) {
-              showToast({
-                message: t("settings.advanced.vacuum_db_error", {
-                  error: String(error),
-                }),
-                type: "error",
-              });
+      <Suspense fallback={null}>
+        <SettingsModal
+          opened={settingsOpened}
+          onClose={() => setSettingsOpened(false)}
+          workspacePath={workspacePath}
+          pagesById={pagesById}
+          pageIds={pageIds}
+          vacuumDatabase={async () => {
+            if (workspacePath) {
+              try {
+                await invoke("vacuum_db", { workspacePath });
+                showToast({
+                  message: t("settings.advanced.vacuum_db_success"),
+                  type: "success",
+                });
+              } catch (error) {
+                showToast({
+                  message: t("settings.advanced.vacuum_db_error", {
+                    error: String(error),
+                  }),
+                  type: "error",
+                });
+              }
             }
-          }
-        }}
-        optimizeDatabase={async () => {
-          if (workspacePath) {
-            try {
-              await invoke("optimize_db", { workspacePath });
-              showToast({
-                message: t("settings.advanced.optimize_db_success"),
-                type: "success",
-              });
-            } catch (error) {
-              showToast({
-                message: t("settings.advanced.optimize_db_error", {
-                  error: String(error),
-                }),
-                type: "error",
-              });
+          }}
+          optimizeDatabase={async () => {
+            if (workspacePath) {
+              try {
+                await invoke("optimize_db", { workspacePath });
+                showToast({
+                  message: t("settings.advanced.optimize_db_success"),
+                  type: "success",
+                });
+              } catch (error) {
+                showToast({
+                  message: t("settings.advanced.optimize_db_error", {
+                    error: String(error),
+                  }),
+                  type: "error",
+                });
+              }
             }
-          }
-        }}
-        t={t}
-      />
+          }}
+          t={t}
+        />
+      </Suspense>
 
       {/* Graph View Modal */}
-      <GraphViewModal
-        opened={graphViewOpened}
-        onClose={() => setGraphViewOpened(false)}
-        workspacePath={workspacePath}
-        currentPageId={currentPageId ?? undefined}
-      />
+      <Suspense fallback={null}>
+        <GraphViewModal
+          opened={graphViewOpened}
+          onClose={() => setGraphViewOpened(false)}
+          workspacePath={workspacePath}
+          currentPageId={currentPageId ?? undefined}
+        />
+      </Suspense>
 
+      {/* Updater */}
+      <Suspense fallback={null}>
+        <Updater />
+      </Suspense>
       <Notifications />
       <ErrorNotifications />
       <SnowEffect />
