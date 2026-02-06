@@ -27,10 +27,7 @@ import {
   useBlockStore,
   useChildrenIds,
 } from "../stores/blockStore";
-import {
-  useFocusedBlockId,
-  useTargetCursorPosition,
-} from "../stores/blockUIStore";
+import { useTargetCursorPosition } from "../stores/blockUIStore";
 import { useIsBlockFocused } from "../stores/viewStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
@@ -436,7 +433,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       return () => {
         document.removeEventListener("keydown", handleCopy, true);
       };
-    }, [focusedBlockId, blockId, copyBlocksAsMarkdown]);
+    }, [isFocused, blockId, copyBlocksAsMarkdown]);
 
     // Handle Shift+Arrow key selection when this block is focused
     useEffect(() => {
@@ -743,9 +740,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
           // Set the full path in view store
           useViewStore.setState({
-            focusedBlockId: blockId,
             zoomPath: path,
           });
+          setFocusedBlock(blockId);
         } else {
           // Otherwise just focus
           setFocusedBlock(blockId);
