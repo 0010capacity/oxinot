@@ -9,6 +9,7 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { useBlockEditorCommands } from "../hooks/useBlockEditorCommands";
 import { useBlockStore } from "../stores/blockStore";
 import { useRegisterCommands } from "../stores/commandStore";
+import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import { useThemeStore } from "../stores/themeStore";
 import { showToast } from "../utils/toast";
 import { BlockComponent } from "./BlockComponent";
@@ -70,6 +71,9 @@ export function BlockEditor({
 
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
+  const virtualizationThreshold = useOutlinerSettingsStore(
+    (state) => state.virtualizationThreshold,
+  );
 
   // Register page-level command
   useRegisterCommands(
@@ -194,7 +198,7 @@ export function BlockEditor({
                 Start typing to create your first block...
               </div>
             </div>
-          ) : blocksToShow.length > 100 ? (
+          ) : blocksToShow.length > virtualizationThreshold ? (
             <BlockOrderContext.Provider value={blockOrder}>
               {(() => {
                 const virtualListStart = performance.now();
