@@ -435,3 +435,5 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
     </Modal>
   );
 }
+
+export default SearchModal;

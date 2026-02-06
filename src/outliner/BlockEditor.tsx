@@ -238,3 +238,5 @@ export function BlockEditor({
     </PageContainer>
   );
 }
+
+export default BlockEditor;

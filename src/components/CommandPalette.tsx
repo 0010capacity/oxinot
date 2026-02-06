@@ -213,3 +213,5 @@ export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
     </Modal>
   );
 }
+
+export default CommandPalette;
