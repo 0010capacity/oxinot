@@ -157,7 +157,7 @@ export function BlockEditor({
                 Start typing to create your first block...
               </div>
             </div>
-          ) : blocksToShow.length > 100 ? (
+          ) : blocksToShow.length > 20 ? (
             (() => {
               const virtualListStart = performance.now();
               console.log(
