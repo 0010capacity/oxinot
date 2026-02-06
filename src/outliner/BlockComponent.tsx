@@ -363,7 +363,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // Auto-scroll the focused block into view when focused
     // Positions block at ~40% from top of viewport for better readability
     useEffect(() => {
-      if (focusedBlockId !== blockId || !blockRowRef.current) {
+      if (!isFocused || !blockRowRef.current) {
         return;
       }
 
@@ -391,7 +391,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           block: "center",
         });
       }
-    }, [focusedBlockId, blockId]);
+    }, [isFocused, blockId]);
 
     // Handle outside clicks to close metadata editor
     useEffect(() => {
@@ -417,7 +417,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     // Handle keyboard shortcuts (Ctrl+C for copy)
     useEffect(() => {
-      if (focusedBlockId !== blockId) return;
+      if (!isFocused) return;
 
       const handleCopy = (event: KeyboardEvent) => {
         // Ctrl+C or Cmd+C
@@ -440,7 +440,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     // Handle Shift+Arrow key selection when this block is focused
     useEffect(() => {
-      if (focusedBlockId !== blockId) return;
+      if (!isFocused) return;
 
       const handleKeyDown = (event: KeyboardEvent) => {
         // Clear selection and anchor if navigating without Shift
@@ -495,13 +495,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       return () => {
         document.removeEventListener("keydown", handleKeyDown, true);
       };
-    }, [
-      focusedBlockId,
-      blockId,
-      blockOrder,
-      selectBlockRange,
-      setFocusedBlock,
-    ]);
+    }, [isFocused, blockId, blockOrder, selectBlockRange, setFocusedBlock]);
 
     // Consolidated IME state
     const imeStateRef = useRef({
@@ -531,14 +525,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     useEffect(() => {
       const isProgrammaticNav = targetCursorPosition !== null;
 
-      if (focusedBlockId !== blockId || isProgrammaticNav) {
+      if (!isFocused || isProgrammaticNav) {
         // Only update if content is actually different to prevent unnecessary renders
         if (blockContent !== draftRef.current) {
           setDraft(blockContent ?? "");
           draftRef.current = blockContent ?? "";
         }
       }
-    }, [blockContent, focusedBlockId, blockId, targetCursorPosition]);
+    }, [blockContent, isFocused, blockId, targetCursorPosition]);
 
     // Commit helper: stable callback reading from refs (doesn't change every keystroke).
     const commitDraft = useCallback(async () => {
@@ -553,7 +547,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     // Focus editor when this block becomes focused
     useEffect(() => {
-      if (focusedBlockId === blockId && editorRef.current) {
+      if (isFocused && editorRef.current) {
         const view = editorRef.current?.getView();
 
         // If already focused and no target position, skip (mouse click already handled)
@@ -594,16 +588,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           appliedPositionRef.current = targetCursorPosition;
           clearTargetCursorPosition();
         }
-      } else if (focusedBlockId !== blockId) {
+      } else if (!isFocused) {
         // Reset applied position when this block is no longer focused
         appliedPositionRef.current = null;
       }
-    }, [
-      focusedBlockId,
-      blockId,
-      targetCursorPosition,
-      clearTargetCursorPosition,
-    ]);
+    }, [isFocused, blockId, targetCursorPosition, clearTargetCursorPosition]);
 
     // Handle IME composition events: track state and execute pending block operations
     useEffect(() => {
@@ -708,11 +697,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const handleFocus = useCallback(() => {
       // Reset IME state when focusing a different block
-      if (focusedBlockId !== blockId) {
+      if (!isFocused) {
         imeStateRef.current.lastInputWasComposition = false;
         setFocusedBlock(blockId);
       }
-    }, [blockId, setFocusedBlock, focusedBlockId]);
+    }, [blockId, setFocusedBlock, isFocused]);
 
     const handleContentChange = useCallback((content: string) => {
       draftRef.current = content;
@@ -1096,8 +1085,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               // Handle range select with Shift + Click
               else if (e.shiftKey && blockOrder.length > 0) {
                 e.stopPropagation();
-                // Use lastSelectedBlockId or focusedBlockId as anchor
-                const anchorBlockId = lastSelectedBlockId || focusedBlockId;
+                // Use lastSelectedBlockId or current block as anchor
+                const anchorBlockId = lastSelectedBlockId || blockId;
                 if (anchorBlockId && anchorBlockId !== blockId) {
                   selectBlockRange(anchorBlockId, blockId, blockOrder);
                 } else {
@@ -1150,7 +1139,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               <MacroContentWrapper
                 content={draft}
                 blockId={blockId}
-                isFocused={focusedBlockId === blockId}
+                isFocused={isFocused}
                 onEdit={() => setFocusedBlock(blockId)}
               >
                 <Popover
@@ -1182,7 +1171,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                         // FOCUS STATE PROP:
                         // -----------------
                         // This determines whether markdown markers are visible or hidden
-                        // focusedBlockId comes from useViewStore and is set when user clicks/focuses a block
+                        // isFocused comes from useIsBlockFocused and is true when user clicks/focuses a block
                         //
                         // When true (block has focus):
                         //   → shouldShowMarkers = true (via shouldShowMarkersForLine in hybridRendering.ts)
@@ -1191,7 +1180,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                         // When false (block unfocused):
                         //   → shouldShowMarkers = false
                         //   → Markers are hidden → Renders formatted content (e.g., link, styled heading)
-                        isFocused={focusedBlockId === blockId}
+                        isFocused={isFocused}
                         className="block-editor"
                         style={{
                           minHeight: "24px",
