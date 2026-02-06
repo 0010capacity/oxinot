@@ -1107,6 +1107,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         />
       ) : null;
 
+    // Early return if block has no content and no metadata
+    // This guard is placed AFTER all hooks (including useMemo) to comply with React Hook rules
     if (blockContent === undefined && blockMetadata === undefined) {
       return null;
     }
