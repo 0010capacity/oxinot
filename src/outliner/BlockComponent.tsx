@@ -47,6 +47,7 @@ import * as batchOps from "../utils/batchBlockOperations";
 import { showToast } from "../utils/toast";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { MacroContentWrapper } from "./MacroContentWrapper";
+import { editorStateCache } from "./editorStateCache";
 import "./BlockComponent.css";
 import { INDENT_PER_LEVEL } from "../constants/layout";
 import { useIsBlockSelected } from "../hooks/useBlockSelection";
@@ -564,6 +565,23 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         await useBlockStore.getState().updateBlockContent(blockId, latestDraft);
       }
     }, [blockId]);
+
+    // Save editor state before losing focus, restore when regaining focus
+    useEffect(() => {
+      const view = editorRef.current?.getView();
+      if (!view) return;
+
+      if (isFocused) {
+        // When gaining focus: restore cached state if available
+        const cachedState = editorStateCache.get(blockId);
+        if (cachedState) {
+          view.setState(cachedState);
+        }
+      } else {
+        // When losing focus: save current editor state
+        editorStateCache.set(blockId, view.state);
+      }
+    }, [isFocused, blockId]);
 
     // Focus editor when this block becomes focused
     useEffect(() => {
