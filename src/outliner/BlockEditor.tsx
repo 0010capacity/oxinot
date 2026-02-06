@@ -27,40 +27,20 @@ const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
     `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`,
   );
 
-  const allBlocksRef = useRef<string[]>([]);
-
-  for (const blockId of blocksToShow) {
-    if (!allBlocksRef.current.includes(blockId)) {
-      allBlocksRef.current.push(blockId);
-    }
-  }
-
-  console.log(
-    `[BlockEditor:timing] allBlocksRef has ${allBlocksRef.current.length} blocks`,
+  const blocks = useMemo(
+    () =>
+      blocksToShow.map((blockId: string) => (
+        <BlockComponent key={blockId} blockId={blockId} depth={0} />
+      )),
+    [blocksToShow],
   );
-
-  const visibleSet = useMemo(() => new Set(blocksToShow), [blocksToShow]);
-
-  const blocks = allBlocksRef.current.map((blockId: string) => {
-    const isVisible = visibleSet.has(blockId);
-    return (
-      <div
-        key={`block-wrapper-${blockId}`}
-        style={{
-          display: isVisible ? "block" : "none",
-        }}
-      >
-        <BlockComponent blockId={blockId} depth={0} />
-      </div>
-    );
-  });
 
   requestAnimationFrame(() => {
     const mapTime = performance.now() - mapStart;
     console.log(
       `[BlockEditor:timing] BlockComponent .map() rendered in ${mapTime.toFixed(
         2,
-      )}ms (${allBlocksRef.current.length} total blocks in ref)`,
+      )}ms`,
     );
   });
   return <>{blocks}</>;

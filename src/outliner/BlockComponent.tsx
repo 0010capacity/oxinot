@@ -31,7 +31,6 @@ import {
 import {
   type BlockData,
   useBlockContent,
-  useBlockHasChildren,
   useBlockIsCollapsed,
   useBlockMetadata,
   useBlockStore,
@@ -71,7 +70,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const blockContent = useBlockContent(blockId);
     const isCollapsed = useBlockIsCollapsed(blockId);
-    const hasChildren = useBlockHasChildren(blockId);
+    const childrenIds = useChildrenIds(blockId);
+    const hasChildren = childrenIds.length > 0;
     const blockMetadata = useBlockMetadata(blockId);
     const isFocused = useIsBlockFocused(blockId);
     const showIndentGuides = useOutlinerSettingsStore(
@@ -1317,7 +1317,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           {/* Render children recursively if not collapsed */}
           {hasChildren && !isCollapsed && (
             <div className="block-children">
-              {useChildrenIds(blockId).map((childId: string) => (
+              {childrenIds.map((childId: string) => (
                 <BlockComponent
                   key={childId}
                   blockId={childId}
