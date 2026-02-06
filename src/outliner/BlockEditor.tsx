@@ -1,6 +1,6 @@
 import { useComputedColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
-import { useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
@@ -14,6 +14,38 @@ import { showToast } from "../utils/toast";
 import { BlockComponent } from "./BlockComponent";
 import { VirtualBlockList } from "./VirtualBlockList";
 import "./BlockEditor.css";
+
+interface BlockListProps {
+  blocksToShow: string[];
+  blockOrder: string[];
+}
+
+const BlockList = memo(function BlockList({
+  blocksToShow,
+  blockOrder,
+}: BlockListProps) {
+  const mapStart = performance.now();
+  console.log(
+    `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`,
+  );
+  const blocks = blocksToShow.map((blockId: string) => (
+    <BlockComponent
+      key={blockId}
+      blockId={blockId}
+      depth={0}
+      blockOrder={blockOrder}
+    />
+  ));
+  requestAnimationFrame(() => {
+    const mapTime = performance.now() - mapStart;
+    console.log(
+      `[BlockEditor:timing] BlockComponent .map() rendered in ${mapTime.toFixed(
+        2,
+      )}ms`,
+    );
+  });
+  return <>{blocks}</>;
+});
 
 interface BlockEditorProps {
   pageId: string;
@@ -188,29 +220,7 @@ export function BlockEditor({
               return result;
             })()
           ) : (
-            (() => {
-              const mapStart = performance.now();
-              console.log(
-                `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`,
-              );
-              const blocks = blocksToShow.map((blockId: string) => (
-                <BlockComponent
-                  key={blockId}
-                  blockId={blockId}
-                  depth={0}
-                  blockOrder={blockOrder}
-                />
-              ));
-              requestAnimationFrame(() => {
-                const mapTime = performance.now() - mapStart;
-                console.log(
-                  `[BlockEditor:timing] BlockComponent .map() rendered in ${mapTime.toFixed(
-                    2,
-                  )}ms`,
-                );
-              });
-              return blocks;
-            })()
+            <BlockList blocksToShow={blocksToShow} blockOrder={blockOrder} />
           )}
         </div>
 
