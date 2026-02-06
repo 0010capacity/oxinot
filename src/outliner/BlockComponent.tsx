@@ -100,10 +100,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const isSelected = useIsBlockSelected(blockId);
 
     const { t } = useTranslation();
-    // Guard against undefined block (can happen during navigation between pages)
-    if (blockContent === undefined && blockMetadata === undefined) {
-      return null;
-    }
 
     const blockComponentRef = useRef<HTMLDivElement>(null);
     const blockRowRef = useRef<HTMLDivElement>(null);
@@ -661,6 +657,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
       // Clear pending selection after applying
       useBlockUIStore.getState().clearPendingFocusSelection();
+
+      // Focus the editor so user can immediately start typing
+      editorRef.current?.focus();
     }, [isFocused, blockId]);
 
     // Handle IME composition events: track state and execute pending block operations
@@ -814,9 +813,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           });
           setFocusedBlock(blockId);
         } else {
-          // Otherwise just focus
+          // Otherwise just focus - let useLayoutEffect handle focus timing
           setFocusedBlock(blockId);
-          editorRef.current?.focus();
         }
       },
       [blockId, hasChildren, setFocusedBlock],
@@ -1085,6 +1083,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }}
         />
       ) : null;
+
+    if (blockContent === undefined && blockMetadata === undefined) {
+      return null;
+    }
 
     return (
       <ContextMenu
