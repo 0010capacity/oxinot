@@ -148,4 +148,138 @@ describe("EditorStateCache", () => {
       expect(editorStateCache.size()).toBe(0);
     });
   });
+
+  describe("LRU eviction", () => {
+    const MAX_ENTRIES = 50;
+
+    it("should evict oldest entry when cache exceeds MAX_ENTRIES", () => {
+      // Fill cache beyond MAX_ENTRIES
+      for (let i = 0; i < MAX_ENTRIES + 5; i++) {
+        editorStateCache.set(
+          `block-${i}`,
+          createMockEditorState(`content-${i}`)
+        );
+      }
+
+      // Should only keep MAX_ENTRIES
+      expect(editorStateCache.size()).toBe(MAX_ENTRIES);
+
+      // Oldest entries should be evicted
+      expect(editorStateCache.has("block-0")).toBe(false);
+      expect(editorStateCache.has("block-1")).toBe(false);
+      expect(editorStateCache.has("block-2")).toBe(false);
+      expect(editorStateCache.has("block-3")).toBe(false);
+      expect(editorStateCache.has("block-4")).toBe(false);
+
+      // Newest entries should still exist
+      expect(editorStateCache.has("block-50")).toBe(true);
+      expect(editorStateCache.has(`block-${MAX_ENTRIES + 4}`)).toBe(true);
+    });
+
+    it("should update LRU order on get() access", () => {
+      // Fill cache to MAX_ENTRIES
+      for (let i = 0; i < MAX_ENTRIES; i++) {
+        editorStateCache.set(`block-${i}`, createMockEditorState());
+      }
+
+      // Access an older entry (block-10) to make it recently used
+      editorStateCache.get("block-10");
+
+      // Add one more entry to trigger eviction
+      editorStateCache.set(`block-${MAX_ENTRIES}`, createMockEditorState());
+
+      // block-10 should still exist because it was recently accessed
+      expect(editorStateCache.has("block-10")).toBe(true);
+
+      // block-0 should be evicted (oldest and not recently accessed)
+      expect(editorStateCache.has("block-0")).toBe(false);
+    });
+
+    it("should update LRU order on set() for existing entry", () => {
+      // Fill cache to MAX_ENTRIES
+      for (let i = 0; i < MAX_ENTRIES; i++) {
+        editorStateCache.set(`block-${i}`, createMockEditorState(`v1-${i}`));
+      }
+
+      // Update an older entry (block-10)
+      editorStateCache.set("block-10", createMockEditorState("v2-updated"));
+
+      // Add one more entry to trigger eviction
+      editorStateCache.set(`block-${MAX_ENTRIES}`, createMockEditorState());
+
+      // block-10 should still exist because it was recently updated
+      expect(editorStateCache.has("block-10")).toBe(true);
+
+      // block-0 should be evicted
+      expect(editorStateCache.has("block-0")).toBe(false);
+    });
+
+    it("should evict in correct LRU order with multiple accesses", () => {
+      // Fill cache to MAX_ENTRIES
+      for (let i = 0; i < MAX_ENTRIES; i++) {
+        editorStateCache.set(`block-${i}`, createMockEditorState());
+      }
+
+      // Access several older entries in this order: block-5, block-3, block-7
+      editorStateCache.get("block-5");
+      editorStateCache.get("block-3");
+      editorStateCache.get("block-7");
+
+      // Add 5 new entries to trigger multiple evictions
+      for (let i = MAX_ENTRIES; i < MAX_ENTRIES + 5; i++) {
+        editorStateCache.set(`block-${i}`, createMockEditorState());
+      }
+
+      // Recently accessed entries should still exist
+      expect(editorStateCache.has("block-5")).toBe(true);
+      expect(editorStateCache.has("block-3")).toBe(true);
+      expect(editorStateCache.has("block-7")).toBe(true);
+
+      // Unaccessed old entries should be evicted (starting from block-0)
+      expect(editorStateCache.has("block-0")).toBe(false);
+      expect(editorStateCache.has("block-1")).toBe(false);
+      expect(editorStateCache.has("block-2")).toBe(false);
+      expect(editorStateCache.has("block-4")).toBe(false);
+    });
+
+    it("should maintain correct size after multiple evictions", () => {
+      // Add entries in batches to trigger multiple evictions
+      for (let batch = 0; batch < 3; batch++) {
+        for (let i = 0; i < 25; i++) {
+          const id = `block-${batch * 25 + i}`;
+          editorStateCache.set(id, createMockEditorState(id));
+        }
+      }
+
+      // Should never exceed MAX_ENTRIES
+      expect(editorStateCache.size()).toBe(MAX_ENTRIES);
+
+      // Only the most recent entries should exist
+      for (let i = 0; i < 25; i++) {
+        expect(editorStateCache.has(`block-${i}`)).toBe(false);
+      }
+      for (let i = 25; i < 75; i++) {
+        expect(editorStateCache.has(`block-${i}`)).toBe(true);
+      }
+    });
+
+    it("should remove from access order when clear() is called", () => {
+      editorStateCache.set("block-1", createMockEditorState());
+      editorStateCache.set("block-2", createMockEditorState());
+      editorStateCache.set("block-3", createMockEditorState());
+
+      editorStateCache.clear("block-2");
+
+      // Add 49 entries (block-4 through block-52) to exceed MAX_ENTRIES (50)
+      // This triggers eviction of block-1 (oldest entry)
+      for (let i = 4; i <= MAX_ENTRIES + 2; i++) {
+        editorStateCache.set(`block-${i}`, createMockEditorState());
+      }
+
+      // block-2 should not affect eviction since it was cleared
+      expect(editorStateCache.has("block-1")).toBe(false);
+      expect(editorStateCache.has("block-3")).toBe(true);
+      expect(editorStateCache.has(`block-${MAX_ENTRIES + 2}`)).toBe(true);
+    });
+  });
 });
