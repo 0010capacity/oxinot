@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
+import { StaticMarkdownRenderer } from "../components/StaticMarkdownRenderer";
 import {
   ContextMenu,
   type ContextMenuSection,
@@ -28,9 +29,9 @@ import {
   useChildrenIds,
 } from "../stores/blockStore";
 import { useTargetCursorPosition } from "../stores/blockUIStore";
-import { useIsBlockFocused } from "../stores/viewStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
+import { useIsBlockFocused } from "../stores/viewStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
@@ -63,7 +64,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const blockMetadata = useBlockMetadata(blockId);
     const isFocused = useIsBlockFocused(blockId);
     const showIndentGuides = useOutlinerSettingsStore(
-      (state) => state.showIndentGuides
+      (state) => state.showIndentGuides,
     );
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
@@ -72,20 +73,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
     const splitBlockAtCursor = useBlockStore(
-      (state) => state.splitBlockAtCursor
+      (state) => state.splitBlockAtCursor,
     );
     const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const targetCursorPosition = useTargetCursorPosition();
     const setFocusedBlock = useBlockUIStore((state) => state.setFocusedBlock);
     const clearTargetCursorPosition = useBlockUIStore(
-      (state) => state.clearTargetCursorPosition
+      (state) => state.clearTargetCursorPosition,
     );
     const toggleBlockSelection = useBlockUIStore(
-      (state) => state.toggleBlockSelection
+      (state) => state.toggleBlockSelection,
     );
     const selectBlockRange = useBlockUIStore((state) => state.selectBlockRange);
     const lastSelectedBlockId = useBlockUIStore(
-      (state) => state.lastSelectedBlockId
+      (state) => state.lastSelectedBlockId,
     );
     const isSelected = useIsBlockSelected(blockId);
 
@@ -117,7 +118,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         currentSelectedIds.length > 0 ? currentSelectedIds : [blockId];
 
       const orderedBlocks = blockOrder.filter((id) =>
-        targetBlocks.includes(id)
+        targetBlocks.includes(id),
       );
 
       const blocksById = useBlockStore.getState().blocksById;
@@ -327,7 +328,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           ],
         },
       ],
-      [t]
+      [t],
     );
 
     // Cleanup timeout on unmount
@@ -493,6 +494,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         document.removeEventListener("keydown", handleKeyDown, true);
       };
     }, [isFocused, blockId, blockOrder, selectBlockRange, setFocusedBlock]);
+
+    const handleStaticMouseDown = useCallback(
+      (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        useBlockUIStore
+          .getState()
+          .setPendingFocusSelection(blockId, e.clientX, e.clientY);
+
+        setFocusedBlock(blockId);
+      },
+      [blockId, setFocusedBlock],
+    );
 
     // Consolidated IME state
     const imeStateRef = useRef({
@@ -747,7 +762,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           editorRef.current?.focus();
         }
       },
-      [blockId, hasChildren, setFocusedBlock]
+      [blockId, hasChildren, setFocusedBlock],
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
@@ -763,7 +778,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         }
         handleContentChange(value);
       },
-      [handleContentChange]
+      [handleContentChange],
     );
 
     const keybindings: KeyBinding[] = useMemo(() => {
@@ -902,7 +917,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 if (prevBlock) {
                   const targetPos = calculatePrevBlockCursorPosition(
                     columnPos,
-                    prevBlock.content
+                    prevBlock.content,
                   );
                   setFocusedBlock(prevBlockId, targetPos);
                 } else {
@@ -939,7 +954,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 if (nextBlock) {
                   const targetPos = calculateNextBlockCursorPosition(
                     columnPos,
-                    nextBlock.content
+                    nextBlock.content,
                   );
                   setFocusedBlock(nextBlockId, targetPos);
                 } else {
@@ -1131,80 +1146,78 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               className="block-content-wrapper"
               style={{ position: "relative" }}
             >
-              <MacroContentWrapper
-                content={draft}
-                blockId={blockId}
-                isFocused={isFocused}
-                onEdit={() => setFocusedBlock(blockId)}
-              >
-                <Popover
-                  opened={isMetadataOpen}
-                  onClose={() => {
-                    setIsMetadataOpen(false);
-                  }}
-                  position="bottom"
-                  withArrow
-                  shadow="md"
-                  trapFocus={false}
-                  closeOnEscape
-                  closeOnClickOutside
-                  withinPortal={true}
-                  transitionProps={{ duration: 0 }}
+              {isFocused ? (
+                <MacroContentWrapper
+                  content={draft}
+                  blockId={blockId}
+                  isFocused={isFocused}
+                  onEdit={() => setFocusedBlock(blockId)}
                 >
-                  <Popover.Target>
-                    <Box style={{ width: "100%" }}>
-                      <Editor
-                        ref={editorRef}
-                        value={draft}
-                        onChange={handleContentChangeWithTrigger}
-                        onFocus={handleFocus}
-                        onBlur={handleBlur}
-                        lineNumbers={false}
-                        lineWrapping={true}
-                        theme={isDark ? "dark" : "light"}
-                        keybindings={keybindings}
-                        // FOCUS STATE PROP:
-                        // -----------------
-                        // This determines whether markdown markers are visible or hidden
-                        // isFocused comes from useIsBlockFocused and is true when user clicks/focuses a block
-                        //
-                        // When true (block has focus):
-                        //   → shouldShowMarkers = true (via shouldShowMarkersForLine in hybridRendering.ts)
-                        //   → Markers are visible → Shows raw markdown (e.g., [[link]], # heading)
-                        //
-                        // When false (block unfocused):
-                        //   → shouldShowMarkers = false
-                        //   → Markers are hidden → Renders formatted content (e.g., link, styled heading)
-                        isFocused={isFocused}
-                        className="block-editor"
-                        style={{
-                          minHeight: "24px",
-                          fontSize: "14px",
+                  <Popover
+                    opened={isMetadataOpen}
+                    onClose={() => {
+                      setIsMetadataOpen(false);
+                    }}
+                    position="bottom"
+                    withArrow
+                    shadow="md"
+                    trapFocus={false}
+                    closeOnEscape
+                    closeOnClickOutside
+                    withinPortal={true}
+                    transitionProps={{ duration: 0 }}
+                  >
+                    <Popover.Target>
+                      <Box style={{ width: "100%" }}>
+                        <Editor
+                          ref={editorRef}
+                          value={draft}
+                          onChange={handleContentChangeWithTrigger}
+                          onFocus={handleFocus}
+                          onBlur={handleBlur}
+                          lineNumbers={false}
+                          lineWrapping={true}
+                          theme={isDark ? "dark" : "light"}
+                          keybindings={keybindings}
+                          isFocused={isFocused}
+                          className="block-editor"
+                          style={{
+                            minHeight: "24px",
+                            fontSize: "14px",
+                          }}
+                        />
+                      </Box>
+                    </Popover.Target>
+                    <Popover.Dropdown
+                      p={0}
+                      ref={popoverDropdownRef}
+                      style={{ minWidth: "300px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                    >
+                      <MetadataEditor
+                        blockId={blockId}
+                        onClose={() => {
+                          setIsMetadataOpen(false);
+                          setTimeout(() => {
+                            editorRef.current?.focus();
+                          }, 0);
                         }}
                       />
-                    </Box>
-                  </Popover.Target>
-                  <Popover.Dropdown
-                    p={0}
-                    ref={popoverDropdownRef}
-                    style={{ minWidth: "300px" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                    }}
-                  >
-                    <MetadataEditor
-                      blockId={blockId}
-                      onClose={() => {
-                        setIsMetadataOpen(false);
-                        // Return focus to editor after metadata is saved
-                        setTimeout(() => {
-                          editorRef.current?.focus();
-                        }, 0);
-                      }}
-                    />
-                  </Popover.Dropdown>
-                </Popover>
-              </MacroContentWrapper>
+                    </Popover.Dropdown>
+                  </Popover>
+                </MacroContentWrapper>
+              ) : (
+                <StaticMarkdownRenderer
+                  content={blockContent || ""}
+                  onMouseDownCapture={handleStaticMouseDown}
+                  style={{
+                    minHeight: "24px",
+                    fontSize: "14px",
+                  }}
+                />
+              )}
 
               {/* Metadata Badge - small indicator with tooltip */}
               {blockMetadata && (
@@ -1264,10 +1277,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           blocksToDelete={blocksToDelete}
           totalBlocksCount={blocksToDelete.reduce(
             (sum, id) => sum + 1 + countDescendantBlocks(id),
-            0
+            0,
           )}
           hasDescendants={blocksToDelete.some(
-            (id) => countDescendantBlocks(id) > 0
+            (id) => countDescendantBlocks(id) > 0,
           )}
         />
       </ContextMenu>
@@ -1279,5 +1292,5 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       prevProps.blockId === nextProps.blockId &&
       prevProps.depth === nextProps.depth
     );
-  }
+  },
 );
