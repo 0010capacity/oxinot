@@ -513,7 +513,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     // Keep the latest draft in a ref so callbacks/keybindings can stay stable
     // (otherwise keybindings change every keystroke and the editor view gets recreated).
-    const draftRef = useRef<string>(block?.content || "");
+    const draftRef = useRef<string>(blockContent || "");
 
     // Keep draft in sync when the underlying block changes (e.g., page load, external update)
     // but do not overwrite while this block is focused (editing session owns the draft),
@@ -731,9 +731,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           // Build path from current block to root
           while (currentId) {
             path.unshift(currentId);
-            const currentBlock = blocksById[currentId] as
-              | typeof block
-              | undefined;
+            const currentBlock = blocksById[currentId] as BlockData | undefined;
             if (!currentBlock) break;
             currentId = currentBlock.parentId || null;
           }
