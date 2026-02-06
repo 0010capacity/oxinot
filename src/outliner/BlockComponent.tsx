@@ -1071,7 +1071,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       mergeWithPrevious,
       splitBlockAtCursor,
     ]);
-    if (blockContent === undefined && blockMetadata === undefined) return null;
 
     // Render only one indent guide at this block's depth level
     const indentGuide =
