@@ -509,7 +509,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     // Local draft is the immediate source of truth while editing.
     // This prevents controlled-value "ping-pong" that can break IME composition.
-    const [draft, setDraft] = useState<string>(block?.content || "");
+    const [draft, setDraft] = useState<string>(blockContent || "");
 
     // Keep the latest draft in a ref so callbacks/keybindings can stay stable
     // (otherwise keybindings change every keystroke and the editor view gets recreated).
