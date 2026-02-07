@@ -18,7 +18,6 @@ if (typeof window !== "undefined") {
 import { ErrorNotifications } from "./components/ErrorNotifications";
 import { GitStatusIndicator } from "./components/GitStatusIndicator";
 import { SnowEffect } from "./components/SnowEffect";
-import { SyncProgress } from "./components/SyncProgress";
 import { TitleBar } from "./components/TitleBar";
 import { CopilotButton } from "./components/copilot/CopilotButton";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
@@ -378,15 +377,7 @@ function AppContent({ workspacePath }: AppContentProps) {
                 <FileTreeIndex />
               </Suspense>
             ) : currentPageId ? (
-              <Suspense
-                fallback={
-                  <Container size="sm" py="xl" mt={50}>
-                    <Text ta="center" c="dimmed">
-                      Loading editor...
-                    </Text>
-                  </Container>
-                }
-              >
+              <Suspense fallback={null}>
                 <BlockEditor
                   pageId={currentPageId}
                   workspaceName={workspaceName}
@@ -566,7 +557,6 @@ function App() {
   return (
     <ThemeProvider>
       <AppContent workspacePath={workspacePath} />
-      <SyncProgress />
       <Updater />
     </ThemeProvider>
   );

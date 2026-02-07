@@ -54,7 +54,6 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
     const page = pagesById[pageId];
     if (!page) return;
 
-    // Build parent path
     const parentNames: string[] = [];
     const pagePathIds: string[] = [];
 
@@ -74,9 +73,14 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
       buildParentPath(page.parentId);
     }
 
-    await selectPage(page.id);
-    await loadPage(page.id);
+    selectPage(page.id);
     openNote(page.id, page.title, parentNames, pagePathIds);
+
+    try {
+      await loadPage(page.id);
+    } catch (error) {
+      console.error("[SubPagesSection] Failed to load page:", error);
+    }
   };
 
   const toggleCollapse = (pageId: string) => {
