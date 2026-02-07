@@ -58,7 +58,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Bump Version and Create Tag
+      - name: Bump Version
         id: version
         run: |
           set -euo pipefail
@@ -80,19 +80,73 @@ jobs:
           # Sync version to tauri.conf.json and Cargo.toml
           npm run version:sync
 
-          # Commit the version bump
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
-          git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
-          git push origin main
-
-          # Create and push tag
-          git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
-          git push origin "v${NEW_VERSION}"
-
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create Pull Request
+        id: create_pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release/v${{ steps.version.outputs.version }}
+          base: main
+          commit-message: "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
+          title: "chore: bump version to ${{ steps.version.outputs.version }}"
+          body: |
+            Automated version bump to ${{ steps.version.outputs.version }}
+
+            This PR will be auto-merged and trigger the release build.
+          labels: release
+          delete-branch: true
+          committer: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+
+      - name: Enable auto-merge
+        if: steps.create_pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge ${{ steps.create_pr.outputs.pull-request-number }} --auto --squash
+
+      - name: Wait for PR merge and status checks
+        if: steps.create_pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.create_pr.outputs.pull-request-number }}"
+          echo "Waiting for PR #$PR_NUMBER to pass checks and merge..."
+
+          for i in {1..120}; do
+            STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+            if [ "$STATE" = "MERGED" ]; then
+              echo "✓ PR merged successfully"
+              break
+            fi
+
+            if [ "$STATE" = "CLOSED" ]; then
+              echo "✗ PR was closed without merging"
+              exit 1
+            fi
+
+            echo "Waiting for status checks and merge... (attempt $i/120, ~10 minutes max)"
+            sleep 5
+          done
+
+          if [ "$STATE" != "MERGED" ]; then
+            echo "✗ Timeout waiting for PR to merge"
+            exit 1
+          fi
+
+      - name: Checkout merged main and create tag
+        if: steps.create_pr.outputs.pull-request-number != ''
+        run: |
+          git fetch origin main
+          git checkout main
+          git pull origin main
+
+          NEW_VERSION="${{ steps.version.outputs.version }}"
+          git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+          git push origin "v${NEW_VERSION}"
 
       - name: Extract Changelog
         id: changelog
