@@ -1,0 +1,416 @@
+/**
+ * Unified Block Styles
+ * Shared by both StaticMarkdownRenderer and CodeMirror editor
+ * All styles use CSS variables for dynamic theming and consistency
+ */
+
+/* ============================================================================
+   Base Block Container
+   ============================================================================ */
+
+.block-static-content,
+.cm-editor.cm-focused > .cm-scroller > .cm-content,
+.cm-editor > .cm-scroller > .cm-content {
+  font-family: var(--font-family);
+  font-size: var(--block-font-size);
+  line-height: var(--block-line-height);
+  color: var(--color-text-primary);
+  cursor: text;
+  padding-top: var(--block-padding-top);
+  padding-bottom: var(--block-padding-bottom);
+  padding-left: var(--block-padding-x);
+  padding-right: var(--block-padding-x);
+  min-height: var(--block-min-height);
+}
+
+/* Additional static-only styles */
+.block-static-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* CodeMirror line styling - match static content height */
+.cm-line {
+  min-height: var(--block-min-height);
+  padding-top: var(--block-padding-top);
+  padding-bottom: var(--block-padding-bottom);
+}
+
+/* ============================================================================
+   Markdown Syntax Highlighting (CodeMirror classes)
+   ============================================================================ */
+
+/* Headers */
+.cm-heading {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Bold and Italic */
+.cm-strong {
+  font-weight: 600;
+}
+
+.cm-emphasis {
+  font-style: italic;
+}
+
+/* Inline Code */
+.cm-inline-code {
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 0.1em 0.3em;
+  font-family: var(--font-family-mono);
+  font-size: 0.9em;
+  color: var(--color-text-primary);
+}
+
+/* Code Blocks */
+.cm-block-code {
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  overflow-x: auto;
+}
+
+/* Links and URLs */
+.cm-link {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.cm-link:hover {
+  text-decoration: underline;
+}
+
+.cm-url {
+  color: var(--color-accent);
+  text-decoration: none;
+  opacity: 0.8;
+}
+
+.cm-url:hover {
+  text-decoration: underline;
+  opacity: 1;
+}
+
+/* Metadata and Punctuation */
+.cm-meta {
+  color: var(--color-text-tertiary);
+}
+
+.cm-punctuation {
+  color: var(--color-text-tertiary);
+}
+
+/* Comments */
+.cm-comment {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* Syntax Keywords */
+.cm-keyword {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.cm-string {
+  color: var(--color-text-secondary);
+}
+
+.cm-number {
+  color: var(--color-text-secondary);
+}
+
+.cm-atom {
+  color: var(--color-text-secondary);
+}
+
+.cm-variableName {
+  color: var(--color-text-primary);
+}
+
+.cm-property {
+  color: var(--color-text-secondary);
+}
+
+.cm-operator {
+  color: var(--color-text-secondary);
+}
+
+.cm-def {
+  color: var(--color-text-secondary);
+}
+
+.cm-qualifier {
+  color: var(--color-text-secondary);
+}
+
+.cm-type {
+  color: var(--color-text-secondary);
+}
+
+.cm-attribute {
+  color: var(--color-text-secondary);
+}
+
+/* ============================================================================
+   Custom Wiki Link Syntax
+   ============================================================================ */
+
+.wiki-link {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+  transition: background-color var(--transition-fast);
+}
+
+.wiki-link:hover {
+  background-color: var(--color-interactive-hover);
+  text-decoration: underline;
+}
+
+/* ============================================================================
+   Custom Block Reference Syntax
+   ============================================================================ */
+
+.block-ref {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+  transition: background-color var(--transition-fast);
+  opacity: 0.9;
+}
+
+.block-ref:hover {
+  background-color: var(--color-interactive-hover);
+  text-decoration: underline;
+  opacity: 1;
+}
+
+/* ============================================================================
+   Custom Callout Syntax
+   ============================================================================ */
+
+.callout {
+  margin: var(--spacing-md) 0;
+  padding: var(--spacing-md);
+  border-left: 3px solid var(--color-border-secondary);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-secondary);
+}
+
+.callout-note {
+  border-left-color: var(--color-accent);
+}
+
+.callout-tip {
+  border-left-color: var(--color-success);
+}
+
+.callout-warning {
+  border-left-color: var(--color-warning);
+}
+
+.callout-caution {
+  border-left-color: var(--color-error);
+}
+
+.callout .callout-title {
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+  color: var(--color-text-primary);
+}
+
+.callout .callout-content {
+  color: var(--color-text-secondary);
+}
+
+/* ============================================================================
+   Static Markdown HTML Output Styles
+   ============================================================================ */
+
+/* Bold */
+.strong {
+  font-weight: 600;
+}
+
+/* Emphasis */
+.emphasis {
+  font-style: italic;
+}
+
+/* Inline Code */
+code {
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 0.1em 0.3em;
+  font-family: var(--font-family-mono);
+  font-size: 0.9em;
+  color: var(--color-text-primary);
+}
+
+/* Code Block */
+pre {
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+  overflow-x: auto;
+}
+
+pre code {
+  background-color: transparent;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+}
+
+/* Regular Links */
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+  transition: background-color var(--transition-fast);
+}
+
+a:hover {
+  background-color: var(--color-interactive-hover);
+  text-decoration: underline;
+}
+
+/* Blockquotes */
+blockquote {
+  margin: var(--spacing-md) 0;
+  padding-left: var(--spacing-md);
+  border-left: 3px solid var(--color-border-secondary);
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* Lists */
+ul,
+ol {
+  margin: var(--spacing-sm) 0;
+  padding-left: var(--spacing-lg);
+}
+
+li {
+  margin: var(--spacing-xs) 0;
+  color: var(--color-text-primary);
+}
+
+/* Headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+  margin: var(--spacing-md) 0 var(--spacing-sm) 0;
+  color: var(--color-text-primary);
+}
+
+h1 {
+  font-size: 1.8em;
+}
+
+h2 {
+  font-size: 1.5em;
+}
+
+h3 {
+  font-size: 1.3em;
+}
+
+h4 {
+  font-size: 1.1em;
+}
+
+h5 {
+  font-size: 1em;
+}
+
+h6 {
+  font-size: 0.9em;
+}
+
+/* Horizontal Rule */
+hr {
+  border: none;
+  height: 1px;
+  background-color: var(--color-border-secondary);
+  margin: var(--spacing-lg) 0;
+}
+
+/* Images */
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  margin: var(--spacing-md) 0;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--spacing-md) 0;
+}
+
+th,
+td {
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border-secondary);
+  text-align: left;
+}
+
+th {
+  background-color: var(--color-bg-secondary);
+  font-weight: 600;
+}
+
+tr:hover td {
+  background-color: var(--color-interactive-hover);
+}
+
+/* ============================================================================
+   Indent Guides (for block nesting)
+   ============================================================================ */
+
+.indent-guide {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--layout-indent-guide-color);
+  pointer-events: none;
+}
+
+/* ============================================================================
+   Selection Styling
+   ============================================================================ */
+
+/* Static content selection */
+.block-static-content::selection {
+  background-color: var(--color-interactive-selected);
+}
+
+.block-static-content::-moz-selection {
+  background-color: var(--color-interactive-selected);
+}
+
+/* CodeMirror selection is handled by createEditorTheme */

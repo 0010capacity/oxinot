@@ -50,17 +50,8 @@ export const StaticMarkdownRenderer = memo(
       onPointerDownCapture?.(e);
     };
 
-    // Default styles (can be overridden with style prop)
-    const defaultStyle: React.CSSProperties = {
-      minHeight: "24px",
-      fontSize: "inherit",
-      lineHeight: "inherit",
-      cursor: "text",
-      whiteSpace: "pre-wrap",
-      wordBreak: "break-word",
-      padding: "2px 0",
-    };
-
+    // Default styles are now handled by CSS variables in block-styles.css
+    // The style prop can still be used for custom overrides
     return (
       <div
         className={`${className} block-static-content`}
@@ -68,10 +59,10 @@ export const StaticMarkdownRenderer = memo(
         onMouseDownCapture={handleMouseDownCapture}
         onPointerDownCapture={handlePointerDownCapture}
         dangerouslySetInnerHTML={{ __html: html }}
-        style={{ ...defaultStyle, ...style }}
+        style={style}
       />
     );
-  },
+  }
 );
 
 StaticMarkdownRenderer.displayName = "StaticMarkdownRenderer";

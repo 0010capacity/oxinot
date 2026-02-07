@@ -28,6 +28,14 @@
   --editor-font-size: 16px;
   --editor-line-height: 1.6;
 
+  /* Block Level Styles - Shared by both StaticRenderer and CodeMirror */
+  --block-font-size: 14px;
+  --block-line-height: 1.6;
+  --block-padding-top: 2px;
+  --block-padding-bottom: 2px;
+  --block-min-height: 24px;
+  --block-padding-x: 0px;
+
   /* Border Radius */
   --radius-sm: 3px;
   --radius-md: 6px;
@@ -43,6 +51,7 @@
   --layout-bullet-container-size: 24px;
   --layout-collapse-toggle-size: 20px;
   --layout-indent-size: 24px;
+  --layout-indent-guide-color: rgba(255, 255, 255, 0.08);
 
   /* Transitions */
   --transition-fast: 0.1s ease;
@@ -57,8 +66,8 @@
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px
-    rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 2px 4px -1px rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
 
   /* Color variables - set dynamically by ThemeProvider */

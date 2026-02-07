@@ -75,7 +75,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const blockMetadata = useBlockMetadata(blockId);
     const isFocused = useIsBlockFocused(blockId);
     const showIndentGuides = useOutlinerSettingsStore(
-      (state) => state.showIndentGuides,
+      (state) => state.showIndentGuides
     );
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
@@ -84,20 +84,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
     const splitBlockAtCursor = useBlockStore(
-      (state) => state.splitBlockAtCursor,
+      (state) => state.splitBlockAtCursor
     );
     const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const targetCursorPosition = useTargetCursorPosition();
     const setFocusedBlock = useBlockUIStore((state) => state.setFocusedBlock);
     const clearTargetCursorPosition = useBlockUIStore(
-      (state) => state.clearTargetCursorPosition,
+      (state) => state.clearTargetCursorPosition
     );
     const toggleBlockSelection = useBlockUIStore(
-      (state) => state.toggleBlockSelection,
+      (state) => state.toggleBlockSelection
     );
     const selectBlockRange = useBlockUIStore((state) => state.selectBlockRange);
     const lastSelectedBlockId = useBlockUIStore(
-      (state) => state.lastSelectedBlockId,
+      (state) => state.lastSelectedBlockId
     );
     const isSelected = useIsBlockSelected(blockId);
 
@@ -125,7 +125,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         currentSelectedIds.length > 0 ? currentSelectedIds : [blockId];
 
       const orderedBlocks = blockOrder.filter((id) =>
-        targetBlocks.includes(id),
+        targetBlocks.includes(id)
       );
 
       const blocksById = useBlockStore.getState().blocksById;
@@ -335,7 +335,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           ],
         },
       ],
-      [t],
+      [t]
     );
 
     // Cleanup timeout on unmount
@@ -513,7 +513,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
         setFocusedBlock(blockId);
       },
-      [blockId, setFocusedBlock],
+      [blockId, setFocusedBlock]
     );
 
     // Consolidated IME state
@@ -819,7 +819,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           setFocusedBlock(blockId);
         }
       },
-      [blockId, hasChildren, setFocusedBlock],
+      [blockId, hasChildren, setFocusedBlock]
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
@@ -835,7 +835,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         }
         handleContentChange(value);
       },
-      [handleContentChange],
+      [handleContentChange]
     );
 
     const keybindings: KeyBinding[] = useMemo(() => {
@@ -974,7 +974,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 if (prevBlock) {
                   const targetPos = calculatePrevBlockCursorPosition(
                     columnPos,
-                    prevBlock.content,
+                    prevBlock.content
                   );
                   setFocusedBlock(prevBlockId, targetPos);
                 } else {
@@ -1011,7 +1011,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 if (nextBlock) {
                   const targetPos = calculateNextBlockCursorPosition(
                     columnPos,
-                    nextBlock.content,
+                    nextBlock.content
                   );
                   setFocusedBlock(nextBlockId, targetPos);
                 } else {
@@ -1029,14 +1029,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           run: () => {
             console.log(
               "[BlockComponent:Tab] Tab key pressed, blockId:",
-              blockId,
+              blockId
             );
 
             // Start async operations but return true immediately to prevent default behavior
             commitDraft()
               .then(() => {
                 console.log(
-                  "[BlockComponent:Tab] commitDraft done, calling indentBlock",
+                  "[BlockComponent:Tab] commitDraft done, calling indentBlock"
                 );
                 indentBlock(blockId)
                   .then(() => {
@@ -1045,13 +1045,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                     // during structural reconciliation. The block content is preserved,
                     // user can click to refocus if needed.
                     console.log(
-                      "[BlockComponent:Tab] Focus restoration skipped to avoid Hook errors",
+                      "[BlockComponent:Tab] Focus restoration skipped to avoid Hook errors"
                     );
                   })
                   .catch((err) => {
                     console.error(
                       "[BlockComponent:Tab] indentBlock failed:",
-                      err,
+                      err
                     );
                   });
               })
@@ -1072,7 +1072,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 // during structural reconciliation. The block content is preserved,
                 // user can click to refocus if needed.
                 console.log(
-                  "[BlockComponent:Shift-Tab] Focus restoration skipped to avoid Hook errors",
+                  "[BlockComponent:Shift-Tab] Focus restoration skipped to avoid Hook errors"
                 );
               });
             });
@@ -1260,10 +1260,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                           keybindings={keybindings}
                           isFocused={isFocused}
                           className="block-editor"
-                          style={{
-                            minHeight: "24px",
-                            fontSize: "14px",
-                          }}
+                          style={{}}
                         />
                       </Box>
                     </Popover.Target>
@@ -1291,10 +1288,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 <StaticMarkdownRenderer
                   content={blockContent || ""}
                   onMouseDownCapture={handleStaticMouseDown}
-                  style={{
-                    minHeight: "24px",
-                    fontSize: "14px",
-                  }}
+                  style={{}}
                 />
               )}
 
@@ -1355,10 +1349,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           blocksToDelete={blocksToDelete}
           totalBlocksCount={blocksToDelete.reduce(
             (sum, id) => sum + 1 + countDescendantBlocks(id),
-            0,
+            0
           )}
           hasDescendants={blocksToDelete.some(
-            (id) => countDescendantBlocks(id) > 0,
+            (id) => countDescendantBlocks(id) > 0
           )}
         />
       </ContextMenu>
@@ -1370,5 +1364,5 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       prevProps.blockId === nextProps.blockId &&
       prevProps.depth === nextProps.depth
     );
-  },
+  }
 );
