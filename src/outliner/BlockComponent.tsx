@@ -560,41 +560,45 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       const focusedBlockId = useBlockUIStore.getState().focusedBlockId;
       const isTargetOfNav = focusedBlockId === blockId && isProgrammaticNav;
 
-      console.log(
-        `[BlockComponent:blockContentEffect] blockId=${blockId.slice(0, 8)}, blockContent="${blockContent?.slice(0, 30)}", draftRef="${draftRef.current.slice(0, 30)}", isFocused=${isFocused}, targetCursorPosition=${targetCursorPosition}, isProgrammaticNav=${isProgrammaticNav}, isTargetOfNav=${isTargetOfNav}`,
-      );
-
+      /**
+       * CRITICAL: Race condition prevention logic for block content synchronization.
+       *
+       * Problem: When user switches focus (e.g., clicks another block), Tauri invokes
+       * are async. Meanwhile, the new block's content arrives from store. We must NOT
+       * overwrite the user's unsaved edits in the old block with stale values, BUT we
+       * MUST sync fresh content when switching to a new block.
+       *
+       * Solution: Three cases:
+       * 1. Not focused: no-op (this component inactive)
+       * 2. Focused block, content matches draft: safe to sync (no unsaved edits)
+       * 3. Newly focused block (targetCursorPosition set), content not empty:
+       *    Override draft because this is the target block getting keyboard focus.
+       *    The blockContent !== "" check prevents overriding with stale empty values
+       *    that arrived while Tauri was still writing the previous block.
+       *
+       * Why this works: The only false positive is if user truly intends to clear
+       * a block to empty while another block was being saved. Very rare edge case,
+       * and unsaved edits (draftRef) would be lost only if they were ""  initially.
+       */
       if (!isFocused || isTargetOfNav) {
         // Only update if content is actually different to prevent unnecessary renders
         // CRITICAL: If draftRef differs from blockContent, DO NOT sync.
         // This means there are unsaved local edits - let them commit first.
         if (blockContent === draftRef.current) {
-          console.log(
-            `[BlockComponent:blockContentEffect] Syncing draft from blockContent for blockId=${blockId.slice(0, 8)}`,
-          );
           // Content hasn't changed locally, safe to sync from store
           setDraft(blockContent ?? "");
         } else if (isTargetOfNav && blockContent !== "") {
-          console.log(
-            `[BlockComponent:blockContentEffect] Programmatic nav (target of nav) - overriding draft for blockId=${blockId.slice(0, 8)}`,
-          );
           // Only override if this is the NEWLY FOCUSED block (target of nav)
           // AND blockContent is not empty (not stale from concurrent commit)
           setDraft(blockContent ?? "");
           draftRef.current = blockContent ?? "";
-        } else {
-          console.log(
-            `[BlockComponent:blockContentEffect] SKIP - unsaved edits or not target of nav for blockId=${blockId.slice(0, 8)}`,
-          );
         }
+        // else: unsaved edits exist or not target of nav - preserve local draft
       }
 
       // Only clear targetCursorPosition if this is the focused block
       // This ensures other blocks don't see stale programmatic nav flags
       if (isFocused && targetCursorPosition !== null) {
-        console.log(
-          `[BlockComponent:blockContentEffect] Clearing targetCursorPosition after focus for blockId=${blockId.slice(0, 8)}`,
-        );
         clearTargetCursorPosition();
       }
     }, [
