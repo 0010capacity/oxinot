@@ -23,7 +23,7 @@ interface CachedPageData {
   lastAccess: number;
 }
 
-interface CacheStatistics {
+export interface CacheStatistics {
   size: number;
   capacity: number;
   hits: number;
