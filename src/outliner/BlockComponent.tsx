@@ -551,6 +551,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // (otherwise keybindings change every keystroke and the editor view gets recreated).
     const draftRef = useRef<string>(blockContent || "");
 
+    // Track whether the draft has unsaved changes.
+    // This prevents the sync effect from overwriting unsaved edits when focus changes.
+    // CRITICAL FIX for data loss: don't sync from blockContent on focus loss if draft is dirty.
+    const isDirtyRef = useRef<boolean>(false);
+
     // Keep draft in sync when the underlying block changes (e.g., page load, external update)
     // but do not overwrite while this block is focused (editing session owns the draft),
     // UNLESS we are navigating to this block programmatically (targetCursorPosition is set),
@@ -558,11 +563,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     useEffect(() => {
       const isProgrammaticNav = targetCursorPosition !== null;
 
+      // CRITICAL FIX: Don't sync if draft is dirty (has unsaved changes).
+      // This prevents the race condition where sync resets draftRef before commitDraft runs.
+      if (isDirtyRef.current && !isProgrammaticNav) {
+        return;
+      }
+
       if (!isFocused || isProgrammaticNav) {
         // Only update if content is actually different to prevent unnecessary renders
         if (blockContent !== draftRef.current) {
           setDraft(blockContent ?? "");
           draftRef.current = blockContent ?? "";
+          isDirtyRef.current = false;
         }
       }
     }, [blockContent, isFocused, targetCursorPosition]);
@@ -576,6 +588,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       if (latestBlock && latestDraft !== latestBlock.content) {
         await useBlockStore.getState().updateBlockContent(blockId, latestDraft);
       }
+
+      // Mark draft as clean after successful commit
+      isDirtyRef.current = false;
     }, [blockId]);
 
     // Commit draft when focus is lost, BEFORE the sync useEffect resets draftRef to blockContent
@@ -813,6 +828,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const handleContentChange = useCallback((content: string) => {
       draftRef.current = content;
       setDraft(content);
+      isDirtyRef.current = true;
     }, []);
 
     const handleBlur = useCallback(async () => {
