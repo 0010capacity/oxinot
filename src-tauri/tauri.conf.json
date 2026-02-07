@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Oxinot",
-  "version": "0.24.3",
+  "version": "0.24.4",
   "identifier": "com.oxinot.app",
   "build": {
     "frontendDist": "../dist",
