@@ -1016,7 +1016,6 @@ export const useBlockStore = create<BlockStore>()(
           // Update only the changed blocks (merged block + moved children)
           get().updatePartialBlocks(changedBlocks, [id]);
 
-          // Set focus and cursor position
           useBlockUIStore.setState({
             focusedBlockId: prevBlockId,
             targetCursorPosition: cursorPosition,
