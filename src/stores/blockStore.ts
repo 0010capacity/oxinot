@@ -716,22 +716,11 @@ export const useBlockStore = create<BlockStore>()(
             request: { id, content },
           });
 
-          console.log(
-            `[blockStore:updateBlockContent] invoke SUCCESS blockId=${id.slice(0, 8)}, content="${content.slice(0, 30)}"`,
-          );
-
           // Update state with backend result
           set((state) => {
             if (state.blocksById[id]) {
               state.blocksById[id].content = content;
               state.blocksById[id].updatedAt = new Date().toISOString();
-              console.log(
-                `[blockStore:updateBlockContent] state.set SUCCESS blockId=${id.slice(0, 8)}, stored="${state.blocksById[id].content.slice(0, 30)}"`,
-              );
-            } else {
-              console.log(
-                `[blockStore:updateBlockContent] state.set SKIP - block not found blockId=${id.slice(0, 8)}`,
-              );
             }
           });
         } catch (error) {

@@ -610,33 +610,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       const latestDraft = draftRef.current;
       const latestBlock = useBlockStore.getState().blocksById[blockId];
 
-      console.log(
-        `[BlockComponent:commitDraft] START blockId=${blockId.slice(0, 8)}, draft="${latestDraft.slice(0, 30)}", stored="${latestBlock?.content.slice(0, 30)}"`,
-      );
-
       // Avoid unnecessary writes; also tolerate missing block during transitions.
       if (latestBlock && latestDraft !== latestBlock.content) {
-        console.log(
-          `[BlockComponent:commitDraft] Calling updateBlockContent for blockId=${blockId.slice(0, 8)}`,
-        );
         try {
           await useBlockStore
             .getState()
             .updateBlockContent(blockId, latestDraft);
-          const updatedBlock = useBlockStore.getState().blocksById[blockId];
-          console.log(
-            `[BlockComponent:commitDraft] DONE updateBlockContent for blockId=${blockId.slice(0, 8)}, stored="${updatedBlock?.content.slice(0, 30)}"`,
-          );
         } catch (error) {
           console.error(
             `[BlockComponent:commitDraft] ERROR updateBlockContent failed for blockId=${blockId.slice(0, 8)}:`,
             error,
           );
         }
-      } else {
-        console.log(
-          `[BlockComponent:commitDraft] SKIP - no change needed for blockId=${blockId.slice(0, 8)}`,
-        );
       }
     }, [blockId]);
 
@@ -890,25 +875,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     );
 
     const handleBlur = useCallback(async () => {
-      console.log(
-        `[BlockComponent:handleBlur] START for blockId=${blockId.slice(0, 8)}, isMetadataOpen=${isMetadataOpen}`,
-      );
-
       // If metadata editor is open, don't close it or commit
       // The metadata editor will handle its own lifecycle via onClose
       if (isMetadataOpen) {
-        console.log("[BlockComponent:handleBlur] SKIP - metadata editor open");
         return;
       }
 
       // Normal blur handling (metadata editor is not open)
-      console.log(
-        `[BlockComponent:handleBlur] Committing draft for blockId=${blockId.slice(0, 8)}`,
-      );
       await commitDraft();
-      console.log(
-        `[BlockComponent:handleBlur] DONE for blockId=${blockId.slice(0, 8)}`,
-      );
 
       // Clear IME state on blur
       imeStateRef.current.lastInputWasComposition = false;
@@ -947,15 +921,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // Create custom keybindings for CodeMirror to handle block operations
     const handleContentChangeWithTrigger = useCallback(
       (value: string) => {
-        // Trigger for metadata modal: "::"
-        if (value.endsWith("::")) {
-          const newValue = value.slice(0, -2);
-          draftRef.current = newValue;
-          setDraft(newValue);
-          setIsMetadataOpen(true);
-          return;
-        }
-        handleContentChange(value);
+        draftRef.current = value;
+        setDraft(value);
       },
       [handleContentChange],
     );
