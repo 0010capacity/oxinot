@@ -13,7 +13,6 @@ import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import { useThemeStore } from "../stores/themeStore";
 import { showToast } from "../utils/toast";
 import { BlockComponent } from "./BlockComponent";
-import { VirtualBlockList } from "./VirtualBlockList";
 import "./BlockEditor.css";
 
 export const BlockOrderContext = createContext<string[]>([]);
@@ -71,9 +70,6 @@ export function BlockEditor({
 
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
-  const virtualizationThreshold = useOutlinerSettingsStore(
-    (state) => state.virtualizationThreshold
-  );
 
   // Register page-level command
   useRegisterCommands(
@@ -198,34 +194,6 @@ export function BlockEditor({
                 Start typing to create your first block...
               </div>
             </div>
-          ) : blocksToShow.length > virtualizationThreshold ? (
-            <BlockOrderContext.Provider value={blockOrder}>
-              {(() => {
-                const virtualListStart = performance.now();
-                console.log(
-                  `[BlockEditor:timing] Rendering ${blockOrder.length} blocks with VirtualBlockList`
-                );
-                const result = (
-                  <VirtualBlockList
-                    blockIds={blockOrder}
-                    blockOrder={blockOrder}
-                    blocksById={blocksById}
-                    childrenMap={childrenMap}
-                    editorFontSize={editorFontSize}
-                    editorLineHeight={editorLineHeight}
-                  />
-                );
-                requestAnimationFrame(() => {
-                  const virtualListTime = performance.now() - virtualListStart;
-                  console.log(
-                    `[BlockEditor:timing] VirtualBlockList rendered in ${virtualListTime.toFixed(
-                      2
-                    )}ms`
-                  );
-                });
-                return result;
-              })()}
-            </BlockOrderContext.Provider>
           ) : (
             <BlockOrderContext.Provider value={blockOrder}>
               <BlockList blocksToShow={blocksToShow} />
