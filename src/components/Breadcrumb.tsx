@@ -1,6 +1,6 @@
 import { Text } from "@mantine/core";
 import { IconChevronRight } from "@tabler/icons-react";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useBlockStore } from "../stores/blockStore";
 import { usePageStore } from "../stores/pageStore";
@@ -92,8 +92,6 @@ export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
   const selectPage = usePageStore((state) => state.selectPage);
   const pagesById = usePageStore((state) => state.pagesById);
 
-  const [isLoading, setIsLoading] = useState(false);
-
   const handleZoomToLevel = useCallback((index: number) => {
     const { zoomOutToIndex } = useViewStore.getState();
     zoomOutToIndex(index);
@@ -106,40 +104,37 @@ export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
 
   const handleNavigateToPage = useCallback(
     async (pageIdIndex: number) => {
+      const pageId = pagePathIds[pageIdIndex];
+      const page = pagesById[pageId];
+
+      if (!pageId || !page) {
+        console.error(
+          "[Breadcrumb] Invalid page navigation: pageId or page not found",
+        );
+        return;
+      }
+
+      const parentNames: string[] = [];
+      const parentIds: string[] = [];
+
+      for (let i = 0; i < pageIdIndex; i++) {
+        const parentId = pagePathIds[i];
+        const parentPage = pagesById[parentId];
+        if (parentPage) {
+          parentNames.push(parentPage.title);
+          parentIds.push(parentId);
+        }
+      }
+      parentIds.push(pageId);
+
+      selectPage(pageId);
+      openNote(pageId, page.title, parentNames, parentIds);
+      handleZoomOutToPage();
+
       try {
-        setIsLoading(true);
-        const pageId = pagePathIds[pageIdIndex];
-        const page = pagesById[pageId];
-
-        if (!pageId || !page) {
-          console.error(
-            "[Breadcrumb] Invalid page navigation: pageId or page not found",
-          );
-          return;
-        }
-
-        await selectPage(pageId);
         await loadPage(pageId);
-
-        const parentNames: string[] = [];
-        const parentIds: string[] = [];
-
-        for (let i = 0; i < pageIdIndex; i++) {
-          const parentId = pagePathIds[i];
-          const parentPage = pagesById[parentId];
-          if (parentPage) {
-            parentNames.push(parentPage.title);
-            parentIds.push(parentId);
-          }
-        }
-        parentIds.push(pageId);
-
-        openNote(pageId, page.title, parentNames, parentIds);
-        handleZoomOutToPage();
       } catch (error) {
-        console.error("[Breadcrumb] Failed to navigate to page:", error);
-      } finally {
-        setIsLoading(false);
+        console.error("[Breadcrumb] Failed to load page:", error);
       }
     },
     [
@@ -184,12 +179,10 @@ export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
                 onClick={
                   isWorkspace
                     ? onNavigateHome
-                    : isLoading
-                      ? undefined
-                      : () => {
-                          const pageIdIndex = index - 1;
-                          handleNavigateToPage(pageIdIndex);
-                        }
+                    : () => {
+                        const pageIdIndex = index - 1;
+                        handleNavigateToPage(pageIdIndex);
+                      }
                 }
               />
             </li>
@@ -223,9 +216,7 @@ export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
                 ariaLabel={displayText}
                 ariaCurrentPage={isZoomLast}
                 onClick={
-                  isZoomLast || isLoading
-                    ? undefined
-                    : () => handleZoomToLevel(index)
+                  isZoomLast ? undefined : () => handleZoomToLevel(index)
                 }
               />
             </li>

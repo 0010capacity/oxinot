@@ -131,7 +131,7 @@ export function PageTreeItem({
         ],
       },
     ],
-    [page.id, page.title, page.parentId, onAddChild, onEdit, onDelete, t]
+    [page.id, page.title, page.parentId, onAddChild, onEdit, onDelete, t],
   );
 
   const handlePageClick = async (e: React.MouseEvent) => {
@@ -159,23 +159,28 @@ export function PageTreeItem({
 
     pagePathIds.push(page.id);
 
-    // Batch state updates: load data first, then switch view
-    const dataLoadStartTime = performance.now();
-    await Promise.all([selectPage(page.id), loadPage(page.id)]);
-    const dataLoadTime = performance.now() - dataLoadStartTime;
-
-    // Use startTransition for view switch to allow React to prioritize user input
-    const openStartTime = performance.now();
+    const uiStartTime = performance.now();
+    selectPage(page.id);
     startTransition(() => {
       openNote(page.id, page.title, parentNames, pagePathIds);
     });
-    const openTime = performance.now() - openStartTime;
+    const uiTime = performance.now() - uiStartTime;
+
+    const dataLoadStartTime = performance.now();
+    try {
+      await loadPage(page.id);
+    } catch (error) {
+      console.error("[PageTreeItem] Failed to load page:", error);
+    }
+    const dataLoadTime = performance.now() - dataLoadStartTime;
 
     const totalTime = performance.now() - clickStartTime;
     console.log(
-      `[PageTreeItem:timing] === CLICK HANDLER COMPLETE: dataLoad=${dataLoadTime.toFixed(
-        2
-      )}ms, open=${openTime.toFixed(2)}ms, total=${totalTime.toFixed(2)}ms ===`
+      `[PageTreeItem:timing] === CLICK HANDLER COMPLETE: ui=${uiTime.toFixed(
+        2,
+      )}ms, dataLoad=${dataLoadTime.toFixed(2)}ms, total=${totalTime.toFixed(
+        2,
+      )}ms ===`,
     );
   };
 
@@ -221,7 +226,7 @@ export function PageTreeItem({
 
   const moveFocus = (direction: number) => {
     const buttons = Array.from(
-      document.querySelectorAll(".page-tree-item-button")
+      document.querySelectorAll(".page-tree-item-button"),
     ) as HTMLElement[];
     const currentIndex = buttons.indexOf(document.activeElement as HTMLElement);
     if (currentIndex !== -1) {
@@ -316,8 +321,8 @@ export function PageTreeItem({
                     ? isCollapsed
                       ? "var(--opacity-disabled)"
                       : isHovered
-                      ? "var(--opacity-dimmed)"
-                      : 0
+                        ? "var(--opacity-dimmed)"
+                        : 0
                     : 0,
                   visibility: hasChildren ? "visible" : "hidden",
                 }}
@@ -460,7 +465,7 @@ export function PageTreeItem({
                             id: page.id,
                             title: page.title,
                             parentId: page.parentId,
-                          }
+                          },
                         );
                         onDelete(page.id);
                       }}

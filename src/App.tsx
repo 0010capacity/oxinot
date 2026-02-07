@@ -378,15 +378,7 @@ function AppContent({ workspacePath }: AppContentProps) {
                 <FileTreeIndex />
               </Suspense>
             ) : currentPageId ? (
-              <Suspense
-                fallback={
-                  <Container size="sm" py="xl" mt={50}>
-                    <Text ta="center" c="dimmed">
-                      Loading editor...
-                    </Text>
-                  </Container>
-                }
-              >
+              <Suspense fallback={null}>
                 <BlockEditor
                   pageId={currentPageId}
                   workspaceName={workspaceName}
