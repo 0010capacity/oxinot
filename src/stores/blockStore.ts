@@ -488,7 +488,7 @@ interface BlockActions {
     afterBlockId: string | null,
     content?: string,
     pageId?: string
-  ) => Promise<string>;
+  ) => Promise<string | undefined>;
   updateBlock: (id: string, updates: Partial<BlockData>) => Promise<void>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
@@ -1138,7 +1138,7 @@ export const useBlockStore = create<BlockStore>()(
             // Set focus to properly sync across all stores
             useBlockUIStore.getState().setFocusedBlock(newBlock.id, 0);
 
-            return newBlock.id;
+            return newBlock.id ?? undefined;
           } catch (error) {
             console.error("Failed to create block:", error);
             // Reload to restore correct state

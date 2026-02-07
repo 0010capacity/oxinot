@@ -9,7 +9,7 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { useBlockEditorCommands } from "../hooks/useBlockEditorCommands";
 import { useBlockStore } from "../stores/blockStore";
 import { useRegisterCommands } from "../stores/commandStore";
-import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
+
 import { useThemeStore } from "../stores/themeStore";
 import { showToast } from "../utils/toast";
 import { BlockComponent } from "./BlockComponent";
