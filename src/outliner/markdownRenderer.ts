@@ -203,17 +203,22 @@ export function renderOutlinerBulletPreviewHtml(source: string): string {
   // For single-line content without block elements, use inline rendering
   // to avoid wrapping in <p> tags which causes extra spacing
   const trimmed = source?.trim() ?? "";
-  const hasMultipleLines = trimmed.includes("\n");
   const hasBlockSyntax = /^(#{1,6}\s|>\s|\d+\.\s|[-*+]\s|```|> \[!)/.test(
     trimmed
   );
 
-  if (!hasMultipleLines && !hasBlockSyntax) {
-    // Single line without block syntax: render inline (no <p> wrapper)
-    return renderMarkdownToHtml(source, { inline: true });
+  if (!hasBlockSyntax) {
+    // No block syntax: render inline (no <p> wrapper)
+    // For multi-line content, convert newlines to <br> tags
+    const html = renderMarkdownToHtml(source, { inline: true });
+    return html.replace(/\n/g, "<br>");
   }
 
-  return renderMarkdownToHtml(source, { allowBlocks: true });
+  // Block syntax: use full block rendering, but strip wrapping <p> tags
+  let html = renderMarkdownToHtml(source, { allowBlocks: true });
+  // Remove wrapping <p>...</p> tags to match CodeMirror line structure
+  html = html.replace(/^<p>([\s\S]*)<\/p>\n?$/i, "$1");
+  return html;
 }
 
 export function renderOutlinerBracePreviewHtml(source: string): string {

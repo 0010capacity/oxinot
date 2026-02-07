@@ -191,14 +191,18 @@
 
 .block-editor .cm-content {
   background: transparent !important;
-  font-size: var(--editor-font-size) !important;
-  line-height: var(--editor-line-height) !important;
 }
 
+/* Remove all margins from lines to match static content spacing */
 .block-editor .cm-line {
   padding: 0 !important;
-  font-size: var(--editor-font-size) !important;
-  line-height: var(--editor-line-height) !important;
+  margin: 0 !important;
+}
+
+/* Remove extra spacing after last line in multi-line blocks to match static content */
+.block-editor .cm-content > .cm-line:last-child {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 /* Ensure active line background is transparent */
