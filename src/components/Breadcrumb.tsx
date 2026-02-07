@@ -106,6 +106,11 @@ export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
     [zoomPath, zoomIntoBlock, updateZoomPath],
   );
 
+  const handleZoomOutToPage = useCallback(() => {
+    const { zoomOutToNote } = useViewStore.getState();
+    zoomOutToNote();
+  }, []);
+
   const handleNavigateToPage = useCallback(
     async (pageIdIndex: number) => {
       try {
@@ -137,24 +142,34 @@ export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
         parentIds.push(pageId);
 
         openNote(pageId, page.title, parentNames, parentIds);
+        handleZoomOutToPage();
       } catch (error) {
         console.error("[Breadcrumb] Failed to navigate to page:", error);
       } finally {
         setIsLoading(false);
       }
     },
-    [pagePathIds, pagesById, selectPage, loadPage, openNote],
+    [
+      pagePathIds,
+      pagesById,
+      selectPage,
+      loadPage,
+      openNote,
+      handleZoomOutToPage,
+    ],
   );
-
   const breadcrumbItems = breadcrumb.length > 0 ? breadcrumb : [workspaceName];
+
+  const hasZoom = zoomPath.length > 0;
 
   return (
     <nav className="breadcrumb-nav" aria-label="Breadcrumb">
       <ol className="breadcrumb-list">
         {breadcrumbItems.map((item, index) => {
           const isFirst = index === 0;
-          const isLast = index === breadcrumbItems.length - 1;
+          const isPageLast = index === breadcrumbItems.length - 1;
           const isWorkspace = index === 0;
+          const isCurrentPage = isPageLast && !hasZoom;
           const displayText = truncateText(item);
 
           return (
@@ -169,10 +184,10 @@ export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
               )}
               <BreadcrumbItem
                 text={displayText}
-                isLast={isLast}
+                isLast={isCurrentPage}
                 title={item}
                 ariaLabel={isWorkspace ? t("common.workspace") : item}
-                ariaCurrentPage={isLast}
+                ariaCurrentPage={isCurrentPage}
                 onClick={
                   isWorkspace
                     ? onNavigateHome
@@ -192,7 +207,7 @@ export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
           const block = blocksById[blockId];
           if (!block) return null;
 
-          const isLast = index === zoomPath.length - 1;
+          const isZoomLast = index === zoomPath.length - 1;
           const displayText = truncateText(
             block.content || t("common.untitled_block"),
           );
@@ -210,12 +225,12 @@ export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
               />
               <BreadcrumbItem
                 text={displayText}
-                isLast={isLast}
+                isLast={isZoomLast}
                 title={block.content}
                 ariaLabel={displayText}
-                ariaCurrentPage={isLast}
+                ariaCurrentPage={isZoomLast}
                 onClick={
-                  isLast || isLoading
+                  isZoomLast || isLoading
                     ? undefined
                     : () => handleZoomToLevel(index)
                 }
