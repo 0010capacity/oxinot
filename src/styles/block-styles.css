@@ -290,11 +290,30 @@ a:hover {
 
 /* Blockquotes */
 blockquote {
-  margin: var(--spacing-md) 0;
-  padding-left: var(--spacing-md);
+  display: block;
+  margin: 0 !important;
+  padding: 0 0 0 var(--spacing-md);
   border-left: 3px solid var(--color-border-secondary);
   color: var(--color-text-secondary);
   font-style: italic;
+}
+
+blockquote * {
+  margin: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+blockquote p {
+  margin: 0;
+}
+
+/* Prevent margin-top on elements after blockquote */
+blockquote + p,
+blockquote + ul,
+blockquote + ol,
+blockquote + blockquote {
+  margin-top: 0;
 }
 
 /* Lists */
