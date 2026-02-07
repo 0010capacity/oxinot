@@ -11,6 +11,7 @@ import { useBlockStore } from "../stores/blockStore";
 import { useRegisterCommands } from "../stores/commandStore";
 
 import { useThemeStore } from "../stores/themeStore";
+import { useViewStore } from "../stores/viewStore";
 import { showToast } from "../utils/toast";
 import { BlockComponent } from "./BlockComponent";
 import "./BlockEditor.css";
@@ -68,6 +69,7 @@ export function BlockEditor({
   const childrenMap = useBlockStore((state) => state.childrenMap);
   const blocksById = useBlockStore((state) => state.blocksById);
 
+  const zoomPath = useViewStore((state) => state.zoomPath);
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
 
@@ -119,16 +121,29 @@ export function BlockEditor({
 
   const blocksToShowRef = useRef<string[]>([]);
   const blocksToShow = useMemo(() => {
-    const root = childrenMap.root || [];
-    // Only update if the array actually changed (not just a new reference)
+    let toShow: string[] = [];
+
+    if (zoomPath.length > 0) {
+      const zoomRootId = zoomPath[zoomPath.length - 1];
+      if (zoomRootId && blocksById[zoomRootId]) {
+        toShow = childrenMap[zoomRootId] || [];
+      } else {
+        toShow = [];
+      }
+    } else {
+      toShow = childrenMap.root || [];
+    }
+
     if (
-      blocksToShowRef.current.length !== root.length ||
-      !blocksToShowRef.current.every((id: string, i: number) => id === root[i])
+      blocksToShowRef.current.length !== toShow.length ||
+      !blocksToShowRef.current.every(
+        (id: string, i: number) => id === toShow[i],
+      )
     ) {
-      blocksToShowRef.current = root;
+      blocksToShowRef.current = toShow;
     }
     return blocksToShowRef.current;
-  }, [childrenMap.root]);
+  }, [zoomPath, childrenMap, blocksById]);
 
   const blockOrder = useMemo(() => {
     const memoComputeStart = performance.now();

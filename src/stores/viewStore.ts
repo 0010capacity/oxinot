@@ -12,9 +12,10 @@ interface NavigationState {
   currentNotePath: string | null;
   workspaceName: string | null;
   focusedBlockId: string | null;
-  zoomPath: string[]; // Array of block IDs from root to current zoom level
+  zoomPath: string[];
   breadcrumb: string[];
-  pagePathIds: string[]; // Array of page IDs from workspace to current page
+  pagePathIds: string[];
+  zoomByPageId: Record<string, string[]>;
 }
 
 interface ViewState extends NavigationState {
@@ -26,9 +27,10 @@ interface ViewState extends NavigationState {
     parentNames?: string[],
     pagePathIds?: string[],
   ) => void;
-  zoomIntoBlock: (blockId: string) => void;
+  zoomToBlock: (blockId: string) => void;
+  zoomOutToIndex: (index: number) => void;
+  clearZoom: () => void;
   setFocusedBlockId: (blockId: string | null) => void;
-  updateZoomPath: (newPath: string[]) => void;
   zoomOut: () => void;
   zoomOutToNote: () => void;
   goBack: () => void;
@@ -44,6 +46,7 @@ const initialState: NavigationState = {
   zoomPath: [],
   breadcrumb: [],
   pagePathIds: [],
+  zoomByPageId: {},
 };
 
 export const useViewStore = createWithEqualityFn<ViewState>()(
@@ -52,6 +55,9 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
 
     showIndex: () => {
       set((state) => {
+        if (state.currentNotePath && state.zoomPath.length > 0) {
+          state.zoomByPageId[state.currentNotePath] = state.zoomPath;
+        }
         state.mode = "index";
         state.currentNotePath = null;
         state.focusedBlockId = null;
@@ -66,10 +72,10 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         state.mode = "note";
         state.currentNotePath = pageId;
         state.focusedBlockId = null;
-        state.zoomPath = [];
+        const savedZoom = state.zoomByPageId[pageId] || [];
+        state.zoomPath = savedZoom;
       });
 
-      // Add to navigation history
       const page = usePageStore.getState().pagesById[pageId];
       if (page) {
         useNavigationStore.getState().pushHistory(pageId, page.title);
@@ -86,9 +92,9 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         state.mode = "note";
         state.currentNotePath = notePath;
         state.focusedBlockId = null;
-        state.zoomPath = [];
+        const savedZoom = state.zoomByPageId[notePath] || [];
+        state.zoomPath = savedZoom;
 
-        // Build breadcrumb: workspace > parent pages > current page
         const crumbs: string[] = [];
         if (state.workspaceName) {
           crumbs.push(state.workspaceName);
@@ -102,24 +108,40 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         state.pagePathIds = pagePathIds || [];
       });
 
-      // Add to navigation history
       useNavigationStore.getState().pushHistory(notePath, noteName);
     },
 
-    zoomIntoBlock: (blockId: string) => {
+    zoomToBlock: (blockId: string) => {
       set((state) => {
         state.focusedBlockId = blockId;
         if (!state.zoomPath.includes(blockId)) {
           state.zoomPath.push(blockId);
         }
+        if (state.currentNotePath) {
+          state.zoomByPageId[state.currentNotePath] = state.zoomPath;
+        }
       });
     },
 
-    updateZoomPath: (newPath: string[]) => {
+    zoomOutToIndex: (index: number) => {
       set((state) => {
+        const newPath = state.zoomPath.slice(0, index + 1);
         state.zoomPath = newPath;
         state.focusedBlockId =
           newPath.length > 0 ? newPath[newPath.length - 1] : null;
+        if (state.currentNotePath) {
+          state.zoomByPageId[state.currentNotePath] = state.zoomPath;
+        }
+      });
+    },
+
+    clearZoom: () => {
+      set((state) => {
+        if (state.currentNotePath) {
+          state.zoomByPageId[state.currentNotePath] = [];
+        }
+        state.zoomPath = [];
+        state.focusedBlockId = null;
       });
     },
 
@@ -145,6 +167,9 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
 
     zoomOutToNote: () => {
       set((state) => {
+        if (state.currentNotePath && state.zoomPath.length > 0) {
+          state.zoomByPageId[state.currentNotePath] = [];
+        }
         state.focusedBlockId = null;
         state.zoomPath = [];
       });

@@ -896,23 +896,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       (e: React.MouseEvent) => {
         e.stopPropagation();
         if (hasChildren) {
-          // Calculate full path from root to this block
-          const blocksById = useBlockStore.getState().blocksById;
-          const path: string[] = [];
-          let currentId: string | null = blockId;
-
-          // Build path from current block to root
-          while (currentId) {
-            path.unshift(currentId);
-            const currentBlock = blocksById[currentId] as BlockData | undefined;
-            if (!currentBlock) break;
-            currentId = currentBlock.parentId || null;
-          }
-
-          // Set the full path in view store
-          useViewStore.setState({
-            zoomPath: path,
-          });
+          // Zoom to this block using the new zoom action
+          const { zoomToBlock } = useViewStore.getState();
+          zoomToBlock(blockId);
           setFocusedBlock(blockId);
         } else {
           // Otherwise just focus - let useLayoutEffect handle focus timing

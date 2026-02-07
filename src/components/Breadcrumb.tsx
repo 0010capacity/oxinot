@@ -86,7 +86,7 @@ export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
   const zoomPath = useZoomPath();
   const breadcrumb = useBreadcrumb();
   const pagePathIds = useViewStore((state) => state.pagePathIds);
-  const { openNote, zoomIntoBlock, updateZoomPath } = useViewStore();
+  const openNote = useViewStore((state) => state.openNote);
   const blocksById = useBlockStore((state) => state.blocksById);
   const loadPage = useBlockStore((state) => state.loadPage);
   const selectPage = usePageStore((state) => state.selectPage);
@@ -94,21 +94,14 @@ export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleZoomToLevel = useCallback(
-    (index: number) => {
-      const targetBlockId = zoomPath[index];
-      if (targetBlockId) {
-        const newPath = zoomPath.slice(0, index + 1);
-        zoomIntoBlock(targetBlockId);
-        updateZoomPath(newPath);
-      }
-    },
-    [zoomPath, zoomIntoBlock, updateZoomPath],
-  );
+  const handleZoomToLevel = useCallback((index: number) => {
+    const { zoomOutToIndex } = useViewStore.getState();
+    zoomOutToIndex(index);
+  }, []);
 
   const handleZoomOutToPage = useCallback(() => {
-    const { zoomOutToNote } = useViewStore.getState();
-    zoomOutToNote();
+    const { clearZoom } = useViewStore.getState();
+    clearZoom();
   }, []);
 
   const handleNavigateToPage = useCallback(
