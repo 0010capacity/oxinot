@@ -507,11 +507,26 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         e.preventDefault();
         e.stopPropagation();
 
+        // Calculate text position from click location in static renderer
+        let cursorPos = 0;
+
+        // Use caretRangeFromPoint to find caret position at click coordinates
+        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+        if (range && e.currentTarget.contains(range.startContainer)) {
+          // Calculate offset from the start of the block content
+          const preCaretRange = document.createRange();
+          preCaretRange.selectNodeContents(e.currentTarget);
+          preCaretRange.setEnd(range.startContainer, range.startOffset);
+          cursorPos = preCaretRange.toString().length;
+        }
+
+        // Store click coordinates for fallback
         useBlockUIStore
           .getState()
           .setPendingFocusSelection(blockId, e.clientX, e.clientY);
 
-        setFocusedBlock(blockId);
+        // Set focus with calculated cursor position
+        setFocusedBlock(blockId, cursorPos);
       },
       [blockId, setFocusedBlock]
     );
