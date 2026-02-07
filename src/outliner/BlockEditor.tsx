@@ -126,7 +126,7 @@ export function BlockEditor({
     if (zoomPath.length > 0) {
       const zoomRootId = zoomPath[zoomPath.length - 1];
       if (zoomRootId && blocksById[zoomRootId]) {
-        toShow = childrenMap[zoomRootId] || [];
+        toShow = [zoomRootId];
       } else {
         toShow = [];
       }
