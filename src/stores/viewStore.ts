@@ -18,7 +18,6 @@ interface NavigationState {
 }
 
 interface ViewState extends NavigationState {
-  // Actions
   showIndex: () => void;
   showPage: (pageId: string) => void;
   openNote: (
@@ -29,6 +28,7 @@ interface ViewState extends NavigationState {
   ) => void;
   zoomIntoBlock: (blockId: string) => void;
   setFocusedBlockId: (blockId: string | null) => void;
+  updateZoomPath: (newPath: string[]) => void;
   zoomOut: () => void;
   zoomOutToNote: () => void;
   goBack: () => void;
@@ -112,6 +112,14 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         if (!state.zoomPath.includes(blockId)) {
           state.zoomPath.push(blockId);
         }
+      });
+    },
+
+    updateZoomPath: (newPath: string[]) => {
+      set((state) => {
+        state.zoomPath = newPath;
+        state.focusedBlockId =
+          newPath.length > 0 ? newPath[newPath.length - 1] : null;
       });
     },
 

@@ -24,7 +24,7 @@ interface BlockListProps {
 const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
   const mapStart = performance.now();
   console.log(
-    `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`
+    `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`,
   );
 
   const blocks = useMemo(
@@ -32,15 +32,15 @@ const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
       blocksToShow.map((blockId: string) => (
         <BlockComponent key={blockId} blockId={blockId} depth={0} />
       )),
-    [blocksToShow]
+    [blocksToShow],
   );
 
   requestAnimationFrame(() => {
     const mapTime = performance.now() - mapStart;
     console.log(
       `[BlockEditor:timing] BlockComponent .map() rendered in ${mapTime.toFixed(
-        2
-      )}ms`
+        2,
+      )}ms`,
     );
   });
   return <>{blocks}</>;
@@ -88,8 +88,8 @@ export function BlockEditor({
           keywords: ["copy", "link", "wiki"],
         },
       ],
-      [pageId, pageName]
-    )
+      [pageId, pageName],
+    ),
   );
 
   // Register block editor commands
@@ -101,7 +101,7 @@ export function BlockEditor({
     if (pageId && currentPageId !== pageId) {
       const renderStartTime = performance.now();
       console.log(
-        `[BlockEditor:timing] Component rendering started for page ${pageId}`
+        `[BlockEditor:timing] Component rendering started for page ${pageId}`,
       );
 
       openPage(pageId);
@@ -110,8 +110,8 @@ export function BlockEditor({
         const renderTime = performance.now() - renderStartTime;
         console.log(
           `[BlockEditor:timing] Component render completed in ${renderTime.toFixed(
-            2
-          )}ms`
+            2,
+          )}ms`,
         );
       });
     }
@@ -148,8 +148,8 @@ export function BlockEditor({
     const memoComputeTime = performance.now() - memoComputeStart;
     console.log(
       `[BlockEditor:timing] useMemo blockOrder computed in ${memoComputeTime.toFixed(
-        2
-      )}ms (${computed.length} visible blocks)`
+        2,
+      )}ms (${computed.length} visible blocks)`,
     );
     return computed;
   }, [blocksToShow, blocksById, childrenMap]);
@@ -173,7 +173,6 @@ export function BlockEditor({
           <PageHeader
             showBreadcrumb
             workspaceName={workspaceName}
-            pageName={pageName}
             onNavigateHome={onNavigateHome}
           />
         )}
