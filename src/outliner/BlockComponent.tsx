@@ -578,6 +578,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       }
     }, [blockId]);
 
+    // Commit draft when focus is lost, BEFORE the sync useEffect resets draftRef to blockContent
+    // This ensures changes are saved with the edited content, not the original block content
+    useEffect(() => {
+      if (isFocused === false) {
+        commitDraft();
+      }
+    }, [isFocused, commitDraft]);
+
     // Save editor state before losing focus, restore when regaining focus
     useEffect(() => {
       const view = editorRef.current?.getView();
