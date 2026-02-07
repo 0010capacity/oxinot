@@ -342,10 +342,14 @@ gh pr merge PR_NUM --auto --squash
 
 ## Release Process (Fully Automated)
 
-1. PRs merged to main trigger auto-changeset generation
-2. "chore: Version Packages" PR created automatically
-3. Merge that PR to trigger tag + GitHub release
-4. **Never run `npm run release` manually**
+1. Merge `develop` branch to `main`
+2. GitHub Actions automatically:
+   - Bumps patch version (e.g., 0.24.3 → 0.24.4)
+   - Syncs version to `tauri.conf.json` and `Cargo.toml`
+   - Commits version bump with `[skip ci]` flag
+   - Creates and pushes version tag (e.g., `v0.24.4`)
+   - Builds and creates GitHub release with binaries
+3. **Never manually bump versions or create tags**
 
 ## Key Dependencies Reference
 
