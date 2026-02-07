@@ -36,6 +36,7 @@ jobs:
     runs-on: macos-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
