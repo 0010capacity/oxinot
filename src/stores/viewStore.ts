@@ -3,7 +3,6 @@ import { createWithEqualityFn } from "zustand/traditional";
 import { useBlockStore } from "./blockStore";
 import type { BlockData } from "./blockStore";
 import { useNavigationStore } from "./navigationStore";
-import { usePageStore } from "./pageStore";
 
 // View modes
 type ViewMode = "index" | "note";
@@ -74,14 +73,8 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         state.mode = "note";
         state.currentNotePath = pageId;
         state.focusedBlockId = null;
-        const savedZoom = state.zoomByPageId[pageId] || [];
-        state.zoomPath = savedZoom;
+        state.zoomPath = [];
       });
-
-      const page = usePageStore.getState().pagesById[pageId];
-      if (page) {
-        useNavigationStore.getState().pushHistory(pageId, page.title);
-      }
     },
 
     openNote: (

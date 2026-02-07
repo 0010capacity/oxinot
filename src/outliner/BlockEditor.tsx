@@ -122,6 +122,28 @@ export function BlockEditor({
   const clearZoom = useViewStore((state) => state.clearZoom);
 
   useEffect(() => {
+    if (
+      pageId &&
+      currentPageId === pageId &&
+      Object.keys(blocksById).length > 0
+    ) {
+      const savedZoom = useViewStore.getState().zoomByPageId[pageId];
+      const currentZoom = useViewStore.getState().zoomPath;
+
+      if (currentZoom.length === 0 && savedZoom && savedZoom.length > 0) {
+        const lastZoomId = savedZoom[savedZoom.length - 1];
+        if (blocksById[lastZoomId]) {
+          useViewStore.setState({ zoomPath: [...savedZoom] });
+          console.log(
+            `[BlockEditor] Restored zoom for page ${pageId}:`,
+            savedZoom,
+          );
+        }
+      }
+    }
+  }, [pageId, currentPageId, blocksById]);
+
+  useEffect(() => {
     if (zoomPath.length > 0) {
       const zoomRootId = zoomPath[zoomPath.length - 1];
       if (!blocksById[zoomRootId]) {
