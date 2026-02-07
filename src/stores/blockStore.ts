@@ -954,14 +954,10 @@ export const useBlockStore = create<BlockStore>()(
 
             if (prevBlockId) {
               const prevBlock = get().blocksById[prevBlockId];
-              if (prevBlock) {
-                useBlockUIStore.setState({
-                  focusedBlockId: prevBlockId,
-                  targetCursorPosition: prevBlock.content.length,
-                });
-              } else {
-                useBlockUIStore.setState({ focusedBlockId: prevBlockId });
-              }
+              useBlockUIStore.setState({
+                focusedBlockId: prevBlockId,
+                targetCursorPosition: prevBlock ? prevBlock.content.length : 0,
+              });
             }
             return;
           }
