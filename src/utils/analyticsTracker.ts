@@ -21,8 +21,6 @@
  *   __analyticsTracker.getTopPages(10)    // Top 10 most viewed pages
  */
 
-import { getCacheStats } from "../stores/blockStore";
-
 interface PageHitData {
   pageId: string;
   path: string;
@@ -63,7 +61,6 @@ interface AnalyticsSnapshot {
   totalSearches: number;
   uniqueSearchTerms: number;
   avgSessionDuration: number;
-  cacheHitRate: number;
   topPages: PageHitData[];
   topSearches: SearchTermData[];
 }
@@ -142,7 +139,7 @@ class AnalyticsTracker {
     if (currentPageId) {
       pageData.referredFrom.set(
         currentPageId,
-        (pageData.referredFrom.get(currentPageId) || 0) + 1
+        (pageData.referredFrom.get(currentPageId) || 0) + 1,
       );
     }
 
@@ -191,7 +188,7 @@ class AnalyticsTracker {
     if (pageContext) {
       searchData.relatedPages.set(
         pageContext,
-        (searchData.relatedPages.get(pageContext) || 0) + 1
+        (searchData.relatedPages.get(pageContext) || 0) + 1,
       );
     }
 
@@ -265,14 +262,13 @@ class AnalyticsTracker {
   }
 
   getSnapshot(): AnalyticsSnapshot {
-    const cacheStats = getCacheStats();
     const allPageViews = Array.from(this.pageHits.values()).reduce(
       (sum, p) => sum + p.totalHits,
-      0
+      0,
     );
     const totalSearches = Array.from(this.searchTerms.values()).reduce(
       (sum, s) => sum + s.frequency,
-      0
+      0,
     );
 
     let totalSessionDuration = 0;
@@ -294,7 +290,6 @@ class AnalyticsTracker {
       totalSearches,
       uniqueSearchTerms: this.searchTerms.size,
       avgSessionDuration,
-      cacheHitRate: cacheStats.hitRate,
       topPages: this.getTopPages(5),
       topSearches: this.getTopSearches(5),
     };
@@ -311,7 +306,7 @@ class AnalyticsTracker {
     for (const page of topPages) {
       const avgTimeSpent = page.avgTimeSpent.toFixed(1);
       pagesList += `║    ${page.path.padEnd(30)} │ ${String(
-        page.totalHits
+        page.totalHits,
       ).padEnd(4)} hits │ ${avgTimeSpent}s avg\n`;
     }
 
@@ -321,7 +316,7 @@ class AnalyticsTracker {
       searchList += `║    "${search.term
         .substring(0, 28)
         .padEnd(28)}" │ ${String(search.frequency).padEnd(
-        4
+        4,
       )} │ ${avgResults} results avg\n`;
     }
 
@@ -331,17 +326,17 @@ class AnalyticsTracker {
 ╠════════════════════════════════════════════════════════════════════╣
 ║ 📈 SESSION OVERVIEW                                                ║
 ║    Total Sessions: ${String(snapshot.uniqueSessions).padEnd(
-      5
+      5,
     )} │ Pages Viewed: ${String(snapshot.totalPageViews).padEnd(
-      5
+      5,
     )} │ Searches: ${String(snapshot.totalSearches)}            ║
 ║    Avg Session Duration: ${String(avgDurationSec).padEnd(
-      2
+      2,
     )}s                                  ║
 ║    Unique Pages: ${String(snapshot.uniquePagesViewed).padEnd(
-      3
+      3,
     )} │ Unique Search Terms: ${String(snapshot.uniqueSearchTerms).padEnd(
-      3
+      3,
     )}                 ║
 ║                                                                    ║
 ║ 🔝 TOP 5 PAGES                                                     ║
@@ -351,11 +346,6 @@ class AnalyticsTracker {
 ║ 🔍 TOP 5 SEARCHES                                                  ║
 ║    Search Term                       Freq. │ Avg Results       ║
 ║    ${searchList.trim().split("\n").join("\n║    ")}  ║
-║                                                                    ║
-║ 💾 CACHE INTEGRATION                                               ║
-║    Cache Hit Rate: ${snapshot.cacheHitRate.toFixed(
-      1
-    )}%                                      ║
 ║                                                                    ║
 ╚════════════════════════════════════════════════════════════════════╝
     `.trim();
@@ -397,7 +387,7 @@ class AnalyticsTracker {
     csv += `${snapshot.uniqueSessions},${snapshot.totalPageViews},${
       snapshot.uniquePagesViewed
     },${snapshot.uniqueSearchTerms},${Math.round(
-      snapshot.avgSessionDuration / 1000
+      snapshot.avgSessionDuration / 1000,
     )}\n\n`;
 
     csv += "## Page Views\n";
@@ -407,7 +397,7 @@ class AnalyticsTracker {
       csv += `"${page.pageId}","${page.path}",${page.totalHits},${
         page.uniqueSessions
       },${page.avgTimeSpent.toFixed(2)},${new Date(
-        page.firstVisited
+        page.firstVisited,
       ).toISOString()},${new Date(page.lastVisited).toISOString()}\n`;
     }
 
@@ -417,7 +407,7 @@ class AnalyticsTracker {
       csv += `"${search.term}",${
         search.frequency
       },${search.avgResultsCount.toFixed(2)},${new Date(
-        search.firstUsed
+        search.firstUsed,
       ).toISOString()},${new Date(search.lastUsed).toISOString()}\n`;
     }
 
@@ -476,7 +466,7 @@ class AnalyticsTracker {
     console.log(
       `[analyticsTracker] ${enabled ? "✅" : "❌"} Analytics tracking ${
         enabled ? "enabled" : "disabled"
-      }`
+      }`,
     );
   }
 
@@ -495,7 +485,7 @@ declare global {
 if (typeof window !== "undefined") {
   window.__analyticsTracker = analyticsTracker;
   console.log(
-    "[analyticsTracker] 🚀 Analytics tracker available at __analyticsTracker"
+    "[analyticsTracker] 🚀 Analytics tracker available at __analyticsTracker",
   );
 }
 

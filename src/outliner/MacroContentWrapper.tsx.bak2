@@ -3,8 +3,7 @@ import type React from "react";
 import { useMemo } from "react";
 import QueryBlock from "../components/QueryBlock";
 import { useWorkspaceStore } from "../stores/workspaceStore";
-import { extractQueryMacros, removeQueryMacros } from "../utils/queryParser";
-import { StaticMarkdownRenderer } from "../components/StaticMarkdownRenderer";
+import { extractQueryMacros } from "../utils/queryParser";
 
 interface MacroContentWrapperProps {
   content: string;
@@ -12,17 +11,17 @@ interface MacroContentWrapperProps {
   isFocused: boolean;
   children: React.ReactNode;
   onEdit?: () => void;
-  onMouseDownCapture?: (e: React.MouseEvent) => void;
+  staticContent?: React.ReactNode;
 }
 
 /**
  * Wrapper component that detects {{}} query macros in block content
- * and renders QueryBlock components alongside the markdown content.
+ * and renders QueryBlock components alongside the editor/static content.
  *
  * When the block is focused (being edited), shows only the editor (hides QueryBlock).
  * When unfocused:
- *   - Renders markdown content (with macros removed)
- *   - Renders QueryBlock results below the content
+ *   - If staticContent provided: shows staticContent + QueryBlock results
+ *   - Otherwise: shows only QueryBlock results (legacy behavior for focused blocks)
  */
 export const MacroContentWrapper: React.FC<MacroContentWrapperProps> = ({
   content,
@@ -30,10 +29,11 @@ export const MacroContentWrapper: React.FC<MacroContentWrapperProps> = ({
   isFocused,
   children,
   onEdit,
-  onMouseDownCapture,
+  staticContent,
 }) => {
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
 
+  // Extract query macros from content
   const queryMacros = useMemo(() => {
     if (!content) {
       return [];
@@ -41,30 +41,22 @@ export const MacroContentWrapper: React.FC<MacroContentWrapperProps> = ({
     return extractQueryMacros(content);
   }, [content]);
 
-  const contentWithoutMacros = useMemo(() => {
-    if (!content) {
-      return "";
-    }
-    return removeQueryMacros(content);
-  }, [content]);
+  // If no macros, just show children or staticContent
+  if (queryMacros.length === 0) {
+    return <>{isFocused ? children : staticContent || children}</>;
+  }
 
-  // If focused (editing), show only editor - hide everything else
+  // If focused (editing), show only editor - hide QueryBlock
   if (isFocused) {
     return <>{children}</>;
   }
 
-  // Not focused: show markdown content + QueryBlock results
-  return (
-    <Stack gap={0}>
-      {contentWithoutMacros && (
-        <StaticMarkdownRenderer
-          content={contentWithoutMacros}
-          onMouseDownCapture={onMouseDownCapture}
-          style={{}}
-        />
-      )}
-      {workspacePath &&
-        queryMacros.map((macroString) => (
+  // Not focused: show staticContent (if provided) + QueryBlock results
+  if (workspacePath && queryMacros.length > 0) {
+    return (
+      <Stack gap={0}>
+        {staticContent && <>{staticContent}</>}
+        {queryMacros.map((macroString) => (
           <QueryBlock
             key={`${blockId}-macro-${macroString}`}
             macroString={macroString}
@@ -72,8 +64,9 @@ export const MacroContentWrapper: React.FC<MacroContentWrapperProps> = ({
             onEdit={onEdit}
           />
         ))}
-    </Stack>
-  );
-};
+      </Stack>
+    );
+  }
 
-MacroContentWrapper.displayName = "MacroContentWrapper";
+  return <>{isFocused ? children : staticContent || children}</>;
+};

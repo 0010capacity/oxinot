@@ -25,6 +25,12 @@ interface BlockUIState {
     clientY: number;
   } | null;
 
+  // 포커스 요청 토큰: Static→Editor 업그레이드 + DOM 포커스 적용을 보장하는 신호
+  focusRequest: {
+    blockId: string;
+    nonce: number; // 변경 감지용 고유값
+  } | null;
+
   // IME 조합 상태
   isComposing: boolean;
 }
@@ -33,6 +39,10 @@ interface BlockUIActions {
   // 포커스 관리
   setFocusedBlock: (id: string | null, cursorPos?: number) => void;
   clearFocusedBlock: () => void;
+
+  // 포커스 요청 (Static→Editor 업그레이드 + DOM 포커스를 보장)
+  requestFocus: (blockId: string) => void;
+  clearFocusRequest: () => void;
 
   // 단일 선택 관리
   setSelectedBlocks: (ids: string[]) => void;
@@ -96,6 +106,7 @@ const initialState: BlockUIState = {
   mergingTargetBlockId: null,
   targetCursorPosition: null,
   pendingFocusSelection: null,
+  focusRequest: null,
   isComposing: false,
 };
 
@@ -119,6 +130,21 @@ export const useBlockUIStore = create<BlockUIStore>()(
         state.targetCursorPosition = null;
       });
       useViewStore.getState().setFocusedBlockId(null);
+    },
+
+    requestFocus: (blockId: string) => {
+      set((state) => {
+        state.focusRequest = {
+          blockId,
+          nonce: Math.random(),
+        };
+      });
+    },
+
+    clearFocusRequest: () => {
+      set((state) => {
+        state.focusRequest = null;
+      });
     },
 
     setSelectedBlocks: (ids: string[]) => {
@@ -194,7 +220,7 @@ export const useBlockUIStore = create<BlockUIStore>()(
         const toIndex = visibleBlockIds.indexOf(toId);
 
         if (fromIndex < 0 || toIndex < 0) {
-          return; // Invalid range
+          return;
         }
 
         const start = Math.min(fromIndex, toIndex);
@@ -284,13 +310,11 @@ export const useBlockUIStore = create<BlockUIStore>()(
 export const useFocusedBlockId = () =>
   useBlockUIStore((state) => state.focusedBlockId);
 
-/**
- * Check if a specific block is focused (boolean only).
- * Re-renders only when THIS block's focus status changes.
- * Much better for performance than useFocusedBlockId() + comparing in render.
- */
 export const useIsBlockFocused = (blockId: string) =>
   useBlockUIStore((state) => state.focusedBlockId === blockId);
+
+export const useFocusRequest = () =>
+  useBlockUIStore((state) => state.focusRequest);
 
 export const useTargetCursorPosition = () =>
   useBlockUIStore((state) => state.targetCursorPosition);
