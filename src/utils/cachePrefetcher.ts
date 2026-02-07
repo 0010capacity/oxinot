@@ -1,7 +1,7 @@
 /**
  * Cache Prefetcher Utility
  * Automatically prefetches frequently visited pages when the app is idle
- * 
+ *
  * Usage:
  *   cachePrefetcher.start()      // Start monitoring and prefetching
  *   cachePrefetcher.stop()       // Stop prefetching
@@ -102,17 +102,15 @@ class CachePrefetcher {
   private setupActivityTracking(): void {
     // Listen to block store changes
     let lastPageId: string | null = null;
-    
-    this.unsubscribeActivity = useBlockStore.subscribe(
-      (state) => {
-        const currentPageId = state.currentPageId;
-        if (currentPageId && currentPageId !== lastPageId) {
-          lastPageId = currentPageId;
-          this.recordPageVisit(currentPageId);
-          this.lastActivityTime = Date.now();
-        }
-      },
-    );
+
+    this.unsubscribeActivity = useBlockStore.subscribe((state) => {
+      const currentPageId = state.currentPageId;
+      if (currentPageId && currentPageId !== lastPageId) {
+        lastPageId = currentPageId;
+        this.recordPageVisit(currentPageId);
+        this.lastActivityTime = Date.now();
+      }
+    });
   }
 
   /**
@@ -134,7 +132,9 @@ class CachePrefetcher {
     }
 
     console.log(
-      `[cachePrefetcher] Page visit: ${pageId} (${existing ? existing.visits : 1} times)`,
+      `[cachePrefetcher] Page visit: ${pageId} (${
+        existing ? existing.visits : 1
+      } times)`
     );
   }
 
@@ -158,14 +158,14 @@ class CachePrefetcher {
     const candidates = Array.from(this.pageVisits.values())
       .filter(
         (entry) =>
-          entry.visits >= this.config.minVisitsToPreload && !entry.prefetched,
+          entry.visits >= this.config.minVisitsToPreload && !entry.prefetched
       )
       .sort((a, b) => b.visits - a.visits)
       .slice(0, this.config.maxPrefetchQueue);
 
     if (candidates.length > 0) {
       console.log(
-        `[cachePrefetcher] Found ${candidates.length} pages to prefetch`,
+        `[cachePrefetcher] Found ${candidates.length} pages to prefetch`
       );
       this.prefetchQueue.push(...candidates.map((c) => c.pageId));
       this.prefetching = true;
@@ -209,12 +209,13 @@ class CachePrefetcher {
       this.totalPrefetched++;
       this.prefetchSuccesses++;
 
-      console.log(
-        `[cachePrefetcher] ✅ Prefetched ${pageId} in ${loadTime}ms`,
-      );
+      console.log(`[cachePrefetcher] ✅ Prefetched ${pageId} in ${loadTime}ms`);
     } catch (error) {
       this.prefetchErrors++;
-      console.error(`[cachePrefetcher] ❌ Failed to prefetch ${pageId}:`, error);
+      console.error(
+        `[cachePrefetcher] ❌ Failed to prefetch ${pageId}:`,
+        error
+      );
     }
   }
 
@@ -237,7 +238,7 @@ class CachePrefetcher {
     }>;
   } {
     const frequentPages = Array.from(this.pageVisits.values()).filter(
-      (p) => p.visits >= this.config.minVisitsToPreload,
+      (p) => p.visits >= this.config.minVisitsToPreload
     ).length;
 
     const topPages = Array.from(this.pageVisits.values())
@@ -272,21 +273,37 @@ class CachePrefetcher {
 ║              📥 PREFETCHER STATISTICS REPORT               ║
 ╠══════════════════════════════════════════════════════════╣
 ║ 📊 OVERVIEW                                              ║
-║    Monitoring: ${stats.isMonitoring ? "✅ Active" : "❌ Inactive"}                                  ║
-║    Total Pages: ${String(stats.totalPages).padEnd(5)}                                  ║
-║    Frequent Pages: ${String(stats.frequentPages).padEnd(5)}                              ║
+║    Monitoring: ${
+      stats.isMonitoring ? "✅ Active" : "❌ Inactive"
+    }                                  ║
+║    Total Pages: ${String(stats.totalPages).padEnd(
+      5
+    )}                                  ║
+║    Frequent Pages: ${String(stats.frequentPages).padEnd(
+      5
+    )}                              ║
 ║                                                          ║
 ║ 📈 PREFETCH STATS                                        ║
-║    Total Prefetched: ${String(stats.totalPrefetched).padEnd(5)}                          ║
-║    Successes: ${String(stats.prefetchSuccesses).padEnd(5)}                                    ║
-║    Errors: ${String(stats.prefetchErrors).padEnd(5)}                                        ║
-║    Success Rate: ${stats.successRate.toFixed(1).padStart(5)}%                             ║
+║    Total Prefetched: ${String(stats.totalPrefetched).padEnd(
+      5
+    )}                          ║
+║    Successes: ${String(stats.prefetchSuccesses).padEnd(
+      5
+    )}                                    ║
+║    Errors: ${String(stats.prefetchErrors).padEnd(
+      5
+    )}                                        ║
+║    Success Rate: ${stats.successRate
+      .toFixed(1)
+      .padStart(5)}%                             ║
 ║                                                          ║
 ║ 🏆 TOP VISITED PAGES                                     ║
 ${stats.topPages
   .map(
     (p, i) =>
-      `║    ${i + 1}. ${p.pageId.substring(0, 20).padEnd(20)} (${String(p.visits).padStart(2)} visits${p.prefetched ? ", prefetched" : ""}) ║`,
+      `║    ${i + 1}. ${p.pageId.substring(0, 20).padEnd(20)} (${String(
+        p.visits
+      ).padStart(2)} visits${p.prefetched ? ", prefetched" : ""}) ║`
   )
   .join("\n")}
 ║                                                          ║
@@ -326,8 +343,13 @@ ${stats.topPages
 export const cachePrefetcher = new CachePrefetcher();
 
 // Make available globally for debugging
+declare global {
+  // eslint-disable-next-line no-var
+  var __cachePrefetcher: typeof cachePrefetcher;
+}
+
 if (typeof window !== "undefined") {
-  (window as any).__cachePrefetcher = cachePrefetcher;
+  window.__cachePrefetcher = cachePrefetcher;
   console.log("[cachePrefetcher] 🚀 Prefetcher available at __cachePrefetcher");
 }
 

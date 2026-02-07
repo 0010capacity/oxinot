@@ -528,7 +528,7 @@ type BlockStore = BlockState & BlockActions;
 
 // ============ Cache Invalidation Helper ============
 
-function invalidatePageCache(get: any): void {
+function invalidatePageCache(get: () => BlockStore): void {
   const { currentPageId } = get();
   if (currentPageId) {
     pageCache.invalidate(currentPageId);
@@ -542,7 +542,7 @@ function invalidatePagesByIds(pageIds: Iterable<string>): void {
 }
 
 function invalidatePagesForBlocks(
-  get: any,
+  get: () => BlockStore,
   blocks: BlockData[],
   deletedBlockIds?: string[]
 ): void {

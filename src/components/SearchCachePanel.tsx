@@ -37,11 +37,13 @@ export const SearchCachePanel: React.FC<{ isOpen?: boolean }> = ({
     setStats(searchResultCache.getStats());
   };
 
-  const hitRateColor = stats.hitRate > 70 ? "good" : stats.hitRate > 40 ? "ok" : "poor";
+  const hitRateColor =
+    stats.hitRate > 70 ? "good" : stats.hitRate > 40 ? "ok" : "poor";
 
   return (
     <div className="search-cache-panel">
       <button
+        type="button"
         className="search-cache-toggle"
         onClick={() => setIsOpen(!isOpen)}
         title="Toggle search cache statistics"
@@ -75,7 +77,9 @@ export const SearchCachePanel: React.FC<{ isOpen?: boolean }> = ({
               </div>
               <div className="cache-item">
                 <span className="label">Avg Results</span>
-                <span className="value">{stats.avgResultsPerQuery.toFixed(1)}</span>
+                <span className="value">
+                  {stats.avgResultsPerQuery.toFixed(1)}
+                </span>
               </div>
             </div>
 
@@ -107,10 +111,11 @@ export const SearchCachePanel: React.FC<{ isOpen?: boolean }> = ({
               <h4>🔎 Recent Queries</h4>
               <div className="query-list">
                 {stats.recentQueries.map((query, idx) => (
-                  <div key={idx} className="query-item">
+                  <div key={query} className="query-item">
                     <span className="query-index">#{idx + 1}</span>
                     <span className="query-text">{query}</span>
                     <button
+                      type="button"
                       className="query-invalidate"
                       onClick={() => {
                         searchResultCache.invalidate(query);
@@ -136,16 +141,22 @@ export const SearchCachePanel: React.FC<{ isOpen?: boolean }> = ({
               />
               Auto-refresh
             </label>
-            <button onClick={handleReset} className="btn-secondary">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="btn-secondary"
+            >
               🔄 Reset Stats
             </button>
-            <button onClick={handleClear} className="btn-danger">
+            <button type="button" onClick={handleClear} className="btn-danger">
               🗑️ Clear Cache
             </button>
           </div>
 
           <div className="cache-footer">
-            <p>💡 Access via console with <code>__searchCache</code></p>
+            <p>
+              💡 Access via console with <code>__searchCache</code>
+            </p>
           </div>
         </div>
       )}

@@ -396,7 +396,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           block: "center",
         });
       }
-    }, [isFocused, blockId]);
+    }, [isFocused]);
 
     // Handle outside clicks to close metadata editor
     useEffect(() => {
@@ -441,7 +441,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       return () => {
         document.removeEventListener("keydown", handleCopy, true);
       };
-    }, [isFocused, blockId, copyBlocksAsMarkdown]);
+    }, [isFocused, copyBlocksAsMarkdown]);
 
     // Handle Shift+Arrow key selection when this block is focused
     useEffect(() => {
@@ -566,7 +566,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           draftRef.current = blockContent ?? "";
         }
       }
-    }, [blockContent, isFocused, blockId, targetCursorPosition]);
+    }, [blockContent, isFocused, targetCursorPosition]);
 
     // Commit helper: stable callback reading from refs (doesn't change every keystroke).
     const commitDraft = useCallback(async () => {
@@ -643,7 +643,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         // Reset applied position when this block is no longer focused
         appliedPositionRef.current = null;
       }
-    }, [isFocused, blockId, targetCursorPosition, clearTargetCursorPosition]);
+    }, [isFocused, targetCursorPosition, clearTargetCursorPosition]);
 
     // Apply cursor position from click coordinates when Editor mounts
     // This converts screen coordinates (from StaticMarkdownRenderer click) to text position

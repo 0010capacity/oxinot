@@ -7,7 +7,7 @@ import "./CacheStatsPanel.css";
 /**
  * Cache Statistics Panel Component
  * Displays real-time cache performance metrics
- * 
+ *
  * Usage:
  *   <CacheStatsPanel />
  */
@@ -52,6 +52,7 @@ export const CacheStatsPanel: React.FC<{ isOpen?: boolean }> = ({
     return (
       <div className="cache-stats-panel">
         <button
+          type="button"
           className="cache-stats-toggle"
           onClick={() => setIsOpen(!isOpen)}
           title="Toggle cache statistics"
@@ -63,7 +64,9 @@ export const CacheStatsPanel: React.FC<{ isOpen?: boolean }> = ({
             <p className="cache-stats-empty">
               No statistics available. Starting monitor...
             </p>
-            <button onClick={handleRefresh}>Refresh</button>
+            <button type="button" onClick={handleRefresh}>
+              Refresh
+            </button>
           </div>
         )}
       </div>
@@ -78,6 +81,7 @@ export const CacheStatsPanel: React.FC<{ isOpen?: boolean }> = ({
   return (
     <div className="cache-stats-panel">
       <button
+        type="button"
         className="cache-stats-toggle"
         onClick={() => setIsOpen(!isOpen)}
         title="Toggle cache statistics"
@@ -185,19 +189,29 @@ export const CacheStatsPanel: React.FC<{ isOpen?: boolean }> = ({
               />
               Auto-refresh
             </label>
-            <button onClick={handleRefresh} className="btn-secondary">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="btn-secondary"
+            >
               🔄 Refresh
             </button>
-            <button onClick={handleReset} className="btn-secondary">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="btn-secondary"
+            >
               🔁 Reset Stats
             </button>
-            <button onClick={handleClear} className="btn-danger">
+            <button type="button" onClick={handleClear} className="btn-danger">
               🗑️ Clear Cache
             </button>
           </div>
 
           <div className="cache-stats-footer">
-            <p>💡 Tip: Access via console with <code>__cacheMonitor</code></p>
+            <p>
+              💡 Tip: Access via console with <code>__cacheMonitor</code>
+            </p>
           </div>
         </div>
       )}

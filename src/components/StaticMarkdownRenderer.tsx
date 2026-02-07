@@ -7,6 +7,7 @@ interface StaticMarkdownRendererProps {
   onClick?: () => void;
   onMouseDownCapture?: (e: React.MouseEvent) => void;
   onPointerDownCapture?: (e: React.PointerEvent) => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -17,6 +18,7 @@ export const StaticMarkdownRenderer = memo(
     onClick,
     onMouseDownCapture,
     onPointerDownCapture,
+    onKeyDown,
     className = "static-markdown-renderer",
     style,
   }: StaticMarkdownRendererProps) => {
@@ -50,6 +52,23 @@ export const StaticMarkdownRenderer = memo(
       onPointerDownCapture?.(e);
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (isComposing) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      // Allow Enter or Space to trigger the click action
+      if ((e.key === "Enter" || e.key === " ") && onClick) {
+        e.preventDefault();
+        onClick();
+        return;
+      }
+
+      onKeyDown?.(e);
+    };
+
     // Default styles are now handled by CSS variables in block-styles.css
     // The style prop can still be used for custom overrides
     return (
@@ -58,8 +77,12 @@ export const StaticMarkdownRenderer = memo(
         onClick={onClick}
         onMouseDownCapture={handleMouseDownCapture}
         onPointerDownCapture={handlePointerDownCapture}
+        onKeyDown={handleKeyDown}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: Content is trusted: markdown rendered from internal outliner
         dangerouslySetInnerHTML={{ __html: html }}
         style={style}
+        role="button"
+        tabIndex={onClick ? 0 : undefined}
       />
     );
   }

@@ -1,20 +1,25 @@
 /**
  * Cache Monitoring Utility
  * Provides utilities for monitoring and debugging the page cache
- * 
+ *
  * Usage:
  *   import { cacheMonitor } from '@/utils/cacheMonitor'
  *   cacheMonitor.start()      // Start monitoring
  *   cacheMonitor.getReport()  // Get detailed stats report
  *   cacheMonitor.stop()       // Stop monitoring
- * 
+ *
  * Browser console:
  *   __cacheMonitor.getReport()  // View detailed stats
  *   __cacheMonitor.reset()      // Reset counters
  */
 
-import { getCacheStats, resetCacheStats, clearPageCache } from "../stores/blockStore";
+import {
+  getCacheStats,
+  resetCacheStats,
+  clearPageCache,
+} from "../stores/blockStore";
 import { useCacheStatsStore } from "../stores/cacheStatsStore";
+import type { CacheStatistics } from "../stores/blockStore";
 
 class CacheMonitor {
   private refreshInterval: NodeJS.Timeout | null = null;
@@ -32,7 +37,9 @@ class CacheMonitor {
     }
 
     this.isMonitoring = true;
-    console.log(`[cacheMonitor] ✅ Started monitoring cache (interval: ${intervalMs}ms)`);
+    console.log(
+      `[cacheMonitor] ✅ Started monitoring cache (interval: ${intervalMs}ms)`
+    );
 
     // Perform initial update
     this.refresh();
@@ -75,7 +82,7 @@ class CacheMonitor {
   getStatus(): {
     isMonitoring: boolean;
     hasStats: boolean;
-    stats: any;
+    stats: CacheStatistics | null;
   } {
     const stats = useCacheStatsStore.getState().getStats();
     return {
@@ -101,30 +108,49 @@ class CacheMonitor {
     const newestAge = (stats.newestPageAge / 1000).toFixed(1);
     const memoryKB = (stats.totalMemoryBytes / 1024).toFixed(2);
     const totalRequests = stats.hits + stats.misses;
-    const totalEvents = stats.evictions + stats.ttlExpirations + stats.invalidations;
+    const totalEvents =
+      stats.evictions + stats.ttlExpirations + stats.invalidations;
 
     return `
 ╔═══════════════════════════════════════════════════════════════╗
 ║                  📊 CACHE STATISTICS REPORT                    ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║ 📦 CAPACITY & MEMORY                                           ║
-║    Entries: ${String(stats.size).padEnd(2)} / ${stats.capacity} (${fullPercent.padStart(5)}% full)                                ║
-║    Memory: ${memoryKB.padStart(8)}KB                                          ║
+║    Entries: ${String(stats.size).padEnd(2)} / ${
+      stats.capacity
+    } (${fullPercent.padStart(5)}% full)                                ║
+║    Memory: ${memoryKB.padStart(
+      8
+    )}KB                                          ║
 ║                                                               ║
 ║ 📈 PERFORMANCE                                                ║
-║    Hit Rate: ${stats.hitRate.toFixed(1).padStart(5)}% (${String(stats.hits).padEnd(5)} hits / ${String(stats.misses).padEnd(5)} misses)            ║
-║    Avg Load Time: ${stats.avgLoadTime.toFixed(2).padStart(7)}ms                              ║
+║    Hit Rate: ${stats.hitRate.toFixed(1).padStart(5)}% (${String(
+      stats.hits
+    ).padEnd(5)} hits / ${String(stats.misses).padEnd(5)} misses)            ║
+║    Avg Load Time: ${stats.avgLoadTime
+      .toFixed(2)
+      .padStart(7)}ms                              ║
 ║    Total Requests: ${totalRequests}                                        ║
 ║                                                               ║
 ║ 🔄 CACHE EVENTS                                               ║
-║    Evictions: ${String(stats.evictions).padStart(3)}                                       ║
-║    TTL Expirations: ${String(stats.ttlExpirations).padStart(3)}                                   ║
-║    Invalidations: ${String(stats.invalidations).padStart(3)}                                    ║
+║    Evictions: ${String(stats.evictions).padStart(
+      3
+    )}                                       ║
+║    TTL Expirations: ${String(stats.ttlExpirations).padStart(
+      3
+    )}                                   ║
+║    Invalidations: ${String(stats.invalidations).padStart(
+      3
+    )}                                    ║
 ║    Total Events: ${totalEvents}                                        ║
 ║                                                               ║
 ║ ⏱️  ENTRY AGES                                                 ║
-║    Oldest: ${oldestAge.padStart(5)}s ago                                      ║
-║    Newest: ${newestAge.padStart(5)}s ago                                      ║
+║    Oldest: ${oldestAge.padStart(
+      5
+    )}s ago                                      ║
+║    Newest: ${newestAge.padStart(
+      5
+    )}s ago                                      ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
     `.trim();
@@ -168,7 +194,11 @@ class CacheMonitor {
    */
   setEnabled(enabled: boolean): void {
     useCacheStatsStore.getState().setEnabled(enabled);
-    console.log(`[cacheMonitor] ${enabled ? "✅" : "❌"} Cache monitoring ${enabled ? "enabled" : "disabled"}`);
+    console.log(
+      `[cacheMonitor] ${enabled ? "✅" : "❌"} Cache monitoring ${
+        enabled ? "enabled" : "disabled"
+      }`
+    );
   }
 
   /**
@@ -176,7 +206,9 @@ class CacheMonitor {
    */
   setAutoUpdate(enabled: boolean): void {
     this.autoUpdateEnabled = enabled;
-    console.log(`[cacheMonitor] Auto-update ${enabled ? "enabled" : "disabled"}`);
+    console.log(
+      `[cacheMonitor] Auto-update ${enabled ? "enabled" : "disabled"}`
+    );
   }
 
   /**
@@ -192,8 +224,13 @@ class CacheMonitor {
 export const cacheMonitor = new CacheMonitor();
 
 // Make it available globally for debugging in browser console
+declare global {
+  // eslint-disable-next-line no-var
+  var __cacheMonitor: typeof cacheMonitor;
+}
+
 if (typeof window !== "undefined") {
-  (window as any).__cacheMonitor = cacheMonitor;
+  window.__cacheMonitor = cacheMonitor;
   console.log("[cacheMonitor] 🚀 Cache monitor available at __cacheMonitor");
 }
 
