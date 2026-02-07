@@ -23,7 +23,7 @@ interface CachedPageData {
   lastAccess: number;
 }
 
-interface CacheStatistics {
+export interface CacheStatistics {
   size: number;
   capacity: number;
   hits: number;
@@ -479,14 +479,16 @@ interface BlockActions {
   clearPage: () => void;
   updatePartialBlocks: (
     blocks: BlockData[],
-    deletedBlockIds?: string[]
+    deletedBlockIds?: string[],
+    skipCacheInvalidation?: boolean
   ) => void;
 
   // 블록 CRUD
   createBlock: (
     afterBlockId: string | null,
-    content?: string
-  ) => Promise<string>;
+    content?: string,
+    pageId?: string
+  ) => Promise<string | undefined>;
   updateBlock: (id: string, updates: Partial<BlockData>) => Promise<void>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
@@ -526,7 +528,7 @@ type BlockStore = BlockState & BlockActions;
 
 // ============ Cache Invalidation Helper ============
 
-function invalidatePageCache(get: any): void {
+function invalidatePageCache(get: () => BlockStore): void {
   const { currentPageId } = get();
   if (currentPageId) {
     pageCache.invalidate(currentPageId);
@@ -540,7 +542,7 @@ function invalidatePagesByIds(pageIds: Iterable<string>): void {
 }
 
 function invalidatePagesForBlocks(
-  get: any,
+  get: () => BlockStore,
   blocks: BlockData[],
   deletedBlockIds?: string[]
 ): void {
@@ -925,7 +927,8 @@ export const useBlockStore = create<BlockStore>()(
 
       updatePartialBlocks: (
         blocks: BlockData[],
-        deletedBlockIds?: string[]
+        deletedBlockIds?: string[],
+        skipCacheInvalidation?: boolean
       ) => {
         set((state) => {
           // 1. Update childrenMap incrementally (O(M*K + K log K))
@@ -957,14 +960,22 @@ export const useBlockStore = create<BlockStore>()(
           state.childrenMap = { ...state.childrenMap };
         });
 
-        invalidatePagesForBlocks(get, blocks, deletedBlockIds);
+        // Only invalidate cache if not skipped (default is to invalidate)
+        if (!skipCacheInvalidation) {
+          invalidatePagesForBlocks(get, blocks, deletedBlockIds);
+        }
       },
 
       // ============ Block CRUD ============
 
-      createBlock: async (afterBlockId: string | null, content?: string) => {
+      createBlock: async (
+        afterBlockId: string | null,
+        content?: string,
+        pageId?: string
+      ) => {
         const { currentPageId, blocksById, childrenMap } = get();
-        if (!currentPageId) throw new Error("No page loaded");
+        const targetPageId = pageId ?? currentPageId;
+        if (!targetPageId) throw new Error("No page loaded");
 
         // Determine where to place the new block:
         let parentId: string | null = null;
@@ -991,7 +1002,7 @@ export const useBlockStore = create<BlockStore>()(
           const nowIso = new Date().toISOString();
           const tempBlock: BlockData = {
             id: tempId,
-            pageId: currentPageId,
+            pageId: targetPageId,
             parentId,
             content: content ?? "",
             orderWeight: Date.now(),
@@ -1021,7 +1032,7 @@ export const useBlockStore = create<BlockStore>()(
             const newBlock: BlockData = await invoke("create_block", {
               workspacePath,
               request: {
-                pageId: currentPageId,
+                pageId: targetPageId,
                 parentId,
                 afterBlockId: afterBlockIdForBackend,
                 content,
@@ -1091,8 +1102,6 @@ export const useBlockStore = create<BlockStore>()(
                 );
               }
             }
-
-            return newBlock.id;
           } catch (error) {
             // 롤백
             set((state) => {
@@ -1126,13 +1135,10 @@ export const useBlockStore = create<BlockStore>()(
             // Update only the new block
             get().updatePartialBlocks([newBlock]);
 
-            // Set focus
-            useBlockUIStore.setState({
-              focusedBlockId: newBlock.id,
-              targetCursorPosition: 0,
-            });
+            // Set focus to properly sync across all stores
+            useBlockUIStore.getState().setFocusedBlock(newBlock.id, 0);
 
-            return newBlock.id;
+            return newBlock.id ?? undefined;
           } catch (error) {
             console.error("Failed to create block:", error);
             // Reload to restore correct state
@@ -1285,11 +1291,8 @@ export const useBlockStore = create<BlockStore>()(
           // Update only the new block (current block already updated by updateBlockContent)
           get().updatePartialBlocks([newBlock]);
 
-          // Set focus
-          useBlockUIStore.setState({
-            focusedBlockId: newBlock.id,
-            targetCursorPosition: 0,
-          });
+          // Set focus to properly sync across all stores
+          useBlockUIStore.getState().setFocusedBlock(newBlock.id, 0);
         } catch (error) {
           console.error("Failed to split block:", error);
           // Reload to restore correct state
@@ -1360,6 +1363,9 @@ export const useBlockStore = create<BlockStore>()(
 
         if (index <= 0) {
           // No previous sibling, cannot indent. Fail silently.
+          console.log(
+            "[blockStore:indentBlock] Cannot indent: no previous sibling"
+          );
           return;
         }
 
@@ -1369,14 +1375,24 @@ export const useBlockStore = create<BlockStore>()(
             throw new Error("No workspace selected");
           }
 
+          console.log(
+            "[blockStore:indentBlock] Calling backend indent_block for:",
+            id
+          );
           // Backend returns the updated block
           const updatedBlock: BlockData = await invoke("indent_block", {
             workspacePath,
             blockId: id,
           });
 
-          // Update only the changed block
-          get().updatePartialBlocks([updatedBlock]);
+          console.log(
+            "[blockStore:indentBlock] Backend returned, new parentId:",
+            updatedBlock.parentId
+          );
+          // Update only the changed block without invalidating page cache
+          // This prevents the Hook error that occurs when all blocks briefly become undefined
+          get().updatePartialBlocks([updatedBlock], undefined, true);
+          console.log("[blockStore:indentBlock] updatePartialBlocks completed");
         } catch (error) {
           console.error("Failed to indent block:", error);
           const pageId = get().currentPageId;

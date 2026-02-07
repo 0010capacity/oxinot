@@ -1,15 +1,14 @@
 name: Release
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - main
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       force_build:
-        description: "Force build and release (ignore changeset status)"
+        description: "Force build and release"
         required: true
         default: true
         type: boolean
@@ -18,21 +17,22 @@ permissions:
   contents: write
 
 concurrency:
-  group: changeset-generation
+  group: release
   cancel-in-progress: false
 
 env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Step 1: Create version tag when Version Packages commit is pushed to main
-  # This runs after the "chore: Version Packages" PR is merged by detecting version bumps
+  # Step 1: Auto-increment version and create tag when merged from develop
   create-version-tag:
     name: Create Version Tag
     if: >
-      github.ref == 'refs/heads/main' && 
-      github.event_name == 'push' &&
-      !contains(github.event.head_commit.message, 'chore: auto-generate changeset')
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.ref == 'develop' &&
+      !contains(github.event.pull_request.title, 'chore:')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -46,64 +46,61 @@ jobs:
         with:
           node-version: lts/*
 
-      - name: Check if version tag should be created
-        id: check_tag
+      - name: Bump Version and Create Tag
         run: |
           set -euo pipefail
 
           # Get current version from package.json
-          CURRENT_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "")
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
 
-          if [ -z "$CURRENT_VERSION" ]; then
-            echo "Could not determine current version"
-            echo "should_tag=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          # Parse version (major.minor.patch)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          PATCH=$((PATCH + 1))
 
-          TAG_NAME="v${CURRENT_VERSION}"
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
-          # Check if tag already exists
-          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-            echo "Tag $TAG_NAME already exists"
-            echo "should_tag=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          echo "Bumping version from $CURRENT_VERSION to $NEW_VERSION"
 
-          # Check if the last commit is a version bump commit
-          # Can be from changesets/action or our custom npm version script
-          LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
-          if [[ "$LAST_COMMIT_MESSAGE" == *"version packages"* ]] || [[ "$LAST_COMMIT_MESSAGE" == *"Version Packages"* ]]; then
-            echo "Version bump commit detected - will create tag $TAG_NAME"
-            echo "should_tag=true" >> "$GITHUB_OUTPUT"
-            echo "version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
-          else
-            echo "Last commit is not a version bump commit"
-            echo "should_tag=false" >> "$GITHUB_OUTPUT"
-          fi
+          # Update package.json with new version
+          npm version $NEW_VERSION --no-git-tag-version
 
-      - name: Create and Push Version Tag
-        if: steps.check_tag.outputs.should_tag == 'true'
-        run: |
-          VERSION="${{ steps.check_tag.outputs.version }}"
+          # Sync version to tauri.conf.json and Cargo.toml
+          npm run version:sync
+
+          # Commit the version bump
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${VERSION}" -m "Release v${VERSION}"
-          git push origin "v${VERSION}"
-    outputs:
-      should_tag: ${{ steps.check_tag.outputs.should_tag }}
-      version: ${{ steps.check_tag.outputs.version }}
+          git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+          git commit -m "chore: bump version to $NEW_VERSION"
+          git push origin main
 
-  # Step 3: Build and create GitHub release
-  # This job runs when a version tag is created OR when manually triggered with force_build
+          # Create and push tag
+          git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+          git push origin "v${NEW_VERSION}"
+
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+        id: version
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+  # Step 2: Build and create GitHub release
   build-and-release:
     name: Build and Release
     needs: create-version-tag
-    if: needs.create-version-tag.outputs.should_tag == 'true' || inputs.force_build == true
+    if: |
+      always() &&
+      (
+        (github.event_name == 'pull_request' && needs.create-version-tag.result == 'success') ||
+        inputs.force_build == true
+      )
     runs-on: macos-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4

@@ -1,13 +1,12 @@
 import {
+  Button,
   Modal,
+  Stack,
   Tabs,
   TextInput,
-  Stack,
-  Button,
-  useMantineColorScheme,
   useComputedColorScheme,
+  useMantineColorScheme,
 } from "@mantine/core";
-import styles from "./SettingsModal.module.css";
 import {
   IconAppWindow,
   IconBrandGit,
@@ -26,6 +25,7 @@ import {
 import { getVersion } from "@tauri-apps/api/app";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import styles from "./SettingsModal.module.css";
 
 import { useAdvancedSettingsStore } from "../stores/advancedSettingsStore";
 import { useAppSettingsStore } from "../stores/appSettingsStore";
@@ -33,9 +33,9 @@ import { useClockFormatStore } from "../stores/clockFormatStore";
 import { useGitStore } from "../stores/gitStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import { type FontFamily, useThemeStore } from "../stores/themeStore";
+import { AISettings } from "./settings/AISettings";
 import { AboutSettings } from "./settings/AboutSettings";
 import { AdvancedSettings } from "./settings/AdvancedSettings";
-import { AISettings } from "./settings/AISettings";
 import { AppearanceSettings } from "./settings/AppearanceSettings";
 import { DailyNotesSettings } from "./settings/DailyNotesSettings";
 import { DatetimeSettings } from "./settings/DatetimeSettings";
@@ -44,8 +44,8 @@ import { HomepageSettings } from "./settings/HomepageSettings";
 import { LanguageSettings } from "./settings/LanguageSettings";
 import { OutlinerSettings } from "./settings/OutlinerSettings";
 import { ShortcutsSettings } from "./settings/ShortcutsSettings";
-import type { SettingTabConfig } from "./settings/types";
 import { ThemeSettings } from "./settings/ThemeSettings";
+import type { SettingTabConfig } from "./settings/types";
 
 const FONT_FAMILY_VALUES: FontFamily[] = [
   "system",
@@ -731,3 +731,5 @@ export function SettingsModal({
     </Modal>
   );
 }
+
+export default SettingsModal;

@@ -1,6 +1,6 @@
 import { useComputedColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
-import { useEffect, useMemo } from "react";
+import { createContext, memo, useEffect, useMemo, useRef } from "react";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
@@ -9,12 +9,42 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { useBlockEditorCommands } from "../hooks/useBlockEditorCommands";
 import { useBlockStore } from "../stores/blockStore";
 import { useRegisterCommands } from "../stores/commandStore";
+
 import { useThemeStore } from "../stores/themeStore";
-import { useViewStore } from "../stores/viewStore";
 import { showToast } from "../utils/toast";
 import { BlockComponent } from "./BlockComponent";
-import { VirtualBlockList } from "./VirtualBlockList";
 import "./BlockEditor.css";
+
+export const BlockOrderContext = createContext<string[]>([]);
+
+interface BlockListProps {
+  blocksToShow: string[];
+}
+
+const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
+  const mapStart = performance.now();
+  console.log(
+    `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`
+  );
+
+  const blocks = useMemo(
+    () =>
+      blocksToShow.map((blockId: string) => (
+        <BlockComponent key={blockId} blockId={blockId} depth={0} />
+      )),
+    [blocksToShow]
+  );
+
+  requestAnimationFrame(() => {
+    const mapTime = performance.now() - mapStart;
+    console.log(
+      `[BlockEditor:timing] BlockComponent .map() rendered in ${mapTime.toFixed(
+        2
+      )}ms`
+    );
+  });
+  return <>{blocks}</>;
+});
 
 interface BlockEditorProps {
   pageId: string;
@@ -37,8 +67,6 @@ export function BlockEditor({
   const error = useBlockStore((state) => state.error);
   const childrenMap = useBlockStore((state) => state.childrenMap);
   const blocksById = useBlockStore((state) => state.blocksById);
-
-  const focusedBlockId = useViewStore((state) => state.focusedBlockId);
 
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
@@ -89,9 +117,18 @@ export function BlockEditor({
     }
   }, [pageId, currentPageId, openPage]);
 
-  const blocksToShow = focusedBlockId
-    ? [focusedBlockId]
-    : childrenMap.root || [];
+  const blocksToShowRef = useRef<string[]>([]);
+  const blocksToShow = useMemo(() => {
+    const root = childrenMap.root || [];
+    // Only update if the array actually changed (not just a new reference)
+    if (
+      blocksToShowRef.current.length !== root.length ||
+      !blocksToShowRef.current.every((id: string, i: number) => id === root[i])
+    ) {
+      blocksToShowRef.current = root;
+    }
+    return blocksToShowRef.current;
+  }, [childrenMap.root]);
 
   const blockOrder = useMemo(() => {
     const memoComputeStart = performance.now();
@@ -157,54 +194,10 @@ export function BlockEditor({
                 Start typing to create your first block...
               </div>
             </div>
-          ) : blocksToShow.length > 100 ? (
-            (() => {
-              const virtualListStart = performance.now();
-              console.log(
-                `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with VirtualBlockList`
-              );
-              const result = (
-                <VirtualBlockList
-                  blockIds={blocksToShow}
-                  blockOrder={blockOrder}
-                  editorFontSize={editorFontSize}
-                  editorLineHeight={editorLineHeight}
-                />
-              );
-              requestAnimationFrame(() => {
-                const virtualListTime = performance.now() - virtualListStart;
-                console.log(
-                  `[BlockEditor:timing] VirtualBlockList rendered in ${virtualListTime.toFixed(
-                    2
-                  )}ms`
-                );
-              });
-              return result;
-            })()
           ) : (
-            (() => {
-              const mapStart = performance.now();
-              console.log(
-                `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`
-              );
-              const blocks = blocksToShow.map((blockId) => (
-                <BlockComponent
-                  key={blockId}
-                  blockId={blockId}
-                  depth={0}
-                  blockOrder={blockOrder}
-                />
-              ));
-              requestAnimationFrame(() => {
-                const mapTime = performance.now() - mapStart;
-                console.log(
-                  `[BlockEditor:timing] BlockComponent .map() rendered in ${mapTime.toFixed(
-                    2
-                  )}ms`
-                );
-              });
-              return blocks;
-            })()
+            <BlockOrderContext.Provider value={blockOrder}>
+              <BlockList blocksToShow={blocksToShow} />
+            </BlockOrderContext.Provider>
           )}
         </div>
 
@@ -215,3 +208,5 @@ export function BlockEditor({
     </PageContainer>
   );
 }
+
+export default BlockEditor;

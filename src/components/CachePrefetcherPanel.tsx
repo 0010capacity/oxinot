@@ -41,7 +41,7 @@ export const CachePrefetcherPanel: React.FC<{ isOpen?: boolean }> = ({
     setStats(cachePrefetcher.getStats());
   };
 
-  const handleConfigChange = (key: string, value: any) => {
+  const handleConfigChange = (key: string, value: number) => {
     const newConfig = { ...config, [key]: value };
     setConfig(newConfig);
     cachePrefetcher.setConfig(newConfig);
@@ -50,6 +50,7 @@ export const CachePrefetcherPanel: React.FC<{ isOpen?: boolean }> = ({
   return (
     <div className="cache-prefetcher-panel">
       <button
+        type="button"
         className="cache-prefetcher-toggle"
         onClick={() => setIsOpen(!isOpen)}
         title="Toggle prefetcher statistics"
@@ -62,7 +63,9 @@ export const CachePrefetcherPanel: React.FC<{ isOpen?: boolean }> = ({
           <div className="prefetcher-header">
             <h3>Cache Prefetcher</h3>
             <span
-              className={`status-badge ${stats.isMonitoring ? "active" : "inactive"}`}
+              className={`status-badge ${
+                stats.isMonitoring ? "active" : "inactive"
+              }`}
             >
               {stats.isMonitoring ? "🟢 Active" : "🔴 Inactive"}
             </span>
@@ -95,7 +98,9 @@ export const CachePrefetcherPanel: React.FC<{ isOpen?: boolean }> = ({
               </div>
               <div className="prefetcher-item">
                 <span className="label">Errors</span>
-                <span className={`value ${stats.prefetchErrors > 0 ? "error" : ""}`}>
+                <span
+                  className={`value ${stats.prefetchErrors > 0 ? "error" : ""}`}
+                >
                   {stats.prefetchErrors}
                 </span>
               </div>
@@ -108,14 +113,16 @@ export const CachePrefetcherPanel: React.FC<{ isOpen?: boolean }> = ({
               <h4>🏆 Top Visited Pages</h4>
               <div className="pages-list">
                 {stats.topPages.map((page, idx) => (
-                  <div key={idx} className="page-entry">
+                  <div key={page.pageId} className="page-entry">
                     <span className="page-rank">#{idx + 1}</span>
                     <span className="page-id" title={page.pageId}>
                       {page.pageId.substring(0, 25)}
                       {page.pageId.length > 25 ? "..." : ""}
                     </span>
                     <span className="page-visits">{page.visits}×</span>
-                    {page.prefetched && <span className="prefetched-badge">📥</span>}
+                    {page.prefetched && (
+                      <span className="prefetched-badge">📥</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -126,38 +133,50 @@ export const CachePrefetcherPanel: React.FC<{ isOpen?: boolean }> = ({
           <div className="prefetcher-config">
             <h4>⚙️ Configuration</h4>
             <div className="config-item">
-              <label>Min visits to prefetch</label>
+              <label htmlFor="min-visits">Min visits to prefetch</label>
               <input
+                id="min-visits"
                 type="number"
                 min={1}
                 max={10}
                 value={config.minVisitsToPreload}
                 onChange={(e) =>
-                  handleConfigChange("minVisitsToPreload", Number.parseInt(e.target.value))
+                  handleConfigChange(
+                    "minVisitsToPreload",
+                    Number.parseInt(e.target.value)
+                  )
                 }
               />
             </div>
             <div className="config-item">
-              <label>Idle time (ms)</label>
+              <label htmlFor="idle-time">Idle time (ms)</label>
               <input
+                id="idle-time"
                 type="number"
                 min={1000}
                 step={500}
                 value={config.idleTimeMs}
                 onChange={(e) =>
-                  handleConfigChange("idleTimeMs", Number.parseInt(e.target.value))
+                  handleConfigChange(
+                    "idleTimeMs",
+                    Number.parseInt(e.target.value)
+                  )
                 }
               />
             </div>
             <div className="config-item">
-              <label>Max prefetch queue</label>
+              <label htmlFor="max-queue">Max prefetch queue</label>
               <input
+                id="max-queue"
                 type="number"
                 min={1}
                 max={10}
                 value={config.maxPrefetchQueue}
                 onChange={(e) =>
-                  handleConfigChange("maxPrefetchQueue", Number.parseInt(e.target.value))
+                  handleConfigChange(
+                    "maxPrefetchQueue",
+                    Number.parseInt(e.target.value)
+                  )
                 }
               />
             </div>
@@ -174,21 +193,35 @@ export const CachePrefetcherPanel: React.FC<{ isOpen?: boolean }> = ({
               Auto-refresh
             </label>
             {!stats.isMonitoring ? (
-              <button onClick={handleStart} className="btn-primary">
+              <button
+                type="button"
+                onClick={handleStart}
+                className="btn-primary"
+              >
                 ▶️ Start
               </button>
             ) : (
-              <button onClick={handleStop} className="btn-secondary">
+              <button
+                type="button"
+                onClick={handleStop}
+                className="btn-secondary"
+              >
                 ⏹️ Stop
               </button>
             )}
-            <button onClick={handleReset} className="btn-secondary">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="btn-secondary"
+            >
               🔄 Reset
             </button>
           </div>
 
           <div className="prefetcher-footer">
-            <p>💡 Access via console with <code>__cachePrefetcher</code></p>
+            <p>
+              💡 Access via console with <code>__cachePrefetcher</code>
+            </p>
           </div>
         </div>
       )}

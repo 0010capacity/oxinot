@@ -106,7 +106,9 @@ class AnalyticsTracker {
     const currentPageId = Array.from(this.pageViewTimestamps.keys()).pop();
 
     if (currentPageId && this.pageViewTimestamps.has(currentPageId)) {
-      const timeEntered = this.pageViewTimestamps.get(currentPageId)!;
+      const timeEntered = this.pageViewTimestamps.get(currentPageId);
+      if (!timeEntered) return;
+
       const timeSpent = (now - timeEntered) / 1000;
 
       const pageData = this.pageHits.get(currentPageId);
@@ -140,20 +142,21 @@ class AnalyticsTracker {
     if (currentPageId) {
       pageData.referredFrom.set(
         currentPageId,
-        (pageData.referredFrom.get(currentPageId) || 0) + 1,
+        (pageData.referredFrom.get(currentPageId) || 0) + 1
       );
     }
 
     if (this.currentSessionId) {
-      const session = this.sessions.get(this.currentSessionId)!;
-      if (!session.pagesViewed.includes(pageId)) {
-        session.pagesViewed.push(pageId);
-        pageData.uniqueSessions++;
+      const session = this.sessions.get(this.currentSessionId);
+      if (session) {
+        if (!session.pagesViewed.includes(pageId)) {
+          session.pagesViewed.push(pageId);
+        }
+        session.pageVisitOrder.push({
+          pageId,
+          timestamp: now,
+        });
       }
-      session.pageVisitOrder.push({
-        pageId,
-        timestamp: now,
-      });
     }
 
     this.pageViewTimestamps.set(pageId, now);
@@ -188,13 +191,15 @@ class AnalyticsTracker {
     if (pageContext) {
       searchData.relatedPages.set(
         pageContext,
-        (searchData.relatedPages.get(pageContext) || 0) + 1,
+        (searchData.relatedPages.get(pageContext) || 0) + 1
       );
     }
 
     if (this.currentSessionId) {
-      const session = this.sessions.get(this.currentSessionId)!;
-      session.searchesPerformed.push(normalizedQuery);
+      const session = this.sessions.get(this.currentSessionId);
+      if (session) {
+        session.searchesPerformed.push(normalizedQuery);
+      }
     }
   }
 
@@ -217,7 +222,9 @@ class AnalyticsTracker {
   getSessionSummary(): Partial<SessionData> | null {
     if (!this.currentSessionId) return null;
 
-    const session = this.sessions.get(this.currentSessionId)!;
+    const session = this.sessions.get(this.currentSessionId);
+    if (!session) return null;
+
     const now = Date.now();
     session.endTime = now;
     session.totalDuration = now - session.startTime;
@@ -261,11 +268,11 @@ class AnalyticsTracker {
     const cacheStats = getCacheStats();
     const allPageViews = Array.from(this.pageHits.values()).reduce(
       (sum, p) => sum + p.totalHits,
-      0,
+      0
     );
     const totalSearches = Array.from(this.searchTerms.values()).reduce(
       (sum, s) => sum + s.frequency,
-      0,
+      0
     );
 
     let totalSessionDuration = 0;
@@ -303,13 +310,19 @@ class AnalyticsTracker {
     let pagesList = "";
     for (const page of topPages) {
       const avgTimeSpent = page.avgTimeSpent.toFixed(1);
-      pagesList += `║    ${page.path.padEnd(30)} │ ${String(page.totalHits).padEnd(4)} hits │ ${avgTimeSpent}s avg\n`;
+      pagesList += `║    ${page.path.padEnd(30)} │ ${String(
+        page.totalHits
+      ).padEnd(4)} hits │ ${avgTimeSpent}s avg\n`;
     }
 
     let searchList = "";
     for (const search of topSearches) {
       const avgResults = search.avgResultsCount.toFixed(1);
-      searchList += `║    "${search.term.substring(0, 28).padEnd(28)}" │ ${String(search.frequency).padEnd(4)} │ ${avgResults} results avg\n`;
+      searchList += `║    "${search.term
+        .substring(0, 28)
+        .padEnd(28)}" │ ${String(search.frequency).padEnd(
+        4
+      )} │ ${avgResults} results avg\n`;
     }
 
     return `
@@ -317,9 +330,19 @@ class AnalyticsTracker {
 ║              📊 ADVANCED ANALYTICS REPORT                          ║
 ╠════════════════════════════════════════════════════════════════════╣
 ║ 📈 SESSION OVERVIEW                                                ║
-║    Total Sessions: ${String(snapshot.uniqueSessions).padEnd(5)} │ Pages Viewed: ${String(snapshot.totalPageViews).padEnd(5)} │ Searches: ${String(snapshot.totalSearches)}            ║
-║    Avg Session Duration: ${String(avgDurationSec).padEnd(2)}s                                  ║
-║    Unique Pages: ${String(snapshot.uniquePagesViewed).padEnd(3)} │ Unique Search Terms: ${String(snapshot.uniqueSearchTerms).padEnd(3)}                 ║
+║    Total Sessions: ${String(snapshot.uniqueSessions).padEnd(
+      5
+    )} │ Pages Viewed: ${String(snapshot.totalPageViews).padEnd(
+      5
+    )} │ Searches: ${String(snapshot.totalSearches)}            ║
+║    Avg Session Duration: ${String(avgDurationSec).padEnd(
+      2
+    )}s                                  ║
+║    Unique Pages: ${String(snapshot.uniquePagesViewed).padEnd(
+      3
+    )} │ Unique Search Terms: ${String(snapshot.uniqueSearchTerms).padEnd(
+      3
+    )}                 ║
 ║                                                                    ║
 ║ 🔝 TOP 5 PAGES                                                     ║
 ║    Page Name (Path)                    Hits  │ Avg Time          ║
@@ -330,7 +353,9 @@ class AnalyticsTracker {
 ║    ${searchList.trim().split("\n").join("\n║    ")}  ║
 ║                                                                    ║
 ║ 💾 CACHE INTEGRATION                                               ║
-║    Cache Hit Rate: ${snapshot.cacheHitRate.toFixed(1)}%                                      ║
+║    Cache Hit Rate: ${snapshot.cacheHitRate.toFixed(
+      1
+    )}%                                      ║
 ║                                                                    ║
 ╚════════════════════════════════════════════════════════════════════╝
     `.trim();
@@ -369,19 +394,31 @@ class AnalyticsTracker {
     csv += "## Summary\n";
     csv +=
       "Total Sessions,Total Page Views,Unique Pages,Unique Searches,Avg Session Duration (s)\n";
-    csv += `${snapshot.uniqueSessions},${snapshot.totalPageViews},${snapshot.uniquePagesViewed},${snapshot.uniqueSearchTerms},${Math.round(snapshot.avgSessionDuration / 1000)}\n\n`;
+    csv += `${snapshot.uniqueSessions},${snapshot.totalPageViews},${
+      snapshot.uniquePagesViewed
+    },${snapshot.uniqueSearchTerms},${Math.round(
+      snapshot.avgSessionDuration / 1000
+    )}\n\n`;
 
     csv += "## Page Views\n";
     csv +=
       "Page ID,Path,Total Hits,Unique Sessions,Avg Time Spent (s),First Visited,Last Visited\n";
     for (const page of pages) {
-      csv += `"${page.pageId}","${page.path}",${page.totalHits},${page.uniqueSessions},${page.avgTimeSpent.toFixed(2)},${new Date(page.firstVisited).toISOString()},${new Date(page.lastVisited).toISOString()}\n`;
+      csv += `"${page.pageId}","${page.path}",${page.totalHits},${
+        page.uniqueSessions
+      },${page.avgTimeSpent.toFixed(2)},${new Date(
+        page.firstVisited
+      ).toISOString()},${new Date(page.lastVisited).toISOString()}\n`;
     }
 
     csv += "\n## Search Terms\n";
     csv += "Search Term,Frequency,Avg Results Count,First Used,Last Used\n";
     for (const search of searches) {
-      csv += `"${search.term}",${search.frequency},${search.avgResultsCount.toFixed(2)},${new Date(search.firstUsed).toISOString()},${new Date(search.lastUsed).toISOString()}\n`;
+      csv += `"${search.term}",${
+        search.frequency
+      },${search.avgResultsCount.toFixed(2)},${new Date(
+        search.firstUsed
+      ).toISOString()},${new Date(search.lastUsed).toISOString()}\n`;
     }
 
     return csv;
@@ -437,7 +474,9 @@ class AnalyticsTracker {
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     console.log(
-      `[analyticsTracker] ${enabled ? "✅" : "❌"} Analytics tracking ${enabled ? "enabled" : "disabled"}`,
+      `[analyticsTracker] ${enabled ? "✅" : "❌"} Analytics tracking ${
+        enabled ? "enabled" : "disabled"
+      }`
     );
   }
 
@@ -448,10 +487,15 @@ class AnalyticsTracker {
 
 export const analyticsTracker = new AnalyticsTracker();
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __analyticsTracker: typeof analyticsTracker;
+}
+
 if (typeof window !== "undefined") {
-  (window as any).__analyticsTracker = analyticsTracker;
+  window.__analyticsTracker = analyticsTracker;
   console.log(
-    "[analyticsTracker] 🚀 Analytics tracker available at __analyticsTracker",
+    "[analyticsTracker] 🚀 Analytics tracker available at __analyticsTracker"
   );
 }
 

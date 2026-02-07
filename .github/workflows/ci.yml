@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - develop
   pull_request:
     branches:
       - main
+      - develop
   merge_group:
 
 env:
@@ -35,43 +37,28 @@ jobs:
           IGNORE_REGEX="$(cat .github/ci/ignore-regex.txt)"
 
           SHOULD_RUN=true
-          IS_CHANGESET_PR=false
 
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             PR_NUMBER="${{ github.event.pull_request.number }}"
             OWNER_REPO="${{ github.repository }}"
 
-            # Always run CI for Version Packages PR (created by changesets)
-            PR_TITLE="$(gh api "repos/${OWNER_REPO}/pulls/${PR_NUMBER}" --jq '.title' || true)"
-            if [[ "${PR_TITLE}" == *"Version Packages"* ]] || [[ "${PR_TITLE}" == "chore: Version Packages"* ]]; then
-              echo "Version Packages PR detected - CI will run"
-              SHOULD_RUN=true
-            elif [[ "${PR_TITLE}" == *"auto-generate changeset"* ]]; then
-              echo "Changeset PR detected - CI will run (lint/build will be skipped)"
-              SHOULD_RUN=true
-              IS_CHANGESET_PR=true
-            else
-              FILES="$(
-                gh api --paginate "repos/${OWNER_REPO}/pulls/${PR_NUMBER}/files?per_page=100" \
-                  --jq '.[].filename' || true
-              )"
+            FILES="$(
+              gh api --paginate "repos/${OWNER_REPO}/pulls/${PR_NUMBER}/files?per_page=100" \
+                --jq '.[].filename' || true
+            )"
 
-              if [ -z "${FILES}" ]; then
-                # Be conservative: run CI if we can't determine files.
-                SHOULD_RUN=true
-              else
-                NON_IGNORED="$(printf "%s\n" "${FILES}" | grep -Ev "${IGNORE_REGEX}" || true)"
-                if [ -z "${NON_IGNORED}" ]; then
-                  SHOULD_RUN=false
-                fi
+            if [ -z "${FILES}" ]; then
+              SHOULD_RUN=true
+            else
+              NON_IGNORED="$(printf "%s\n" "${FILES}" | grep -Ev "${IGNORE_REGEX}" || true)"
+              if [ -z "${NON_IGNORED}" ]; then
+                SHOULD_RUN=false
               fi
             fi
           elif [ "${{ github.event_name }}" = "push" ]; then
-            # Determine changed files between before/after commits.
             BEFORE="${{ github.event.before }}"
             AFTER="${{ github.sha }}"
 
-            # Some pushes (e.g. force push / first commit) may not have a usable BEFORE.
             if [ -n "${BEFORE}" ] && [ "${BEFORE}" != "0000000000000000000000000000000000000000" ]; then
               FILES="$(git diff --name-only "${BEFORE}" "${AFTER}" || true)"
             else
@@ -89,13 +76,12 @@ jobs:
           fi
 
           echo "should_run=${SHOULD_RUN}" >> "$GITHUB_OUTPUT"
-          echo "is_changeset_pr=${IS_CHANGESET_PR}" >> "$GITHUB_OUTPUT"
 
       - name: Short-circuit (docs/config-only change)
         if: steps.changes.outputs.should_run != 'true'
         shell: bash
         run: |
-          echo "CI skipped: all changes are docs/config/changeset-only."
+          echo "CI skipped: all changes are docs/config-only."
           exit 0
 
       - name: Setup Node
@@ -126,20 +112,16 @@ jobs:
         run: npm install
 
       - name: Lint
-        if: steps.changes.outputs.should_run == 'true' && steps.changes.outputs.is_changeset_pr != 'true'
+        if: steps.changes.outputs.should_run == 'true'
         run: npm run lint
 
       - name: Build frontend
-        if: steps.changes.outputs.should_run == 'true' && steps.changes.outputs.is_changeset_pr != 'true'
+        if: steps.changes.outputs.should_run == 'true'
         run: npm run build
 
       - name: Build Tauri (check only)
-        if: steps.changes.outputs.should_run == 'true' && steps.changes.outputs.is_changeset_pr != 'true'
+        if: steps.changes.outputs.should_run == 'true'
         run: npm run tauri:build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-
-      - name: CI passed (changeset PR - lint and build skipped)
-        if: steps.changes.outputs.should_run == 'true' && steps.changes.outputs.is_changeset_pr == 'true'
-        run: echo "Changeset PR CI check passed - lint and build steps skipped as expected"

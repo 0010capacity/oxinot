@@ -1,7 +1,7 @@
 import { Box, Modal, ScrollArea } from "@mantine/core";
-import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 interface HelpModalProps {
   opened: boolean;
@@ -446,3 +446,5 @@ export function HelpModal({ opened, onClose }: HelpModalProps) {
     </Modal>
   );
 }
+
+export default HelpModal;

@@ -249,3 +249,5 @@ export function MigrationDialog({
     </Modal>
   );
 }
+
+export default MigrationDialog;

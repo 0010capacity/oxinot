@@ -1,20 +1,20 @@
 import {
-  Modal,
-  Group,
-  Center,
-  Loader,
-  Text,
   ActionIcon,
-  Tooltip,
+  Box,
+  Center,
+  Group,
+  Loader,
+  Modal,
   SegmentedControl,
   Slider,
-  Box,
   Stack,
+  Text,
+  Tooltip,
 } from "@mantine/core";
 import { IconLink, IconRefresh, IconZoomReset } from "@tabler/icons-react";
-import { useCallback, useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import * as d3 from "d3";
+import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./GraphViewModal.module.css";
 
 interface GraphNode extends d3.SimulationNodeDatum {
@@ -523,3 +523,5 @@ export function GraphViewModal({
     </Modal>
   );
 }
+
+export default GraphViewModal;

@@ -2,21 +2,21 @@ import { Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { IconPlus } from "@tabler/icons-react";
 import type React from "react";
 import {
-  useEffect,
-  useState,
-  useCallback,
   createContext,
-  useMemo,
   memo,
+  useCallback,
+  useEffect,
+  useMemo,
   useRef,
+  useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import {
   type PageData,
-  usePageStore,
   usePage,
   usePageChildrenIds,
+  usePageStore,
 } from "../stores/pageStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { NewPageInput } from "./fileTree/NewPageInput";
@@ -1075,3 +1075,5 @@ export function FileTreeIndex() {
     </PageContainer>
   );
 }
+
+export default FileTreeIndex;

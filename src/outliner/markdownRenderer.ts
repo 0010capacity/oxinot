@@ -1,58 +1,163 @@
 import MarkdownIt from "markdown-it";
 
-/**
- * Markdown renderer for outliner block previews.
- *
- * Goals:
- * - Safe-ish by default: no raw HTML parsing
- * - Fast: single MarkdownIt instance reused
- * - Small surface area: render inline/ block content to HTML for preview layers
- *
- * Notes:
- * - This renderer is intended for "preview" DOM insertion using `dangerouslySetInnerHTML`.
- * - It disables HTML in MarkdownIt to avoid arbitrary HTML injection from user content.
- * - If you need richer rendering (task list checkboxes, etc.), add plugins here deliberately.
- */
-
 export interface RenderOptions {
-  /**
-   * When true, renders in inline mode (no surrounding <p> wrapper in many cases).
-   * Useful for one-line bullet blocks where you want compact previews.
-   */
   inline?: boolean;
-
-  /**
-   * If provided, indents each line with N spaces before rendering.
-   * Useful when rendering brace-block content that logically lives under an outliner level.
-   */
   indentSpaces?: number;
-
-  /**
-   * When true, allow block-level markdown parsing even for "single line" blocks.
-   *
-   * This is important for outliner bullets because users will write things like:
-   *   ## Heading
-   * inside a bullet, and expect it to render as a heading.
-   *
-   * Default: false
-   */
   allowBlocks?: boolean;
 }
 
-/**
- * Singleton MarkdownIt instance. Reuse avoids per-block allocations.
- */
+// ============ Custom Syntax Plugins ============
+
+function wikiLinkPlugin(md: MarkdownIt): void {
+  md.inline.ruler.push("wiki_link", (state) => {
+    if (state.src.charCodeAt(state.pos) !== 0x5b) return false;
+
+    const max = state.posMax;
+    if (state.pos + 4 >= max) return false;
+    if (state.src.charCodeAt(state.pos + 1) !== 0x5b) return false;
+
+    const labelStart = state.pos + 2;
+    const labelEnd = state.src.indexOf("]]", labelStart);
+
+    if (labelEnd === -1 || labelEnd >= max) return false;
+
+    const label = state.src.slice(labelStart, labelEnd);
+    if (label.length === 0) return false;
+
+    const token = state.push("wiki_link_open", "span", 1);
+    token.attrSet("class", "wiki-link");
+    token.attrSet("data-page", label);
+    token.content = label;
+
+    state.push("text", "", 0).content = label;
+    state.push("wiki_link_close", "span", -1);
+
+    state.pos = labelEnd + 2;
+    return true;
+  });
+
+  md.renderer.rules.wiki_link_open = (tokens, idx) => {
+    const token = tokens[idx];
+    const pageId = token.attrGet("data-page") || "";
+    return `<a class="wiki-link" href="#page/${pageId}" data-page="${escapeHtml(
+      pageId
+    )}">`;
+  };
+
+  md.renderer.rules.wiki_link_close = () => {
+    return "</a>";
+  };
+}
+
+function blockRefPlugin(md: MarkdownIt): void {
+  md.inline.ruler.push("block_ref", (state) => {
+    if (state.src.charCodeAt(state.pos) !== 0x28) return false;
+
+    const max = state.posMax;
+    if (state.pos + 4 >= max) return false;
+    if (state.src.charCodeAt(state.pos + 1) !== 0x28) return false;
+
+    const refStart = state.pos + 2;
+    const refEnd = state.src.indexOf("))", refStart);
+
+    if (refEnd === -1 || refEnd >= max) return false;
+
+    const ref = state.src.slice(refStart, refEnd);
+    if (ref.length === 0) return false;
+
+    const token = state.push("block_ref_open", "span", 1);
+    token.attrSet("class", "block-ref");
+    token.attrSet("data-block-id", ref);
+    token.content = ref;
+
+    state.push("text", "", 0).content = `((${ref}))`;
+    state.push("block_ref_close", "span", -1);
+
+    state.pos = refEnd + 2;
+    return true;
+  });
+
+  md.renderer.rules.block_ref_open = (tokens, idx) => {
+    const token = tokens[idx];
+    const blockId = token.attrGet("data-block-id") || "";
+    return `<a class="block-ref" href="#block/${blockId}" data-block-id="${escapeHtml(
+      blockId
+    )}">((`;
+  };
+
+  md.renderer.rules.block_ref_close = () => {
+    return "))</a>";
+  };
+}
+
+function calloutPlugin(md: MarkdownIt): void {
+  md.block.ruler.push(
+    "callout",
+    (state, startLine, endLine) => {
+      const pos = state.bMarks[startLine] + state.tShift[startLine];
+      const maximum = state.eMarks[startLine];
+
+      if (pos + 6 > maximum) return false;
+      if (state.src.slice(pos, pos + 6) !== "> [!") return false;
+
+      const firstLine = state.src.slice(pos, maximum);
+      const match = firstLine.match(/^> \[!(\w+)\]/);
+      if (!match) return false;
+
+      const calloutType = match[1].toLowerCase();
+      let nextLine = startLine + 1;
+
+      while (nextLine < endLine) {
+        if (
+          state.bMarks[nextLine] + state.tShift[nextLine] >=
+          state.eMarks[nextLine]
+        ) {
+          break;
+        }
+        nextLine++;
+      }
+
+      const oldLineMax = state.lineMax;
+      state.lineMax = nextLine;
+
+      const token = state.push("callout_open", "div", 1);
+      token.attrSet("class", `callout callout-${calloutType}`);
+      token.hidden = false;
+
+      state.md.block.tokenize(state, startLine + 1, nextLine);
+
+      state.push("callout_close", "div", -1);
+      state.lineMax = oldLineMax;
+      state.line = nextLine;
+
+      return true;
+    },
+    {
+      alt: ["paragraph", "reference", "blockquote", "list"],
+    }
+  );
+
+  md.renderer.rules.callout_open = (tokens, idx) => {
+    const token = tokens[idx];
+    return `<div class="${token.attrGet("class") || ""}">`;
+  };
+
+  md.renderer.rules.callout_close = () => {
+    return "</div>";
+  };
+}
+
 const md = new MarkdownIt({
-  html: false, // IMPORTANT: do not allow raw HTML (prevents easy XSS vectors)
+  html: false,
   linkify: true,
   breaks: false,
   typographer: true,
 });
 
-/**
- * Escape HTML for plain text fallback. (markdown-it is already safe with html:false,
- * but this is useful if you ever choose to bypass rendering for empty/invalid cases.)
- */
+wikiLinkPlugin(md);
+blockRefPlugin(md);
+calloutPlugin(md);
+
 export function escapeHtml(input: string): string {
   return input
     .replace(/&/g, "&amp;")
@@ -62,70 +167,60 @@ export function escapeHtml(input: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/**
- * Normalize newlines to `\n` and optionally indent each line.
- */
 function normalizeInput(source: string, indentSpaces?: number): string {
   const normalized = source.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   if (!indentSpaces || indentSpaces <= 0) return normalized;
 
   const indent = " ".repeat(indentSpaces);
-  // Keep trailing newline behavior stable; don't add new lines out of nowhere.
   return normalized
     .split("\n")
     .map((line) => `${indent}${line}`)
     .join("\n");
 }
 
-/**
- * Render markdown to HTML.
- *
- * Intended usage in React:
- * - <div dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(text, { allowBlocks: true }) }} />
- */
 export function renderMarkdownToHtml(
   source: string,
-  options: RenderOptions = {},
+  options: RenderOptions = {}
 ): string {
   let input = normalizeInput(source ?? "", options.indentSpaces);
 
-  // For empty blocks, return empty string (caller can show placeholder)
   if (input.trim().length === 0) return "";
 
-  // If the caller wants block parsing, use md.render(). MarkdownIt will emit
-  // proper block-level HTML (e.g., <h2> for "## ...") even if the source is
-  // a single line.
   if (options.allowBlocks) {
-    // Ensure headings/lists, etc. are parsed as blocks. A single line is fine,
-    // but we normalize with a trailing newline so markdown-it consistently
-    // treats it as a block document.
     if (!input.endsWith("\n")) input = `${input}\n`;
     return md.render(input);
   }
 
   if (options.inline) {
-    // renderInline renders without wrapping block-level containers in many cases.
-    // This means block markers like "##" won't become headings.
     return md.renderInline(input);
   }
 
-  // Default block rendering
   if (!input.endsWith("\n")) input = `${input}\n`;
   return md.render(input);
 }
 
-/**
- * Convenience for outliner bullet blocks:
- * - render as block markdown so headings like "##" work even inside bullets
- */
 export function renderOutlinerBulletPreviewHtml(source: string): string {
-  return renderMarkdownToHtml(source, { allowBlocks: true });
+  // For single-line content without block elements, use inline rendering
+  // to avoid wrapping in <p> tags which causes extra spacing
+  const trimmed = source?.trim() ?? "";
+  const hasBlockSyntax = /^(#{1,6}\s|>\s|\d+\.\s|[-*+]\s|```|> \[!)/.test(
+    trimmed
+  );
+
+  if (!hasBlockSyntax) {
+    // No block syntax: render inline (no <p> wrapper)
+    // For multi-line content, convert newlines to <br> tags
+    const html = renderMarkdownToHtml(source, { inline: true });
+    return html.replace(/\n/g, "<br>");
+  }
+
+  // Block syntax: use full block rendering, but strip wrapping <p> tags
+  let html = renderMarkdownToHtml(source, { allowBlocks: true });
+  // Remove wrapping <p>...</p> tags to match CodeMirror line structure
+  html = html.replace(/^<p>([\s\S]*)<\/p>\n?$/i, "$1");
+  return html;
 }
 
-/**
- * Convenience for brace blocks:
- * - multi-line markdown should render as full markdown (block mode)
- */
 export function renderOutlinerBracePreviewHtml(source: string): string {
   return renderMarkdownToHtml(source, { allowBlocks: true });
 }

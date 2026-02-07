@@ -144,7 +144,7 @@ function ModelSelectorDropdown({
                 Object.entries(allConfigs)
                   .filter(
                     ([_, config]) =>
-                      config?.apiKey && config?.models?.length > 0
+                      config?.apiKey && config?.models?.length > 0,
                   )
                   .map(([p]) => p)
                   .pop() && <Menu.Divider />}
@@ -164,7 +164,7 @@ export function CopilotPanel() {
   // Initialize tool registry on first mount
   useEffect(() => {
     console.log(
-      "[CopilotPanel] Initializing tool registry and debug utilities"
+      "[CopilotPanel] Initializing tool registry and debug utilities",
     );
     initializeToolRegistry();
     exposeDebugToWindow();
@@ -187,7 +187,7 @@ export function CopilotPanel() {
   const chatMessages = useCopilotUiStore((state) => state.chatMessages);
   const addChatMessage = useCopilotUiStore((state) => state.addChatMessage);
   const clearChatMessages = useCopilotUiStore(
-    (state) => state.clearChatMessages
+    (state) => state.clearChatMessages,
   );
 
   // Tool Approval State
@@ -213,7 +213,7 @@ export function CopilotPanel() {
           | "claude"
           | "ollama"
           | "lmstudio"
-          | "custom"
+          | "custom",
       );
   };
 
@@ -885,3 +885,5 @@ export function CopilotPanel() {
     </Paper>
   );
 }
+
+export default CopilotPanel;

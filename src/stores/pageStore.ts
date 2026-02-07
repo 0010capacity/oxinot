@@ -3,6 +3,7 @@ import { immer } from "zustand/middleware/immer";
 import { createWithEqualityFn } from "zustand/traditional";
 import { tauriAPI } from "../tauri-api";
 import { createPageHierarchy, findPageByPath } from "../utils/pageUtils";
+import { useBlockStore } from "./blockStore";
 import { useWorkspaceStore } from "./workspaceStore";
 
 // ============ Types ============
@@ -98,7 +99,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
             id: p.id,
             title: p.title,
             parentId: p.parentId,
-          })),
+          }))
         );
 
         set((state) => {
@@ -142,6 +143,22 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         state.pagesById[newPage.id] = newPage;
         state.pageIds.push(newPage.id);
       });
+
+      // Create an initial block for the new page
+      try {
+        const { createBlock } = useBlockStore.getState();
+        await createBlock(null, "", newPage.id);
+        console.log(
+          `[pageStore.createPage] Initial block created for page ${newPage.id}`
+        );
+      } catch (error) {
+        console.error(
+          `[pageStore.createPage] Failed to create initial block for page ${newPage.id}:`,
+          error
+        );
+        // Don't throw - the page is created successfully, just without a block
+        // The openPage function will handle creating a block if needed
+      }
 
       return newPage.id;
     },
@@ -215,7 +232,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         console.log("[pageStore] Invoking Tauri delete_page command...");
         await invoke("delete_page", { workspacePath, pageId: id });
         console.log(
-          "[pageStore] Tauri delete_page command completed successfully",
+          "[pageStore] Tauri delete_page command completed successfully"
         );
       } catch (error) {
         console.error("[pageStore] Error deleting page, rolling back:", error);
@@ -293,7 +310,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         if (newParentId) {
           console.log(
             "[pageStore.movePage] Refetching new parent:",
-            newParentId,
+            newParentId
           );
           try {
             const newParent = await invoke<PageData | null>("get_page", {
@@ -304,20 +321,20 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
             if (newParent) {
               console.log(
                 "[pageStore.movePage] New parent before update:",
-                get().pagesById[newParentId],
+                get().pagesById[newParentId]
               );
               set((state) => {
                 state.pagesById[newParentId] = newParent;
               });
               console.log(
                 "[pageStore.movePage] New parent after update:",
-                get().pagesById[newParentId],
+                get().pagesById[newParentId]
               );
             }
           } catch (error) {
             console.warn(
               "[pageStore.movePage] Failed to refresh new parent:",
-              error,
+              error
             );
           }
         }
@@ -326,7 +343,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         if (oldParentId && oldParentId !== newParentId) {
           console.log(
             "[pageStore.movePage] Refetching old parent:",
-            oldParentId,
+            oldParentId
           );
           try {
             const oldParent = await invoke<PageData | null>("get_page", {
@@ -337,21 +354,21 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
             if (oldParent) {
               console.log(
                 "[pageStore.movePage] Old parent before update:",
-                get().pagesById[oldParentId],
+                get().pagesById[oldParentId]
               );
               set((state) => {
                 state.pagesById[oldParentId] = oldParent;
               });
               console.log(
                 "[pageStore.movePage] Old parent after update:",
-                get().pagesById[oldParentId],
+                get().pagesById[oldParentId]
               );
               console.log("[pageStore.movePage] All pageIds:", get().pageIds);
             }
           } catch (error) {
             console.warn(
               "[pageStore.movePage] Failed to refresh old parent:",
-              error,
+              error
             );
           }
         }
@@ -371,7 +388,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
       } catch (error) {
         console.error(
           "[pageStore.movePage] Error during move, rolling back:",
-          error,
+          error
         );
         // Rollback on error
         set((state) => {
@@ -430,12 +447,12 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
               return findPageByPath(
                 path,
                 currentState.pageIds,
-                currentState.pagesById,
+                currentState.pagesById
               );
             },
             async (id: string) => {
               await get().convertToDirectory(id);
-            },
+            }
           );
 
           if (!createdPageId) {
@@ -471,7 +488,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
       // This handles the case where page was already in the system
       if (get().pagesById[pageId] === undefined) {
         console.log(
-          "[pageStore] Refreshing pages to ensure pageId is in store...",
+          "[pageStore] Refreshing pages to ensure pageId is in store..."
         );
         const loadedData = await get().loadPages();
         freshPageIds = loadedData.pageIds;
@@ -495,7 +512,7 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
     // ============ Selectors ============
 
     getPage: (id: string) => get().pagesById[id],
-  })),
+  }))
 );
 
 // ============ Selector Hooks ============

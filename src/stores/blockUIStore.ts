@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import { useViewStore } from "./viewStore";
 
 // ============ Types ============
 
@@ -16,6 +17,16 @@ interface BlockUIState {
 
   // 커서 위치 추적
   targetCursorPosition: number | null;
+
+  // Static renderer 클릭 → Editor로 전환 시 커서 위치 추적
+  pendingFocusSelection: {
+    blockId: string;
+    clientX: number;
+    clientY: number;
+  } | null;
+
+  // IME 조합 상태
+  isComposing: boolean;
 }
 
 interface BlockUIActions {
@@ -57,6 +68,17 @@ interface BlockUIActions {
   setTargetCursorPosition: (position: number | null) => void;
   clearTargetCursorPosition: () => void;
 
+  // Static renderer 클릭 좌표 관리
+  setPendingFocusSelection: (
+    blockId: string,
+    clientX: number,
+    clientY: number,
+  ) => void;
+  clearPendingFocusSelection: () => void;
+
+  // IME 상태 관리
+  setIsComposing: (isComposing: boolean) => void;
+
   // 전체 UI 상태 초기화
   reset: () => void;
 }
@@ -73,6 +95,8 @@ const initialState: BlockUIState = {
   mergingBlockId: null,
   mergingTargetBlockId: null,
   targetCursorPosition: null,
+  pendingFocusSelection: null,
+  isComposing: false,
 };
 
 // ============ Store Implementation ============
@@ -86,6 +110,7 @@ export const useBlockUIStore = create<BlockUIStore>()(
         state.focusedBlockId = id;
         state.targetCursorPosition = cursorPos ?? null;
       });
+      useViewStore.getState().setFocusedBlockId(id);
     },
 
     clearFocusedBlock: () => {
@@ -93,6 +118,7 @@ export const useBlockUIStore = create<BlockUIStore>()(
         state.focusedBlockId = null;
         state.targetCursorPosition = null;
       });
+      useViewStore.getState().setFocusedBlockId(null);
     },
 
     setSelectedBlocks: (ids: string[]) => {
@@ -222,6 +248,28 @@ export const useBlockUIStore = create<BlockUIStore>()(
     clearTargetCursorPosition: () => {
       set((state) => {
         state.targetCursorPosition = null;
+      });
+    },
+
+    setPendingFocusSelection: (
+      blockId: string,
+      clientX: number,
+      clientY: number,
+    ) => {
+      set((state) => {
+        state.pendingFocusSelection = { blockId, clientX, clientY };
+      });
+    },
+
+    clearPendingFocusSelection: () => {
+      set((state) => {
+        state.pendingFocusSelection = null;
+      });
+    },
+
+    setIsComposing: (isComposing: boolean) => {
+      set((state) => {
+        state.isComposing = isComposing;
       });
     },
 

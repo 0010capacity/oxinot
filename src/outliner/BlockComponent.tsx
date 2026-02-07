@@ -9,11 +9,21 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import type React from "react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
+import { StaticMarkdownRenderer } from "../components/StaticMarkdownRenderer";
 import {
   ContextMenu,
   type ContextMenuSection,
@@ -21,16 +31,15 @@ import {
 import {
   type BlockData,
   useBlockContent,
-  useBlockHasChildren,
   useBlockIsCollapsed,
   useBlockMetadata,
   useBlockStore,
   useChildrenIds,
 } from "../stores/blockStore";
 import { useTargetCursorPosition } from "../stores/blockUIStore";
-import { useIsBlockFocused } from "../stores/viewStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
+import { useIsBlockFocused } from "../stores/viewStore";
 // NOTE: We intentionally avoid debounced store writes while typing.
 // The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
@@ -38,9 +47,11 @@ import * as batchOps from "../utils/batchBlockOperations";
 import { showToast } from "../utils/toast";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { MacroContentWrapper } from "./MacroContentWrapper";
+import { editorStateCache } from "./editorStateCache";
 import "./BlockComponent.css";
 import { INDENT_PER_LEVEL } from "../constants/layout";
 import { useIsBlockSelected } from "../hooks/useBlockSelection";
+import { BlockOrderContext } from "./BlockEditor";
 import {
   calculateNextBlockCursorPosition,
   calculatePrevBlockCursorPosition,
@@ -49,17 +60,18 @@ import {
 interface BlockComponentProps {
   blockId: string;
   depth: number;
-  blockOrder?: string[];
 }
 
 export const BlockComponent: React.FC<BlockComponentProps> = memo(
-  ({ blockId, depth, blockOrder = [] }: BlockComponentProps) => {
+  ({ blockId, depth }: BlockComponentProps) => {
+    const blockOrder = useContext(BlockOrderContext);
     const computedColorScheme = useComputedColorScheme("light");
     const isDark = computedColorScheme === "dark";
 
     const blockContent = useBlockContent(blockId);
     const isCollapsed = useBlockIsCollapsed(blockId);
-    const hasChildren = useBlockHasChildren(blockId);
+    const childrenIds = useChildrenIds(blockId);
+    const hasChildren = childrenIds.length > 0;
     const blockMetadata = useBlockMetadata(blockId);
     const isFocused = useIsBlockFocused(blockId);
     const showIndentGuides = useOutlinerSettingsStore(
@@ -90,10 +102,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const isSelected = useIsBlockSelected(blockId);
 
     const { t } = useTranslation();
-    // Guard against undefined block (can happen during navigation between pages)
-    if (blockContent === undefined && blockMetadata === undefined) {
-      return null;
-    }
 
     const blockComponentRef = useRef<HTMLDivElement>(null);
     const blockRowRef = useRef<HTMLDivElement>(null);
@@ -388,7 +396,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           block: "center",
         });
       }
-    }, [isFocused, blockId]);
+    }, [isFocused]);
 
     // Handle outside clicks to close metadata editor
     useEffect(() => {
@@ -433,7 +441,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       return () => {
         document.removeEventListener("keydown", handleCopy, true);
       };
-    }, [isFocused, blockId, copyBlocksAsMarkdown]);
+    }, [isFocused, copyBlocksAsMarkdown]);
 
     // Handle Shift+Arrow key selection when this block is focused
     useEffect(() => {
@@ -494,6 +502,35 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       };
     }, [isFocused, blockId, blockOrder, selectBlockRange, setFocusedBlock]);
 
+    const handleStaticMouseDown = useCallback(
+      (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Calculate text position from click location in static renderer
+        let cursorPos = 0;
+
+        // Use caretRangeFromPoint to find caret position at click coordinates
+        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+        if (range && e.currentTarget.contains(range.startContainer)) {
+          // Calculate offset from the start of the block content
+          const preCaretRange = document.createRange();
+          preCaretRange.selectNodeContents(e.currentTarget);
+          preCaretRange.setEnd(range.startContainer, range.startOffset);
+          cursorPos = preCaretRange.toString().length;
+        }
+
+        // Store click coordinates for fallback
+        useBlockUIStore
+          .getState()
+          .setPendingFocusSelection(blockId, e.clientX, e.clientY);
+
+        // Set focus with calculated cursor position
+        setFocusedBlock(blockId, cursorPos);
+      },
+      [blockId, setFocusedBlock]
+    );
+
     // Consolidated IME state
     const imeStateRef = useRef({
       isComposing: false,
@@ -529,7 +566,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           draftRef.current = blockContent ?? "";
         }
       }
-    }, [blockContent, isFocused, blockId, targetCursorPosition]);
+    }, [blockContent, isFocused, targetCursorPosition]);
 
     // Commit helper: stable callback reading from refs (doesn't change every keystroke).
     const commitDraft = useCallback(async () => {
@@ -541,6 +578,23 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         await useBlockStore.getState().updateBlockContent(blockId, latestDraft);
       }
     }, [blockId]);
+
+    // Save editor state before losing focus, restore when regaining focus
+    useEffect(() => {
+      const view = editorRef.current?.getView();
+      if (!view) return;
+
+      if (isFocused) {
+        // When gaining focus: restore cached state if available
+        const cachedState = editorStateCache.get(blockId);
+        if (cachedState) {
+          view.setState(cachedState);
+        }
+      } else {
+        // When losing focus: save current editor state
+        editorStateCache.set(blockId, view.state);
+      }
+    }, [isFocused, blockId]);
 
     // Focus editor when this block becomes focused
     useEffect(() => {
@@ -589,7 +643,41 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         // Reset applied position when this block is no longer focused
         appliedPositionRef.current = null;
       }
-    }, [isFocused, blockId, targetCursorPosition, clearTargetCursorPosition]);
+    }, [isFocused, targetCursorPosition, clearTargetCursorPosition]);
+
+    // Apply cursor position from click coordinates when Editor mounts
+    // This converts screen coordinates (from StaticMarkdownRenderer click) to text position
+    useLayoutEffect(() => {
+      if (!isFocused) return;
+
+      const view = editorRef.current?.getView();
+      if (!view) return;
+
+      const pendingSelection = useBlockUIStore.getState().pendingFocusSelection;
+      if (!pendingSelection || pendingSelection.blockId !== blockId) return;
+
+      // Use CodeMirror's native coordinate→position mapping
+      const pos = view.posAtCoords({
+        x: pendingSelection.clientX,
+        y: pendingSelection.clientY,
+      });
+
+      if (pos !== null) {
+        // Clamp to document bounds
+        const clampedPos = Math.min(Math.max(0, pos), view.state.doc.length);
+
+        // Dispatch selection to place cursor at the mapped position
+        view.dispatch({
+          selection: { anchor: clampedPos, head: clampedPos },
+        });
+      }
+
+      // Clear pending selection after applying
+      useBlockUIStore.getState().clearPendingFocusSelection();
+
+      // Focus the editor so user can immediately start typing
+      editorRef.current?.focus();
+    }, [isFocused, blockId]);
 
     // Handle IME composition events: track state and execute pending block operations
     useEffect(() => {
@@ -742,9 +830,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           });
           setFocusedBlock(blockId);
         } else {
-          // Otherwise just focus
+          // Otherwise just focus - let useLayoutEffect handle focus timing
           setFocusedBlock(blockId);
-          editorRef.current?.focus();
         }
       },
       [blockId, hasChildren, setFocusedBlock]
@@ -955,19 +1042,37 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           key: "Tab",
           preventDefault: true,
           run: () => {
-            // Preserve current cursor position inside the editor when indenting.
-            // Without this, the block re-parenting can cause the cursor to jump to the start.
-            const view = editorRef.current?.getView();
-            const cursorPos = view?.state.selection.main.head ?? null;
+            console.log(
+              "[BlockComponent:Tab] Tab key pressed, blockId:",
+              blockId
+            );
 
             // Start async operations but return true immediately to prevent default behavior
-            commitDraft().then(() => {
-              indentBlock(blockId).then(() => {
-                if (cursorPos !== null) {
-                  setFocusedBlock(blockId, cursorPos);
-                }
+            commitDraft()
+              .then(() => {
+                console.log(
+                  "[BlockComponent:Tab] commitDraft done, calling indentBlock"
+                );
+                indentBlock(blockId)
+                  .then(() => {
+                    console.log("[BlockComponent:Tab] indentBlock done");
+                    // Don't restore focus immediately - it causes React Hook errors
+                    // during structural reconciliation. The block content is preserved,
+                    // user can click to refocus if needed.
+                    console.log(
+                      "[BlockComponent:Tab] Focus restoration skipped to avoid Hook errors"
+                    );
+                  })
+                  .catch((err) => {
+                    console.error(
+                      "[BlockComponent:Tab] indentBlock failed:",
+                      err
+                    );
+                  });
+              })
+              .catch((err) => {
+                console.error("[BlockComponent:Tab] commitDraft failed:", err);
               });
-            });
             return true;
           },
         },
@@ -975,16 +1080,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           key: "Shift-Tab",
           preventDefault: true,
           run: () => {
-            // Preserve current cursor position inside the editor when outdenting.
-            const view = editorRef.current?.getView();
-            const cursorPos = view?.state.selection.main.head ?? null;
-
             // Start async operations but return true immediately to prevent default behavior
             commitDraft().then(() => {
               outdentBlock(blockId).then(() => {
-                if (cursorPos !== null) {
-                  setFocusedBlock(blockId, cursorPos);
-                }
+                // Don't restore focus immediately - it causes React Hook errors
+                // during structural reconciliation. The block content is preserved,
+                // user can click to refocus if needed.
+                console.log(
+                  "[BlockComponent:Shift-Tab] Focus restoration skipped to avoid Hook errors"
+                );
               });
             });
             return true;
@@ -1001,7 +1105,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       mergeWithPrevious,
       splitBlockAtCursor,
     ]);
-    if (blockContent === undefined && blockMetadata === undefined) return null;
 
     // Render only one indent guide at this block's depth level
     const indentGuide =
@@ -1013,6 +1116,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           }}
         />
       ) : null;
+
+    // Early return if block has no content and no metadata
+    // This guard is placed AFTER all hooks (including useMemo) to comply with React Hook rules
+    if (blockContent === undefined && blockMetadata === undefined) {
+      return null;
+    }
 
     return (
       <ContextMenu
@@ -1131,80 +1240,72 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               className="block-content-wrapper"
               style={{ position: "relative" }}
             >
-              <MacroContentWrapper
-                content={draft}
-                blockId={blockId}
-                isFocused={isFocused}
-                onEdit={() => setFocusedBlock(blockId)}
-              >
-                <Popover
-                  opened={isMetadataOpen}
-                  onClose={() => {
-                    setIsMetadataOpen(false);
-                  }}
-                  position="bottom"
-                  withArrow
-                  shadow="md"
-                  trapFocus={false}
-                  closeOnEscape
-                  closeOnClickOutside
-                  withinPortal={true}
-                  transitionProps={{ duration: 0 }}
+              {isFocused ? (
+                <MacroContentWrapper
+                  content={draft}
+                  blockId={blockId}
+                  isFocused={isFocused}
+                  onEdit={() => setFocusedBlock(blockId)}
                 >
-                  <Popover.Target>
-                    <Box style={{ width: "100%" }}>
-                      <Editor
-                        ref={editorRef}
-                        value={draft}
-                        onChange={handleContentChangeWithTrigger}
-                        onFocus={handleFocus}
-                        onBlur={handleBlur}
-                        lineNumbers={false}
-                        lineWrapping={true}
-                        theme={isDark ? "dark" : "light"}
-                        keybindings={keybindings}
-                        // FOCUS STATE PROP:
-                        // -----------------
-                        // This determines whether markdown markers are visible or hidden
-                        // isFocused comes from useIsBlockFocused and is true when user clicks/focuses a block
-                        //
-                        // When true (block has focus):
-                        //   → shouldShowMarkers = true (via shouldShowMarkersForLine in hybridRendering.ts)
-                        //   → Markers are visible → Shows raw markdown (e.g., [[link]], # heading)
-                        //
-                        // When false (block unfocused):
-                        //   → shouldShowMarkers = false
-                        //   → Markers are hidden → Renders formatted content (e.g., link, styled heading)
-                        isFocused={isFocused}
-                        className="block-editor"
-                        style={{
-                          minHeight: "24px",
-                          fontSize: "14px",
+                  <Popover
+                    opened={isMetadataOpen}
+                    onClose={() => {
+                      setIsMetadataOpen(false);
+                    }}
+                    position="bottom"
+                    withArrow
+                    shadow="md"
+                    trapFocus={false}
+                    closeOnEscape
+                    closeOnClickOutside
+                    withinPortal={true}
+                    transitionProps={{ duration: 0 }}
+                  >
+                    <Popover.Target>
+                      <Box style={{ width: "100%" }}>
+                        <Editor
+                          ref={editorRef}
+                          value={draft}
+                          onChange={handleContentChangeWithTrigger}
+                          onFocus={handleFocus}
+                          onBlur={handleBlur}
+                          lineNumbers={false}
+                          lineWrapping={true}
+                          theme={isDark ? "dark" : "light"}
+                          keybindings={keybindings}
+                          isFocused={isFocused}
+                          className="block-editor"
+                          style={{}}
+                        />
+                      </Box>
+                    </Popover.Target>
+                    <Popover.Dropdown
+                      p={0}
+                      ref={popoverDropdownRef}
+                      style={{ minWidth: "300px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                    >
+                      <MetadataEditor
+                        blockId={blockId}
+                        onClose={() => {
+                          setIsMetadataOpen(false);
+                          setTimeout(() => {
+                            editorRef.current?.focus();
+                          }, 0);
                         }}
                       />
-                    </Box>
-                  </Popover.Target>
-                  <Popover.Dropdown
-                    p={0}
-                    ref={popoverDropdownRef}
-                    style={{ minWidth: "300px" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                    }}
-                  >
-                    <MetadataEditor
-                      blockId={blockId}
-                      onClose={() => {
-                        setIsMetadataOpen(false);
-                        // Return focus to editor after metadata is saved
-                        setTimeout(() => {
-                          editorRef.current?.focus();
-                        }, 0);
-                      }}
-                    />
-                  </Popover.Dropdown>
-                </Popover>
-              </MacroContentWrapper>
+                    </Popover.Dropdown>
+                  </Popover>
+                </MacroContentWrapper>
+              ) : (
+                <StaticMarkdownRenderer
+                  content={blockContent || ""}
+                  onMouseDownCapture={handleStaticMouseDown}
+                  style={{}}
+                />
+              )}
 
               {/* Metadata Badge - small indicator with tooltip */}
               {blockMetadata && (
@@ -1225,12 +1326,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           {/* Render children recursively if not collapsed */}
           {hasChildren && !isCollapsed && (
             <div className="block-children">
-              {useChildrenIds(blockId).map((childId: string) => (
+              {childrenIds.map((childId: string) => (
                 <BlockComponent
                   key={childId}
                   blockId={childId}
                   depth={depth + 1}
-                  blockOrder={blockOrder}
                 />
               ))}
             </div>
