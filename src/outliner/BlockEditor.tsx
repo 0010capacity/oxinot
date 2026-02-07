@@ -119,6 +119,20 @@ export function BlockEditor({
     }
   }, [pageId, currentPageId, openPage]);
 
+  const clearZoom = useViewStore((state) => state.clearZoom);
+
+  useEffect(() => {
+    if (zoomPath.length > 0) {
+      const zoomRootId = zoomPath[zoomPath.length - 1];
+      if (!blocksById[zoomRootId]) {
+        console.warn(
+          `[BlockEditor] Zoom target ${zoomRootId} not found in blocksById, clearing zoom`,
+        );
+        clearZoom();
+      }
+    }
+  }, [zoomPath, blocksById, clearZoom]);
+
   const blocksToShowRef = useRef<string[]>([]);
   const blocksToShow = useMemo(() => {
     let toShow: string[] = [];

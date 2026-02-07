@@ -1,5 +1,7 @@
 import { immer } from "zustand/middleware/immer";
 import { createWithEqualityFn } from "zustand/traditional";
+import { useBlockStore } from "./blockStore";
+import type { BlockData } from "./blockStore";
 import { useNavigationStore } from "./navigationStore";
 import { usePageStore } from "./pageStore";
 
@@ -113,12 +115,21 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
 
     zoomToBlock: (blockId: string) => {
       set((state) => {
-        state.focusedBlockId = blockId;
-        if (!state.zoomPath.includes(blockId)) {
-          state.zoomPath.push(blockId);
+        const blocksById = useBlockStore.getState().blocksById;
+        const path: string[] = [];
+        let currentId: string | null = blockId;
+
+        while (currentId) {
+          path.unshift(currentId);
+          const currentBlock = blocksById[currentId] as BlockData | undefined;
+          if (!currentBlock) break;
+          currentId = currentBlock.parentId || null;
         }
-        if (state.currentNotePath) {
-          state.zoomByPageId[state.currentNotePath] = state.zoomPath;
+
+        state.focusedBlockId = blockId;
+        state.zoomPath = path;
+        if (state.currentNotePath && path.length > 0) {
+          state.zoomByPageId[state.currentNotePath] = [...path];
         }
       });
     },
@@ -130,7 +141,7 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         state.focusedBlockId =
           newPath.length > 0 ? newPath[newPath.length - 1] : null;
         if (state.currentNotePath) {
-          state.zoomByPageId[state.currentNotePath] = state.zoomPath;
+          state.zoomByPageId[state.currentNotePath] = [...newPath];
         }
       });
     },
@@ -154,13 +165,14 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
     zoomOut: () => {
       set((state) => {
         if (state.zoomPath.length > 0) {
-          // Remove last block from zoom path
           state.zoomPath.pop();
-          // Set focused block to the new last item (or null if empty)
           state.focusedBlockId =
             state.zoomPath.length > 0
               ? state.zoomPath[state.zoomPath.length - 1]
               : null;
+          if (state.currentNotePath) {
+            state.zoomByPageId[state.currentNotePath] = [...state.zoomPath];
+          }
         }
       });
     },
@@ -178,12 +190,14 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
     goBack: () => {
       set((state) => {
         if (state.zoomPath.length > 0) {
-          // Zoom out one level
           state.zoomPath.pop();
           state.focusedBlockId =
             state.zoomPath.length > 0
               ? state.zoomPath[state.zoomPath.length - 1]
               : null;
+          if (state.currentNotePath) {
+            state.zoomByPageId[state.currentNotePath] = [...state.zoomPath];
+          }
         } else if (state.mode === "note") {
           state.mode = "index";
           state.currentNotePath = null;
