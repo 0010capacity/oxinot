@@ -29,8 +29,8 @@
   --editor-line-height: 1.6;
 
   /* Block Level Styles - Shared by both StaticRenderer and CodeMirror */
-  --block-font-size: 14px;
-  --block-line-height: 1.6;
+  --block-font-size: var(--editor-font-size);
+  --block-line-height: var(--editor-line-height);
   --block-padding-top: 2px;
   --block-padding-bottom: 2px;
   --block-min-height: 24px;
