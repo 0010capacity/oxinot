@@ -1102,8 +1102,6 @@ export const useBlockStore = create<BlockStore>()(
                 );
               }
             }
-
-            return newBlock.id;
           } catch (error) {
             // 롤백
             set((state) => {
@@ -1137,11 +1135,8 @@ export const useBlockStore = create<BlockStore>()(
             // Update only the new block
             get().updatePartialBlocks([newBlock]);
 
-            // Set focus
-            useBlockUIStore.setState({
-              focusedBlockId: newBlock.id,
-              targetCursorPosition: 0,
-            });
+            // Set focus to properly sync across all stores
+            useBlockUIStore.getState().setFocusedBlock(newBlock.id, 0);
 
             return newBlock.id;
           } catch (error) {
@@ -1296,11 +1291,8 @@ export const useBlockStore = create<BlockStore>()(
           // Update only the new block (current block already updated by updateBlockContent)
           get().updatePartialBlocks([newBlock]);
 
-          // Set focus
-          useBlockUIStore.setState({
-            focusedBlockId: newBlock.id,
-            targetCursorPosition: 0,
-          });
+          // Set focus to properly sync across all stores
+          useBlockUIStore.getState().setFocusedBlock(newBlock.id, 0);
         } catch (error) {
           console.error("Failed to split block:", error);
           // Reload to restore correct state
