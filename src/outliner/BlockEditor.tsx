@@ -120,6 +120,8 @@ export function BlockEditor({
   }, [pageId, currentPageId, openPage]);
 
   const clearZoom = useViewStore((state) => state.clearZoom);
+  const zoomByPageId = useViewStore((state) => state.zoomByPageId);
+  const hasRestoredZoomRef = useRef(false);
 
   useEffect(() => {
     if (
@@ -127,13 +129,14 @@ export function BlockEditor({
       currentPageId === pageId &&
       Object.keys(blocksById).length > 0
     ) {
-      const savedZoom = useViewStore.getState().zoomByPageId[pageId];
+      const savedZoom = zoomByPageId[pageId];
       const currentZoom = useViewStore.getState().zoomPath;
 
       if (currentZoom.length === 0 && savedZoom && savedZoom.length > 0) {
         const lastZoomId = savedZoom[savedZoom.length - 1];
         if (blocksById[lastZoomId]) {
           useViewStore.setState({ zoomPath: [...savedZoom] });
+          hasRestoredZoomRef.current = true;
           console.log(
             `[BlockEditor] Restored zoom for page ${pageId}:`,
             savedZoom,
@@ -141,16 +144,20 @@ export function BlockEditor({
         }
       }
     }
-  }, [pageId, currentPageId, blocksById]);
+  }, [pageId, currentPageId, blocksById, zoomByPageId]);
 
   useEffect(() => {
     if (zoomPath.length > 0) {
       const zoomRootId = zoomPath[zoomPath.length - 1];
       if (!blocksById[zoomRootId]) {
-        console.warn(
-          `[BlockEditor] Zoom target ${zoomRootId} not found in blocksById, clearing zoom`,
-        );
-        clearZoom();
+        if (!hasRestoredZoomRef.current) {
+          console.warn(
+            `[BlockEditor] Zoom target ${zoomRootId} not found in blocksById, clearing zoom`,
+          );
+          clearZoom();
+        } else {
+          hasRestoredZoomRef.current = false;
+        }
       }
     }
   }, [zoomPath, blocksById, clearZoom]);
