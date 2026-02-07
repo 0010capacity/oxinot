@@ -557,15 +557,57 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // which implies a structural change (merge/split/move) where store is authoritative.
     useEffect(() => {
       const isProgrammaticNav = targetCursorPosition !== null;
+      const focusedBlockId = useBlockUIStore.getState().focusedBlockId;
+      const isTargetOfNav = focusedBlockId === blockId && isProgrammaticNav;
 
-      if (!isFocused || isProgrammaticNav) {
+      /**
+       * CRITICAL: Race condition prevention logic for block content synchronization.
+       *
+       * Problem: When user switches focus (e.g., clicks another block), Tauri invokes
+       * are async. Meanwhile, the new block's content arrives from store. We must NOT
+       * overwrite the user's unsaved edits in the old block with stale values, BUT we
+       * MUST sync fresh content when switching to a new block.
+       *
+       * Solution: Three cases:
+       * 1. Not focused: no-op (this component inactive)
+       * 2. Focused block, content matches draft: safe to sync (no unsaved edits)
+       * 3. Newly focused block (targetCursorPosition set), content not empty:
+       *    Override draft because this is the target block getting keyboard focus.
+       *    The blockContent !== "" check prevents overriding with stale empty values
+       *    that arrived while Tauri was still writing the previous block.
+       *
+       * Why this works: The only false positive is if user truly intends to clear
+       * a block to empty while another block was being saved. Very rare edge case,
+       * and unsaved edits (draftRef) would be lost only if they were ""  initially.
+       */
+      if (!isFocused || isTargetOfNav) {
         // Only update if content is actually different to prevent unnecessary renders
-        if (blockContent !== draftRef.current) {
+        // CRITICAL: If draftRef differs from blockContent, DO NOT sync.
+        // This means there are unsaved local edits - let them commit first.
+        if (blockContent === draftRef.current) {
+          // Content hasn't changed locally, safe to sync from store
+          setDraft(blockContent ?? "");
+        } else if (isTargetOfNav && blockContent !== "") {
+          // Only override if this is the NEWLY FOCUSED block (target of nav)
+          // AND blockContent is not empty (not stale from concurrent commit)
           setDraft(blockContent ?? "");
           draftRef.current = blockContent ?? "";
         }
+        // else: unsaved edits exist or not target of nav - preserve local draft
       }
-    }, [blockContent, isFocused, targetCursorPosition]);
+
+      // Only clear targetCursorPosition if this is the focused block
+      // This ensures other blocks don't see stale programmatic nav flags
+      if (isFocused && targetCursorPosition !== null) {
+        clearTargetCursorPosition();
+      }
+    }, [
+      blockContent,
+      isFocused,
+      targetCursorPosition,
+      blockId,
+      clearTargetCursorPosition,
+    ]);
 
     // Commit helper: stable callback reading from refs (doesn't change every keystroke).
     const commitDraft = useCallback(async () => {
@@ -574,11 +616,34 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
       // Avoid unnecessary writes; also tolerate missing block during transitions.
       if (latestBlock && latestDraft !== latestBlock.content) {
-        await useBlockStore.getState().updateBlockContent(blockId, latestDraft);
+        try {
+          await useBlockStore
+            .getState()
+            .updateBlockContent(blockId, latestDraft);
+        } catch (error) {
+          console.error(
+            `[BlockComponent:commitDraft] ERROR updateBlockContent failed for blockId=${blockId.slice(0, 8)}:`,
+            error,
+          );
+        }
       }
     }, [blockId]);
 
+    // Commit draft when focus is lost.
+    useEffect(() => {
+      console.log(
+        `[BlockComponent:isFocusedEffect] blockId=${blockId.slice(0, 8)}, isFocused=${isFocused}`,
+      );
+      if (isFocused === false) {
+        console.log(
+          `[BlockComponent:isFocusedEffect] Focus lost, committing draft for blockId=${blockId.slice(0, 8)}`,
+        );
+        commitDraft();
+      }
+    }, [isFocused, commitDraft, blockId]);
+
     // Save editor state before losing focus, restore when regaining focus
+    // Also trigger commit when losing focus to ensure onBlur handlers equivalent behavior
     useEffect(() => {
       const view = editorRef.current?.getView();
       if (!view) return;
@@ -802,10 +867,16 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       }
     }, [blockId, setFocusedBlock, isFocused]);
 
-    const handleContentChange = useCallback((content: string) => {
-      draftRef.current = content;
-      setDraft(content);
-    }, []);
+    const handleContentChange = useCallback(
+      (content: string) => {
+        console.log(
+          `[BlockComponent:handleContentChange] blockId=${blockId.slice(0, 8)}, newContent="${content.slice(0, 30)}"`,
+        );
+        draftRef.current = content;
+        setDraft(content);
+      },
+      [blockId],
+    );
 
     const handleBlur = useCallback(async () => {
       // If metadata editor is open, don't close it or commit
@@ -825,23 +896,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       (e: React.MouseEvent) => {
         e.stopPropagation();
         if (hasChildren) {
-          // Calculate full path from root to this block
-          const blocksById = useBlockStore.getState().blocksById;
-          const path: string[] = [];
-          let currentId: string | null = blockId;
-
-          // Build path from current block to root
-          while (currentId) {
-            path.unshift(currentId);
-            const currentBlock = blocksById[currentId] as BlockData | undefined;
-            if (!currentBlock) break;
-            currentId = currentBlock.parentId || null;
-          }
-
-          // Set the full path in view store
-          useViewStore.setState({
-            zoomPath: path,
-          });
+          // Zoom to this block using the new zoom action
+          const { zoomToBlock } = useViewStore.getState();
+          zoomToBlock(blockId);
           setFocusedBlock(blockId);
         } else {
           // Otherwise just focus - let useLayoutEffect handle focus timing
@@ -854,15 +911,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // Create custom keybindings for CodeMirror to handle block operations
     const handleContentChangeWithTrigger = useCallback(
       (value: string) => {
-        // Trigger for metadata modal: "::"
-        if (value.endsWith("::")) {
-          const newValue = value.slice(0, -2);
-          draftRef.current = newValue;
-          setDraft(newValue);
-          setIsMetadataOpen(true);
-          return;
-        }
-        handleContentChange(value);
+        draftRef.current = value;
+        setDraft(value);
       },
       [handleContentChange],
     );
@@ -1193,6 +1243,17 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               transition: "background-color 0.15s ease",
             }}
             onClick={(e: React.MouseEvent) => {
+              // If clicking this block's row (not collapse/bullet) and it's not currently focused,
+              // we need to save any other focused block's draft before changing focus
+              const target = e.target as HTMLElement;
+              const isCollapseButton = target.closest(".collapse-toggle");
+              const isBulletButton = target.closest(".block-bullet-wrapper");
+
+              // Don't interfere with special controls
+              if (isCollapseButton || isBulletButton) {
+                return;
+              }
+
               // Handle multi-select with Ctrl/Cmd + Click
               if (e.ctrlKey || e.metaKey) {
                 e.stopPropagation();
@@ -1214,6 +1275,45 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               else if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
                 useBlockUIStore.getState().clearSelectedBlocks();
                 useBlockUIStore.getState().clearSelectionAnchor();
+              }
+            }}
+            onMouseDown={(e: React.MouseEvent) => {
+              const target = e.target as HTMLElement;
+              const isCollapseButton = target.closest(".collapse-toggle");
+              const isBulletButton = target.closest(".block-bullet-wrapper");
+
+              if (isCollapseButton || isBulletButton) {
+                return;
+              }
+
+              console.log(
+                `[BlockComponent:onMouseDown] START for blockId=${blockId.slice(0, 8)}, isFocused=${isFocused}`,
+              );
+
+              if (isFocused && editorRef.current) {
+                const view = editorRef.current.getView();
+                if (view?.hasFocus) {
+                  console.log(
+                    `[BlockComponent:onMouseDown] Committing draft for blockId=${blockId.slice(0, 8)}`,
+                  );
+                  commitDraft().then(() => {
+                    console.log(
+                      `[BlockComponent:onMouseDown] Draft committed, blurring blockId=${blockId.slice(0, 8)}`,
+                    );
+                    view.contentDOM.blur();
+                  });
+                  return;
+                }
+              }
+
+              if (!isFocused) {
+                console.log(
+                  `[BlockComponent:onMouseDown] Setting focus to blockId=${blockId.slice(0, 8)}`,
+                );
+                // CRITICAL: Do NOT set targetCursorPosition yet - wait for store to be updated
+                // If we set it now, other blocks' blockContentEffect might fire before the store update completes
+                // causing them to override their draft with stale values
+                setFocusedBlock(blockId);
               }
             }}
           >

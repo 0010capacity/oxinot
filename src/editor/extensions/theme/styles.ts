@@ -59,7 +59,6 @@ export const CODE_STYLES = {
 export const BLOCKQUOTE_STYLES = {
   borderLeft: "3px solid rgba(127, 127, 127, 0.3)",
   paddingLeft: "12px",
-  marginLeft: "4px",
   color: "rgba(127, 127, 127, 0.8)",
   fontStyle: "italic",
 } as const;
@@ -183,7 +182,6 @@ export function getBlockquoteStyle(): string {
   return `
     border-left: ${BLOCKQUOTE_STYLES.borderLeft};
     padding-left: ${BLOCKQUOTE_STYLES.paddingLeft};
-    margin-left: ${BLOCKQUOTE_STYLES.marginLeft};
     color: ${BLOCKQUOTE_STYLES.color};
     font-style: ${BLOCKQUOTE_STYLES.fontStyle};
   `.trim();

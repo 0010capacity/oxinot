@@ -617,26 +617,20 @@ fn get_page_blocks_complete_impl(
                 let mut metadata_map = load_blocks_metadata(&conn, &block_ids)?;
 
                 let mut root_blocks = Vec::new();
-                let mut children_by_parent: HashMap<String, Vec<Block>> = HashMap::new();
 
                 for mut block in all_blocks {
                     block.metadata = metadata_map
                         .remove(&block.id)
                         .unwrap_or_default();
 
-                    if block.parent_id.is_none() {
-                        root_blocks.push(block);
-                    } else if let Some(parent_id) = &block.parent_id {
-                        children_by_parent
-                            .entry(parent_id.clone())
-                            .or_insert_with(Vec::new)
-                            .push(block);
-                    }
+                    // Include ALL blocks (root and nested) in root_blocks
+                    // The frontend's normalizeBlocks() will handle the hierarchy correctly
+                    root_blocks.push(block);
                 }
 
                 return Ok(crate::models::block::PageBlocksComplete {
                     root_blocks,
-                    children_by_parent,
+                    children_by_parent: HashMap::new(),
                     metadata: metadata_map,
                 });
             }

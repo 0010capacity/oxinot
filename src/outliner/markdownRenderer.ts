@@ -40,7 +40,7 @@ function wikiLinkPlugin(md: MarkdownIt): void {
     const token = tokens[idx];
     const pageId = token.attrGet("data-page") || "";
     return `<a class="wiki-link" href="#page/${pageId}" data-page="${escapeHtml(
-      pageId
+      pageId,
     )}">`;
   };
 
@@ -81,7 +81,7 @@ function blockRefPlugin(md: MarkdownIt): void {
     const token = tokens[idx];
     const blockId = token.attrGet("data-block-id") || "";
     return `<a class="block-ref" href="#block/${blockId}" data-block-id="${escapeHtml(
-      blockId
+      blockId,
     )}">((`;
   };
 
@@ -134,7 +134,7 @@ function calloutPlugin(md: MarkdownIt): void {
     },
     {
       alt: ["paragraph", "reference", "blockquote", "list"],
-    }
+    },
   );
 
   md.renderer.rules.callout_open = (tokens, idx) => {
@@ -180,7 +180,7 @@ function normalizeInput(source: string, indentSpaces?: number): string {
 
 export function renderMarkdownToHtml(
   source: string,
-  options: RenderOptions = {}
+  options: RenderOptions = {},
 ): string {
   let input = normalizeInput(source ?? "", options.indentSpaces);
 
@@ -204,7 +204,7 @@ export function renderOutlinerBulletPreviewHtml(source: string): string {
   // to avoid wrapping in <p> tags which causes extra spacing
   const trimmed = source?.trim() ?? "";
   const hasBlockSyntax = /^(#{1,6}\s|>\s|\d+\.\s|[-*+]\s|```|> \[!)/.test(
-    trimmed
+    trimmed,
   );
 
   if (!hasBlockSyntax) {
@@ -218,6 +218,8 @@ export function renderOutlinerBulletPreviewHtml(source: string): string {
   let html = renderMarkdownToHtml(source, { allowBlocks: true });
   // Remove wrapping <p>...</p> tags to match CodeMirror line structure
   html = html.replace(/^<p>([\s\S]*)<\/p>\n?$/i, "$1");
+  // Remove trailing newline after block elements (blockquote, list, code, etc.)
+  html = html.replace(/\n+$/, "");
   return html;
 }
 

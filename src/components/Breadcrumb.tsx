@@ -1,168 +1,237 @@
-import { Group, Text } from "@mantine/core";
+import { Text } from "@mantine/core";
 import { IconChevronRight } from "@tabler/icons-react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useBlockStore } from "../stores/blockStore";
 import { usePageStore } from "../stores/pageStore";
 import { useBreadcrumb, useViewStore, useZoomPath } from "../stores/viewStore";
 import "./breadcrumb.css";
 
+const BREADCRUMB_MAX_LENGTH = 30;
+const CHEVRON_SIZE = 16;
+const CHEVRON_OPACITY = 0.3;
+
 interface BreadcrumbProps {
   workspaceName: string;
-  pageName?: string;
   onNavigateHome: () => void;
 }
 
-export function Breadcrumb({
-  workspaceName,
+interface BreadcrumbItemProps {
+  text: string;
+  isLast: boolean;
+  onClick?: () => void | Promise<void>;
+  title?: string;
+  ariaLabel?: string;
+  ariaCurrentPage?: boolean;
+}
 
-  onNavigateHome,
-}: BreadcrumbProps) {
+function BreadcrumbItem({
+  text,
+  isLast,
+  onClick,
+  title,
+  ariaLabel,
+  ariaCurrentPage,
+}: BreadcrumbItemProps) {
+  const isButton = !isLast && onClick;
+
+  const textElement = (
+    <Text
+      size="xl"
+      fw={isLast ? 600 : 400}
+      c={isLast ? undefined : "dimmed"}
+      title={title}
+      className="breadcrumb-text"
+    >
+      {text}
+    </Text>
+  );
+
+  if (isButton) {
+    return (
+      <button
+        type="button"
+        className="breadcrumb-item breadcrumb-button"
+        onClick={onClick}
+        aria-label={ariaLabel}
+        aria-current={ariaCurrentPage ? "page" : undefined}
+      >
+        {textElement}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="breadcrumb-item breadcrumb-text-wrapper"
+      role="presentation"
+      aria-label={ariaLabel}
+      aria-current={ariaCurrentPage ? "page" : undefined}
+    >
+      {textElement}
+    </div>
+  );
+}
+
+function truncateText(
+  text: string,
+  maxLength: number = BREADCRUMB_MAX_LENGTH,
+): string {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
+}
+
+export function Breadcrumb({ workspaceName, onNavigateHome }: BreadcrumbProps) {
   const { t } = useTranslation();
   const zoomPath = useZoomPath();
   const breadcrumb = useBreadcrumb();
   const pagePathIds = useViewStore((state) => state.pagePathIds);
-  const { zoomOutToNote, openNote } = useViewStore();
+  const openNote = useViewStore((state) => state.openNote);
   const blocksById = useBlockStore((state) => state.blocksById);
   const loadPage = useBlockStore((state) => state.loadPage);
   const selectPage = usePageStore((state) => state.selectPage);
   const pagesById = usePageStore((state) => state.pagesById);
 
-  const handleZoomToLevel = (index: number) => {
-    if (index === -1) {
-      // Clicked on page name - zoom out to note level
-      zoomOutToNote();
-    } else {
-      // Clicked on a block in the path - zoom to that level
-      const targetBlockId = zoomPath[index];
-      if (targetBlockId) {
-        // Update zoom path to only include blocks up to this level
-        const newPath = zoomPath.slice(0, index + 1);
-        // Set the view store state directly
-        useViewStore.setState({
-          focusedBlockId: targetBlockId,
-          zoomPath: newPath,
-        });
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleZoomToLevel = useCallback((index: number) => {
+    const { zoomOutToIndex } = useViewStore.getState();
+    zoomOutToIndex(index);
+  }, []);
+
+  const handleZoomOutToPage = useCallback(() => {
+    const { clearZoom } = useViewStore.getState();
+    clearZoom();
+  }, []);
+
+  const handleNavigateToPage = useCallback(
+    async (pageIdIndex: number) => {
+      try {
+        setIsLoading(true);
+        const pageId = pagePathIds[pageIdIndex];
+        const page = pagesById[pageId];
+
+        if (!pageId || !page) {
+          console.error(
+            "[Breadcrumb] Invalid page navigation: pageId or page not found",
+          );
+          return;
+        }
+
+        await selectPage(pageId);
+        await loadPage(pageId);
+
+        const parentNames: string[] = [];
+        const parentIds: string[] = [];
+
+        for (let i = 0; i < pageIdIndex; i++) {
+          const parentId = pagePathIds[i];
+          const parentPage = pagesById[parentId];
+          if (parentPage) {
+            parentNames.push(parentPage.title);
+            parentIds.push(parentId);
+          }
+        }
+        parentIds.push(pageId);
+
+        openNote(pageId, page.title, parentNames, parentIds);
+        handleZoomOutToPage();
+      } catch (error) {
+        console.error("[Breadcrumb] Failed to navigate to page:", error);
+      } finally {
+        setIsLoading(false);
       }
-    }
-  };
-
-  const truncateText = (text: string, maxLength = 30) => {
-    if (text.length <= maxLength) return text;
-    return `${text.slice(0, maxLength)}...`;
-  };
-
-  // Use breadcrumb array from store which includes all parent pages
+    },
+    [
+      pagePathIds,
+      pagesById,
+      selectPage,
+      loadPage,
+      openNote,
+      handleZoomOutToPage,
+    ],
+  );
   const breadcrumbItems = breadcrumb.length > 0 ? breadcrumb : [workspaceName];
-  // const isInPage = breadcrumbItems.length > 1;
+
+  const hasZoom = zoomPath.length > 0;
 
   return (
-    <Group gap="xs" wrap="nowrap">
-      {breadcrumbItems.map((item, index) => {
-        const isFirst = index === 0;
-        const isLast = index === breadcrumbItems.length - 1;
-        const isWorkspace = index === 0;
+    <nav className="breadcrumb-nav" aria-label="Breadcrumb">
+      <ol className="breadcrumb-list">
+        {breadcrumbItems.map((item, index) => {
+          const isFirst = index === 0;
+          const isPageLast = index === breadcrumbItems.length - 1;
+          const isWorkspace = index === 0;
+          const isCurrentPage = isPageLast && !hasZoom;
+          const displayText = truncateText(item);
 
-        return (
-          <Group gap="xs" wrap="nowrap" key={item}>
-            {!isFirst && <IconChevronRight size={16} opacity={0.3} />}
-            {isWorkspace || !isLast ? (
-              <button
-                type="button"
-                className="breadcrumb-item breadcrumb-button"
+          return (
+            <li key={`${index}-${item}`} className="breadcrumb-list-item">
+              {!isFirst && (
+                <IconChevronRight
+                  size={CHEVRON_SIZE}
+                  opacity={CHEVRON_OPACITY}
+                  className="breadcrumb-chevron"
+                  aria-hidden="true"
+                />
+              )}
+              <BreadcrumbItem
+                text={displayText}
+                isLast={isCurrentPage}
+                title={item}
+                ariaLabel={isWorkspace ? t("common.workspace") : item}
+                ariaCurrentPage={isCurrentPage}
                 onClick={
                   isWorkspace
                     ? onNavigateHome
-                    : async () => {
-                        // Navigate to intermediate page
-                        // index 0 = workspace (skip)
-                        // index 1 = first page, etc.
-                        const pageIdIndex = index - 1; // Adjust for workspace at index 0
-                        const pageId = pagePathIds[pageIdIndex];
-                        if (pageId && pagesById[pageId]) {
-                          const page = pagesById[pageId];
-                          await selectPage(pageId);
-                          await loadPage(pageId);
-
-                          // Build parent path for this page
-                          const parentNames: string[] = [];
-                          const parentIds: string[] = [];
-                          for (let i = 0; i < pageIdIndex; i++) {
-                            const parentId = pagePathIds[i];
-                            const parentPage = pagesById[parentId];
-                            if (parentPage) {
-                              parentNames.push(parentPage.title);
-                              parentIds.push(parentId);
-                            }
-                          }
-                          parentIds.push(pageId);
-
-                          openNote(pageId, page.title, parentNames, parentIds);
+                    : isLoading
+                      ? undefined
+                      : () => {
+                          const pageIdIndex = index - 1;
+                          handleNavigateToPage(pageIdIndex);
                         }
-                      }
                 }
-              >
-                <Text
-                  size="xl"
-                  fw={isLast ? 600 : 400}
-                  c={isLast ? undefined : "dimmed"}
-                >
-                  {truncateText(item)}
-                </Text>
-              </button>
-            ) : (
-              <Text
-                size="xl"
-                fw={isLast ? 600 : 400}
-                c={isLast ? undefined : "dimmed"}
-              >
-                {truncateText(item)}
-              </Text>
-            )}
-          </Group>
-        );
-      })}
+              />
+            </li>
+          );
+        })}
 
-      {/* Display all blocks in zoom path */}
-      {zoomPath.map((blockId, index) => {
-        const block = blocksById[blockId];
-        if (!block) return null;
+        {zoomPath.map((blockId, index) => {
+          const block = blocksById[blockId];
+          if (!block) return null;
 
-        const isLast = index === zoomPath.length - 1;
-        const displayText = truncateText(
-          block.content || t("common.untitled_block"),
-        );
+          const isZoomLast = index === zoomPath.length - 1;
+          const displayText = truncateText(
+            block.content || t("common.untitled_block"),
+          );
 
-        return (
-          <Group gap="xs" wrap="nowrap" key={blockId}>
-            <IconChevronRight size={16} opacity={0.3} />
-            {!isLast ? (
-              <button
-                type="button"
-                className="breadcrumb-item breadcrumb-button"
-                onClick={() => handleZoomToLevel(index)}
+          return (
+            <li
+              key={`block-${index}-${blockId}`}
+              className="breadcrumb-list-item"
+            >
+              <IconChevronRight
+                size={CHEVRON_SIZE}
+                opacity={CHEVRON_OPACITY}
+                className="breadcrumb-chevron"
+                aria-hidden="true"
+              />
+              <BreadcrumbItem
+                text={displayText}
+                isLast={isZoomLast}
                 title={block.content}
-              >
-                <Text
-                  size="xl"
-                  fw={isLast ? 600 : 400}
-                  c={isLast ? undefined : "dimmed"}
-                >
-                  {displayText}
-                </Text>
-              </button>
-            ) : (
-              <Text
-                size="xl"
-                fw={isLast ? 600 : 400}
-                c={isLast ? undefined : "dimmed"}
-                title={block.content}
-              >
-                {displayText}
-              </Text>
-            )}
-          </Group>
-        );
-      })}
-    </Group>
+                ariaLabel={displayText}
+                ariaCurrentPage={isZoomLast}
+                onClick={
+                  isZoomLast || isLoading
+                    ? undefined
+                    : () => handleZoomToLevel(index)
+                }
+              />
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }

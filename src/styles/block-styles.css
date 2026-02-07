@@ -69,7 +69,7 @@
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
   padding: var(--spacing-md);
-  margin: var(--spacing-md) 0;
+  margin: 0;
   font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
@@ -200,7 +200,7 @@
    ============================================================================ */
 
 .callout {
-  margin: var(--spacing-md) 0;
+  margin: 0;
   padding: var(--spacing-md);
   border-left: 3px solid var(--color-border-secondary);
   border-radius: var(--radius-sm);
@@ -263,7 +263,7 @@ pre {
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
   padding: var(--spacing-md);
-  margin: var(--spacing-md) 0;
+  margin: 0;
   overflow-x: auto;
 }
 
@@ -290,22 +290,41 @@ a:hover {
 
 /* Blockquotes */
 blockquote {
-  margin: var(--spacing-md) 0;
-  padding-left: var(--spacing-md);
+  display: block;
+  margin: 0 !important;
+  padding: 0 0 0 var(--spacing-md);
   border-left: 3px solid var(--color-border-secondary);
   color: var(--color-text-secondary);
   font-style: italic;
 }
 
+blockquote * {
+  margin: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+blockquote p {
+  margin: 0;
+}
+
+/* Prevent margin-top on elements after blockquote */
+blockquote + p,
+blockquote + ul,
+blockquote + ol,
+blockquote + blockquote {
+  margin-top: 0;
+}
+
 /* Lists */
 ul,
 ol {
-  margin: var(--spacing-sm) 0;
+  margin: 0;
   padding-left: var(--spacing-lg);
 }
 
 li {
-  margin: var(--spacing-xs) 0;
+  margin: 0;
   color: var(--color-text-primary);
 }
 
@@ -317,7 +336,7 @@ h4,
 h5,
 h6 {
   font-weight: 600;
-  margin: var(--spacing-md) 0 var(--spacing-sm) 0;
+  margin: 0;
   color: var(--color-text-primary);
 }
 
@@ -350,7 +369,7 @@ hr {
   border: none;
   height: 1px;
   background-color: var(--color-border-secondary);
-  margin: var(--spacing-lg) 0;
+  margin: 0;
 }
 
 /* Images */
@@ -358,14 +377,14 @@ img {
   max-width: 100%;
   height: auto;
   border-radius: var(--radius-md);
-  margin: var(--spacing-md) 0;
+  margin: 0;
 }
 
 /* Tables */
 table {
   width: 100%;
   border-collapse: collapse;
-  margin: var(--spacing-md) 0;
+  margin: 0;
 }
 
 th,

@@ -307,6 +307,13 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
             isFocusedFacet.of(isFocused),
           ),
         });
+
+        // If losing focus, explicitly blur the CodeMirror view to trigger onBlur
+        // and commit any pending changes. This ensures changes aren't lost when
+        // rapidly switching focus between blocks via mouse clicks.
+        if (!isFocused && editorViewRef.current.hasFocus) {
+          editorViewRef.current.contentDOM.blur();
+        }
       }
     }, [isFocused]);
 

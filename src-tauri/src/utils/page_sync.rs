@@ -675,15 +675,30 @@ async fn try_patch_bullet_block_insertion(
     }
 
     let mut indent_len_opt: Option<usize> = None;
+    
+    // First, try to get indent from next sibling
     if let Some(ns) = next_sibling_id.as_deref() {
         if let Some(mi) = find_marker_idx(&lines, ns) {
             indent_len_opt = Some(indent_len(&lines[mi]));
         }
     }
+    
+    // If no next sibling, try previous sibling
     if indent_len_opt.is_none() {
         if let Some(ps) = prev_sibling_id.as_deref() {
             if let Some(mi) = find_marker_idx(&lines, ps) {
                 indent_len_opt = Some(indent_len(&lines[mi]));
+            }
+        }
+    }
+    
+    // If no siblings found, get indent from parent block (if this is a child block)
+    if indent_len_opt.is_none() {
+        if let Some(parent_block_id) = parent_id.as_deref() {
+            if let Some(parent_marker_idx) = find_marker_idx(&lines, parent_block_id) {
+                let parent_indent = indent_len(&lines[parent_marker_idx]);
+                // Child should be indented 2 more spaces than parent
+                indent_len_opt = Some(parent_indent + 2);
             }
         }
     }

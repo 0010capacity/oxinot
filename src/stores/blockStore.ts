@@ -707,6 +707,10 @@ export const useBlockStore = create<BlockStore>()(
             throw new Error("No workspace selected");
           }
 
+          console.log(
+            `[blockStore:updateBlockContent] invoke START blockId=${id.slice(0, 8)}, content="${content.slice(0, 30)}"`,
+          );
+
           await invoke("update_block", {
             workspacePath,
             request: { id, content },

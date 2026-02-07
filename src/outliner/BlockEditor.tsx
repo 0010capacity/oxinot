@@ -11,6 +11,7 @@ import { useBlockStore } from "../stores/blockStore";
 import { useRegisterCommands } from "../stores/commandStore";
 
 import { useThemeStore } from "../stores/themeStore";
+import { useViewStore } from "../stores/viewStore";
 import { showToast } from "../utils/toast";
 import { BlockComponent } from "./BlockComponent";
 import "./BlockEditor.css";
@@ -24,7 +25,7 @@ interface BlockListProps {
 const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
   const mapStart = performance.now();
   console.log(
-    `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`
+    `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`,
   );
 
   const blocks = useMemo(
@@ -32,15 +33,15 @@ const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
       blocksToShow.map((blockId: string) => (
         <BlockComponent key={blockId} blockId={blockId} depth={0} />
       )),
-    [blocksToShow]
+    [blocksToShow],
   );
 
   requestAnimationFrame(() => {
     const mapTime = performance.now() - mapStart;
     console.log(
       `[BlockEditor:timing] BlockComponent .map() rendered in ${mapTime.toFixed(
-        2
-      )}ms`
+        2,
+      )}ms`,
     );
   });
   return <>{blocks}</>;
@@ -68,6 +69,7 @@ export function BlockEditor({
   const childrenMap = useBlockStore((state) => state.childrenMap);
   const blocksById = useBlockStore((state) => state.blocksById);
 
+  const zoomPath = useViewStore((state) => state.zoomPath);
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
 
@@ -88,8 +90,8 @@ export function BlockEditor({
           keywords: ["copy", "link", "wiki"],
         },
       ],
-      [pageId, pageName]
-    )
+      [pageId, pageName],
+    ),
   );
 
   // Register block editor commands
@@ -101,7 +103,7 @@ export function BlockEditor({
     if (pageId && currentPageId !== pageId) {
       const renderStartTime = performance.now();
       console.log(
-        `[BlockEditor:timing] Component rendering started for page ${pageId}`
+        `[BlockEditor:timing] Component rendering started for page ${pageId}`,
       );
 
       openPage(pageId);
@@ -110,25 +112,81 @@ export function BlockEditor({
         const renderTime = performance.now() - renderStartTime;
         console.log(
           `[BlockEditor:timing] Component render completed in ${renderTime.toFixed(
-            2
-          )}ms`
+            2,
+          )}ms`,
         );
       });
     }
   }, [pageId, currentPageId, openPage]);
 
+  const clearZoom = useViewStore((state) => state.clearZoom);
+  const zoomByPageId = useViewStore((state) => state.zoomByPageId);
+  const hasRestoredZoomRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      pageId &&
+      currentPageId === pageId &&
+      Object.keys(blocksById).length > 0
+    ) {
+      const savedZoom = zoomByPageId[pageId];
+      const currentZoom = useViewStore.getState().zoomPath;
+
+      if (currentZoom.length === 0 && savedZoom && savedZoom.length > 0) {
+        const lastZoomId = savedZoom[savedZoom.length - 1];
+        if (blocksById[lastZoomId]) {
+          useViewStore.setState({ zoomPath: [...savedZoom] });
+          hasRestoredZoomRef.current = true;
+          console.log(
+            `[BlockEditor] Restored zoom for page ${pageId}:`,
+            savedZoom,
+          );
+        }
+      }
+    }
+  }, [pageId, currentPageId, blocksById, zoomByPageId]);
+
+  useEffect(() => {
+    if (zoomPath.length > 0) {
+      const zoomRootId = zoomPath[zoomPath.length - 1];
+      if (!blocksById[zoomRootId]) {
+        if (!hasRestoredZoomRef.current) {
+          console.warn(
+            `[BlockEditor] Zoom target ${zoomRootId} not found in blocksById, clearing zoom`,
+          );
+          clearZoom();
+        } else {
+          hasRestoredZoomRef.current = false;
+        }
+      }
+    }
+  }, [zoomPath, blocksById, clearZoom]);
+
   const blocksToShowRef = useRef<string[]>([]);
   const blocksToShow = useMemo(() => {
-    const root = childrenMap.root || [];
-    // Only update if the array actually changed (not just a new reference)
+    let toShow: string[] = [];
+
+    if (zoomPath.length > 0) {
+      const zoomRootId = zoomPath[zoomPath.length - 1];
+      if (zoomRootId && blocksById[zoomRootId]) {
+        toShow = [zoomRootId];
+      } else {
+        toShow = [];
+      }
+    } else {
+      toShow = childrenMap.root || [];
+    }
+
     if (
-      blocksToShowRef.current.length !== root.length ||
-      !blocksToShowRef.current.every((id: string, i: number) => id === root[i])
+      blocksToShowRef.current.length !== toShow.length ||
+      !blocksToShowRef.current.every(
+        (id: string, i: number) => id === toShow[i],
+      )
     ) {
-      blocksToShowRef.current = root;
+      blocksToShowRef.current = toShow;
     }
     return blocksToShowRef.current;
-  }, [childrenMap.root]);
+  }, [zoomPath, childrenMap, blocksById]);
 
   const blockOrder = useMemo(() => {
     const memoComputeStart = performance.now();
@@ -148,8 +206,8 @@ export function BlockEditor({
     const memoComputeTime = performance.now() - memoComputeStart;
     console.log(
       `[BlockEditor:timing] useMemo blockOrder computed in ${memoComputeTime.toFixed(
-        2
-      )}ms (${computed.length} visible blocks)`
+        2,
+      )}ms (${computed.length} visible blocks)`,
     );
     return computed;
   }, [blocksToShow, blocksById, childrenMap]);
@@ -173,7 +231,6 @@ export function BlockEditor({
           <PageHeader
             showBreadcrumb
             workspaceName={workspaceName}
-            pageName={pageName}
             onNavigateHome={onNavigateHome}
           />
         )}

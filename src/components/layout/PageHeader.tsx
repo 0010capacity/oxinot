@@ -5,22 +5,16 @@ interface PageHeaderProps {
   title?: string;
   showBreadcrumb?: boolean;
   workspaceName?: string;
-  pageName?: string;
   onNavigateHome?: () => void;
   children?: ReactNode;
   className?: string;
   style?: CSSProperties;
 }
 
-/**
- * PageHeader provides consistent header styling with optional title and breadcrumb.
- * Ensures FileTreeIndex and BlockEditor have unified header appearance.
- */
 export function PageHeader({
   title,
   showBreadcrumb = false,
   workspaceName,
-  pageName,
   onNavigateHome,
   children,
   className = "",
@@ -47,7 +41,6 @@ export function PageHeader({
       {showBreadcrumb && workspaceName && onNavigateHome ? (
         <Breadcrumb
           workspaceName={workspaceName}
-          pageName={pageName}
           onNavigateHome={onNavigateHome}
         />
       ) : null}

@@ -541,20 +541,69 @@ fn sync_or_create_file(
             .map_err(|e| format!("Failed to update page path: {}", e))?;
 
         if needs_reindex {
-            // Reindex blocks
+            // Safe reindex: preserve blocks in DB that are newer than the markdown file
+            // to prevent data loss during async sync operations
             let content = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
 
-            conn.execute(
-                "DELETE FROM blocks WHERE page_id = :page_id",
-                named_params! { ":page_id": page_id },
-            )
-            .map_err(|e| e.to_string())?;
+            // Get the file mtime as reference for what's "safe to delete"
+            let file_mtime_secs = mtime.unwrap_or(0);
 
-            let blocks = markdown_to_blocks(&content, page_id);
+            // Query existing blocks to find which ones can be safely deleted
+            let mut stmt = conn
+                .prepare("SELECT id, updated_at FROM blocks WHERE page_id = ?")
+                .map_err(|e| e.to_string())?;
 
-            for block in &blocks {
+            let existing_block_ids: Vec<(String, String)> = stmt
+                .query_map([page_id], |row| {
+                    Ok((row.get(0)?, row.get(1)?))
+                })
+                .map_err(|e| e.to_string())?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+
+            // Parse blocks from markdown
+            let markdown_blocks = markdown_to_blocks(&content, page_id);
+            let markdown_block_ids: std::collections::HashSet<String> =
+                markdown_blocks.iter().map(|b| b.id.clone()).collect();
+
+            // Safe deletion strategy:
+            // 1. Delete only blocks that existed in old DB and are NOT in the new markdown
+            // 2. Preserve blocks that are in both (update them)
+            // 3. Preserve blocks in DB but not in markdown if they're newer (still being synced)
+            for (block_id, updated_at_str) in existing_block_ids {
+                let block_was_in_markdown = markdown_block_ids.contains(&block_id);
+
+                if !block_was_in_markdown {
+                    // This block is in DB but not in markdown. Check if it's recent (pending sync)
+                    let block_updated_ts: i64 = updated_at_str
+                        .parse::<chrono::DateTime<chrono::Utc>>()
+                        .ok()
+                        .and_then(|dt| dt.timestamp().try_into().ok())
+                        .unwrap_or(0);
+
+                    let is_recent = block_updated_ts > (file_mtime_secs as i64 - 5);
+                    if !is_recent {
+                        // Safe to delete: old block, not in markdown, probably intentionally deleted
+                        conn.execute(
+                            "DELETE FROM blocks WHERE id = ?",
+                            [&block_id],
+                        )
+                        .map_err(|e| e.to_string())?;
+                        eprintln!("[sync_or_create_file] Deleted orphaned block: {}", block_id);
+                    } else {
+                        // Preserve: recent block likely still being synced to markdown
+                        eprintln!(
+                            "[sync_or_create_file] Preserving recent block (pending sync): {}",
+                            block_id
+                        );
+                    }
+                }
+            }
+
+            // Insert or update blocks from markdown
+            for block in &markdown_blocks {
                 conn.execute(
-                    "INSERT INTO blocks (id, page_id, parent_id, content, order_weight,
+                    "INSERT OR REPLACE INTO blocks (id, page_id, parent_id, content, order_weight,
                                         block_type, created_at, updated_at)
                      VALUES (:id, :page_id, :parent_id, :content, :order_weight, :block_type, :created_at, :updated_at)",
                     named_params! {
@@ -575,7 +624,7 @@ fn sync_or_create_file(
             }
 
             *synced_pages += 1;
-            *synced_blocks += blocks.len();
+            *synced_blocks += markdown_blocks.len();
         }
 
         return Ok(page_id.clone());

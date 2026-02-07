@@ -1,7 +1,8 @@
 import { immer } from "zustand/middleware/immer";
 import { createWithEqualityFn } from "zustand/traditional";
+import { useBlockStore } from "./blockStore";
+import type { BlockData } from "./blockStore";
 import { useNavigationStore } from "./navigationStore";
-import { usePageStore } from "./pageStore";
 
 // View modes
 type ViewMode = "index" | "note";
@@ -12,13 +13,13 @@ interface NavigationState {
   currentNotePath: string | null;
   workspaceName: string | null;
   focusedBlockId: string | null;
-  zoomPath: string[]; // Array of block IDs from root to current zoom level
+  zoomPath: string[];
   breadcrumb: string[];
-  pagePathIds: string[]; // Array of page IDs from workspace to current page
+  pagePathIds: string[];
+  zoomByPageId: Record<string, string[]>;
 }
 
 interface ViewState extends NavigationState {
-  // Actions
   showIndex: () => void;
   showPage: (pageId: string) => void;
   openNote: (
@@ -27,7 +28,9 @@ interface ViewState extends NavigationState {
     parentNames?: string[],
     pagePathIds?: string[],
   ) => void;
-  zoomIntoBlock: (blockId: string) => void;
+  zoomToBlock: (blockId: string) => void;
+  zoomOutToIndex: (index: number) => void;
+  clearZoom: () => void;
   setFocusedBlockId: (blockId: string | null) => void;
   zoomOut: () => void;
   zoomOutToNote: () => void;
@@ -44,6 +47,7 @@ const initialState: NavigationState = {
   zoomPath: [],
   breadcrumb: [],
   pagePathIds: [],
+  zoomByPageId: {},
 };
 
 export const useViewStore = createWithEqualityFn<ViewState>()(
@@ -52,6 +56,9 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
 
     showIndex: () => {
       set((state) => {
+        if (state.currentNotePath && state.zoomPath.length > 0) {
+          state.zoomByPageId[state.currentNotePath] = state.zoomPath;
+        }
         state.mode = "index";
         state.currentNotePath = null;
         state.focusedBlockId = null;
@@ -68,12 +75,6 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         state.focusedBlockId = null;
         state.zoomPath = [];
       });
-
-      // Add to navigation history
-      const page = usePageStore.getState().pagesById[pageId];
-      if (page) {
-        useNavigationStore.getState().pushHistory(pageId, page.title);
-      }
     },
 
     openNote: (
@@ -86,9 +87,9 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         state.mode = "note";
         state.currentNotePath = notePath;
         state.focusedBlockId = null;
-        state.zoomPath = [];
+        const savedZoom = state.zoomByPageId[notePath] || [];
+        state.zoomPath = savedZoom;
 
-        // Build breadcrumb: workspace > parent pages > current page
         const crumbs: string[] = [];
         if (state.workspaceName) {
           crumbs.push(state.workspaceName);
@@ -102,16 +103,49 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         state.pagePathIds = pagePathIds || [];
       });
 
-      // Add to navigation history
       useNavigationStore.getState().pushHistory(notePath, noteName);
     },
 
-    zoomIntoBlock: (blockId: string) => {
+    zoomToBlock: (blockId: string) => {
       set((state) => {
-        state.focusedBlockId = blockId;
-        if (!state.zoomPath.includes(blockId)) {
-          state.zoomPath.push(blockId);
+        const blocksById = useBlockStore.getState().blocksById;
+        const path: string[] = [];
+        let currentId: string | null = blockId;
+
+        while (currentId) {
+          path.unshift(currentId);
+          const currentBlock = blocksById[currentId] as BlockData | undefined;
+          if (!currentBlock) break;
+          currentId = currentBlock.parentId || null;
         }
+
+        state.focusedBlockId = blockId;
+        state.zoomPath = path;
+        if (state.currentNotePath && path.length > 0) {
+          state.zoomByPageId[state.currentNotePath] = [...path];
+        }
+      });
+    },
+
+    zoomOutToIndex: (index: number) => {
+      set((state) => {
+        const newPath = state.zoomPath.slice(0, index + 1);
+        state.zoomPath = newPath;
+        state.focusedBlockId =
+          newPath.length > 0 ? newPath[newPath.length - 1] : null;
+        if (state.currentNotePath) {
+          state.zoomByPageId[state.currentNotePath] = [...newPath];
+        }
+      });
+    },
+
+    clearZoom: () => {
+      set((state) => {
+        if (state.currentNotePath) {
+          state.zoomByPageId[state.currentNotePath] = [];
+        }
+        state.zoomPath = [];
+        state.focusedBlockId = null;
       });
     },
 
@@ -124,19 +158,23 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
     zoomOut: () => {
       set((state) => {
         if (state.zoomPath.length > 0) {
-          // Remove last block from zoom path
           state.zoomPath.pop();
-          // Set focused block to the new last item (or null if empty)
           state.focusedBlockId =
             state.zoomPath.length > 0
               ? state.zoomPath[state.zoomPath.length - 1]
               : null;
+          if (state.currentNotePath) {
+            state.zoomByPageId[state.currentNotePath] = [...state.zoomPath];
+          }
         }
       });
     },
 
     zoomOutToNote: () => {
       set((state) => {
+        if (state.currentNotePath && state.zoomPath.length > 0) {
+          state.zoomByPageId[state.currentNotePath] = [];
+        }
         state.focusedBlockId = null;
         state.zoomPath = [];
       });
@@ -145,12 +183,14 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
     goBack: () => {
       set((state) => {
         if (state.zoomPath.length > 0) {
-          // Zoom out one level
           state.zoomPath.pop();
           state.focusedBlockId =
             state.zoomPath.length > 0
               ? state.zoomPath[state.zoomPath.length - 1]
               : null;
+          if (state.currentNotePath) {
+            state.zoomByPageId[state.currentNotePath] = [...state.zoomPath];
+          }
         } else if (state.mode === "note") {
           state.mode = "index";
           state.currentNotePath = null;
