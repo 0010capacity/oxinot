@@ -225,3 +225,11 @@ export function matchesPathPattern(pattern: string, path: string): boolean {
   const regex = new RegExp(`^${regexPattern}$`);
   return regex.test(path);
 }
+
+/**
+ * Remove all query macros from text
+ * Converts "Hello {{QUERY: ...}} World" to "Hello  World"
+ */
+export function removeQueryMacros(text: string): string {
+  return text.replace(/\{\{[^}]*\}\}/g, "").trim();
+}

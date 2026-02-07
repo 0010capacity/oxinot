@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
+import { StaticMarkdownRenderer } from "../components/StaticMarkdownRenderer";
 import {
   ContextMenu,
   type ContextMenuSection,
@@ -1252,65 +1253,72 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               className="block-content-wrapper"
               style={{ position: "relative" }}
             >
-              <MacroContentWrapper
-                content={blockContent || ""}
-                blockId={blockId}
-                isFocused={isFocused}
-                onEdit={() => setFocusedBlock(blockId)}
-                onMouseDownCapture={handleStaticMouseDown}
-              >
-                <Popover
-                  opened={isMetadataOpen}
-                  onClose={() => {
-                    setIsMetadataOpen(false);
-                  }}
-                  position="bottom"
-                  withArrow
-                  shadow="md"
-                  trapFocus={false}
-                  closeOnEscape
-                  closeOnClickOutside
-                  withinPortal={true}
-                  transitionProps={{ duration: 0 }}
+              {isFocused ? (
+                <MacroContentWrapper
+                  content={draft}
+                  blockId={blockId}
+                  isFocused={isFocused}
+                  onEdit={() => setFocusedBlock(blockId)}
                 >
-                  <Popover.Target>
-                    <Box style={{ width: "100%" }}>
-                      <Editor
-                        ref={editorRef}
-                        value={draft}
-                        onChange={handleContentChangeWithTrigger}
-                        onFocus={handleFocus}
-                        onBlur={handleBlur}
-                        lineNumbers={false}
-                        lineWrapping={true}
-                        theme={isDark ? "dark" : "light"}
-                        keybindings={keybindings}
-                        isFocused={isFocused}
-                        className="block-editor"
-                        style={{}}
-                      />
-                    </Box>
-                  </Popover.Target>
-                  <Popover.Dropdown
-                    p={0}
-                    ref={popoverDropdownRef}
-                    style={{ minWidth: "300px" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
+                  <Popover
+                    opened={isMetadataOpen}
+                    onClose={() => {
+                      setIsMetadataOpen(false);
                     }}
+                    position="bottom"
+                    withArrow
+                    shadow="md"
+                    trapFocus={false}
+                    closeOnEscape
+                    closeOnClickOutside
+                    withinPortal={true}
+                    transitionProps={{ duration: 0 }}
                   >
-                    <MetadataEditor
-                      blockId={blockId}
-                      onClose={() => {
-                        setIsMetadataOpen(false);
-                        setTimeout(() => {
-                          editorRef.current?.focus();
-                        }, 0);
+                    <Popover.Target>
+                      <Box style={{ width: "100%" }}>
+                        <Editor
+                          ref={editorRef}
+                          value={draft}
+                          onChange={handleContentChangeWithTrigger}
+                          onFocus={handleFocus}
+                          onBlur={handleBlur}
+                          lineNumbers={false}
+                          lineWrapping={true}
+                          theme={isDark ? "dark" : "light"}
+                          keybindings={keybindings}
+                          isFocused={isFocused}
+                          className="block-editor"
+                          style={{}}
+                        />
+                      </Box>
+                    </Popover.Target>
+                    <Popover.Dropdown
+                      p={0}
+                      ref={popoverDropdownRef}
+                      style={{ minWidth: "300px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
                       }}
-                    />
-                  </Popover.Dropdown>
-                </Popover>
-              </MacroContentWrapper>
+                    >
+                      <MetadataEditor
+                        blockId={blockId}
+                        onClose={() => {
+                          setIsMetadataOpen(false);
+                          setTimeout(() => {
+                            editorRef.current?.focus();
+                          }, 0);
+                        }}
+                      />
+                    </Popover.Dropdown>
+                  </Popover>
+                </MacroContentWrapper>
+              ) : (
+                <StaticMarkdownRenderer
+                  content={blockContent || ""}
+                  onMouseDownCapture={handleStaticMouseDown}
+                  style={{}}
+                />
+              )}
 
               {/* Metadata Badge - small indicator with tooltip */}
               {blockMetadata && (
