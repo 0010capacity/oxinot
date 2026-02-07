@@ -675,6 +675,25 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       editorRef.current?.focus();
     }, [isFocused, blockId]);
 
+    useLayoutEffect(() => {
+      const focusRequest = useBlockUIStore.getState().focusRequest;
+      if (!focusRequest || focusRequest.blockId !== blockId) return;
+
+      const view = editorRef.current?.getView();
+      if (!view) return;
+
+      const targetPos = useBlockUIStore.getState().targetCursorPosition;
+      if (targetPos !== null) {
+        const pos = Math.min(targetPos, view.state.doc.length);
+        view.dispatch({
+          selection: { anchor: pos, head: pos },
+        });
+      }
+
+      view.focus();
+      useBlockUIStore.getState().clearFocusRequest();
+    }, [blockId]);
+
     // Handle IME composition events: track state and execute pending block operations
     useEffect(() => {
       const view = editorRef.current?.getView();
@@ -950,11 +969,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             }
 
             if (cursor === 0) {
-              // At start of block (empty or not)
-              // Delegate to store action which handles:
-              // 1. If empty -> delete and move to previous
-              // 2. If content -> merge with previous
-              // 3. If no previous -> no-op
+              console.log(
+                `[BlockComponent] Backspace at cursor 0 for block ${blockId.slice(0, 8)}, content="${content.slice(0, 20)}"`,
+              );
               mergeWithPrevious(blockId, content);
               return true;
             }
@@ -1367,13 +1384,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           )}
         />
       </ContextMenu>
-    );
-  },
-  (prevProps, nextProps) => {
-    // blockOrder prop changes are ignored - only re-render if blockId or depth changes
-    return (
-      prevProps.blockId === nextProps.blockId &&
-      prevProps.depth === nextProps.depth
     );
   },
 );

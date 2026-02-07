@@ -615,7 +615,8 @@ export const useBlockStore = create<BlockStore>()(
             // Update only the new block
             get().updatePartialBlocks([newBlock]);
 
-            // Set focus to properly sync across all stores
+            // Request focus + set focusedBlockId for immediate Static→Editor upgrade
+            useBlockUIStore.getState().requestFocus(newBlock.id);
             useBlockUIStore.getState().setFocusedBlock(newBlock.id, 0);
 
             return newBlock.id ?? undefined;
@@ -769,7 +770,8 @@ export const useBlockStore = create<BlockStore>()(
           // Update only the new block (current block already updated by updateBlockContent)
           get().updatePartialBlocks([newBlock]);
 
-          // Set focus to properly sync across all stores
+          // Request focus + set focusedBlockId for immediate Static→Editor upgrade
+          useBlockUIStore.getState().requestFocus(newBlock.id);
           useBlockUIStore.getState().setFocusedBlock(newBlock.id, 0);
         } catch (error) {
           console.error("Failed to split block:", error);
@@ -815,8 +817,10 @@ export const useBlockStore = create<BlockStore>()(
             await get().loadPage(currentPageId);
           }
 
+          // Set focusRequest BEFORE focusedBlockId so render sees focused block and renders CodeMirror
           if (nextFocusId) {
-            useBlockUIStore.setState({ focusedBlockId: nextFocusId });
+            useBlockUIStore.getState().requestFocus(nextFocusId);
+            useBlockUIStore.getState().setFocusedBlock(nextFocusId);
           }
         } catch (error) {
           console.error("Failed to delete block:", error);
@@ -928,11 +932,16 @@ export const useBlockStore = create<BlockStore>()(
       },
 
       mergeWithPrevious: async (id: string, draftContent?: string) => {
+        console.log(
+          `[blockStore] mergeWithPrevious called for block ${id.slice(0, 8)}, draftContent="${(draftContent ?? "").slice(0, 20)}"`,
+        );
         const { blocksById, getPreviousVisibleBlock, deleteBlock } = get();
 
-        // Prevent concurrent merges on the same block
         const { mergingBlockId } = useBlockUIStore.getState();
         if (mergingBlockId === id) {
+          console.log(
+            `[blockStore] Merge already in progress for block ${id.slice(0, 8)}`,
+          );
           return;
         }
 
@@ -950,21 +959,34 @@ export const useBlockStore = create<BlockStore>()(
           // Case 1: If current block is empty, delete it and move focus to previous
           if (contentToMerge === "") {
             const prevBlockId = getPreviousVisibleBlock(id);
+            console.log(
+              `[blockStore] Case 1: Empty block ${id.slice(0, 8)}, prev=${prevBlockId?.slice(0, 8) ?? "null"}`,
+            );
             await deleteBlock(id);
 
             if (prevBlockId) {
               const prevBlock = get().blocksById[prevBlockId];
-              useBlockUIStore.setState({
-                focusedBlockId: prevBlockId,
-                targetCursorPosition: prevBlock ? prevBlock.content.length : 0,
-              });
+              console.log(
+                `[blockStore] Setting focus to ${prevBlockId.slice(0, 8)}, cursor=${prevBlock?.content.length ?? 0}`,
+              );
+              useBlockUIStore.getState().requestFocus(prevBlockId);
+              useBlockUIStore
+                .getState()
+                .setFocusedBlock(
+                  prevBlockId,
+                  prevBlock ? prevBlock.content.length : 0,
+                );
             }
             return;
           }
 
           // Case 2: Non-empty block, merge into previous
           const prevBlockId = getPreviousVisibleBlock(id);
+          console.log(
+            `[blockStore] Case 2: Merge block ${id.slice(0, 8)}, prev=${prevBlockId?.slice(0, 8) ?? "null"}`,
+          );
           if (!prevBlockId) {
+            console.log("[blockStore] No previous block found, returning");
             return;
           }
 
@@ -1016,10 +1038,11 @@ export const useBlockStore = create<BlockStore>()(
           // Update only the changed blocks (merged block + moved children)
           get().updatePartialBlocks(changedBlocks, [id]);
 
-          useBlockUIStore.setState({
-            focusedBlockId: prevBlockId,
-            targetCursorPosition: cursorPosition,
-          });
+          // Request focus + set focusedBlockId for immediate Static→Editor upgrade
+          useBlockUIStore.getState().requestFocus(prevBlockId);
+          useBlockUIStore
+            .getState()
+            .setFocusedBlock(prevBlockId, cursorPosition);
         } catch (error) {
           console.error("Failed to merge blocks:", error);
 
