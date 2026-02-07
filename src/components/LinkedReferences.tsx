@@ -1,4 +1,4 @@
-import { Accordion, Box, Loader, Stack, Text } from "@mantine/core";
+import { Accordion, Box, Stack, Text } from "@mantine/core";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { usePageStore } from "../stores/pageStore";
@@ -23,7 +23,6 @@ interface LinkedReferencesProps {
 
 export function LinkedReferences({ pageId }: LinkedReferencesProps) {
   const [backlinks, setBacklinks] = useState<BacklinkGroup[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
   const pagesById = usePageStore((state) => state.pagesById);
@@ -34,7 +33,6 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
     if (!pageId || !workspacePath) return;
 
     const fetchBacklinks = async () => {
-      setIsLoading(true);
       setError(null);
 
       try {
@@ -48,8 +46,6 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
         setError(
           err instanceof Error ? err.message : "Failed to load backlinks",
         );
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -90,25 +86,6 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
     0,
   );
   const pageCount = backlinks.length;
-
-  if (isLoading) {
-    return (
-      <Box
-        style={{
-          padding: "24px 0",
-          borderTop: "1px solid var(--color-border-primary)",
-          marginTop: "40px",
-        }}
-      >
-        <Stack align="center" gap="md">
-          <Loader size="sm" />
-          <Text size="sm" c="dimmed">
-            Loading linked references...
-          </Text>
-        </Stack>
-      </Box>
-    );
-  }
 
   if (error) {
     return (
