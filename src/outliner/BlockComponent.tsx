@@ -75,7 +75,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const blockMetadata = useBlockMetadata(blockId);
     const isFocused = useIsBlockFocused(blockId);
     const showIndentGuides = useOutlinerSettingsStore(
-      (state) => state.showIndentGuides
+      (state) => state.showIndentGuides,
     );
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
@@ -84,20 +84,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
     const splitBlockAtCursor = useBlockStore(
-      (state) => state.splitBlockAtCursor
+      (state) => state.splitBlockAtCursor,
     );
     const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const targetCursorPosition = useTargetCursorPosition();
     const setFocusedBlock = useBlockUIStore((state) => state.setFocusedBlock);
     const clearTargetCursorPosition = useBlockUIStore(
-      (state) => state.clearTargetCursorPosition
+      (state) => state.clearTargetCursorPosition,
     );
     const toggleBlockSelection = useBlockUIStore(
-      (state) => state.toggleBlockSelection
+      (state) => state.toggleBlockSelection,
     );
     const selectBlockRange = useBlockUIStore((state) => state.selectBlockRange);
     const lastSelectedBlockId = useBlockUIStore(
-      (state) => state.lastSelectedBlockId
+      (state) => state.lastSelectedBlockId,
     );
     const isSelected = useIsBlockSelected(blockId);
 
@@ -125,7 +125,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         currentSelectedIds.length > 0 ? currentSelectedIds : [blockId];
 
       const orderedBlocks = blockOrder.filter((id) =>
-        targetBlocks.includes(id)
+        targetBlocks.includes(id),
       );
 
       const blocksById = useBlockStore.getState().blocksById;
@@ -335,7 +335,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           ],
         },
       ],
-      [t]
+      [t],
     );
 
     // Cleanup timeout on unmount
@@ -528,7 +528,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         // Set focus with calculated cursor position
         setFocusedBlock(blockId, cursorPos);
       },
-      [blockId, setFocusedBlock]
+      [blockId, setFocusedBlock],
     );
 
     // Consolidated IME state
@@ -601,21 +601,21 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       if (isFocused && editorRef.current) {
         const view = editorRef.current?.getView();
 
-        // If already focused and no target position, skip (mouse click already handled)
-        if (view?.hasFocus && targetCursorPosition === null) {
+        if (!view) {
           return;
         }
 
-        if (view && !view.hasFocus) {
-          // Set cursor position
+        if (view.hasFocus && targetCursorPosition === null) {
+          return;
+        }
+
+        if (!view.hasFocus) {
           let pos: number;
           if (targetCursorPosition !== null) {
-            // Use specified position (from keyboard nav)
             pos = Math.min(targetCursorPosition, view.state.doc.length);
             appliedPositionRef.current = targetCursorPosition;
             clearTargetCursorPosition();
           } else {
-            // No target position: set cursor to end of content
             pos = view.state.doc.length;
             appliedPositionRef.current = null;
           }
@@ -624,14 +624,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             selection: { anchor: pos, head: pos },
           });
 
-          // Focus the editor
           view.focus();
         } else if (
-          view &&
           targetCursorPosition !== null &&
           appliedPositionRef.current !== targetCursorPosition
         ) {
-          // Already focused, just adjust cursor position (keyboard nav)
           const pos = Math.min(targetCursorPosition, view.state.doc.length);
           view.dispatch({
             selection: { anchor: pos, head: pos },
@@ -640,10 +637,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           clearTargetCursorPosition();
         }
       } else if (!isFocused) {
-        // Reset applied position when this block is no longer focused
         appliedPositionRef.current = null;
       }
-    }, [isFocused, targetCursorPosition, clearTargetCursorPosition]);
+    }, [isFocused, targetCursorPosition, clearTargetCursorPosition, editorRef]);
 
     // Apply cursor position from click coordinates when Editor mounts
     // This converts screen coordinates (from StaticMarkdownRenderer click) to text position
@@ -834,7 +830,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           setFocusedBlock(blockId);
         }
       },
-      [blockId, hasChildren, setFocusedBlock]
+      [blockId, hasChildren, setFocusedBlock],
     );
 
     // Create custom keybindings for CodeMirror to handle block operations
@@ -850,7 +846,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         }
         handleContentChange(value);
       },
-      [handleContentChange]
+      [handleContentChange],
     );
 
     const keybindings: KeyBinding[] = useMemo(() => {
@@ -989,7 +985,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 if (prevBlock) {
                   const targetPos = calculatePrevBlockCursorPosition(
                     columnPos,
-                    prevBlock.content
+                    prevBlock.content,
                   );
                   setFocusedBlock(prevBlockId, targetPos);
                 } else {
@@ -1026,7 +1022,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 if (nextBlock) {
                   const targetPos = calculateNextBlockCursorPosition(
                     columnPos,
-                    nextBlock.content
+                    nextBlock.content,
                   );
                   setFocusedBlock(nextBlockId, targetPos);
                 } else {
@@ -1044,14 +1040,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           run: () => {
             console.log(
               "[BlockComponent:Tab] Tab key pressed, blockId:",
-              blockId
+              blockId,
             );
 
             // Start async operations but return true immediately to prevent default behavior
             commitDraft()
               .then(() => {
                 console.log(
-                  "[BlockComponent:Tab] commitDraft done, calling indentBlock"
+                  "[BlockComponent:Tab] commitDraft done, calling indentBlock",
                 );
                 indentBlock(blockId)
                   .then(() => {
@@ -1060,13 +1056,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                     // during structural reconciliation. The block content is preserved,
                     // user can click to refocus if needed.
                     console.log(
-                      "[BlockComponent:Tab] Focus restoration skipped to avoid Hook errors"
+                      "[BlockComponent:Tab] Focus restoration skipped to avoid Hook errors",
                     );
                   })
                   .catch((err) => {
                     console.error(
                       "[BlockComponent:Tab] indentBlock failed:",
-                      err
+                      err,
                     );
                   });
               })
@@ -1087,7 +1083,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 // during structural reconciliation. The block content is preserved,
                 // user can click to refocus if needed.
                 console.log(
-                  "[BlockComponent:Shift-Tab] Focus restoration skipped to avoid Hook errors"
+                  "[BlockComponent:Shift-Tab] Focus restoration skipped to avoid Hook errors",
                 );
               });
             });
@@ -1364,10 +1360,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           blocksToDelete={blocksToDelete}
           totalBlocksCount={blocksToDelete.reduce(
             (sum, id) => sum + 1 + countDescendantBlocks(id),
-            0
+            0,
           )}
           hasDescendants={blocksToDelete.some(
-            (id) => countDescendantBlocks(id) > 0
+            (id) => countDescendantBlocks(id) > 0,
           )}
         />
       </ContextMenu>
@@ -1379,5 +1375,5 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       prevProps.blockId === nextProps.blockId &&
       prevProps.depth === nextProps.depth
     );
-  }
+  },
 );
