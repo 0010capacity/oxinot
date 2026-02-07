@@ -18,7 +18,6 @@ if (typeof window !== "undefined") {
 import { ErrorNotifications } from "./components/ErrorNotifications";
 import { GitStatusIndicator } from "./components/GitStatusIndicator";
 import { SnowEffect } from "./components/SnowEffect";
-import { SyncProgress } from "./components/SyncProgress";
 import { TitleBar } from "./components/TitleBar";
 import { CopilotButton } from "./components/copilot/CopilotButton";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
@@ -558,7 +557,6 @@ function App() {
   return (
     <ThemeProvider>
       <AppContent workspacePath={workspacePath} />
-      <SyncProgress />
       <Updater />
     </ThemeProvider>
   );
