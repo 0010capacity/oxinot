@@ -50,8 +50,8 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity var(--transition-normal), background-color
-    var(--transition-normal);
+  transition: opacity var(--transition-normal),
+    background-color var(--transition-normal);
   border-radius: var(--radius-sm);
   position: relative;
   z-index: var(--z-index-low);
@@ -190,7 +190,6 @@
 }
 
 .block-editor .cm-content {
-  padding: 2px var(--spacing-xs) !important;
   background: transparent !important;
   font-size: var(--editor-font-size) !important;
   line-height: var(--editor-line-height) !important;
@@ -221,12 +220,12 @@
 
 /* Static Markdown Renderer - Visual parity with CodeMirror editor */
 .block-static-content {
-  font-family: inherit;
-  font-size: var(--editor-font-size);
-  line-height: var(--editor-line-height);
-  padding: 2px var(--spacing-xs);
-  color: var(--color-text-primary);
   white-space: pre-wrap;
   word-break: break-word;
-  min-height: 24px;
+}
+
+/* Remove default margins from p tags inside static content */
+.block-static-content p {
+  margin: 0;
+  line-height: inherit;
 }

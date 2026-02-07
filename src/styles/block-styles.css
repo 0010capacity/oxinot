@@ -32,8 +32,7 @@
 /* CodeMirror line styling - match static content height */
 .cm-line {
   min-height: var(--block-min-height);
-  padding-top: var(--block-padding-top);
-  padding-bottom: var(--block-padding-bottom);
+  /* Padding is handled by .cm-content, not individual lines */
 }
 
 /* ============================================================================

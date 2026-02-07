@@ -39,7 +39,9 @@ function wikiLinkPlugin(md: MarkdownIt): void {
   md.renderer.rules.wiki_link_open = (tokens, idx) => {
     const token = tokens[idx];
     const pageId = token.attrGet("data-page") || "";
-    return `<a class="wiki-link" href="#page/${pageId}" data-page="${escapeHtml(pageId)}">`;
+    return `<a class="wiki-link" href="#page/${pageId}" data-page="${escapeHtml(
+      pageId
+    )}">`;
   };
 
   md.renderer.rules.wiki_link_close = () => {
@@ -78,7 +80,9 @@ function blockRefPlugin(md: MarkdownIt): void {
   md.renderer.rules.block_ref_open = (tokens, idx) => {
     const token = tokens[idx];
     const blockId = token.attrGet("data-block-id") || "";
-    return `<a class="block-ref" href="#block/${blockId}" data-block-id="${escapeHtml(blockId)}">((`;
+    return `<a class="block-ref" href="#block/${blockId}" data-block-id="${escapeHtml(
+      blockId
+    )}">((`;
   };
 
   md.renderer.rules.block_ref_close = () => {
@@ -130,7 +134,7 @@ function calloutPlugin(md: MarkdownIt): void {
     },
     {
       alt: ["paragraph", "reference", "blockquote", "list"],
-    },
+    }
   );
 
   md.renderer.rules.callout_open = (tokens, idx) => {
@@ -176,7 +180,7 @@ function normalizeInput(source: string, indentSpaces?: number): string {
 
 export function renderMarkdownToHtml(
   source: string,
-  options: RenderOptions = {},
+  options: RenderOptions = {}
 ): string {
   let input = normalizeInput(source ?? "", options.indentSpaces);
 
@@ -196,6 +200,19 @@ export function renderMarkdownToHtml(
 }
 
 export function renderOutlinerBulletPreviewHtml(source: string): string {
+  // For single-line content without block elements, use inline rendering
+  // to avoid wrapping in <p> tags which causes extra spacing
+  const trimmed = source?.trim() ?? "";
+  const hasMultipleLines = trimmed.includes("\n");
+  const hasBlockSyntax = /^(#{1,6}\s|>\s|\d+\.\s|[-*+]\s|```|> \[!)/.test(
+    trimmed
+  );
+
+  if (!hasMultipleLines && !hasBlockSyntax) {
+    // Single line without block syntax: render inline (no <p> wrapper)
+    return renderMarkdownToHtml(source, { inline: true });
+  }
+
   return renderMarkdownToHtml(source, { allowBlocks: true });
 }
 

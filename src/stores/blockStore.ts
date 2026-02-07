@@ -68,13 +68,13 @@ class PageCache {
 
     if (this.cache.size >= this.MAX_ENTRIES) {
       const oldest = Array.from(this.cache.entries()).sort(
-        ([, a], [, b]) => a.timestamp - b.timestamp,
+        ([, a], [, b]) => a.timestamp - b.timestamp
       )[0];
       if (oldest) {
         this.cache.delete(oldest[0]);
         this.evictions++;
         console.log(
-          `[blockStore cache] Evicted oldest page: ${oldest[0]}. Cache size: ${this.cache.size}/${this.MAX_ENTRIES}`,
+          `[blockStore cache] Evicted oldest page: ${oldest[0]}. Cache size: ${this.cache.size}/${this.MAX_ENTRIES}`
         );
       }
     }
@@ -88,7 +88,7 @@ class PageCache {
     });
     this.scheduleSave();
     console.log(
-      `[blockStore cache] Cached page ${pageId}. Cache size: ${this.cache.size}/${this.MAX_ENTRIES}`,
+      `[blockStore cache] Cached page ${pageId}. Cache size: ${this.cache.size}/${this.MAX_ENTRIES}`
     );
   }
 
@@ -108,7 +108,7 @@ class PageCache {
       console.log(
         `[blockStore cache] TTL expired for page ${pageId} (age: ${(
           age / 1000
-        ).toFixed(1)}s, ttl: ${(ttlMs / 1000).toFixed(1)}s)`,
+        ).toFixed(1)}s, ttl: ${(ttlMs / 1000).toFixed(1)}s)`
       );
       return undefined;
     }
@@ -119,8 +119,8 @@ class PageCache {
     this.scheduleSave();
     console.log(
       `[blockStore cache] Cache hit for page ${pageId}. Hit rate: ${this.getHitRate().toFixed(
-        1,
-      )}%`,
+        1
+      )}%`
     );
     return data;
   }
@@ -148,7 +148,7 @@ class PageCache {
       this.invalidations += previousSize;
       this.scheduleSave();
       console.log(
-        `[blockStore cache] Invalidated all ${previousSize} cached pages`,
+        `[blockStore cache] Invalidated all ${previousSize} cached pages`
       );
     }
   }
@@ -199,7 +199,7 @@ class PageCache {
   }
 
   private async compressString(
-    data: string,
+    data: string
   ): Promise<{ compressed: boolean; data: string }> {
     if (
       typeof CompressionStream === "undefined" ||
@@ -227,7 +227,7 @@ class PageCache {
 
   private async decompressString(
     data: string,
-    compressed: boolean,
+    compressed: boolean
   ): Promise<string> {
     if (!compressed) return data;
     if (
@@ -315,7 +315,7 @@ class PageCache {
     } catch (error) {
       console.error(
         "[blockStore cache] Failed to load cache from storage:",
-        error,
+        error
       );
       storage.removeItem(this.storageKey);
     }
@@ -347,12 +347,12 @@ class PageCache {
           savedAt: now,
           compressed: compressed.compressed,
           data: compressed.data,
-        }),
+        })
       );
     } catch (error) {
       console.error(
         "[blockStore cache] Failed to save cache to storage:",
-        error,
+        error
       );
     }
   }
@@ -419,7 +419,7 @@ class PageCache {
     return `
 === Cache Statistics Report ===
 Size: ${s.size}/${s.capacity} entries (${((s.size / s.capacity) * 100).toFixed(
-      1,
+      1
     )}% full)
 Hit Rate: ${s.hits} hits / ${s.misses} misses = ${s.hitRate.toFixed(1)}%
 Evictions: ${s.evictions}
@@ -480,13 +480,14 @@ interface BlockActions {
   updatePartialBlocks: (
     blocks: BlockData[],
     deletedBlockIds?: string[],
-    skipCacheInvalidation?: boolean,
+    skipCacheInvalidation?: boolean
   ) => void;
 
   // 블록 CRUD
   createBlock: (
     afterBlockId: string | null,
     content?: string,
+    pageId?: string
   ) => Promise<string>;
   updateBlock: (id: string, updates: Partial<BlockData>) => Promise<void>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
@@ -494,7 +495,7 @@ interface BlockActions {
   splitBlockAtCursor: (
     id: string,
     offset: number,
-    draftContent?: string,
+    draftContent?: string
   ) => Promise<void>;
 
   // 블록 조작
@@ -503,7 +504,7 @@ interface BlockActions {
   moveBlock: (
     id: string,
     newParentId: string | null,
-    afterBlockId: string | null,
+    afterBlockId: string | null
   ) => Promise<void>;
   mergeWithPrevious: (id: string, draftContent?: string) => Promise<void>;
   toggleCollapse: (id: string) => Promise<void>;
@@ -543,7 +544,7 @@ function invalidatePagesByIds(pageIds: Iterable<string>): void {
 function invalidatePagesForBlocks(
   get: any,
   blocks: BlockData[],
-  deletedBlockIds?: string[],
+  deletedBlockIds?: string[]
 ): void {
   const { blocksById } = get();
   const pageIds = new Set<string>();
@@ -605,10 +606,10 @@ export const useBlockStore = create<BlockStore>()(
           if (cached) {
             const cacheStartTime = performance.now();
             console.log(
-              `[blockStore] Cache hit: Using cached blocks for page ${pageId}`,
+              `[blockStore] Cache hit: Using cached blocks for page ${pageId}`
             );
             const { blocksById, childrenMap } = normalizeBlocks(
-              cached.rootBlocks,
+              cached.rootBlocks
             );
             const normalizeTime = performance.now() - cacheStartTime;
 
@@ -620,7 +621,7 @@ export const useBlockStore = create<BlockStore>()(
               state.isLoading = false;
 
               for (const [blockId, metadata] of Object.entries(
-                cached.metadata,
+                cached.metadata
               )) {
                 if (state.blocksById[blockId]) {
                   state.blocksById[blockId].metadata = metadata;
@@ -632,10 +633,10 @@ export const useBlockStore = create<BlockStore>()(
 
             console.log(
               `[blockStore:timing] Cache hit complete: normalize=${normalizeTime.toFixed(
-                2,
+                2
               )}ms, setState=${stateTime.toFixed(
-                2,
-              )}ms, total=${totalTime.toFixed(2)}ms`,
+                2
+              )}ms, total=${totalTime.toFixed(2)}ms`
             );
             return;
           }
@@ -651,18 +652,18 @@ export const useBlockStore = create<BlockStore>()(
           });
           const ipcTime = performance.now() - ipcStartTime;
           console.log(
-            `[blockStore:timing] IPC call completed in ${ipcTime.toFixed(2)}ms`,
+            `[blockStore:timing] IPC call completed in ${ipcTime.toFixed(2)}ms`
           );
 
           const normalizeStartTime = performance.now();
           const { blocksById, childrenMap } = normalizeBlocks(
-            response.rootBlocks,
+            response.rootBlocks
           );
           const normalizeTime = performance.now() - normalizeStartTime;
           console.log(
             `[blockStore:timing] Normalization completed in ${normalizeTime.toFixed(
-              2,
-            )}ms`,
+              2
+            )}ms`
           );
 
           const isRootEmpty = (childrenMap.root ?? []).length === 0;
@@ -674,7 +675,7 @@ export const useBlockStore = create<BlockStore>()(
             state.currentPageId = pageId;
 
             for (const [blockId, metadata] of Object.entries(
-              response.metadata,
+              response.metadata
             )) {
               if (state.blocksById[blockId]) {
                 state.blocksById[blockId].metadata = metadata;
@@ -688,8 +689,8 @@ export const useBlockStore = create<BlockStore>()(
           const metadataTime = performance.now() - metadataStartTime;
           console.log(
             `[blockStore:timing] State update (with metadata) completed in ${metadataTime.toFixed(
-              2,
-            )}ms`,
+              2
+            )}ms`
           );
 
           pageCache.set(pageId, {
@@ -703,24 +704,24 @@ export const useBlockStore = create<BlockStore>()(
 
           if (isRootEmpty) {
             console.log(
-              `[blockStore] Creating initial block for page ${pageId}...`,
+              `[blockStore] Creating initial block for page ${pageId}...`
             );
             try {
               await get().createBlock(null, "");
               console.log(
-                `[blockStore] Initial block created successfully for page ${pageId}`,
+                `[blockStore] Initial block created successfully for page ${pageId}`
               );
             } catch (blockError) {
               console.error(
                 `[blockStore] Failed to create initial block for page ${pageId}:`,
-                blockError,
+                blockError
               );
               throw new Error(
                 `Failed to create initial block: ${
                   blockError instanceof Error
                     ? blockError.message
                     : String(blockError)
-                }`,
+                }`
               );
             }
 
@@ -732,27 +733,27 @@ export const useBlockStore = create<BlockStore>()(
           const totalTime = performance.now() - pageLoadStartTime;
           console.log(
             `[blockStore:timing] === TOTAL PAGE LOAD TIME: ${totalTime.toFixed(
-              2,
+              2
             )}ms (IPC: ${ipcTime.toFixed(
-              2,
+              2
             )}ms, Normalize: ${normalizeTime.toFixed(
-              2,
-            )}ms, Metadata: ${metadataTime.toFixed(2)}ms) ===`,
+              2
+            )}ms, Metadata: ${metadataTime.toFixed(2)}ms) ===`
           );
         } catch (error) {
           console.error(
             `[blockStore] Failed to load page ${pageId}:`,
             error,
             "Workspace:",
-            useWorkspaceStore.getState().workspacePath,
+            useWorkspaceStore.getState().workspacePath
           );
           set((state) => {
             state.error =
               typeof error === "string"
                 ? error
                 : error instanceof Error
-                  ? error.message
-                  : "Failed to load page";
+                ? error.message
+                : "Failed to load page";
             state.isLoading = false;
           });
         }
@@ -782,7 +783,7 @@ export const useBlockStore = create<BlockStore>()(
           console.log(
             `[blockStore] Loaded ${
               rootBlocks.length
-            } root blocks in ${rootLoadTime.toFixed(2)}ms`,
+            } root blocks in ${rootLoadTime.toFixed(2)}ms`
           );
 
           const {
@@ -803,24 +804,24 @@ export const useBlockStore = create<BlockStore>()(
 
           if (isRootEmpty) {
             console.log(
-              `[blockStore] Creating initial block for page ${pageId}...`,
+              `[blockStore] Creating initial block for page ${pageId}...`
             );
             try {
               await get().createBlock(null, "");
               console.log(
-                `[blockStore] Initial block created successfully for page ${pageId}`,
+                `[blockStore] Initial block created successfully for page ${pageId}`
               );
             } catch (blockError) {
               console.error(
                 `[blockStore] Failed to create initial block for page ${pageId}:`,
-                blockError,
+                blockError
               );
               throw new Error(
                 `Failed to create initial block: ${
                   blockError instanceof Error
                     ? blockError.message
                     : String(blockError)
-                }`,
+                }`
               );
             }
 
@@ -837,7 +838,7 @@ export const useBlockStore = create<BlockStore>()(
             })
               .then((childBlocks) => {
                 console.log(
-                  `[blockStore] Loaded ${childBlocks.length} child blocks progressively`,
+                  `[blockStore] Loaded ${childBlocks.length} child blocks progressively`
                 );
                 set((state) => {
                   const {
@@ -860,17 +861,17 @@ export const useBlockStore = create<BlockStore>()(
               {
                 workspacePath,
                 blockIds,
-              },
+              }
             )
               .then((metadataMap) => {
                 console.log(
                   `[blockStore] Loaded metadata for ${
                     Object.keys(metadataMap).length
-                  } root blocks`,
+                  } root blocks`
                 );
                 set((state) => {
                   for (const [blockId, metadata] of Object.entries(
-                    metadataMap,
+                    metadataMap
                   )) {
                     if (state.blocksById[blockId]) {
                       state.blocksById[blockId].metadata = metadata;
@@ -881,7 +882,7 @@ export const useBlockStore = create<BlockStore>()(
               .catch((err) => {
                 console.error(
                   "[blockStore] Failed to load root block metadata:",
-                  err,
+                  err
                 );
               });
           }
@@ -890,15 +891,15 @@ export const useBlockStore = create<BlockStore>()(
             `[blockStore] Failed to load page ${pageId}:`,
             error,
             "Workspace:",
-            useWorkspaceStore.getState().workspacePath,
+            useWorkspaceStore.getState().workspacePath
           );
           set((state) => {
             state.error =
               typeof error === "string"
                 ? error
                 : error instanceof Error
-                  ? error.message
-                  : "Failed to load page";
+                ? error.message
+                : "Failed to load page";
             state.isLoading = false;
           });
         }
@@ -927,7 +928,7 @@ export const useBlockStore = create<BlockStore>()(
       updatePartialBlocks: (
         blocks: BlockData[],
         deletedBlockIds?: string[],
-        skipCacheInvalidation?: boolean,
+        skipCacheInvalidation?: boolean
       ) => {
         set((state) => {
           // 1. Update childrenMap incrementally (O(M*K + K log K))
@@ -936,7 +937,7 @@ export const useBlockStore = create<BlockStore>()(
             state.childrenMap,
             state.blocksById,
             blocks,
-            deletedBlockIds ?? [],
+            deletedBlockIds ?? []
           );
 
           // 2. Update blocksById - create new object to ensure re-render
@@ -967,9 +968,14 @@ export const useBlockStore = create<BlockStore>()(
 
       // ============ Block CRUD ============
 
-      createBlock: async (afterBlockId: string | null, content?: string) => {
+      createBlock: async (
+        afterBlockId: string | null,
+        content?: string,
+        pageId?: string
+      ) => {
         const { currentPageId, blocksById, childrenMap } = get();
-        if (!currentPageId) throw new Error("No page loaded");
+        const targetPageId = pageId ?? currentPageId;
+        if (!targetPageId) throw new Error("No page loaded");
 
         // Determine where to place the new block:
         let parentId: string | null = null;
@@ -980,7 +986,7 @@ export const useBlockStore = create<BlockStore>()(
           const target = getInsertBelowTarget(
             afterBlockId,
             blocksById,
-            childrenMap,
+            childrenMap
           );
           parentId = target.parentId;
           afterBlockIdForBackend = target.afterBlockId;
@@ -996,7 +1002,7 @@ export const useBlockStore = create<BlockStore>()(
           const nowIso = new Date().toISOString();
           const tempBlock: BlockData = {
             id: tempId,
-            pageId: currentPageId,
+            pageId: targetPageId,
             parentId,
             content: content ?? "",
             orderWeight: Date.now(),
@@ -1026,7 +1032,7 @@ export const useBlockStore = create<BlockStore>()(
             const newBlock: BlockData = await invoke("create_block", {
               workspacePath,
               request: {
-                pageId: currentPageId,
+                pageId: targetPageId,
                 parentId,
                 afterBlockId: afterBlockIdForBackend,
                 content,
@@ -1035,7 +1041,7 @@ export const useBlockStore = create<BlockStore>()(
 
             // Capture pending updates before clearing them
             const pendingUpdates = get().pendingUpdates.filter(
-              (u) => u.tempId === tempId,
+              (u) => u.tempId === tempId
             );
             const latestContent =
               pendingUpdates.length > 0
@@ -1069,7 +1075,7 @@ export const useBlockStore = create<BlockStore>()(
                 }
                 // pending updates 제거
                 state.pendingUpdates = state.pendingUpdates.filter(
-                  (u) => u.tempId !== tempId,
+                  (u) => u.tempId !== tempId
                 );
               }
             });
@@ -1092,7 +1098,7 @@ export const useBlockStore = create<BlockStore>()(
               } catch (error) {
                 console.error(
                   "Failed to sync pending updates for new block:",
-                  error,
+                  error
                 );
               }
             }
@@ -1251,7 +1257,7 @@ export const useBlockStore = create<BlockStore>()(
       splitBlockAtCursor: async (
         id: string,
         offset: number,
-        draftContent?: string,
+        draftContent?: string
       ) => {
         const { currentPageId, blocksById, childrenMap } = get();
         if (!currentPageId) throw new Error("No page loaded");
@@ -1366,7 +1372,7 @@ export const useBlockStore = create<BlockStore>()(
         if (index <= 0) {
           // No previous sibling, cannot indent. Fail silently.
           console.log(
-            "[blockStore:indentBlock] Cannot indent: no previous sibling",
+            "[blockStore:indentBlock] Cannot indent: no previous sibling"
           );
           return;
         }
@@ -1379,7 +1385,7 @@ export const useBlockStore = create<BlockStore>()(
 
           console.log(
             "[blockStore:indentBlock] Calling backend indent_block for:",
-            id,
+            id
           );
           // Backend returns the updated block
           const updatedBlock: BlockData = await invoke("indent_block", {
@@ -1389,7 +1395,7 @@ export const useBlockStore = create<BlockStore>()(
 
           console.log(
             "[blockStore:indentBlock] Backend returned, new parentId:",
-            updatedBlock.parentId,
+            updatedBlock.parentId
           );
           // Update only the changed block without invalidating page cache
           // This prevents the Hook error that occurs when all blocks briefly become undefined
@@ -1433,7 +1439,7 @@ export const useBlockStore = create<BlockStore>()(
       moveBlock: async (
         id: string,
         targetParentId: string | null,
-        afterBlockId: string | null,
+        afterBlockId: string | null
       ) => {
         const workspacePath = useWorkspaceStore.getState().workspacePath;
         if (!workspacePath) {
@@ -1704,8 +1710,8 @@ export const useBlockStore = create<BlockStore>()(
         blocksById: state.blocksById,
         childrenMap: state.childrenMap,
       }),
-    },
-  ),
+    }
+  )
 );
 
 // ============ Selector Hooks ============
@@ -1726,7 +1732,7 @@ export const useBlock = (id: string) =>
 export const useChildrenIds = (parentId: string | null) =>
   useBlockStore(
     (state) => state.childrenMap[parentId ?? "root"] ?? [],
-    shallow,
+    shallow
   );
 
 export const useBlocksLoading = () => useBlockStore((state) => state.isLoading);
@@ -1813,7 +1819,7 @@ export function clearPageCache(): void {
 }
 
 export async function warmPageCacheFromStorage(
-  storageKey: string,
+  storageKey: string
 ): Promise<void> {
   await pageCache.warmFromStorage(storageKey);
 }
