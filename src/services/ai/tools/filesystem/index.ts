@@ -7,7 +7,7 @@ import { uiEventEmitter } from "../uiEvents";
  * Create a new file or directory in the workspace
  * Can create markdown files (.md extension) or directories
  */
-export const createFileTool: Tool = {
+const createFileTool: Tool = {
   name: "create_file",
   category: "FILESYSTEM",
   description: `Create a new file or directory in the workspace. Can create markdown files (.md extension) or directories.
@@ -113,7 +113,7 @@ Notes:
  * Delete a file or directory from the workspace
  * This operation cannot be undone
  */
-export const deleteFileTool: Tool = {
+const deleteFileTool: Tool = {
   name: "delete_file",
   category: "FILESYSTEM",
   description: `Delete a file or directory from the workspace. This operation cannot be undone.
@@ -178,7 +178,7 @@ Notes:
  * Rename a file or directory in the workspace
  * Useful for correcting typos or organizing files
  */
-export const renameFileTool: Tool = {
+const renameFileTool: Tool = {
   name: "rename_file",
   category: "FILESYSTEM",
   description: `Rename a file or directory in the workspace.
@@ -240,7 +240,7 @@ Notes:
 /**
  * Move a file or directory to a different location in the workspace
  */
-export const moveFileTool: Tool = {
+const moveFileTool: Tool = {
   name: "move_file",
   category: "FILESYSTEM",
   description: `Move a file or directory to a different location in the workspace.
@@ -293,3 +293,10 @@ Notes:
     }
   },
 };
+
+export const filesystemTools = [
+  createFileTool,
+  deleteFileTool,
+  renameFileTool,
+  moveFileTool,
+];

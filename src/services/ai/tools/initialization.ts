@@ -1,6 +1,7 @@
 import { blockTools } from "./block";
 import { contextTools } from "./context";
 import { pingTool } from "./examples/pingTool";
+import { filesystemTools } from "./filesystem";
 import { navigationTools } from "./navigation";
 import { pageTools } from "./page";
 import { toolRegistry } from "./registry";
@@ -23,6 +24,7 @@ export function initializeToolRegistry(): void {
     toolRegistry.registerMany([
       ...pageTools,
       ...blockTools,
+      ...filesystemTools,
       ...contextTools,
       ...navigationTools,
       pingTool,

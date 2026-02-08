@@ -13,6 +13,44 @@ function generateId(): string {
 }
 
 /**
+ * Wait for approval/denial decision using Zustand store subscription
+ */
+function waitForApprovalDecision(
+  callId: string,
+  approvalStore: ReturnType<typeof useToolApprovalStore.getState>,
+  timeoutMs: number = 5 * 60 * 1000,
+): Promise<"approved" | "denied"> {
+  return new Promise((resolve) => {
+    let resolved = false;
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    const unsubscribe = useToolApprovalStore.subscribe(() => {
+      if (resolved) return;
+
+      if (approvalStore.isApproved(callId)) {
+        resolved = true;
+        clearTimeout(timeoutId!);
+        unsubscribe();
+        resolve("approved");
+      } else if (approvalStore.isDenied(callId)) {
+        resolved = true;
+        clearTimeout(timeoutId!);
+        unsubscribe();
+        resolve("denied");
+      }
+    });
+
+    timeoutId = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        unsubscribe();
+        resolve("denied");
+      }
+    }, timeoutMs);
+  });
+}
+
+/**
  * Execute a tool with parameter validation and optional user approval
  */
 export async function executeTool(
@@ -87,34 +125,29 @@ export async function executeTool(
         `[executeTool] Waiting for user approval (callId: ${callId})`,
       );
 
-      // Wait for approval or denial via polling
-      return new Promise((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (approvalStore.isApproved(callId)) {
-            clearInterval(checkInterval);
+      return waitForApprovalDecision(callId, approvalStore).then(
+        async (decision) => {
+          if (decision === "approved") {
             console.log(
               "[executeTool] User approved tool execution, proceeding...",
             );
-
-            // Execute tool after approval (skip approval this time)
-            executeTool(toolName, params, context, { skipApproval: true }).then(
-              resolve,
-            );
-          } else if (approvalStore.isDenied(callId)) {
-            clearInterval(checkInterval);
-            const duration = performance.now() - startTime;
-            console.warn(
-              `[executeTool] User denied tool execution (${duration.toFixed(
-                2,
-              )}ms)`,
-            );
-            resolve({
-              success: false,
-              error: "Tool execution denied by user",
+            return executeTool(toolName, params, context, {
+              skipApproval: true,
             });
           }
-        }, 100);
-      });
+
+          const duration = performance.now() - startTime;
+          console.warn(
+            `[executeTool] User denied tool execution (${duration.toFixed(
+              2,
+            )}ms)`,
+          );
+          return {
+            success: false,
+            error: "Tool execution denied by user",
+          };
+        },
+      );
     }
 
     console.log(

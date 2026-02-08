@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { useViewStore } from "../../../../stores/viewStore";
-import { usePageStore } from "../../../../stores/pageStore";
 import { useNavigationStore } from "../../../../stores/navigationStore";
+import { usePageStore } from "../../../../stores/pageStore";
+import { useViewStore } from "../../../../stores/viewStore";
+import { useWorkspaceStore } from "../../../../stores/workspaceStore";
 import type { Tool } from "../types";
 
 /**
@@ -169,15 +170,68 @@ Notes:
   execute: async ({ path }) => {
     console.log(`[navigate_to_path] Navigating to path: ${path}`);
 
-    // This will require workspaceStore integration
-    // For now, we'll store the path for UI components to handle
-    return {
-      success: true,
-      data: `Navigated to ${path}`,
-      metadata: {
-        targetPath: path,
-      },
-    };
+    try {
+      const workspaceStore = useWorkspaceStore.getState();
+      const viewStore = useViewStore.getState();
+      const pageStore = usePageStore.getState();
+
+      // Normalize path (remove leading/trailing slashes)
+      const normalizedPath = path.trim().replace(/^\/+|\/+$/g, "");
+
+      // Check if path is a markdown file
+      const isFile = normalizedPath.endsWith(".md");
+
+      if (isFile) {
+        // Find the page by file path
+        const matchingPages = Object.values(pageStore.pagesById).filter(
+          (p) =>
+            p.filePath &&
+            (p.filePath === normalizedPath ||
+              p.filePath.endsWith(`/${normalizedPath}`)),
+        );
+
+        if (matchingPages.length > 0) {
+          // Open the first matching page
+          const page = matchingPages[0];
+          viewStore.showPage(page.id);
+          return {
+            success: true,
+            data: `Opened file "${page.title}"`,
+          };
+        }
+        // If no matching page, try to load the directory and show the path
+        const dirPath = normalizedPath.substring(
+          0,
+          normalizedPath.lastIndexOf("/"),
+        );
+        if (dirPath) {
+          await workspaceStore.loadDirectory(dirPath);
+        }
+        return {
+          success: true,
+          data: `Navigated to ${normalizedPath}`,
+        };
+      }
+
+      // Navigate to directory
+      await workspaceStore.loadDirectory(normalizedPath);
+
+      // Switch to index view to show directory contents
+      viewStore.showIndex();
+
+      return {
+        success: true,
+        data: `Navigated to directory ${normalizedPath}`,
+      };
+    } catch (error) {
+      console.error("[navigate_to_path] Error:", error);
+      return {
+        success: false,
+        error: `Failed to navigate to path: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      };
+    }
   },
 };
 
