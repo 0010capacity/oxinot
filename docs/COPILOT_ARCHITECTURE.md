@@ -762,73 +762,226 @@ c3263df refactor(copilot): implement intent-first routing with selective tool us
 
 ## Wave 1 Audit Results (In Progress)
 
-> **Status**: Real-time audit in progress via sisyphus-junior agents
-> - Agent bg_0e58c9dc: Core Logic Audit (orchestrator, intentClassifier, toolSelector)
-> - Agent bg_752c6ce2: Tool Ecosystem Audit (tool registry, all 25 tools)
-> - Agent bg_9d4a2563: UI/Provider Audit (COMPLETE ✅)
+> **Status**: All Wave 1 Audits COMPLETE ✅
+> - Agent bg_13961ee2: Core Logic Audit (Duration: 2m 46s) ✅
+> - Agent bg_c662b4c3: Tool Ecosystem Audit (Duration: 6m 26s) ✅
+> - Agent bg_9d4a2563: UI/Provider Audit ✅
 
-### Core Logic Audit Findings (bg_0e58c9dc)
+### Core Logic Audit Findings (bg_13961ee2) ✅ COMPLETE
 
-**IN PROGRESS** - Detailed analysis of:
+**Duration**: 2m 46s | **Session**: ses_3c4db6d4fffeXpaShPHo1cFUa5
 
-1. **Orchestrator Architecture**
-   - ReAct pattern implementation (Thought → Tool Call → Observation loop)
-   - Async generator streaming mechanism
-   - State management and iteration control
-   - Error recovery and graceful degradation
-   - Tool call history to prevent infinite loops
-   - Task progress tracking for user feedback
+#### 1. Complete Data Flow
 
-2. **Intent Classification System**
-   - Regex-based pattern matching with confidence scoring
-   - Priority-ordered intent detection (modification > creation > information > conversational)
-   - Multi-language support (English, Korean, Chinese)
-   - Edge case handling and confidence thresholds
-   - Examples and counterexamples for each intent
+```
+User Input (e.g., "Create a meeting agenda page")
+    ↓
+Intent Classification (intentClassifier.ts, lines 89-188)
+├─ Priority Order: Modification > Creation > Information > Conversational
+├─ Confidence: 0.5-0.95 based on pattern specificity
+└─ Result: {intent, confidence, reasoning}
+    ↓
+Tool Selection (toolSelector.ts, lines 99-113)
+├─ CONVERSATIONAL: 0 tools
+├─ INFORMATION_REQUEST: 6 read-only tools
+├─ CONTENT_CREATION: 18 tools (no delete)
+└─ CONTENT_MODIFICATION: 20 tools (all including delete)
+    ↓
+Orchestrator Execution Loop (orchestrator.ts, lines 54-329)
+├─ ReAct Pattern: Thought → Tool Call → Observation → (repeat or final)
+├─ State Management: Track iterations, status, task progress
+├─ Loop Detection: Prevent infinite loops with 3 detection strategies
+└─ Error Recovery: Classify error → Determine recoverability → Recover or abort
+    ↓
+Response (rendered in CopilotPanel chat)
+```
 
-3. **Tool Selection Logic**
-   - Intent → Tool mapping hierarchy
-   - Safety restrictions per intent level
-   - Tool availability constraints
-   - Approval mechanism for dangerous operations
-   - Fallback strategies when tools unavailable
+#### 2. Intent Classification Decision Rules
 
-**Expected Output**: Detailed flow diagrams, code references, performance characteristics, and recommendations for optimization.
+**Pattern Categories** (ordered by priority):
 
-### Tool Ecosystem Audit Findings (bg_752c6ce2)
+| Priority | Intent | Patterns | Confidence |
+|----------|--------|----------|-----------|
+| 1 | MODIFICATION_MARKERS | `delete_block`, `delete_page`, `remove_block` | 0.95 |
+| 2 | MODIFICATION_PATTERNS | `delete`, `remove`, `edit`, `update`, `move`, `rename`, `merge`, `split` | 0.9 |
+| 3 | CREATION_PATTERNS | `create`, `make`, `write`, `generate`, `plan`, `new page` | 0.9 |
+| 4 | INFO_KEYWORDS | `list`, `show`, `find`, `search`, `get`, `retrieve` | 0.85 |
+| 5 | INFO_PATTERNS | `what/where/when`, `tell me`, `can you find` | 0.8 |
+| 6 | CONVERSATIONAL | `thanks`, `cool`, `hi`, `how are you` | 0.85 |
+| 7 | FALLBACK | Multi-sentence + instruction verbs | 0.5-0.6 |
 
-**IN PROGRESS** - Comprehensive analysis of:
+#### 3. Tool Selection Rules Per Intent
 
-1. **Tool Registry System**
-   - Central registration mechanism
-   - Zod-based validation
-   - Tool discovery and retrieval
-   - Type safety enforcement
-   - Scalability assessment
+```
+CONVERSATIONAL (Level 0) → 0 tools (response only)
 
-2. **Complete Tool Inventory** (25 tools across 6 categories)
-   - Block Tools (8): create, update, delete, query, append, insert
-   - Page Tools (5): create, list, query, open, navigate
-   - Context Tools (2): get current state, user position awareness
-   - Navigation Tools (3): workspace navigation, breadcrumbs, hierarchy
-   - Filesystem Tools (4): read, write, directory ops, path resolution
-   - Test Tools (3): validation, structure checking, examples
+INFORMATION_REQUEST (Level 1) → 6 read-only tools
+├─ get_block, get_page_blocks, query_blocks
+├─ list_pages, search_blocks, get_block_references
 
-3. **Tool Interdependencies & Patterns**
-   - Which tools work together
-   - Common execution chains
-   - Performance implications of tool combinations
-   - Batching opportunities for efficiency
+CONTENT_CREATION (Level 2) → 18 tools (no delete)
+├─ Read (6) + Create (6) + Update (2) + Validate (2)
 
-4. **Safety & Approval Mechanisms**
-   - Approval matrix (which tools require confirmation)
-   - Danger levels and risk mitigation
-   - Error handling per tool
-   - Recovery guidance for failures
+CONTENT_MODIFICATION (Level 3) → 20 tools (all including delete)
+├─ Everything above + delete_block, delete_page
+```
 
-**Expected Output**: Complete tool inventory table, dependency map, usage patterns, and scalability recommendations.
+#### 4. Orchestrator State Machine
 
-### UI/Provider Audit Findings (bg_9d4a2563) ✅
+- **idle** → thinking → acting → {completed|failed}
+- **Loop detection**: Same tool 3x consecutively OR read-only loop OR unnecessary verification
+- **Error recovery**: Classify → Recover (if RECOVERABLE/TRANSIENT) or Abort (if FATAL)
+- **Max iterations**: 50 (default, configurable)
+
+#### 5. Error Recovery
+
+- **8 Error Categories**: INVALID_TOOL, TOOL_EXECUTION, VALIDATION, NOT_FOUND, PERMISSION, INVALID_INPUT, AI_PROVIDER, UNKNOWN
+- **3 Severity Levels**: RECOVERABLE → Inject guidance | TRANSIENT → Retry | FATAL → Abort
+- **Recovery Injection**: AI receives error classification + recovery guidance as user message
+
+#### 6. Code References
+
+- Orchestrator: `orchestrator.ts:54-329` (loop), `343-398` (detection), `453-506` (progress)
+- Intent Classifier: `intentClassifier.ts:29-188` (patterns), `101-165` (priority)
+- Tool Selector: `toolSelector.ts:99-113` (selection), `126-173` (safety)
+- Error Recovery: `errorRecovery.ts:81-187` (classification), `212-248` (guidance)
+
+
+### Tool Ecosystem Audit Findings (bg_c662b4c3) ✅ COMPLETE
+
+**Duration**: 6m 26s | **Session**: ses_3c4db62bdffe38yG8uWmTYbTuu
+
+#### 1. Tool Inventory (25 Registered Tools)
+
+**Block Tools (13)**: get_block, update_block, create_block, delete_block, query_blocks, get_page_blocks, insert_block_below_current, insert_block_below, append_to_block, create_blocks_from_markdown, create_blocks_batch, validate_markdown_structure, get_markdown_template
+
+**Page Tools (5)**: open_page, query_pages, list_pages, create_page, create_page_with_blocks
+
+**Navigation Tools (5)**: switch_to_index, switch_to_note_view, navigate_to_path, go_back, go_forward
+
+**Context Tools (1)**: get_current_context
+
+**Test Tools (1)**: ping
+
+**Additional Filesystem Tools (4, defined but not registered)**: create_file, delete_file, rename_file, move_file
+
+#### 2. Tool Registry System
+
+**Architecture** (`src/services/ai/tools/registry.ts`):
+- Registry Pattern: `Map<string, Tool>`
+- Key Methods: `register()`, `registerMany()`, `get()`, `getAll()`, `getByCategory()`
+- Validation: Zod schemas for all parameters
+- Performance: O(1) lookup, O(1) insertion
+
+**Tool Interface**:
+```typescript
+interface Tool<Params> {
+  name: string;                    // snake_case identifier
+  description: string;              // AI-readable description
+  parameters: ZodTypeAny;           // Validation schema
+  execute: (params, context) => Promise<ToolResult>;
+  requiresApproval?: boolean;       // Default: false
+  isDangerous?: boolean;            // Default: false
+  category?: ToolCategory | string;
+}
+```
+
+#### 3. Safety & Approval Matrix
+
+| Danger Level | Tools | Approval Required | Examples |
+|--------------|-------|-------------------|----------|
+| 🔴 High (isDangerous) | 2 | Yes | delete_block, delete_file |
+| 🟡 Medium (requiresApproval) | 2 | Yes | rename_file, move_file |
+| 🟢 Safe | 21 | No | all read-only and creation tools |
+
+**Approval Policies**:
+- **always**: All tools need confirmation
+- **dangerous_only** (default): Only dangerous or approval-required tools
+- **never**: No approval needed
+
+#### 4. Tool Execution Pipeline
+
+```
+Tool Lookup → Approval Check → Parameter Validation → Execute → UI Events
+     ↓            ↓                    ↓                ↓           ↓
+  O(1)      Poll toolApproval    Zod.parse()    Tool function   Event emission
+```
+
+**Event Types**: file_created, file_deleted, block_updated, page_changed, tool_execution_started
+
+#### 5. Tool Usage Patterns
+
+**Pattern 1**: Create Page with Content
+- query_pages() → create_page_with_blocks() → Efficient bulk operation
+
+**Pattern 2**: Bulk Block Creation
+- validate_markdown_structure() → create_blocks_batch() → Safe + efficient
+
+**Pattern 3**: Navigation + Edit
+- open_page() → get_current_context() → update_block()
+
+#### 6. Dependency Architecture
+
+```
+CONTEXT LAYER (Non-destructive)
+    ↓
+DISCOVERY LAYER (Read-only)
+├─ query_pages → list_pages → open_page
+└─ query_blocks → get_page_blocks → get_block
+    ↓
+CREATION LAYER (Destructive)
+├─ create_page / create_page_with_blocks
+├─ create_block / create_blocks_batch
+└─ insert_block_below* / append_to_block
+    ↓
+MODIFICATION LAYER (Destructive)
+├─ update_block
+└─ delete_block (dangerous)
+```
+
+#### 7. Scalability Assessment
+
+**Current**: 25 tools (52KB)  
+**Projected 100+ tools**: ~208KB (acceptable)
+
+**Complexity Analysis**:
+- Tool registration: O(n) linear
+- Tool lookup: O(1) constant
+- Batch registration: O(n) linear
+- Category filtering: O(n) linear
+
+**Can Scale to 100+ tools?** ✅ **YES**
+
+**Recommendations**:
+1. Add category index for O(1) category filtering
+2. Replace approval polling (100ms) with event-driven approach
+3. Register the 4 filesystem tools currently unregistered
+4. Complete `navigate_to_path` implementation
+5. Standardize parameter naming conventions
+
+#### 8. Template System
+
+**8 Categories** with pre-built templates:
+- meetings, projects, research, learning, decisions, development, reading, problem-solving
+
+#### 9. Code Quality
+
+**Strengths**: Type-safe validation, consistent interface, event-driven UI, comprehensive error handling
+
+**Areas for Improvement**: Filesystem tools not registered, `navigate_to_path` incomplete, approval polling inefficient, naming inconsistency
+
+#### 10. Key Files & References
+
+| Component | File | Lines |
+|-----------|------|-------|
+| Registry | `src/services/ai/tools/registry.ts` | 112 |
+| Executor | `src/services/ai/tools/executor.ts` | 204 |
+| Initialization | `src/services/ai/tools/initialization.ts` | 44 |
+| Approval Store | `src/stores/toolApprovalStore.ts` | 93 |
+| Templates | `src/services/ai/tools/templates/markdownTemplates.ts` | 329 |
+
+
+### UI/Provider Audit Findings (bg_9d4a2563) ✅ COMPLETE
 
 **COMPLETE** - Key findings:
 
