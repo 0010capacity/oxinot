@@ -340,16 +340,40 @@ npm run lint && npm run format
 gh pr merge PR_NUM --auto --squash
 ```
 
-## Release Process (Fully Automated)
+## Release Process (Manual Trigger with Auto Version)
 
-1. Merge `develop` branch to `main`
-2. GitHub Actions automatically:
-   - Bumps patch version (e.g., 0.24.3 → 0.24.4)
+1. Go to GitHub Actions → Release workflow
+2. Click "Run workflow" (no inputs needed)
+3. GitHub Actions automatically:
+   - Analyzes commits since last tag using **Conventional Commits**:
+     - `feat:` commits → **minor** bump (0.24.3 → 0.25.0)
+     - `fix:` commits → **patch** bump (0.24.3 → 0.24.4)
+     - `feat!:` or `BREAKING CHANGE:` → **major** bump (0.24.3 → 1.0.0)
+   - Bumps version in `package.json`
    - Syncs version to `tauri.conf.json` and `Cargo.toml`
-   - Commits version bump with `[skip ci]` flag
+   - Commits version bump to `main` with `[skip ci]`
    - Creates and pushes version tag (e.g., `v0.24.4`)
+   - Extracts changelog from `CHANGELOG.md`
    - Builds and creates GitHub release with binaries
-3. **Never manually bump versions or create tags**
+4. **Never manually bump versions or create tags**
+
+### Important: Follow Conventional Commits
+
+For automatic versioning to work correctly, commit messages must follow the format:
+
+```/dev/null/commit-examples.txt#L1-6
+feat(editor): add block drag-and-drop support    # → minor bump
+fix(store): prevent race condition              # → patch bump
+feat(api)!: redesign page structure             # → major bump
+fix: typo in documentation                      # → patch bump
+chore: update dependencies                      # → no version change
+```
+
+### CI Checks
+
+- `main` and `develop` branch pushes trigger CI checks only
+- Pull requests to `main` and `develop` run full CI validation
+- No automatic releases on merge
 
 ## Key Dependencies Reference
 

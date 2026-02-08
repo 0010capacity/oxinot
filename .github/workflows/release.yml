@@ -1,21 +1,10 @@
 name: Release
 
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
   workflow_dispatch:
-    inputs:
-      force_build:
-        description: "Force build and release"
-        required: true
-        default: true
-        type: boolean
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
   group: release
@@ -26,17 +15,8 @@ env:
 
 jobs:
   release:
-    name: Auto Version and Release
-    if: >
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.merged == true &&
-       github.event.pull_request.base.ref == 'main' &&
-       github.event.pull_request.head.ref == 'develop') ||
-      github.event_name == 'workflow_dispatch'
+    name: Create Release
     runs-on: macos-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,102 +40,71 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Calculate Version Bump
+        id: version_bump
+        run: |
+          set -euo pipefail
+
+          # Get current version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+
+          # Get latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+
+          # Get commits since last tag
+          COMMITS=$(git log ${LATEST_TAG}..HEAD --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s")
+
+          echo "Analyzing commits:"
+          echo "$COMMITS"
+
+          # Determine bump type based on Conventional Commits
+          BUMP_TYPE="patch"
+
+          # Check for breaking changes (major bump)
+          if echo "$COMMITS" | grep -qE "^[a-z]+(\(.+\))?!:|BREAKING CHANGE:"; then
+            BUMP_TYPE="major"
+            echo "Found breaking change - will bump MAJOR version"
+          # Check for features (minor bump)
+          elif echo "$COMMITS" | grep -qE "^feat(\(.+\))?:"; then
+            BUMP_TYPE="minor"
+            echo "Found feature commits - will bump MINOR version"
+          # Check for fixes (patch bump)
+          elif echo "$COMMITS" | grep -qE "^fix(\(.+\))?:"; then
+            BUMP_TYPE="patch"
+            echo "Found fix commits - will bump PATCH version"
+          else
+            BUMP_TYPE="patch"
+            echo "No conventional commits found - defaulting to PATCH version"
+          fi
+
+          echo "bump_type=$BUMP_TYPE" >> "$GITHUB_OUTPUT"
+
       - name: Bump Version
         id: version
         run: |
           set -euo pipefail
 
-          # Get current version from package.json
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          BUMP_TYPE="${{ steps.version_bump.outputs.bump_type }}"
+          echo "Bumping $BUMP_TYPE version"
 
-          # Parse version (major.minor.patch)
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-          PATCH=$((PATCH + 1))
+          # Bump version
+          npm version $BUMP_TYPE --no-git-tag-version
 
-          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "New version: $NEW_VERSION"
 
-          echo "Bumping version from $CURRENT_VERSION to $NEW_VERSION"
-
-          # Update package.json with new version
-          npm version $NEW_VERSION --no-git-tag-version
-
-          # Sync version to tauri.conf.json and Cargo.toml
+          # Sync to tauri.conf.json and Cargo.toml
           npm run version:sync
 
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Create Pull Request
-        id: create_pr
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: release/v${{ steps.version.outputs.version }}
-          base: main
-          commit-message: "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
-          title: "chore: bump version to ${{ steps.version.outputs.version }}"
-          body: |
-            Automated version bump to ${{ steps.version.outputs.version }}
-
-            This PR will be auto-merged and trigger the release build.
-          labels: release
-          delete-branch: true
-          committer: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
-          author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
-
-      - name: Enable auto-merge
-        if: steps.create_pr.outputs.pull-request-number != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr merge ${{ steps.create_pr.outputs.pull-request-number }} --auto --squash
-
-      - name: Wait for PR merge and status checks
-        if: steps.create_pr.outputs.pull-request-number != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PR_NUMBER="${{ steps.create_pr.outputs.pull-request-number }}"
-          echo "Waiting for PR #$PR_NUMBER to pass checks and merge..."
-
-          for i in {1..120}; do
-            STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-            if [ "$STATE" = "MERGED" ]; then
-              echo "✓ PR merged successfully"
-              break
-            fi
-
-            if [ "$STATE" = "CLOSED" ]; then
-              echo "✗ PR was closed without merging"
-              exit 1
-            fi
-
-            echo "Waiting for status checks and merge... (attempt $i/120, ~10 minutes max)"
-            sleep 5
-          done
-
-          if [ "$STATE" != "MERGED" ]; then
-            echo "✗ Timeout waiting for PR to merge"
-            exit 1
-          fi
-
-      - name: Checkout merged main and create tag
-        if: steps.create_pr.outputs.pull-request-number != ''
-        run: |
-          git fetch origin main
-          git checkout main
-          git pull origin main
-
-          NEW_VERSION="${{ steps.version.outputs.version }}"
-          git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
-          git push origin "v${NEW_VERSION}"
-
       - name: Extract Changelog
         id: changelog
-        shell: bash
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-
           echo "Extracting changelog for version $VERSION"
 
           # Extract section from CHANGELOG.md
@@ -167,14 +116,30 @@ jobs:
             p
           ' CHANGELOG.md > RELEASE_BODY.md
 
-          # If file is empty, use default message
+          # If empty, use default message
           if [ ! -s RELEASE_BODY.md ]; then
-            echo "See the assets to download this version and check the release notes." > RELEASE_BODY.md
+            echo "Release $VERSION" > RELEASE_BODY.md
+            echo "" >> RELEASE_BODY.md
+            echo "See the assets to download this version." >> RELEASE_BODY.md
           fi
 
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
           cat RELEASE_BODY.md >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+
+      - name: Commit Version Bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
+          git push origin main
+
+      - name: Create and Push Tag
+        run: |
+          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
 
       - name: Import Code-Signing Certificates for macOS
         uses: Apple-Actions/import-codesign-certs@v2
@@ -182,7 +147,7 @@ jobs:
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
 
-      - name: Build and Release
+      - name: Build and Create Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
