@@ -339,6 +339,124 @@ Notice: `\n  - ` (newline + 2 spaces + dash) for child items, NOT `\n - ` (only 
   - Item 3
 ```
 
+### Semantic Block Relationships (CRITICAL!)
+
+**THE PROBLEM:** You can indent correctly (2 spaces), but still create WRONG structure if you don't understand WHEN to use siblings vs children based on semantic meaning.
+
+**CORE PRINCIPLE: Content meaning determines structure, not personal preference.**
+
+#### Decision Framework
+
+Before creating a block structure, ask these questions:
+
+**Q1: Are these items PARALLEL/EQUAL?**
+- Examples: Genres (드라마, 로맨스, SF), attendees, categories, options
+- Answer: YES → Use SIBLINGS (same indentation)
+
+**Q2: Are these items PARTS OF A PARENT (hierarchical)?**
+- Examples: Tasks inside phases, symptoms inside disease, sub-sections
+- Answer: YES → Use CHILDREN (deeper indentation)
+
+**Q3: Are these items SEQUENTIAL/ORDERED?**
+- Examples: Steps in process, timeline events, ordered instructions
+- Answer: YES → Use SIBLINGS (same indentation) - NOT staircase!
+
+**Rule Summary:**
+- Parallel items → **SAME indentation (siblings)**
+- Parts of a parent → **MORE indentation (children)**
+- Sequential items → **SAME indentation (siblings)** - never as staircase!
+
+#### Real-World Examples
+
+**EXAMPLE 1: Genre List (Parallel) - MOST IMPORTANT**
+
+User: "Create novel ideas page with genres"
+
+❌ WRONG - treats genres as hierarchy:
+```markdown
+- 드라마
+  - 로맨스
+    - 미스터리
+      - SF
+```
+Why: Genres are parallel categories, not parts of each other. This is the MAIN MISTAKE to avoid.
+
+✅ CORRECT - treats genres as siblings:
+```markdown
+- 드라마
+- 로맨스
+- 미스터리
+- SF
+- 판타지
+- 기타
+```
+Why: Genres are equal, parallel options. No genre is "inside" another genre.
+
+**EXAMPLE 2: Meeting Notes (Mixed)**
+
+✅ CORRECT:
+```markdown
+- Attendees
+  - Alice
+  - Bob
+  - Carol
+- Agenda Items
+  - 예산 검토
+  - 타임라인 논의
+- Action Items
+  - Alice: 예산 준비
+  - Bob: 타임라인 작성
+```
+Why: "Attendees" and "Agenda Items" are parallel sections (siblings). Names/items inside are their children.
+
+**EXAMPLE 3: Project Breakdown (Hierarchical)**
+
+✅ CORRECT:
+```markdown
+- Project Redesign
+  - Design Phase
+    - Wireframes
+    - Design System
+  - Development
+    - Frontend
+      - Homepage
+      - About Page
+    - Backend
+      - API Endpoints
+```
+Why: Wireframes are PARTS OF Design Phase. Frontend is PART OF Development. This is true hierarchy.
+
+**EXAMPLE 4: To-Do List (Parallel)**
+
+✅ CORRECT:
+```markdown
+- Task 1: Review proposal
+- Task 2: Update documentation
+- Task 3: Run tests
+- Task 4: Deploy
+```
+Why: Tasks are parallel items in a checklist. Reorderable. NOT hierarchical.
+
+#### Validation Checklist
+
+When creating blocks, verify:
+
+1. **Could I reorder these items without breaking meaning?**
+   - YES (genres, attendees, tasks) → SIBLINGS
+   - NO (phases with ordered steps) → Check if hierarchical
+
+2. **Does "A contains B" make semantic sense?**
+   - Genres: "Drama contains Romance"? → NO → SIBLINGS
+   - Project: "Phase 1 contains Task 1"? → YES → CHILDREN
+
+3. **Are items at the same level of importance/abstraction?**
+   - YES (all genres are types of stories) → SIBLINGS
+   - NO (phases and tasks are different levels) → CHILDREN
+
+4. **Default Rule: When in doubt, use SIBLINGS**
+   - Only nest when there's a clear parent-child relationship
+   - Parallel/equal is safer than over-nesting
+
 ### Workflow
 
 1. **Validate**: `validate_markdown_structure(markdown, expectedCount)`
