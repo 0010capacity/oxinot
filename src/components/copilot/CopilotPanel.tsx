@@ -20,7 +20,6 @@ import {
   IconChevronDown,
   IconDeviceDesktop,
   IconPlayerStop,
-  IconRobot,
   IconTrash,
   IconUser,
   IconX,
@@ -595,24 +594,7 @@ export function CopilotPanel() {
       ))}
 
       {/* Header */}
-      <Group
-        justify="space-between"
-        p="xs"
-        style={{ borderBottom: "1px solid var(--color-border-primary)" }}
-      >
-        <Group gap="xs">
-          <Badge
-            variant="light"
-            color="violet"
-            size="lg"
-            leftSection={<IconRobot size={12} />}
-          >
-            Assistant
-          </Badge>
-          <Text size="xs" c="dimmed">
-            Use @ to mention
-          </Text>
-        </Group>
+      <Group justify="flex-end" p="xs">
         <Group gap="xs">
           {chatMessages.length > 0 && (
             <ActionIcon
@@ -658,32 +640,19 @@ export function CopilotPanel() {
               backgroundColor: "var(--color-bg-secondary)",
             }}
           >
-            <Loader size="xs" type="dots" color="var(--color-accent)" />
+            <Loader size="xs" type="dots" color="var(--color-text-tertiary)" />
             <Text size="xs" c="dimmed">
-              {currentStep === "thinking" && "분석 중..."}
+              {currentStep === "thinking" && "Analyzing..."}
               {currentStep === "tool_call" &&
-                `${currentToolName || "도구"} 실행 중...`}
-              {currentStep === "observation" && "결과 처리 중..."}
-              {currentStep === "final" && "응답 생성 중..."}
+                `Running ${currentToolName || "tool"}...`}
+              {currentStep === "observation" && "Processing..."}
+              {currentStep === "final" && "Generating..."}
             </Text>
           </Group>
         )}
 
         <ScrollArea h="100%" p="md" viewportRef={scrollViewportRef}>
           <Stack gap="md">
-            {chatMessages.length === 0 && (
-              <Stack
-                align="center"
-                justify="center"
-                h="200px"
-                style={{ opacity: 0.5 }}
-              >
-                <IconRobot size={48} stroke={1.5} />
-                <Text size="sm" c="dimmed">
-                  How can I help you today?
-                </Text>
-              </Stack>
-            )}
             {chatMessages
               .filter((msg) => msg.content.trim() !== "")
               .map((msg) => {
@@ -714,24 +683,13 @@ export function CopilotPanel() {
                     wrap="nowrap"
                     justify={msg.role === "user" ? "flex-end" : "flex-start"}
                   >
-                    {msg.role === "assistant" && (
-                      <ActionIcon
-                        variant="light"
-                        color="violet"
-                        radius="xl"
-                        size="sm"
-                        mt={4}
-                      >
-                        <IconRobot size={14} />
-                      </ActionIcon>
-                    )}
                     <Paper
                       p="sm"
                       radius="md"
                       bg={
                         msg.role === "user"
                           ? "var(--color-interactive-primary)"
-                          : "var(--color-interactive-selected)"
+                          : "transparent"
                       }
                       c={
                         msg.role === "user"
@@ -740,7 +698,10 @@ export function CopilotPanel() {
                       }
                       style={{
                         maxWidth: "85%",
-                        border: "none",
+                        border:
+                          msg.role === "user"
+                            ? "none"
+                            : "1px solid var(--color-border-primary)",
                       }}
                     >
                       <div

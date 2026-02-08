@@ -1294,14 +1294,26 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 const view = editorRef.current.getView();
                 if (view?.hasFocus) {
                   console.log(
-                    `[BlockComponent:onMouseDown] Committing draft for blockId=${blockId.slice(0, 8)}`,
+                    `[BlockComponent:onMouseDown] Block already focused, updating cursor position for blockId=${blockId.slice(0, 8)}`,
                   );
-                  commitDraft().then(() => {
-                    console.log(
-                      `[BlockComponent:onMouseDown] Draft committed, blurring blockId=${blockId.slice(0, 8)}`,
+                  const range = document.caretRangeFromPoint(
+                    e.clientX,
+                    e.clientY,
+                  );
+                  if (range && e.currentTarget.contains(range.startContainer)) {
+                    const preCaretRange = document.createRange();
+                    preCaretRange.selectNodeContents(e.currentTarget);
+                    preCaretRange.setEnd(
+                      range.startContainer,
+                      range.startOffset,
                     );
-                    view.contentDOM.blur();
-                  });
+                    const cursorPos = preCaretRange.toString().length;
+
+                    view.dispatch({
+                      selection: { anchor: cursorPos, head: cursorPos },
+                    });
+                    view.focus();
+                  }
                   return;
                 }
               }
@@ -1310,9 +1322,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 console.log(
                   `[BlockComponent:onMouseDown] Setting focus to blockId=${blockId.slice(0, 8)}`,
                 );
-                // CRITICAL: Do NOT set targetCursorPosition yet - wait for store to be updated
-                // If we set it now, other blocks' blockContentEffect might fire before the store update completes
-                // causing them to override their draft with stale values
                 setFocusedBlock(blockId);
               }
             }}

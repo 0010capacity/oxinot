@@ -16,7 +16,7 @@ import {
   indentOnInput,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import { searchKeymap } from "@codemirror/search";
 import { EditorState, type Extension } from "@codemirror/state";
 import {
   EditorView,
@@ -172,9 +172,6 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
     // Auto-close brackets
     closeBrackets(),
 
-    // Highlight selection matches
-    highlightSelectionMatches(),
-
     // Keymaps (prepend user bindings so they override defaults)
     keymap.of([
       // Autocomplete keymap (Enter, Arrows, Esc) must take precedence over
@@ -309,12 +306,12 @@ function createBasicExtensions(config: EditorConfig): Extension[] {
 
       // Filter out Tab from defaultKeymap to allow block indentation
       ...defaultKeymap.filter(
-        (binding) => binding.key !== "Tab" && binding.key !== "Shift-Tab"
+        (binding) => binding.key !== "Tab" && binding.key !== "Shift-Tab",
       ),
       ...historyKeymap,
       ...closeBracketsKeymap,
       ...searchKeymap,
-    ])
+    ]),
   );
 
   // Line wrapping
@@ -348,7 +345,7 @@ function normalizeWikiTitle(input: string): string {
 
 function extractBlockRefAtLinePos(
   lineText: string,
-  offsetInLine: number
+  offsetInLine: number,
 ): { id: string; isEmbed: boolean } | null {
   // Match:
   // - ((uuid))
@@ -471,7 +468,7 @@ function createBlockRefClickHandler(): Extension {
     if (!target) return false;
 
     const el = target.closest?.(
-      ".cm-block-ref, .cm-block-embed"
+      ".cm-block-ref, .cm-block-embed",
     ) as HTMLElement | null;
     if (!el) return false;
 
@@ -500,7 +497,7 @@ function createBlockRefClickHandler(): Extension {
     const lineText = line.text;
     const offsetInLine = Math.max(
       0,
-      Math.min(pos - line.from, lineText.length)
+      Math.min(pos - line.from, lineText.length),
     );
 
     const ref = extractBlockRefAtLinePos(lineText, offsetInLine);
@@ -518,7 +515,7 @@ function createBlockRefClickHandler(): Extension {
 
 function getWikiLinkQueryAtPos(
   doc: string,
-  cursorPos: number
+  cursorPos: number,
 ): { from: number; to: number; query: string; isEmbed: boolean } | null {
   // Detect an in-progress wiki link like:
   // - `[[que`  (no closing ]])
@@ -551,7 +548,7 @@ function getWikiLinkQueryAtPos(
 
 function getParensLinkQueryAtPos(
   doc: string,
-  cursorPos: number
+  cursorPos: number,
 ): { from: number; to: number; query: string; isEmbed: boolean } | null {
   // Detect in-progress block reference:
   // - `((query` -> normal link
@@ -583,7 +580,7 @@ type PageRecord = { id: string; title: string; parentId?: string };
 
 function computePageFullPathTitles(
   pageId: string,
-  pagesById: Record<string, PageRecord>
+  pagesById: Record<string, PageRecord>,
 ): string[] {
   const out: string[] = [];
   let cur: string | undefined = pageId;
@@ -605,7 +602,7 @@ function computePageFullPathTitles(
 
 function buildWikiPathForPage(
   pageId: string,
-  pagesById: Record<string, PageRecord>
+  pagesById: Record<string, PageRecord>,
 ): string {
   return computePageFullPathTitles(pageId, pagesById).join("/");
 }
@@ -655,7 +652,7 @@ function createUnifiedLinkAutocomplete(): Extension {
             view: EditorView,
             _completion: Completion,
             fromPos: number,
-            toPos: number
+            toPos: number,
           ) => {
             const state = view.state;
             const currentDoc = state.doc.toString();
@@ -753,7 +750,7 @@ function createUnifiedLinkAutocomplete(): Extension {
               _view: EditorView,
               _completion: Completion,
               _fromPos: number,
-              _toPos: number
+              _toPos: number,
             ) => {
               // No-op placeholder; user should keep typing.
             },
@@ -793,7 +790,7 @@ function createUnifiedLinkAutocomplete(): Extension {
           view: EditorView,
           _completion: Completion,
           fromPos: number,
-          toPos: number
+          toPos: number,
         ) => {
           const state = view.state;
           const currentDoc = state.doc.toString();
@@ -920,7 +917,7 @@ async function openOrCreateNoteByTitle(noteTitle: string): Promise<void> {
     title: string,
     parentId: string | null,
     pagesById: typeof pageStore.pagesById,
-    pageIds: string[]
+    pageIds: string[],
   ): string | null => {
     const t = title.toLowerCase();
     for (const id of pageIds) {
@@ -936,7 +933,7 @@ async function openOrCreateNoteByTitle(noteTitle: string): Promise<void> {
   // Ensure a folder-note exists (and isDirectory=true). Return its pageId.
   const ensureFolderNote = async (
     folderTitle: string,
-    parentId: string | null
+    parentId: string | null,
   ): Promise<string> => {
     // Re-read state each time to avoid stale copies after loadPages()
     let { pagesById, pageIds } = usePageStore.getState();
@@ -945,7 +942,7 @@ async function openOrCreateNoteByTitle(noteTitle: string): Promise<void> {
     if (!existingId) {
       existingId = await pageStore.createPage(
         folderTitle,
-        parentId ?? undefined
+        parentId ?? undefined,
       );
       await pageStore.loadPages();
       ({ pagesById, pageIds } = usePageStore.getState());
@@ -1016,7 +1013,7 @@ async function openOrCreateNoteByTitle(noteTitle: string): Promise<void> {
 }
 
 function createWikiLinkClickHandler(
-  onOpenWikiLink?: (raw: string, noteTitle: string) => void
+  onOpenWikiLink?: (raw: string, noteTitle: string) => void,
 ): Extension {
   const handleClick = (event: MouseEvent, view: EditorView) => {
     // Only handle left clicks
@@ -1042,7 +1039,7 @@ function createWikiLinkClickHandler(
     // We need to compute the position within the line.
     const offsetInLine = Math.max(
       0,
-      Math.min(pos - line.from, lineText.length)
+      Math.min(pos - line.from, lineText.length),
     );
 
     // Scan for wiki links in this line and pick the match that contains the click position.
@@ -1129,7 +1126,7 @@ function createExternalLinkClickHandler(): Extension {
 
     const offsetInLine = Math.max(
       0,
-      Math.min(pos - line.from, lineText.length)
+      Math.min(pos - line.from, lineText.length),
     );
 
     const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
@@ -1167,7 +1164,7 @@ function createExternalLinkClickHandler(): Extension {
  */
 function createFocusListeners(
   onFocus?: () => void,
-  onBlur?: () => void
+  onBlur?: () => void,
 ): Extension[] {
   const extensions: Extension[] = [];
 
@@ -1178,7 +1175,7 @@ function createFocusListeners(
           onFocus();
           return false;
         },
-      })
+      }),
     );
   }
 
@@ -1189,7 +1186,7 @@ function createFocusListeners(
           onBlur();
           return false;
         },
-      })
+      }),
     );
   }
 
@@ -1291,7 +1288,7 @@ function createEditorTheme(theme: "light" | "dark" = "light"): Extension {
         fontFamily: "var(--font-family)",
       },
     },
-    { dark: isDark }
+    { dark: isDark },
   );
 }
 
@@ -1300,7 +1297,7 @@ function createEditorTheme(theme: "light" | "dark" = "light"): Extension {
  */
 export function createEditor(
   parent: HTMLElement,
-  config: EditorConfig = {}
+  config: EditorConfig = {},
 ): EditorView {
   const extensions: Extension[] = [
     // Basic extensions
