@@ -7,6 +7,10 @@ class ToolRegistry {
   // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
   private tools: Map<string, Tool<any>> = new Map();
 
+  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
+  // Category-based index for O(1) category lookups
+  private categoryIndex: Map<string, Tool<any>[]> = new Map();
+
   /**
    * Register a new tool
    */
@@ -20,6 +24,7 @@ class ToolRegistry {
     this.validateTool(tool);
 
     this.tools.set(tool.name, tool);
+    this.indexByCategory(tool);
   }
 
   /**
@@ -53,7 +58,7 @@ class ToolRegistry {
    */
   // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
   getByCategory(category: ToolCategory | string): Tool<any>[] {
-    return this.getAll().filter((tool) => tool.category === category);
+    return this.categoryIndex.get(category as string) ?? [];
   }
 
   /**
@@ -67,6 +72,10 @@ class ToolRegistry {
    * Unregister a tool (useful for testing)
    */
   unregister(name: string): boolean {
+    const tool = this.tools.get(name);
+    if (tool) {
+      this.removeFromCategoryIndex(tool);
+    }
     return this.tools.delete(name);
   }
 
@@ -75,6 +84,7 @@ class ToolRegistry {
    */
   clear(): void {
     this.tools.clear();
+    this.categoryIndex.clear();
   }
 
   /**
@@ -103,6 +113,36 @@ class ToolRegistry {
       throw new Error(
         `Tool name '${tool.name}' must be lowercase with underscores (snake_case)`,
       );
+    }
+  }
+
+  /**
+   * Add tool to category index
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
+  private indexByCategory(tool: Tool<any>): void {
+    const category = tool.category as string;
+    if (!this.categoryIndex.has(category)) {
+      this.categoryIndex.set(category, []);
+    }
+    this.categoryIndex.get(category)!.push(tool);
+  }
+
+  /**
+   * Remove tool from category index
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
+  private removeFromCategoryIndex(tool: Tool<any>): void {
+    const category = tool.category as string;
+    const tools = this.categoryIndex.get(category);
+    if (tools) {
+      const index = tools.findIndex((t) => t.name === tool.name);
+      if (index >= 0) {
+        tools.splice(index, 1);
+      }
+      if (tools.length === 0) {
+        this.categoryIndex.delete(category);
+      }
     }
   }
 }
