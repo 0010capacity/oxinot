@@ -324,69 +324,6 @@ export function CopilotPanel() {
     return contextString;
   };
 
-  /**
-   * Generate a friendly conversational response for simple inputs
-   * Keeps responses natural and brief (1-2 sentences)
-   */
-  const generateConversationalResponse = (userInput: string): string => {
-    // Thanks/appreciation
-    if (
-      /^(thanks|thank you|appreciate|appreciation)/i.test(userInput) ||
-      /thanks(?:!|$)/i.test(userInput)
-    ) {
-      const responses = [
-        "You're welcome! Happy to help. 😊",
-        "My pleasure! Feel free to ask anytime.",
-        "Glad I could help!",
-      ];
-      return responses[Math.floor(Math.random() * responses.length)];
-    }
-
-    // Greeting
-    if (
-      /^(hello|hi|hey|greetings|good\s+(morning|afternoon|evening))/i.test(
-        userInput,
-      )
-    ) {
-      const responses = [
-        "Hello! How can I help you today?",
-        "Hi there! What would you like to do?",
-        "Hey! What's on your mind?",
-      ];
-      return responses[Math.floor(Math.random() * responses.length)];
-    }
-
-    // Positive affirmations
-    if (/^(cool|awesome|nice|good|great|excellent|perfect)/i.test(userInput)) {
-      const responses = [
-        "Glad you think so!",
-        "Thanks! Let me know if you need anything else.",
-        "Happy to assist!",
-      ];
-      return responses[Math.floor(Math.random() * responses.length)];
-    }
-
-    // How are you / Status questions
-    if (/^(how\s+(are|is|is it)|what\s+do\s+you\s+think)/i.test(userInput)) {
-      const responses = [
-        "I'm doing well, thanks for asking! How can I help?",
-        "All good here! What can I do for you?",
-        "I'm ready to assist. What do you need?",
-      ];
-      return responses[Math.floor(Math.random() * responses.length)];
-    }
-
-    // Default conversational response
-    const defaultResponses = [
-      "I understand. What would you like to do?",
-      "Got it. How can I help?",
-      "Sure! What else can I assist with?",
-    ];
-    return defaultResponses[
-      Math.floor(Math.random() * defaultResponses.length)
-    ];
-  };
-
   const handleSend = async () => {
     if (!inputValue.trim()) return;
 
@@ -415,16 +352,7 @@ export function CopilotPanel() {
         `(confidence: ${(classificationResult.confidence * 100).toFixed(0)}%)`,
       );
 
-      // Handle conversational intent directly without orchestrator
-      if (intent === "CONVERSATIONAL") {
-        console.log("[Copilot] Conversational input detected:", currentInput);
-        const response = generateConversationalResponse(currentInput);
-        addChatMessage("assistant", response);
-        setIsLoading(false);
-        return;
-      }
-
-      // For tool-based intents, use orchestrator with selected tools
+      // Always use orchestrator - intent classification only for tool selection
       const aiProvider = createAIProvider(provider, baseUrl);
       aiProvider.id = provider;
 
