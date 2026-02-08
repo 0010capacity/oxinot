@@ -21,7 +21,6 @@ import {
   IconDeviceDesktop,
   IconPlayerStop,
   IconTrash,
-  IconUser,
   IconX,
 } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
@@ -720,17 +719,6 @@ export function CopilotPanel() {
                         }}
                       />
                     </Paper>
-                    {msg.role === "user" && (
-                      <ActionIcon
-                        variant="filled"
-                        color="gray"
-                        radius="xl"
-                        size="sm"
-                        mt={4}
-                      >
-                        <IconUser size={14} />
-                      </ActionIcon>
-                    )}
                   </Group>
                 );
               })}
