@@ -14,7 +14,7 @@ import {
   Text,
   Textarea,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
+
 import {
   IconArrowUp,
   IconChevronDown,
@@ -40,6 +40,8 @@ import { exposeDebugToWindow } from "../../services/ai/tools/debug";
 import { initializeToolRegistry } from "../../services/ai/tools/initialization";
 import { pageTools } from "../../services/ai/tools/page";
 import { toolRegistry } from "../../services/ai/tools/registry";
+import { classifyIntent } from "../../services/ai/utils/intentClassifier";
+import { selectToolsByIntent } from "../../services/ai/utils/toolSelector";
 import { useAgentStore } from "../../stores/agentStore";
 import { useAISettingsStore } from "../../stores/aiSettingsStore";
 import { useBlockStore } from "../../stores/blockStore";
@@ -322,6 +324,69 @@ export function CopilotPanel() {
     return contextString;
   };
 
+  /**
+   * Generate a friendly conversational response for simple inputs
+   * Keeps responses natural and brief (1-2 sentences)
+   */
+  const generateConversationalResponse = (userInput: string): string => {
+    // Thanks/appreciation
+    if (
+      /^(thanks|thank you|appreciate|appreciation)/i.test(userInput) ||
+      /thanks(?:!|$)/i.test(userInput)
+    ) {
+      const responses = [
+        "You're welcome! Happy to help. 😊",
+        "My pleasure! Feel free to ask anytime.",
+        "Glad I could help!",
+      ];
+      return responses[Math.floor(Math.random() * responses.length)];
+    }
+
+    // Greeting
+    if (
+      /^(hello|hi|hey|greetings|good\s+(morning|afternoon|evening))/i.test(
+        userInput,
+      )
+    ) {
+      const responses = [
+        "Hello! How can I help you today?",
+        "Hi there! What would you like to do?",
+        "Hey! What's on your mind?",
+      ];
+      return responses[Math.floor(Math.random() * responses.length)];
+    }
+
+    // Positive affirmations
+    if (/^(cool|awesome|nice|good|great|excellent|perfect)/i.test(userInput)) {
+      const responses = [
+        "Glad you think so!",
+        "Thanks! Let me know if you need anything else.",
+        "Happy to assist!",
+      ];
+      return responses[Math.floor(Math.random() * responses.length)];
+    }
+
+    // How are you / Status questions
+    if (/^(how\s+(are|is|is it)|what\s+do\s+you\s+think)/i.test(userInput)) {
+      const responses = [
+        "I'm doing well, thanks for asking! How can I help?",
+        "All good here! What can I do for you?",
+        "I'm ready to assist. What do you need?",
+      ];
+      return responses[Math.floor(Math.random() * responses.length)];
+    }
+
+    // Default conversational response
+    const defaultResponses = [
+      "I understand. What would you like to do?",
+      "Got it. How can I help?",
+      "Sure! What else can I assist with?",
+    ];
+    return defaultResponses[
+      Math.floor(Math.random() * defaultResponses.length)
+    ];
+  };
+
   const handleSend = async () => {
     if (!inputValue.trim()) return;
 
@@ -341,6 +406,25 @@ export function CopilotPanel() {
     addChatMessage("user", currentInput);
 
     try {
+      // Classify user intent first
+      const classificationResult = classifyIntent(currentInput);
+      const intent = classificationResult.intent;
+      console.log(
+        "[Copilot] Intent classified:",
+        intent,
+        `(confidence: ${(classificationResult.confidence * 100).toFixed(0)}%)`,
+      );
+
+      // Handle conversational intent directly without orchestrator
+      if (intent === "CONVERSATIONAL") {
+        console.log("[Copilot] Conversational input detected:", currentInput);
+        const response = generateConversationalResponse(currentInput);
+        addChatMessage("assistant", response);
+        setIsLoading(false);
+        return;
+      }
+
+      // For tool-based intents, use orchestrator with selected tools
       const aiProvider = createAIProvider(provider, baseUrl);
       aiProvider.id = provider;
 
@@ -370,11 +454,20 @@ export function CopilotPanel() {
         enrichedGoal += `\n\n--- Context from Mentions ---\n${resolvedContext}`;
       }
 
+      // Select tools based on classified intent
+      const selectedTools = selectToolsByIntent(intent);
+      console.log("[Copilot] Selected tools for intent:", {
+        intent,
+        toolCount: selectedTools.length,
+        toolNames: selectedTools.map((t) => t.name),
+      });
+
       console.log("[Copilot] Passing to orchestrator:", {
         enrichedGoal: enrichedGoal.substring(0, 100),
         hasApiKey: !!apiKey,
         hasBaseUrl: !!baseUrl,
         hasModel: !!activeModel,
+        selectedToolCount: selectedTools.length,
       });
 
       const orchestrator = new AgentOrchestrator(aiProvider);
@@ -397,32 +490,11 @@ export function CopilotPanel() {
         agentStore.addStep(step);
 
         if (step.type === "thought") {
-          notifications.show({
-            title: "Analyzing",
-            message: step.thought,
-            autoClose: 3000,
-          });
+          // No notification - keep it clean
         } else if (step.type === "tool_call") {
-          notifications.show({
-            title: "Executing Tool",
-            message: step.toolName,
-            autoClose: 3000,
-          });
+          // No notification - keep it clean
         } else if (step.type === "observation") {
-          if (step.toolResult?.success) {
-            notifications.show({
-              title: "Tool Result",
-              message: "Tool execution completed successfully",
-              autoClose: 3000,
-            });
-          } else {
-            notifications.show({
-              title: "Tool Error",
-              message: step.toolResult?.error || "Unknown error",
-              color: "red",
-              autoClose: 3000,
-            });
-          }
+          // No notification - keep it clean
         } else if (step.type === "final_answer") {
           addChatMessage("assistant", step.content || "");
         }
@@ -437,23 +509,15 @@ export function CopilotPanel() {
       console.log("[Copilot Agent] Final state:", finalState.status);
 
       if (finalState.status === "failed") {
-        notifications.show({
-          title: "Task Incomplete",
-          message: finalState.error || "Unknown error",
-          color: "red",
-          autoClose: 3000,
-        });
+        addChatMessage(
+          "assistant",
+          `Error: ${finalState.error || "Unknown error"}`,
+        );
       }
     } catch (err: unknown) {
       console.error("AI Generation Error:", err);
       const errorMessage =
         err instanceof Error ? err.message : "Failed to generate response";
-      notifications.show({
-        title: "Generation Error",
-        message: errorMessage,
-        color: "red",
-        autoClose: 5000,
-      });
       addChatMessage("assistant", `Error: ${errorMessage}`);
     } finally {
       setIsLoading(false);
@@ -465,11 +529,6 @@ export function CopilotPanel() {
   const handleStop = () => {
     if (orchestratorRef.current) {
       orchestratorRef.current.stop();
-      notifications.show({
-        title: "Agent Stopped",
-        message: "Agent execution stopped by user",
-        autoClose: 2000,
-      });
     }
   };
 
@@ -481,6 +540,10 @@ export function CopilotPanel() {
     // Cmd/Ctrl + Enter to send message
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
+      // Stop current execution if running, then send
+      if (isLoading && orchestratorRef.current) {
+        orchestratorRef.current.stop();
+      }
       handleSend();
       return;
     }
@@ -488,6 +551,10 @@ export function CopilotPanel() {
     // Enter to send (without Shift for newline)
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      // Stop current execution if running, then send
+      if (isLoading && orchestratorRef.current) {
+        orchestratorRef.current.stop();
+      }
       handleSend();
     }
 
@@ -815,7 +882,6 @@ export function CopilotPanel() {
               verticalAlign: "top",
               textAlign: "left",
             }}
-            disabled={isLoading}
             classNames={{
               input: "copilot-input-minimal",
               wrapper: "copilot-input-wrapper",
@@ -833,7 +899,7 @@ export function CopilotPanel() {
               disabled={isLoading}
             />
 
-            {isLoading ? (
+            {isLoading && !inputValue.trim() ? (
               <ActionIcon
                 size="xs"
                 variant="filled"
@@ -850,8 +916,14 @@ export function CopilotPanel() {
                 variant="filled"
                 color="violet"
                 radius="xl"
-                onClick={handleSend}
+                onClick={() => {
+                  if (isLoading && orchestratorRef.current) {
+                    orchestratorRef.current.stop();
+                  }
+                  handleSend();
+                }}
                 disabled={!inputValue.trim()}
+                title={isLoading ? "Stop and send new request" : "Send"}
               >
                 <IconArrowUp size={12} />
               </ActionIcon>
