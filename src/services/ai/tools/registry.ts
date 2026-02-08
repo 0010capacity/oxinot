@@ -7,8 +7,8 @@ class ToolRegistry {
   // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
   private tools: Map<string, Tool<any>> = new Map();
 
-  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
   // Category-based index for O(1) category lookups
+  // biome-ignore lint/suspicious/noExplicitAny: Tool params are validated by Zod schema
   private categoryIndex: Map<string, Tool<any>[]> = new Map();
 
   /**
@@ -125,7 +125,7 @@ class ToolRegistry {
     if (!this.categoryIndex.has(category)) {
       this.categoryIndex.set(category, []);
     }
-    this.categoryIndex.get(category)!.push(tool);
+    this.categoryIndex.get(category)?.push(tool);
   }
 
   /**
