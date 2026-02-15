@@ -26,6 +26,10 @@ import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
 import {
+  type SlashCommand,
+  SlashCommandDropdown,
+} from "../components/SlashCommandDropdown";
+import {
   ContextMenu,
   type ContextMenuSection,
 } from "../components/common/ContextMenu";
@@ -128,6 +132,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const metadataCloseTimeoutRef = useRef<ReturnType<
       typeof setTimeout
     > | null>(null);
+
+    const [slashCommand, setSlashCommand] = useState<{
+      show: boolean;
+      query: string;
+      position: { top: number; left: number };
+    } | null>(null);
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [blocksToDelete, setBlocksToDelete] = useState<string[]>([]);
@@ -888,9 +898,87 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         );
         draftRef.current = content;
         setDraft(content);
+
+        const cursorPos =
+          editorRef.current?.getView()?.state.selection.main.head ??
+          content.length;
+        const beforeCursor = content.slice(0, cursorPos);
+        const slashMatch = beforeCursor.match(/\/(\w*)$/);
+
+        if (slashMatch) {
+          const rect = editorRef.current
+            ?.getView()
+            ?.dom.getBoundingClientRect();
+          if (rect) {
+            const lineHeight = 20;
+            const lines = beforeCursor.split("\n");
+            const currentLine = lines.length - 1;
+
+            setSlashCommand({
+              show: true,
+              query: slashMatch[1] ?? "",
+              position: {
+                top: rect.top + currentLine * lineHeight + lineHeight + 4,
+                left: rect.left + 8,
+              },
+            });
+          }
+        } else {
+          setSlashCommand(null);
+        }
       },
       [blockId],
     );
+
+    const handleSlashCommandSelect = useCallback(
+      (command: SlashCommand) => {
+        setSlashCommand(null);
+
+        if (command.id === "ai") {
+          const content = draftRef.current;
+          const newContent = content.replace(/\/\w*$/, "").trimStart();
+
+          const blockStore = useBlockStore.getState();
+          const pageId = blockStore.currentPageId;
+          if (!pageId) return;
+
+          draftRef.current = newContent;
+          setDraft(newContent);
+
+          commitDraft().then(async () => {
+            await blockStore.updateBlock(blockId, { blockType: "ai-prompt" });
+
+            if (newContent.trim()) {
+              await threadBlockService.executePrompt(
+                blockId,
+                newContent,
+                pageId,
+              );
+            }
+          });
+        } else if (command.id === "code") {
+          const content = draftRef.current;
+          const newContent = content.replace(/\/\w*$/, "");
+          const updatedContent = newContent + "```typescript\n\n```";
+
+          draftRef.current = updatedContent;
+          setDraft(updatedContent);
+
+          const view = editorRef.current?.getView();
+          if (view) {
+            const insertPos = updatedContent.length - 4;
+            view.dispatch({
+              selection: { anchor: insertPos, head: insertPos },
+            });
+          }
+        }
+      },
+      [blockId, commitDraft],
+    );
+
+    const handleSlashCommandClose = useCallback(() => {
+      setSlashCommand(null);
+    }, []);
 
     const handleBlur = useCallback(async () => {
       // If metadata editor is open, don't close it or commit
@@ -955,39 +1043,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const content = view.state.doc.toString();
             const contentLength = content.length;
 
-            const aiMatch = content.match(/^\/ai\s*(.*)$/s);
-            if (aiMatch) {
-              const promptText = aiMatch[1]?.trim() ?? "";
-
-              const blockStore = useBlockStore.getState();
-              const pageId = blockStore.currentPageId;
-              if (!pageId) return true;
-
-              const newContent = promptText || "";
-              view.dispatch({
-                changes: { from: 0, to: contentLength, insert: newContent },
-                selection: {
-                  anchor: newContent.length,
-                  head: newContent.length,
-                },
-              });
-              draftRef.current = newContent;
-              setDraft(newContent);
-
-              commitDraft().then(async () => {
-                await blockStore.updateBlock(blockId, {
-                  blockType: "ai-prompt",
-                });
-
-                if (promptText) {
-                  await threadBlockService.executePrompt(
-                    blockId,
-                    promptText,
-                    pageId,
-                  );
-                }
-              });
-
+            if (slashCommand?.show) {
               return true;
             }
 
@@ -1573,6 +1629,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             (id) => countDescendantBlocks(id) > 0,
           )}
         />
+
+        {slashCommand?.show && (
+          <SlashCommandDropdown
+            query={slashCommand.query}
+            position={slashCommand.position}
+            onSelect={handleSlashCommandSelect}
+            onClose={handleSlashCommandClose}
+          />
+        )}
       </ContextMenu>
     );
   },
