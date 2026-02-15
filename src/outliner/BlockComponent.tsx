@@ -1043,6 +1043,21 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               return true;
             }
 
+            if (isAiPrompt && content.trim()) {
+              commitDraft().then(async () => {
+                const blockStore = useBlockStore.getState();
+                const pageId = blockStore.currentPageId;
+                if (pageId) {
+                  await threadBlockService.executePrompt(
+                    blockId,
+                    content,
+                    pageId,
+                  );
+                }
+              });
+              return true;
+            }
+
             const beforeCursor = content.slice(0, cursor);
 
             const openFencesBeforeCursor = (beforeCursor.match(/^```/gm) || [])
