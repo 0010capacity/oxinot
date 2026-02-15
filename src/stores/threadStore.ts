@@ -155,6 +155,11 @@ export const useThreadStatus = (threadId: string) =>
 export const useThreadStreamContent = (threadId: string) =>
   useThreadStore((s) => s.activeThreads[threadId]?.streamContent ?? "");
 
+export const useThreadByResponseBlock = (blockId: string) =>
+  useThreadStore((s) =>
+    Object.values(s.activeThreads).find((t) => t.responseBlockId === blockId),
+  );
+
 export const useActiveThreadCount = () =>
   Object.keys(useThreadStore.getState().activeThreads).length;
 

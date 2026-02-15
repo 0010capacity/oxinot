@@ -42,15 +42,15 @@ import {
 import { useTargetCursorPosition } from "../stores/blockUIStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
+import { useThreadByResponseBlock } from "../stores/threadStore";
 import { useIsBlockFocused } from "../stores/viewStore";
-// NOTE: We intentionally avoid debounced store writes while typing.
-// The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
 import * as batchOps from "../utils/batchBlockOperations";
 import { showToast } from "../utils/toast";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { MacroContentWrapper } from "./MacroContentWrapper";
 import { editorStateCache } from "./editorStateCache";
+import { renderMarkdownToHtml } from "./markdownRenderer";
 import "./BlockComponent.css";
 import { INDENT_PER_LEVEL } from "../constants/layout";
 import { useIsBlockSelected } from "../hooks/useBlockSelection";
@@ -84,6 +84,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const isAiPrompt = blockType === "ai-prompt";
     const isAiResponse = blockType === "ai-response";
+
+    const thread = useThreadByResponseBlock(blockId);
+    const isStreaming = thread?.status === "streaming";
+    const streamContent = thread?.streamContent ?? "";
+    const displayContent =
+      isStreaming && streamContent ? streamContent : (blockContent ?? "");
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
     const createBlock = useBlockStore((state) => state.createBlock);
@@ -1396,67 +1402,86 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               className="block-content-wrapper"
               style={{ position: "relative" }}
             >
-              <MacroContentWrapper
-                content={blockContent || ""}
-                blockId={blockId}
-                isFocused={isFocused}
-                onEdit={() => setFocusedBlock(blockId)}
-                onMouseDownCapture={handleStaticMouseDown}
-              >
-                <Popover
-                  opened={isMetadataOpen}
-                  onClose={() => {
-                    setIsMetadataOpen(false);
+              {isAiResponse ? (
+                <div
+                  className="ai-response-content"
+                  style={{
+                    width: "100%",
+                    minHeight: "20px",
+                    padding: "2px 0",
                   }}
-                  position="bottom"
-                  withArrow
-                  shadow="md"
-                  trapFocus={false}
-                  closeOnEscape
-                  closeOnClickOutside
-                  withinPortal={true}
-                  transitionProps={{ duration: 0 }}
                 >
-                  <Popover.Target>
-                    <Box style={{ width: "100%" }}>
-                      <Editor
-                        ref={editorRef}
-                        value={draft}
-                        onChange={handleContentChangeWithTrigger}
-                        onFocus={handleFocus}
-                        onBlur={handleBlur}
-                        lineNumbers={false}
-                        lineWrapping={true}
-                        theme={isDark ? "dark" : "light"}
-                        keybindings={keybindings}
-                        isFocused={isFocused}
-                        className="block-editor"
-                        style={{}}
-                      />
-                    </Box>
-                  </Popover.Target>
-                  <Popover.Dropdown
-                    p={0}
-                    ref={popoverDropdownRef}
-                    style={{ minWidth: "300px" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: renderMarkdownToHtml(displayContent, {
+                        allowBlocks: true,
+                      }),
                     }}
+                  />
+                  {isStreaming && <span className="ai-streaming-cursor" />}
+                </div>
+              ) : (
+                <MacroContentWrapper
+                  content={blockContent || ""}
+                  blockId={blockId}
+                  isFocused={isFocused}
+                  onEdit={() => setFocusedBlock(blockId)}
+                  onMouseDownCapture={handleStaticMouseDown}
+                >
+                  <Popover
+                    opened={isMetadataOpen}
+                    onClose={() => {
+                      setIsMetadataOpen(false);
+                    }}
+                    position="bottom"
+                    withArrow
+                    shadow="md"
+                    trapFocus={false}
+                    closeOnEscape
+                    closeOnClickOutside
+                    withinPortal={true}
+                    transitionProps={{ duration: 0 }}
                   >
-                    <MetadataEditor
-                      blockId={blockId}
-                      onClose={() => {
-                        setIsMetadataOpen(false);
-                        setTimeout(() => {
-                          editorRef.current?.focus();
-                        }, 0);
+                    <Popover.Target>
+                      <Box style={{ width: "100%" }}>
+                        <Editor
+                          ref={editorRef}
+                          value={draft}
+                          onChange={handleContentChangeWithTrigger}
+                          onFocus={handleFocus}
+                          onBlur={handleBlur}
+                          lineNumbers={false}
+                          lineWrapping={true}
+                          theme={isDark ? "dark" : "light"}
+                          keybindings={keybindings}
+                          isFocused={isFocused}
+                          className="block-editor"
+                          style={{}}
+                        />
+                      </Box>
+                    </Popover.Target>
+                    <Popover.Dropdown
+                      p={0}
+                      ref={popoverDropdownRef}
+                      style={{ minWidth: "300px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
                       }}
-                    />
-                  </Popover.Dropdown>
-                </Popover>
-              </MacroContentWrapper>
+                    >
+                      <MetadataEditor
+                        blockId={blockId}
+                        onClose={() => {
+                          setIsMetadataOpen(false);
+                          setTimeout(() => {
+                            editorRef.current?.focus();
+                          }, 0);
+                        }}
+                      />
+                    </Popover.Dropdown>
+                  </Popover>
+                </MacroContentWrapper>
+              )}
 
-              {/* Metadata Badge - small indicator with tooltip */}
               {blockMetadata && (
                 <Box
                   onClick={(e) => {
