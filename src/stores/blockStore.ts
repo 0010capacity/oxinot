@@ -20,7 +20,7 @@ export interface BlockData {
   content: string;
   orderWeight: number;
   isCollapsed: boolean;
-  blockType: "bullet" | "code" | "fence";
+  blockType: "bullet" | "code" | "fence" | "ai-prompt" | "ai-response";
   language?: string;
   createdAt: string;
   updatedAt: string;
