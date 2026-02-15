@@ -943,46 +943,75 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         {
           key: "Enter",
           run: (view: EditorView) => {
-            // If Enter was pressed during/after IME composition, skip normal processing
             if (
               imeStateRef.current.isComposing ||
               imeStateRef.current.lastInputWasComposition ||
               imeStateRef.current.enterPressed
             ) {
-              return true; // Already handled by keydown capture
+              return true;
             }
 
             const cursor = view.state.selection.main.head;
             const content = view.state.doc.toString();
             const contentLength = content.length;
 
-            // Check if we're inside a code block
+            const aiMatch = content.match(/^\/ai\s*(.*)$/s);
+            if (aiMatch) {
+              const promptText = aiMatch[1]?.trim() ?? "";
+
+              const blockStore = useBlockStore.getState();
+              const pageId = blockStore.currentPageId;
+              if (!pageId) return true;
+
+              const newContent = promptText || "";
+              view.dispatch({
+                changes: { from: 0, to: contentLength, insert: newContent },
+                selection: {
+                  anchor: newContent.length,
+                  head: newContent.length,
+                },
+              });
+              draftRef.current = newContent;
+              setDraft(newContent);
+
+              commitDraft().then(async () => {
+                await blockStore.updateBlock(blockId, {
+                  blockType: "ai-prompt",
+                });
+
+                if (promptText) {
+                  await threadBlockService.executePrompt(
+                    blockId,
+                    promptText,
+                    pageId,
+                  );
+                }
+              });
+
+              return true;
+            }
+
             const beforeCursor = content.slice(0, cursor);
 
-            // Count opening and closing fences before cursor
             const openFencesBeforeCursor = (beforeCursor.match(/^```/gm) || [])
               .length;
             const closeFencesBeforeCursor = (
               beforeCursor.match(/^```$/gm) || []
             ).length;
 
-            // If we have more opening fences than closing fences, we're inside a code block
             const isInsideCodeBlock =
               openFencesBeforeCursor > closeFencesBeforeCursor;
 
             if (isInsideCodeBlock) {
-              // Allow default behavior (insert newline) when inside code block
               return false;
             }
 
-            // Check if we're at the end of a line that starts with ```
             const line = view.state.doc.lineAt(cursor);
             const lineText = line.text;
             const isAtLineEnd = cursor === line.to;
             const isCodeFence = lineText.trim().match(/^```\w*$/);
 
             if (isCodeFence && isAtLineEnd) {
-              // Auto-create code block structure
               const indent = lineText.match(/^\s*/)?.[0] || "";
 
               view.dispatch({
@@ -1009,7 +1038,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               splitBlockAtCursor(blockId, cursor, content);
             }
 
-            return true; // Prevent default CodeMirror behavior
+            return true;
           },
         },
         {
