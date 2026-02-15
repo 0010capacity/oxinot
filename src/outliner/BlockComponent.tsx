@@ -893,9 +893,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const handleContentChange = useCallback(
       (content: string) => {
-        console.log(
-          `[BlockComponent:handleContentChange] blockId=${blockId.slice(0, 8)}, newContent="${content.slice(0, 30)}"`,
-        );
         draftRef.current = content;
         setDraft(content);
 
@@ -1013,8 +1010,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // Create custom keybindings for CodeMirror to handle block operations
     const handleContentChangeWithTrigger = useCallback(
       (value: string) => {
-        draftRef.current = value;
-        setDraft(value);
+        handleContentChange(value);
       },
       [handleContentChange],
     );

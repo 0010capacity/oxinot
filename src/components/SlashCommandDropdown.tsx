@@ -176,56 +176,42 @@ export function SlashCommandDropdown({
   return (
     <Paper
       shadow="md"
-      p="xs"
+      p={6}
       className="slash-command-dropdown"
       style={{
         position: "fixed",
         top: position.top,
         left: position.left,
         zIndex: 1000,
-        maxWidth: 320,
-        width: "100%",
-        maxHeight: 300,
-        overflowY: "auto",
+        minWidth: 200,
+        maxWidth: 280,
         backgroundColor: "var(--color-bg-primary)",
         border: "1px solid var(--color-border-secondary)",
+        borderRadius: "var(--radius-md)",
       }}
     >
-      <Text size="xs" c="dimmed" mb="xs" px="xs">
-        Commands
-      </Text>
-      <Stack gap={4}>
+      <Stack gap={2}>
         {filteredCommands.map((command, index) => (
           <UnstyledButton
             key={command.id}
             onClick={() => command.action()}
             style={{
               width: "100%",
-              padding: "8px 12px",
+              padding: "4px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor:
                 index === selectedIndex
                   ? "var(--color-bg-tertiary)"
                   : "transparent",
               cursor: "pointer",
-              transition: "background-color 0.1s ease",
             }}
           >
-            <Group gap="sm">
+            <Group gap="xs" align="center">
               {command.icon}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <Text size="sm" fw={500}>
-                  {command.label}
-                </Text>
-                <Text
-                  size="xs"
-                  c="dimmed"
-                  style={{ overflow: "hidden", textOverflow: "ellipsis" }}
-                >
-                  {command.description}
-                </Text>
-              </div>
-              <Text size="xs" c="dimmed" style={{ opacity: 0.6 }}>
+              <Text size="sm" style={{ flex: 1 }}>
+                {command.label}
+              </Text>
+              <Text size="xs" c="dimmed" style={{ opacity: 0.5 }}>
                 /{command.trigger}
               </Text>
             </Group>
