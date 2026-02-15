@@ -1,19 +1,10 @@
-import { Group, Paper, Stack, Text, UnstyledButton } from "@mantine/core";
-import {
-  IconCode,
-  IconHeading,
-  IconList,
-  IconSparkles,
-} from "@tabler/icons-react";
+import { Paper, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 
 export interface SlashCommand {
   id: string;
   label: string;
-  description: string;
-  icon: React.ReactNode;
   trigger: string;
-  action: () => void;
 }
 
 interface Props {
@@ -22,8 +13,6 @@ interface Props {
   onSelect: (command: SlashCommand) => void;
   onClose: () => void;
 }
-
-const ICON_SIZE = 16;
 
 export function SlashCommandDropdown({
   query,
@@ -35,77 +24,12 @@ export function SlashCommandDropdown({
 
   const commands: SlashCommand[] = useMemo(
     () => [
-      {
-        id: "ai",
-        label: "AI Assistant",
-        description: "Ask AI to help with this content",
-        icon: (
-          <IconSparkles
-            size={ICON_SIZE}
-            style={{ color: "var(--color-accent)" }}
-          />
-        ),
-        trigger: "ai",
-        action: () =>
-          onSelect({
-            id: "ai",
-            label: "AI Assistant",
-            description: "Ask AI to help with this content",
-            icon: <IconSparkles size={ICON_SIZE} />,
-            trigger: "ai",
-            action: () => {},
-          }),
-      },
-      {
-        id: "code",
-        label: "Code Block",
-        description: "Create a code block",
-        icon: <IconCode size={ICON_SIZE} />,
-        trigger: "code",
-        action: () =>
-          onSelect({
-            id: "code",
-            label: "Code Block",
-            description: "Create a code block",
-            icon: <IconCode size={ICON_SIZE} />,
-            trigger: "code",
-            action: () => {},
-          }),
-      },
-      {
-        id: "bullet",
-        label: "Bullet List",
-        description: "Create a bullet list",
-        icon: <IconList size={ICON_SIZE} />,
-        trigger: "bullet",
-        action: () =>
-          onSelect({
-            id: "bullet",
-            label: "Bullet List",
-            description: "Create a bullet list",
-            icon: <IconList size={ICON_SIZE} />,
-            trigger: "bullet",
-            action: () => {},
-          }),
-      },
-      {
-        id: "heading",
-        label: "Heading",
-        description: "Create a heading block",
-        icon: <IconHeading size={ICON_SIZE} />,
-        trigger: "heading",
-        action: () =>
-          onSelect({
-            id: "heading",
-            label: "Heading",
-            description: "Create a heading block",
-            icon: <IconHeading size={ICON_SIZE} />,
-            trigger: "heading",
-            action: () => {},
-          }),
-      },
+      { id: "ai", label: "AI Assistant", trigger: "ai" },
+      { id: "code", label: "Code Block", trigger: "code" },
+      { id: "bullet", label: "Bullet List", trigger: "bullet" },
+      { id: "heading", label: "Heading", trigger: "heading" },
     ],
-    [onSelect],
+    [],
   );
 
   const filteredCommands = useMemo(() => {
@@ -123,41 +47,32 @@ export function SlashCommandDropdown({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (filteredCommands.length === 0) {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          onClose();
-        }
-        return;
-      }
-
       if (e.key === "ArrowDown") {
         e.preventDefault();
+        e.stopPropagation();
         setSelectedIndex((prev) =>
           Math.min(prev + 1, filteredCommands.length - 1),
         );
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
+        e.stopPropagation();
         setSelectedIndex((prev) => Math.max(prev - 1, 0));
-      } else if (e.key === "Enter") {
+      } else if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
+        e.stopPropagation();
         if (filteredCommands[selectedIndex]) {
-          filteredCommands[selectedIndex].action();
+          onSelect(filteredCommands[selectedIndex]);
         }
       } else if (e.key === "Escape") {
         e.preventDefault();
+        e.stopPropagation();
         onClose();
-      } else if (e.key === "Tab") {
-        e.preventDefault();
-        if (filteredCommands[selectedIndex]) {
-          filteredCommands[selectedIndex].action();
-        }
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIndex, filteredCommands, onClose]);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [selectedIndex, filteredCommands, onClose, onSelect]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -176,45 +91,42 @@ export function SlashCommandDropdown({
   return (
     <Paper
       shadow="md"
-      p={6}
+      p={4}
       className="slash-command-dropdown"
       style={{
         position: "fixed",
         top: position.top,
         left: position.left,
         zIndex: 1000,
-        minWidth: 200,
-        maxWidth: 280,
+        minWidth: 160,
         backgroundColor: "var(--color-bg-primary)",
         border: "1px solid var(--color-border-secondary)",
-        borderRadius: "var(--radius-md)",
+        borderRadius: "var(--radius-sm)",
       }}
     >
-      <Stack gap={2}>
+      <Stack gap={1}>
         {filteredCommands.map((command, index) => (
           <UnstyledButton
             key={command.id}
-            onClick={() => command.action()}
+            onClick={() => onSelect(command)}
             style={{
               width: "100%",
-              padding: "4px 8px",
+              padding: "3px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor:
                 index === selectedIndex
                   ? "var(--color-bg-tertiary)"
                   : "transparent",
               cursor: "pointer",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}
           >
-            <Group gap="xs" align="center">
-              {command.icon}
-              <Text size="sm" style={{ flex: 1 }}>
-                {command.label}
-              </Text>
-              <Text size="xs" c="dimmed" style={{ opacity: 0.5 }}>
-                /{command.trigger}
-              </Text>
-            </Group>
+            <Text size="sm">{command.label}</Text>
+            <Text size="xs" c="dimmed" style={{ opacity: 0.5 }}>
+              /{command.trigger}
+            </Text>
           </UnstyledButton>
         ))}
       </Stack>
