@@ -29,6 +29,7 @@ import {
   ContextMenu,
   type ContextMenuSection,
 } from "../components/common/ContextMenu";
+import { threadBlockService } from "../services/ai/threadBlockService";
 import {
   type BlockData,
   useBlockContent,
@@ -1149,16 +1150,31 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           key: "Shift-Tab",
           preventDefault: true,
           run: () => {
-            // Start async operations but return true immediately to prevent default behavior
             commitDraft().then(() => {
               outdentBlock(blockId).then(() => {
-                // Don't restore focus immediately - it causes React Hook errors
-                // during structural reconciliation. The block content is preserved,
-                // user can click to refocus if needed.
                 console.log(
                   "[BlockComponent:Shift-Tab] Focus restoration skipped to avoid Hook errors",
                 );
               });
+            });
+            return true;
+          },
+        },
+        {
+          key: "Mod-Enter",
+          preventDefault: true,
+          run: (view: EditorView) => {
+            const content = view.state.doc.toString();
+            if (!content.trim()) return false;
+
+            const blockStore = useBlockStore.getState();
+            const pageId = blockStore.currentPageId;
+            if (!pageId) return false;
+
+            commitDraft().then(async () => {
+              await blockStore.updateBlock(blockId, { blockType: "ai-prompt" });
+
+              await threadBlockService.executePrompt(blockId, content, pageId);
             });
             return true;
           },
