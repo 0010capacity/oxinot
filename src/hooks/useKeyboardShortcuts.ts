@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useShortcutStore, type Shortcut } from "../stores/shortcutStore";
+import { type Shortcut, useShortcutStore } from "../stores/shortcutStore";
 
 export interface KeyboardShortcutHandlers {
   onCommandPalette?: () => void;
@@ -10,7 +10,6 @@ export interface KeyboardShortcutHandlers {
   onGoHome?: () => void;
   onGraphView?: () => void;
   onToggleIndex?: () => void;
-  onToggleCopilot?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
 }
@@ -124,14 +123,6 @@ export const useKeyboardShortcuts = (handlers: KeyboardShortcutHandlers) => {
       ) {
         e.preventDefault();
         handlers.onToggleIndex();
-      }
-      // Toggle Copilot
-      if (
-        handlers.onToggleCopilot &&
-        isShortcutMatch(e, shortcuts.toggle_copilot)
-      ) {
-        e.preventDefault();
-        handlers.onToggleCopilot();
       }
       // Undo
       if (handlers.onUndo && isShortcutMatch(e, shortcuts.undo)) {
