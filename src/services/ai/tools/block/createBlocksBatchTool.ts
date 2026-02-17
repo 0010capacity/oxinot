@@ -42,7 +42,9 @@ export const createBlocksBatchTool: Tool = {
         };
       }
 
-      const parsedNodes = parseMarkdownToBlocks(params.markdown);
+      const { nodes: parsedNodes } = parseMarkdownToBlocks(params.markdown, {
+        mode: "tolerant",
+      });
       console.log("[create_blocks_batch] Parsed nodes:", parsedNodes.length);
 
       if (parsedNodes.length === 0) {

@@ -8,7 +8,7 @@ import {
 describe("parseMarkdownToBlocks", () => {
   it("should parse flat list items", () => {
     const markdown = "- Item 1\n- Item 2\n- Item 3";
-    const result = parseMarkdownToBlocks(markdown);
+    const { nodes: result } = parseMarkdownToBlocks(markdown);
 
     expect(result).toHaveLength(3);
     expect(result[0].content).toBe("Item 1");
@@ -23,7 +23,7 @@ describe("parseMarkdownToBlocks", () => {
   - Child 2
 - Another root`;
 
-    const result = parseMarkdownToBlocks(markdown);
+    const { nodes: result } = parseMarkdownToBlocks(markdown);
 
     expect(result).toHaveLength(2);
     expect(result[0].content).toBe("Root");
@@ -40,15 +40,13 @@ describe("parseMarkdownToBlocks", () => {
     - Level 2
       - Level 3`;
 
-    const result = parseMarkdownToBlocks(markdown);
+    const { nodes: result } = parseMarkdownToBlocks(markdown);
 
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("Level 0");
     expect(result[0].children[0].content).toBe("Level 1");
     expect(result[0].children[0].children[0].content).toBe("Level 2");
-    expect(result[0].children[0].children[0].children[0].content).toBe(
-      "Level 3"
-    );
+    expect(result[0].children[0].children[0].children[0].content).toBe("Level 3");
   });
 
   it("should handle Korean text", () => {
@@ -58,16 +56,14 @@ describe("parseMarkdownToBlocks", () => {
     - 이것은 더 깊은 중첩
 - 무한한 확장 가능성`;
 
-    const result = parseMarkdownToBlocks(markdown);
+    const { nodes: result } = parseMarkdownToBlocks(markdown);
 
     expect(result).toHaveLength(3);
     expect(result[0].content).toBe("모든 것이 블록입니다");
     expect(result[1].content).toBe("블록은 중첩될 수 있습니다");
     expect(result[1].children).toHaveLength(1);
     expect(result[1].children[0].content).toBe("이것은 중첩된 블록");
-    expect(result[1].children[0].children[0].content).toBe(
-      "이것은 더 깊은 중첩"
-    );
+    expect(result[1].children[0].children[0].content).toBe("이것은 더 깊은 중첩");
     expect(result[2].content).toBe("무한한 확장 가능성");
   });
 
@@ -78,7 +74,7 @@ describe("parseMarkdownToBlocks", () => {
 
 - Item 3`;
 
-    const result = parseMarkdownToBlocks(markdown);
+    const { nodes: result } = parseMarkdownToBlocks(markdown);
 
     expect(result).toHaveLength(3);
     expect(result[0].content).toBe("Item 1");
@@ -91,7 +87,7 @@ describe("parseMarkdownToBlocks", () => {
 * Asterisk
 + Plus`;
 
-    const result = parseMarkdownToBlocks(markdown);
+    const { nodes: result } = parseMarkdownToBlocks(markdown);
 
     expect(result).toHaveLength(3);
     expect(result[0].content).toBe("Dash");
@@ -100,13 +96,12 @@ describe("parseMarkdownToBlocks", () => {
   });
 
   it("should normalize AI-generated markdown with 1 space to 2 spaces", () => {
-    // AI often generates "- Parent\n - Child" (1 space) instead of 2 spaces
     const markdownWithOneSpace = `- Parent
  - Child 1
  - Child 2
  - Child 3`;
 
-    const result = parseMarkdownToBlocks(markdownWithOneSpace);
+    const { nodes: result } = parseMarkdownToBlocks(markdownWithOneSpace);
 
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("Parent");
@@ -125,22 +120,16 @@ describe("parseMarkdownToBlocks", () => {
    - Level 2 (3 spaces, should become 4)
      - Level 3 (5 spaces, should become 6)`;
 
-    const result = parseMarkdownToBlocks(markdownWithOddSpaces);
+    const { nodes: result } = parseMarkdownToBlocks(markdownWithOddSpaces);
 
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("Level 0");
     expect(result[0].indent).toBe(0);
-    expect(result[0].children[0].content).toBe(
-      "Level 1 (1 space, should become 2)"
-    );
+    expect(result[0].children[0].content).toBe("Level 1 (1 space, should become 2)");
     expect(result[0].children[0].indent).toBe(1);
-    expect(result[0].children[0].children[0].content).toBe(
-      "Level 2 (3 spaces, should become 4)"
-    );
+    expect(result[0].children[0].children[0].content).toBe("Level 2 (3 spaces, should become 4)");
     expect(result[0].children[0].children[0].indent).toBe(2);
-    expect(result[0].children[0].children[0].children[0].content).toBe(
-      "Level 3 (5 spaces, should become 6)"
-    );
+    expect(result[0].children[0].children[0].children[0].content).toBe("Level 3 (5 spaces, should become 6)");
     expect(result[0].children[0].children[0].children[0].indent).toBe(3);
   });
 
@@ -158,24 +147,18 @@ describe("parseMarkdownToBlocks", () => {
  - 지구
  - 화성`;
 
-    const result = parseMarkdownToBlocks(solarSystemWithOneSpace);
+    const { nodes: result } = parseMarkdownToBlocks(solarSystemWithOneSpace);
 
     expect(result).toHaveLength(3);
-
-    // 태양계 개요
     expect(result[0].content).toBe("태양계 개요");
     expect(result[0].children).toHaveLength(3);
     expect(result[0].children[0].indent).toBe(1);
     expect(result[0].children[1].indent).toBe(1);
     expect(result[0].children[2].indent).toBe(1);
-
-    // 태양
     expect(result[1].content).toBe("태양");
     expect(result[1].children).toHaveLength(2);
     expect(result[1].children[0].indent).toBe(1);
     expect(result[1].children[1].indent).toBe(1);
-
-    // 행성 (with siblings)
     expect(result[2].content).toBe("행성");
     expect(result[2].children).toHaveLength(4);
     expect(result[2].children[0].content).toBe("수성");
@@ -194,7 +177,7 @@ describe("parseMarkdownToBlocks", () => {
     - Level 2 (indent 4)
       - Level 3 (indent 6)`;
 
-    const result = parseMarkdownToBlocks(markdown);
+    const { nodes: result } = parseMarkdownToBlocks(markdown);
     const level1 = result[0];
 
     expect(level1.indent).toBe(0);
@@ -237,40 +220,21 @@ describe("flattenBlockHierarchy", () => {
     const result = flattenBlockHierarchy(nodes);
 
     expect(result).toHaveLength(4);
-
     expect(result[0].content).toBe("Root");
     expect(result[0].parentBlockId).toBe(null);
-
     expect(result[1].content).toBe("Child 1");
     expect(result[1].parentBlockId).toMatch(/^temp_/);
-
     expect(result[2].content).toBe("Child 2");
     expect(result[2].parentBlockId).toBe(result[1].parentBlockId);
-
     expect(result[3].content).toBe("Another Root");
     expect(result[3].parentBlockId).toBe(null);
   });
 
   it("should set proper insert order with insertAfterBlockId", () => {
     const nodes: ParsedBlockNode[] = [
-      {
-        content: "Item 1",
-        indent: 0,
-        lineNumber: 0,
-        children: [],
-      },
-      {
-        content: "Item 2",
-        indent: 0,
-        lineNumber: 1,
-        children: [],
-      },
-      {
-        content: "Item 3",
-        indent: 0,
-        lineNumber: 2,
-        children: [],
-      },
+      { content: "Item 1", indent: 0, lineNumber: 0, children: [] },
+      { content: "Item 2", indent: 0, lineNumber: 1, children: [] },
+      { content: "Item 3", indent: 0, lineNumber: 2, children: [] },
     ];
 
     const result = flattenBlockHierarchy(nodes);
@@ -287,8 +251,6 @@ describe("flattenBlockHierarchy", () => {
 
 describe("Solar System Example - Hierarchical Structure", () => {
   it("should parse Solar System with planets as siblings under Mercury parent (after normalization)", () => {
-    // Note: With 1-space indentation normalization, " - Venus" becomes "  - Venus"
-    // This makes all planets children of Mercury (first item)
     const solarSystemMarkdown = `- Mercury
  - Venus
  - Earth
@@ -299,9 +261,8 @@ describe("Solar System Example - Hierarchical Structure", () => {
  - Uranus
  - Neptune`;
 
-    const result = parseMarkdownToBlocks(solarSystemMarkdown);
+    const { nodes: result } = parseMarkdownToBlocks(solarSystemMarkdown);
 
-    // After normalization, all items with 1 space become children of Mercury
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("Mercury");
     expect(result[0].children).toHaveLength(7);
@@ -313,14 +274,13 @@ describe("Solar System Example - Hierarchical Structure", () => {
   });
 
   it("should flatten Solar System structure with correct parent relationships (after normalization)", () => {
-    // After normalization, Venus/Earth/Mars become children of Mercury
     const solarSystemMarkdown = `- Mercury
  - Venus
  - Earth
    - Moon
  - Mars`;
 
-    const nodes = parseMarkdownToBlocks(solarSystemMarkdown);
+    const { nodes } = parseMarkdownToBlocks(solarSystemMarkdown);
     const flattened = flattenBlockHierarchy(nodes);
 
     expect(flattened).toHaveLength(5);
@@ -333,18 +293,14 @@ describe("Solar System Example - Hierarchical Structure", () => {
 
     expect(mercury.content).toBe("Mercury");
     expect(mercury.parentBlockId).toBeNull();
-
     expect(venus.content).toBe("Venus");
-    expect(venus.parentBlockId).toMatch(/^temp_/); // Child of Mercury after normalization
-
+    expect(venus.parentBlockId).toMatch(/^temp_/);
     expect(earth.content).toBe("Earth");
-    expect(earth.parentBlockId).toMatch(/^temp_/); // Child of Mercury after normalization
-
+    expect(earth.parentBlockId).toMatch(/^temp_/);
     expect(moon.content).toBe("Moon");
     expect(moon.parentBlockId).toBeDefined();
     expect(moon.parentBlockId).not.toBeNull();
-
     expect(mars.content).toBe("Mars");
-    expect(mars.parentBlockId).toMatch(/^temp_/); // Child of Mercury after normalization
+    expect(mars.parentBlockId).toMatch(/^temp_/);
   });
 });

@@ -18,17 +18,22 @@ import type {
   IAgentOrchestrator,
 } from "./types";
 
-interface ToolCallHistory {
-  toolName: string;
-  params: unknown;
-  timestamp: number;
-}
+const DEFAULT_MAX_ITERATIONS = 8;
+const DEFAULT_MAX_TOTAL_TOOL_CALLS = 16;
+const CONSECUTIVE_DUPLICATE_NUDGE = 2;
+const CONSECUTIVE_DUPLICATE_STOP = 3;
 
 export class AgentOrchestrator implements IAgentOrchestrator {
   private state: AgentState;
   private aiProvider: IAIProvider;
   private shouldStop = false;
-  private toolCallHistory: ToolCallHistory[] = [];
+  private toolCallHistory: Array<{
+    toolName: string;
+    argsKey: string;
+    timestamp: number;
+  }> = [];
+  private totalToolCalls = 0;
+  private emptyResponseCount = 0;
 
   constructor(aiProvider: IAIProvider) {
     this.aiProvider = aiProvider;
@@ -38,7 +43,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       status: "idle",
       steps: [],
       iterations: 0,
-      maxIterations: 10,
+      maxIterations: DEFAULT_MAX_ITERATIONS,
       taskProgress: {
         phase: "idle",
         completedSteps: [],
@@ -56,7 +61,13 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     config: AgentConfig,
   ): AsyncGenerator<AgentStep, void, unknown> {
     this.shouldStop = false;
-    this.toolCallHistory = []; // Reset history for new execution
+    this.toolCallHistory = [];
+    this.totalToolCalls = 0;
+    this.emptyResponseCount = 0;
+
+    const maxIterations = config.maxIterations || DEFAULT_MAX_ITERATIONS;
+    const maxTotalToolCalls =
+      config.maxTotalToolCalls || DEFAULT_MAX_TOTAL_TOOL_CALLS;
 
     const executionId = `exec_${Date.now()}_${Math.random()
       .toString(36)
@@ -68,7 +79,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       status: "thinking",
       steps: [],
       iterations: 0,
-      maxIterations: config.maxIterations || 50,
+      maxIterations,
       taskProgress: {
         phase: "idle",
         completedSteps: [],
@@ -85,9 +96,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     );
 
     const allTools = toolRegistry.getAll();
-
     const systemPrompt = this.buildSystemPrompt(config);
-
     const conversationHistory: ChatMessage[] = [];
 
     try {
@@ -112,10 +121,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         this.state.steps.push(thoughtStep);
         yield thoughtStep;
 
-        let toolWasCalled = false;
-        let finalAnswerReceived = false;
         let accumulatedText = "";
-        const pendingSteps: AgentStep[] = [];
+        const toolCalls: Array<{
+          id: string;
+          name: string;
+          arguments: unknown;
+        }> = [];
 
         try {
           const stream = this.aiProvider.generateStream({
@@ -127,37 +138,62 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             history: conversationHistory,
             tools: allTools,
             temperature: config.temperature,
-            onToolCall: async (toolName: string, params: unknown) => {
-              toolWasCalled = true;
+          });
 
-              // Record tool call for looping detection
+          for await (const chunk of stream) {
+            if (chunk.type === "text" && chunk.content) {
+              accumulatedText += chunk.content;
+            } else if (chunk.type === "tool_call" && chunk.toolCall) {
+              toolCalls.push(chunk.toolCall);
+            } else if (chunk.type === "error") {
+              throw new Error(chunk.error || "Unknown error");
+            }
+          }
+
+          if (toolCalls.length > 0) {
+            for (const toolCall of toolCalls) {
+              const { id: _id, name: toolName, arguments: params } = toolCall;
+
+              if (this.totalToolCalls >= maxTotalToolCalls) {
+                console.warn(
+                  `[AgentOrchestrator] Max total tool calls (${maxTotalToolCalls}) reached`,
+                );
+                break;
+              }
+
+              this.totalToolCalls++;
+              const argsKey = stableStringify(params);
               this.toolCallHistory.push({
                 toolName,
-                params,
+                argsKey,
                 timestamp: Date.now(),
               });
 
-              // Detect looping patterns
-              const loopCheck = this.detectLooping();
-              if (loopCheck.isLooping) {
-                console.warn(
-                  `[AgentOrchestrator] ⚠️ Looping detected: ${loopCheck.reason}`,
-                );
+              const duplicateCount = this.getConsecutiveDuplicateCount(
+                toolName,
+                argsKey,
+              );
 
-                // Inject guidance into conversation history
+              if (duplicateCount >= CONSECUTIVE_DUPLICATE_STOP) {
+                console.warn(
+                  `[AgentOrchestrator] Stopping: ${toolName} called ${duplicateCount}x with same args`,
+                );
                 conversationHistory.push({
                   role: "user",
-                  content: `⚠️ LOOPING DETECTED: ${
-                    loopCheck.reason
-                  }\n\nYou are repeating the same actions without making progress. Based on information you already have:\n\n${this.getProgressSummary()}\n\nContinue with the next logical step. If you cannot complete the task with the available information, provide a final answer summarizing what you've accomplished.`,
+                  content: `You called ${toolName} ${duplicateCount} times with the same arguments. Stop repeating and provide a final answer with what you've accomplished so far.`,
                 });
+                break;
+              }
 
-                // Clear recent history to break loop
-                const lastAssistantIdx =
-                  conversationHistory.length - 2 >= 0
-                    ? conversationHistory.length - 2
-                    : 0;
-                conversationHistory.splice(lastAssistantIdx, 2);
+              if (duplicateCount >= CONSECUTIVE_DUPLICATE_NUDGE) {
+                console.warn(
+                  `[AgentOrchestrator] Nudge: ${toolName} called ${duplicateCount}x with same args`,
+                );
+                conversationHistory.push({
+                  role: "user",
+                  content: `You already called ${toolName} with these same arguments. Use the previous result and move to the next step.`,
+                });
+                continue;
               }
 
               console.log(
@@ -176,7 +212,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               };
 
               this.state.steps.push(toolCallStep);
-              pendingSteps.push(toolCallStep);
+              yield toolCallStep;
 
               this.state.status = "acting";
 
@@ -201,51 +237,55 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               };
 
               this.state.steps.push(observationStep);
-              pendingSteps.push(observationStep);
+              yield observationStep;
 
-              // Update task progress based on tool call
               this.updateTaskProgress(toolName, result);
 
               conversationHistory.push({
                 role: "assistant",
-                content: `I called ${toolName} with params ${JSON.stringify(
-                  params,
-                )}`,
+                content: `I called ${toolName} with params ${JSON.stringify(params)}`,
               });
               conversationHistory.push({
                 role: "user",
                 content: `Tool result: ${JSON.stringify(result)}`,
               });
-
-              return result;
-            },
-          });
-
-          for await (const chunk of stream) {
-            if (chunk.type === "text" && chunk.content) {
-              accumulatedText += chunk.content;
-            } else if (chunk.type === "error") {
-              throw new Error(chunk.error || "Unknown error");
             }
+
+            this.emptyResponseCount = 0;
+
+            if (this.totalToolCalls >= maxTotalToolCalls) {
+              console.warn(
+                "[AgentOrchestrator] Tool call budget exhausted, completing",
+              );
+              const finalStep = this.createFinalStep(
+                "Tool call budget exhausted. Task progress: " +
+                  this.getProgressSummary(),
+              );
+              this.state.steps.push(finalStep);
+              this.state.status = "completed";
+              yield finalStep;
+              break;
+            }
+
+            if (this.state.taskProgress.phase === "complete") {
+              console.log(
+                "[AgentOrchestrator] Task phase is complete, auto-terminating",
+              );
+              const finalStep = this.createFinalStep(
+                "Task completed successfully.",
+              );
+              this.state.steps.push(finalStep);
+              this.state.status = "completed";
+              yield finalStep;
+              break;
+            }
+
+            continue;
           }
 
-          for (const step of pendingSteps) {
-            yield step;
-          }
-          pendingSteps.length = 0;
-
-          if (accumulatedText.trim() && !toolWasCalled) {
-            finalAnswerReceived = true;
-
-            const finalStep: AgentStep = {
-              id: `step_${Date.now()}_${Math.random()
-                .toString(36)
-                .substring(7)}`,
-              type: "final_answer",
-              timestamp: Date.now(),
-              content: accumulatedText,
-            };
-
+          if (accumulatedText.trim()) {
+            this.emptyResponseCount = 0;
+            const finalStep = this.createFinalStep(accumulatedText);
             this.state.steps.push(finalStep);
             this.state.status = "completed";
 
@@ -257,24 +297,27 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             break;
           }
 
-          if (!toolWasCalled && !finalAnswerReceived) {
-            console.log(
-              "[AgentOrchestrator] No tool call and no final answer, AI may need more guidance",
-            );
+          this.emptyResponseCount++;
+          console.log(
+            `[AgentOrchestrator] Empty response (${this.emptyResponseCount})`,
+          );
 
-            conversationHistory.push({
-              role: "assistant",
-              content: accumulatedText || "(no response)",
-            });
-
-            conversationHistory.push({
-              role: "user",
-              content:
-                "Please use one of the available tools to make progress on the task, or provide a final answer if the task is complete.",
-            });
+          if (this.emptyResponseCount >= 2) {
+            this.state.status = "failed";
+            this.state.error = "AI produced no response after retry";
+            break;
           }
+
+          conversationHistory.push({
+            role: "assistant",
+            content: "(no response)",
+          });
+          conversationHistory.push({
+            role: "user",
+            content:
+              "Respond with a final answer or call a tool to make progress. Do not stall.",
+          });
         } catch (error) {
-          // Use intelligent error recovery system
           const errorInfo = classifyError(error as Error | string);
 
           console.error(
@@ -282,22 +325,18 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             errorInfo.message,
           );
 
-          // Check if error is recoverable
           if (isRecoverable(errorInfo)) {
-            // Inject recovery guidance into conversation history
             const recoveryPrompt = getRecoveryGuidance(errorInfo);
             conversationHistory.push({
               role: "user",
               content: recoveryPrompt,
             });
 
-            // Mark as recovered and continue
             console.log(
               "[AgentOrchestrator] Recovery strategy:",
               errorInfo.suggestedStrategy,
             );
           } else {
-            // Fatal error - mark as failed
             this.state.error = errorInfo.message;
             this.state.status = "failed";
             throw error;
@@ -337,69 +376,31 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     this.shouldStop = true;
   }
 
-  /**
-   * Detect looping patterns in tool calls
-   */
-  private detectLooping(): { isLooping: boolean; reason?: string } {
-    const recentCalls = this.toolCallHistory.slice(-5);
-
-    // Pattern 1: Same tool called 3+ times in a row
-    if (recentCalls.length >= 3) {
-      const lastThree = recentCalls.slice(-3);
-      const allSameTool = lastThree.every(
-        (call) => call.toolName === lastThree[0].toolName,
-      );
-      if (allSameTool) {
-        return {
-          isLooping: true,
-          reason: `Same tool '${lastThree[0].toolName}' called 3+ times consecutively`,
-        };
+  private getConsecutiveDuplicateCount(
+    toolName: string,
+    argsKey: string,
+  ): number {
+    let count = 0;
+    for (let i = this.toolCallHistory.length - 1; i >= 0; i--) {
+      const entry = this.toolCallHistory[i];
+      if (entry.toolName === toolName && entry.argsKey === argsKey) {
+        count++;
+      } else {
+        break;
       }
     }
-
-    // Pattern 2: Only read-only tools called repeatedly
-    const readOnlyTools = [
-      "list_pages",
-      "query_pages",
-      "get_page_blocks",
-      "query_blocks",
-    ];
-    const last4 = recentCalls.slice(-4);
-    if (
-      last4.length >= 4 &&
-      last4.every((call) => readOnlyTools.includes(call.toolName))
-    ) {
-      return {
-        isLooping: true,
-        reason:
-          "Only read-only query tools called repeatedly without taking action",
-      };
-    }
-
-    // Pattern 3: Create operation followed by repeated list/query calls
-    if (recentCalls.length >= 3) {
-      const hasCreate = recentCalls.some((call) =>
-        call.toolName.includes("create"),
-      );
-      const last2 = recentCalls.slice(-2);
-      const last2AreQueries = last2.every(
-        (call) =>
-          call.toolName === "list_pages" || call.toolName === "query_pages",
-      );
-      if (hasCreate && last2AreQueries) {
-        return {
-          isLooping: true,
-          reason: "Unnecessary verification queries after create operation",
-        };
-      }
-    }
-
-    return { isLooping: false };
+    return count;
   }
 
-  /**
-   * Get summary of progress made so far
-   */
+  private createFinalStep(content: string): AgentStep {
+    return {
+      id: `step_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      type: "final_answer",
+      timestamp: Date.now(),
+      content,
+    };
+  }
+
   private getProgressSummary(): string {
     const createdPages = new Set<string>();
     const createdBlocks = new Set<string>();
@@ -410,7 +411,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       (c) => c.toolName === "get_page_blocks",
     );
 
-    // Analyze tool results to find created resources
     for (const step of this.state.steps) {
       if (step.type === "observation" && step.toolResult?.success) {
         const data = step.toolResult.data as Record<string, unknown>;
@@ -447,11 +447,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     return summary;
   }
 
-  /**
-   * Update task progress based on actions taken
-   */
   private updateTaskProgress(toolName?: string, result?: ToolResult): void {
-    // Determine new phase based on tool call
     if (toolName?.includes("create_page") && result?.success) {
       this.state.taskProgress.phase = "creating_page";
       this.state.taskProgress.completedSteps.push("Page created");
@@ -484,24 +480,15 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     }
   }
 
-  /**
-   * Get number of attempts for a specific tool
-   */
-
-  /**
-   * Build system prompt using system-prompt.md file + dynamic context
-   */
   private buildSystemPrompt(_config: AgentConfig): string {
     let prompt = systemPromptContent;
 
-    // Add dynamic context section
     const blockStore = useBlockStore.getState();
     const pageStore = usePageStore.getState();
     const uiStore = useBlockUIStore.getState();
 
     prompt += "\n\n---\n\n## Dynamic Context\n\n";
 
-    // Current focused block
     const focusedId = uiStore.focusedBlockId;
     if (focusedId) {
       const block = blockStore.blocksById[focusedId];
@@ -510,7 +497,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     }
 
-    // Current page with type
     const pageId = blockStore.currentPageId;
     if (pageId) {
       const page = pageStore.pagesById[pageId];
@@ -524,7 +510,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     }
 
-    // Selected blocks (up to 3)
     const selectedIds = uiStore.selectedBlockIds;
     if (selectedIds.length > 0) {
       prompt += `- **Selected blocks**: ${selectedIds.length} block(s) selected\n`;
@@ -541,7 +526,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     }
 
-    // Inject task progress
     const progress = this.state.taskProgress;
     if (progress.phase !== "idle") {
       prompt += "\n\n## Task Progress\n\n";
@@ -555,5 +539,16 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     }
 
     return prompt;
+  }
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value !== "object") return String(value);
+  try {
+    const sorted = JSON.stringify(value, Object.keys(value as object).sort());
+    return sorted;
+  } catch {
+    return String(value);
   }
 }

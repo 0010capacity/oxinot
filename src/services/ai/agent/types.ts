@@ -88,26 +88,22 @@ export interface TaskProgress {
  * Agent configuration
  */
 export interface AgentConfig {
-  /** Maximum iterations before giving up */
   maxIterations?: number;
 
-  /** Whether to show detailed step-by-step UI */
   verbose?: boolean;
 
-  /** Tool execution context */
   context: ToolContext;
 
-  /** AI provider API key */
   apiKey?: string;
 
-  /** AI provider base URL */
   baseUrl?: string;
 
-  /** AI model name */
   model?: string;
 
-  /** Temperature for controlling randomness in AI responses (0.0-1.0) */
   temperature?: number;
+
+  /** Maximum total tool calls allowed across all iterations */
+  maxTotalToolCalls?: number;
 }
 
 /**

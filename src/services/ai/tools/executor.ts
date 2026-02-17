@@ -5,34 +5,54 @@ import { toolRegistry } from "./registry";
 import type { ToolContext, ToolResult } from "./types";
 import { uiEventEmitter } from "./uiEvents";
 
-/**
- * Generate a unique execution ID for tracking
- */
+const TOOL_EXECUTION_TIMEOUT_MS = 30_000;
+
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-/**
- * Wait for approval/denial decision using Zustand store subscription
- */
+async function executeWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  toolName: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(
+        new Error(
+          `Tool '${toolName}' execution timed out after ${timeoutMs}ms`,
+        ),
+      );
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
+}
+
 function waitForApprovalDecision(
   callId: string,
-  approvalStore: ReturnType<typeof useToolApprovalStore.getState>,
   timeoutMs: number = 5 * 60 * 1000,
 ): Promise<"approved" | "denied"> {
   return new Promise((resolve) => {
     let resolved = false;
-    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const unsubscribe = useToolApprovalStore.subscribe(() => {
       if (resolved) return;
 
-      if (approvalStore.isApproved(callId)) {
+      const currentState = useToolApprovalStore.getState();
+
+      if (currentState.isApproved(callId)) {
         resolved = true;
         clearTimeout(timeoutId!);
         unsubscribe();
         resolve("approved");
-      } else if (approvalStore.isDenied(callId)) {
+      } else if (currentState.isDenied(callId)) {
         resolved = true;
         clearTimeout(timeoutId!);
         unsubscribe();
@@ -125,29 +145,25 @@ export async function executeTool(
         `[executeTool] Waiting for user approval (callId: ${callId})`,
       );
 
-      return waitForApprovalDecision(callId, approvalStore).then(
-        async (decision) => {
-          if (decision === "approved") {
-            console.log(
-              "[executeTool] User approved tool execution, proceeding...",
-            );
-            return executeTool(toolName, params, context, {
-              skipApproval: true,
-            });
-          }
-
-          const duration = performance.now() - startTime;
-          console.warn(
-            `[executeTool] User denied tool execution (${duration.toFixed(
-              2,
-            )}ms)`,
+      return waitForApprovalDecision(callId).then(async (decision) => {
+        if (decision === "approved") {
+          console.log(
+            "[executeTool] User approved tool execution, proceeding...",
           );
-          return {
-            success: false,
-            error: "Tool execution denied by user",
-          };
-        },
-      );
+          return executeTool(toolName, params, context, {
+            skipApproval: true,
+          });
+        }
+
+        const duration = performance.now() - startTime;
+        console.warn(
+          `[executeTool] User denied tool execution (${duration.toFixed(2)}ms)`,
+        );
+        return {
+          success: false,
+          error: "Tool execution denied by user",
+        };
+      });
     }
 
     console.log(
@@ -163,7 +179,11 @@ export async function executeTool(
 
     // Execute tool
     console.log("[executeTool] Executing tool function...");
-    const result = await tool.execute(validatedParams, context);
+    const result = await executeWithTimeout(
+      tool.execute(validatedParams, context),
+      TOOL_EXECUTION_TIMEOUT_MS,
+      toolName,
+    );
 
     const duration = performance.now() - startTime;
     console.log(

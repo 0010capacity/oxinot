@@ -47,9 +47,18 @@ export const createBlocksFromMarkdownTool: Tool = {
         };
       }
 
-      const parsedNodes = parseMarkdownToBlocks(params.markdown);
+      const { nodes: parsedNodes, issues } = parseMarkdownToBlocks(
+        params.markdown,
+        { mode: "tolerant" },
+      );
       console.log("[createBlocksFromMarkdown] Parsed nodes structure:");
       console.log(JSON.stringify(parsedNodes, null, 2));
+      if (issues.length > 0) {
+        console.warn(
+          "[createBlocksFromMarkdown] Auto-corrected indentation issues:",
+          issues,
+        );
+      }
       if (parsedNodes.length === 0) {
         return {
           success: false,
@@ -88,8 +97,8 @@ export const createBlocksFromMarkdownTool: Tool = {
             },
           });
 
-          if (flatBlock.parentBlockId?.startsWith("temp_")) {
-            idMapping[flatBlock.parentBlockId] = newBlock.id;
+          if (flatBlock.tempId) {
+            idMapping[flatBlock.tempId] = newBlock.id;
           }
 
           createdBlocks.push({

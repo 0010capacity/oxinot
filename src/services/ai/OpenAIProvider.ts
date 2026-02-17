@@ -5,6 +5,7 @@ import type { AIRequest, IAIProvider, StreamChunk } from "./types";
 export class OpenAIProvider implements IAIProvider {
   id = "openai";
   private defaultBaseUrl = "https://api.openai.com/v1";
+  private abortController: AbortController | null = null;
 
   constructor(id?: string, baseUrl?: string) {
     if (id) this.id = id;
@@ -14,6 +15,8 @@ export class OpenAIProvider implements IAIProvider {
   async *generateStream(
     request: AIRequest,
   ): AsyncGenerator<StreamChunk, void, unknown> {
+    this.abortController = new AbortController();
+
     const rawBaseUrl = request.baseUrl || this.defaultBaseUrl;
     const baseUrl = rawBaseUrl.endsWith("/")
       ? rawBaseUrl.slice(0, -1)
@@ -31,15 +34,9 @@ export class OpenAIProvider implements IAIProvider {
       toolsCount: request.tools?.length || 0,
     });
 
-    // 1. Build initial messages
     const messages: {
       role: string;
       content: string | null;
-      tool_calls?: Array<{
-        id: string;
-        type: "function";
-        function: { name: string; arguments: string };
-      }>;
       name?: string;
       tool_call_id?: string;
     }[] = [];
@@ -48,7 +45,6 @@ export class OpenAIProvider implements IAIProvider {
     }
     if (request.history) {
       for (const msg of request.history) {
-        // Map history roles
         messages.push({ role: msg.role, content: msg.content });
       }
     }
@@ -56,13 +52,7 @@ export class OpenAIProvider implements IAIProvider {
 
     const tools = request.tools ? toolsToOpenAITools(request.tools) : undefined;
 
-    // 2. Loop for potential multiple tool calls
-    let loopCount = 0;
-    const MAX_LOOPS = 5;
-
-    while (loopCount < MAX_LOOPS) {
-      loopCount++;
-
+    try {
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -77,6 +67,7 @@ export class OpenAIProvider implements IAIProvider {
           stream: true,
           temperature: request.temperature ?? 0.3,
         }),
+        signal: this.abortController.signal,
       });
 
       console.log("[OpenAIProvider] API Response status:", response.status);
@@ -93,13 +84,11 @@ export class OpenAIProvider implements IAIProvider {
       let buffer = "";
 
       const toolCalls = new Map<
-        string,
+        number,
         { id: string; name: string; args: string }
       >();
-      let isCallingFunction = false;
-      let fullAssistantContent = "";
 
-      innerLoop: while (true) {
+      while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -120,12 +109,10 @@ export class OpenAIProvider implements IAIProvider {
             const finishReason = json.choices?.[0]?.finish_reason;
 
             if (delta?.content) {
-              fullAssistantContent += delta.content;
               yield { type: "text", content: delta.content };
             }
 
             if (delta?.tool_calls) {
-              isCallingFunction = true;
               for (const toolCall of delta.tool_calls) {
                 const { index, id, function: fn } = toolCall;
                 if (!toolCalls.has(index)) {
@@ -140,80 +127,39 @@ export class OpenAIProvider implements IAIProvider {
               }
             }
 
-            // Tool Call detected and turn ended
-            if (
-              finishReason === "tool_calls" ||
-              (isCallingFunction && finishReason === "stop")
-            ) {
-              // Store tool results to avoid double execution
-              const toolResults: Array<{
-                id: string;
-                name: string;
-                result: unknown;
-              }> = [];
-
-              // Yield all tool calls
+            if (finishReason === "tool_calls" && toolCalls.size > 0) {
               for (const { id, name, args } of toolCalls.values()) {
-                const parsedArgs = JSON.parse(args || "{}");
-
-                yield {
-                  type: "tool_call",
-                  toolCall: {
-                    id,
-                    name,
-                    arguments: parsedArgs,
-                  },
-                };
-
-                if (request.onToolCall) {
-                  const result = await request.onToolCall(name, parsedArgs);
-                  toolResults.push({ id, name, result });
-                  yield { type: "tool_result", toolResult: result };
+                try {
+                  const parsedArgs = JSON.parse(args || "{}");
+                  yield {
+                    type: "tool_call",
+                    toolCall: {
+                      id,
+                      name,
+                      arguments: parsedArgs,
+                    },
+                  };
+                } catch (e) {
+                  console.error("[OpenAIProvider] Tool parse error:", e);
                 }
               }
-
-              if (request.onToolCall && toolResults.length > 0) {
-                // Important: Push the assistant's tool calls to history before results
-                const assistantToolCalls = Array.from(toolCalls.values()).map(
-                  ({ id, name, args }) => ({
-                    id,
-                    type: "function" as const,
-                    function: { name, arguments: args },
-                  }),
-                );
-                messages.push({
-                  role: "assistant",
-                  content: null,
-                  tool_calls: assistantToolCalls,
-                });
-
-                // Push tool results to history (in same order as tool calls)
-                for (const { id, result } of toolResults) {
-                  messages.push({
-                    role: "tool",
-                    tool_call_id: id,
-                    content: JSON.stringify(result),
-                  });
-                }
-
-                // Continue the outer while loop to get AI's response to the tool result
-                isCallingFunction = false;
-                break innerLoop;
-              }
+              return;
             }
 
-            if (finishReason === "stop" && !isCallingFunction) {
-              // Final text response received
+            if (finishReason === "stop") {
               return;
             }
           } catch (e) {
-            console.error("Parse error:", e);
+            console.error("[OpenAIProvider] Parse error:", e);
           }
         }
       }
-
-      // If we finished the inner loop without a function call, we're done
-      if (!isCallingFunction) break;
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        console.log("[OpenAIProvider] Stream aborted by user");
+        return;
+      }
+      throw error;
     }
   }
 
@@ -223,5 +169,9 @@ export class OpenAIProvider implements IAIProvider {
       if (chunk.type === "text" && chunk.content) result += chunk.content;
     }
     return result;
+  }
+
+  abort(): void {
+    this.abortController?.abort();
   }
 }

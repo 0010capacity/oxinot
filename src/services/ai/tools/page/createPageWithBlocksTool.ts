@@ -94,16 +94,16 @@ export const createPageWithBlocksTool: Tool = {
         parentId: string | null;
       }> = [];
 
+      const failedBlocks: Array<{ content: string; error: string }> = [];
+
       let lastBlockId: string | null = null;
 
       for (const block of params.blocks) {
         const blockIndent = block.indent ?? 0;
         try {
-          // If no explicit insertAfterBlockId provided, use the previous block
           const insertAfterBlockId: string | null =
             block.insertAfterBlockId || lastBlockId || null;
 
-          // Use Tauri's create_block command directly
           const newBlock: BlockData = await invoke<BlockData>("create_block", {
             workspacePath: context.workspacePath,
             request: {
@@ -122,7 +122,6 @@ export const createPageWithBlocksTool: Tool = {
             parentId: block.parentBlockId ?? null,
           });
 
-          // Dispatch update for each newly created block
           dispatchBlockUpdate([newBlock]);
 
           lastBlockId = newBlock.id;
@@ -131,24 +130,42 @@ export const createPageWithBlocksTool: Tool = {
             "[createPageWithBlocksTool] Failed to create block:",
             blockError,
           );
+          failedBlocks.push({
+            content: block.content.substring(0, 50),
+            error:
+              blockError instanceof Error
+                ? blockError.message
+                : String(blockError),
+          });
         }
       }
 
+      const allSucceeded = failedBlocks.length === 0;
+      const someSucceeded = createdBlocks.length > 0;
+
       return {
-        success: true,
+        success: someSucceeded,
         data: {
           id: newPageId,
           title: params.title,
           parentId: params.parentId || null,
           blocksCreated: createdBlocks.length,
+          blocksRequested: params.blocks.length,
+          blocksFailed: failedBlocks.length,
+          failedBlocks: failedBlocks.length > 0 ? failedBlocks : undefined,
           blocks: createdBlocks.map((b) => ({
             uuid: b.uuid,
             content: b.content,
             indent: b.indent,
           })),
         },
+        error: !allSucceeded
+          ? `${failedBlocks.length} of ${params.blocks.length} blocks failed to create`
+          : undefined,
         metadata: {
-          message: `Created page "${params.title}" with ${createdBlocks.length} blocks`,
+          message: allSucceeded
+            ? `Created page "${params.title}" with ${createdBlocks.length} blocks`
+            : `Created page "${params.title}" with ${createdBlocks.length}/${params.blocks.length} blocks (${failedBlocks.length} failed)`,
         },
       };
     } catch (error) {

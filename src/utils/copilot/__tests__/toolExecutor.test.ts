@@ -3,13 +3,36 @@
  * Tests ToolExecutor class and processAIResponse function
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { ToolExecutor, processAIResponse } from "../toolExecutor";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as pageTools from "../pageTools";
+import { ToolExecutor, processAIResponse } from "../toolExecutor";
 
-// Mock page tools module
 vi.mock("../pageTools", () => ({
   processPageToolCall: vi.fn(),
+  getPageTools: vi.fn(() => [
+    {
+      name: "search_notes",
+      description: "Search for notes/pages by title or content.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search query" },
+        },
+        required: ["query"],
+      },
+    },
+    {
+      name: "open_page",
+      description: "Open a specific page/note by its ID.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          pageId: { type: "string", description: "Page ID to open" },
+        },
+        required: ["pageId"],
+      },
+    },
+  ]),
 }));
 
 describe("ToolExecutor", () => {
@@ -69,11 +92,17 @@ describe("ToolExecutor", () => {
       ).rejects.toThrow("Unknown tool: unknown_tool");
     });
 
-    it("should throw error for unimplemented tool", async () => {
-      // Even if tool is registered but not implemented in execute switch
-      await expect(
-        ToolExecutor.execute("search_notes", { query: "test" }, "/workspace"),
-      ).rejects.not.toThrow("Unknown tool");
+    it("should not throw 'Unknown tool' for implemented tools", async () => {
+      vi.mocked(pageTools.processPageToolCall).mockResolvedValue({
+        success: true,
+      });
+
+      const result = await ToolExecutor.execute(
+        "search_notes",
+        { query: "test" },
+        "/workspace",
+      );
+      expect(result).toBeDefined();
     });
   });
 

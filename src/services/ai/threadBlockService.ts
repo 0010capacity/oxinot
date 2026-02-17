@@ -14,7 +14,6 @@ import { contextTools } from "./tools/context";
 import { pageTools } from "./tools/page";
 import { toolRegistry } from "./tools/registry";
 import type { ChatMessage } from "./types";
-import { classifyIntent } from "./utils/intentClassifier";
 
 export interface ThreadExecutionContext {
   workspacePath: string;
@@ -168,12 +167,6 @@ export class ThreadBlockService {
       );
       aiProvider.id = provider;
 
-      const classificationResult = classifyIntent(promptText);
-      console.log(
-        "[ThreadBlockService] Intent classified:",
-        classificationResult.intent,
-      );
-
       const enrichedGoal = this.buildEnrichedGoal(promptText, context);
 
       const orchestrator = new AgentOrchestrator(aiProvider);
@@ -189,7 +182,7 @@ export class ThreadBlockService {
       let finalContent = "";
 
       for await (const step of orchestrator.execute(enrichedGoal, {
-        maxIterations: 50,
+        maxIterations: 8,
         verbose: true,
         context: toolContext,
         apiKey,
