@@ -7,8 +7,9 @@ import type { Tool, ToolResult } from "../types";
 export const insertBlockBelowCurrentTool: Tool = {
   name: "insert_block_below_current",
   description:
-    "Insert a new block below the currently focused block. This is a context-dependent operation that uses the active page and focused block. " +
+    "Insert a SINGLE new block below the currently focused block. This is a context-dependent operation that uses the active page and focused block. " +
     "If no block is focused, the block is added to the end of the current page. " +
+    "WARNING: Content must be atomic single-block content. NEVER use newlines in content to simulate lists - that breaks the outliner architecture. For multiple items, use create_blocks_from_markdown instead. " +
     "IMPORTANT: This tool requires an open page and will fail with 'No page is currently open' if not satisfied.",
   category: "block",
   requiresApproval: false,

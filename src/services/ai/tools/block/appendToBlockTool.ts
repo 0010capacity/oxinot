@@ -7,7 +7,7 @@ import type { Tool, ToolResult } from "../types";
 export const appendToBlockTool: Tool = {
   name: "append_to_block",
   description:
-    "Append text to the end of an existing block's content. This adds to the block without replacing its existing content. Useful for adding notes or extending existing text.",
+    "Append text to the end of an existing block's content. This adds to the block without replacing its existing content. WARNING: The appended text must be inline content only. NEVER append newlines or list items - that breaks the outliner architecture. If you need to add multiple items, use insert_block_below or create_blocks_from_markdown to create separate blocks instead.",
   category: "block",
   requiresApproval: false,
 

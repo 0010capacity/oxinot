@@ -7,14 +7,7 @@ import type { Tool, ToolResult } from "../types";
 export const updateBlockTool: Tool = {
   name: "update_block",
   category: "block",
-  description: `Update the content of an existing block. This tool modifies a specific block's text content.
-
-Example user commands that should trigger this tool:
-- "Change the first block to say 'TODO: Complete this task'"
-- "Update block content to 'The meeting is scheduled for Friday'"
-- "Modify this block to include 'Completed: Review design docs'"
-- "Replace text in block 3 with 'Important: Read this carefully'"
-- "Edit current block to add a note"
+  description: `Update the content of an existing block. This tool modifies a specific block's text content. WARNING: Content must be atomic single-block content. NEVER put newlines in content to simulate lists or multiple items - that breaks the outliner architecture. Each block should contain exactly one atomic piece of content. If you need to replace a block with multiple items, delete this block and use create_blocks_from_markdown instead.
 
 Notes:
 - Only updates content, does not move or delete blocks

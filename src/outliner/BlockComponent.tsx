@@ -22,6 +22,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { AIBlockOverlay } from "../components/AIBlockOverlay";
 import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
@@ -34,6 +35,7 @@ import {
   type ContextMenuSection,
 } from "../components/common/ContextMenu";
 import { threadBlockService } from "../services/ai/threadBlockService";
+import { useIsBlockLocked } from "../stores/aiJobsStore";
 import {
   type BlockData,
   useBlockContent,
@@ -88,6 +90,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const isAiPrompt = blockType === "ai-prompt";
     const isAiResponse = blockType === "ai-response";
+    const isAiLocked = useIsBlockLocked(blockId);
 
     const thread = useThreadByResponseBlock(blockId);
     const isStreaming = thread?.status === "streaming";
@@ -218,6 +221,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           : [blockId];
       const isBatchOperation = targetBlocks.length > 1;
 
+      const handleAIEdit = () => {
+        window.dispatchEvent(
+          new CustomEvent("ai-edit-blocks", {
+            detail: { blockIds: targetBlocks },
+          }),
+        );
+      };
+
       return [
         {
           items: [
@@ -264,6 +275,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   useBlockUIStore.getState().clearSelectedBlocks();
                 }
               },
+            },
+            {
+              label: "AI Edit... (⌘⇧A)",
+              icon: <IconRobot size={16} />,
+              onClick: handleAIEdit,
             },
             {
               label: isBatchOperation
@@ -1361,6 +1377,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             ref={blockRowRef}
             className="block-row"
             style={{
+              position: "relative",
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
               backgroundColor: isSelected
                 ? "rgba(128, 128, 128, 0.1)"
@@ -1451,6 +1468,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               }
             }}
           >
+            <AIBlockOverlay blockId={blockId} />
             {/* Collapse/Expand Toggle */}
             {hasChildren ? (
               <button
@@ -1551,6 +1569,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                           theme={isDark ? "dark" : "light"}
                           keybindings={keybindings}
                           isFocused={isFocused}
+                          readOnly={isAiLocked}
                           className="block-editor"
                           style={{}}
                         />

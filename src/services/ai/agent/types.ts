@@ -69,7 +69,6 @@ export interface TaskProgress {
     | "planning"
     | "creating_page"
     | "creating_blocks"
-    | "verifying"
     | "complete";
 
   /** Completed steps (summary) */
@@ -120,7 +119,7 @@ export interface IAgentOrchestrator {
    */
   execute(
     goal: string,
-    config: AgentConfig
+    config: AgentConfig,
   ): AsyncGenerator<AgentStep, void, unknown>;
 
   /**

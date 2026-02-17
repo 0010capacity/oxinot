@@ -12,7 +12,7 @@ import type { Tool, ToolResult } from "../types";
 export const createBlocksFromMarkdownTool: Tool = {
   name: "create_blocks_from_markdown",
   description:
-    "Parse indented markdown (bullet list format) and create properly nested blocks in a page. This automatically handles the hierarchy based on indentation levels. Perfect for creating outline structures from markdown. CRITICAL: Use EXACTLY 2 spaces per indentation level (not 1 space, not tabs). Siblings must have SAME indentation.",
+    "PRIMARY TOOL for creating any multi-item content. Transforms markdown lines into SEPARATE, INDEPENDENT blocks (one line = one block). This is NOT optional formatting - it is the ONLY correct way to create outliner-compatible structures. Each markdown line becomes a discrete, reorderable, collapsible block. CRITICAL: Use EXACTLY 2 spaces per indentation level. NEVER use create_block with multiline content - always use this tool for lists, hierarchies, or multiple points.",
   category: "block",
   requiresApproval: false,
 
@@ -21,12 +21,12 @@ export const createBlocksFromMarkdownTool: Tool = {
       .string()
       .uuid()
       .describe(
-        "UUID of the page where blocks will be created. Example: '550e8400-e29b-41d4-a716-446655440000'"
+        "UUID of the page where blocks will be created. Example: '550e8400-e29b-41d4-a716-446655440000'",
       ),
     markdown: z
       .string()
       .describe(
-        "Markdown text with bullet points and indentation. CRITICAL FORMATTING: Use EXACTLY 2 spaces per indent level (Level 0: 0 spaces, Level 1: 2 spaces, Level 2: 4 spaces). SIBLINGS must have SAME indentation. CORRECT: '- Parent\\n  - Child1\\n  - Child2\\n  - Child3' (all children have 2 spaces). WRONG: '- Parent\\n - Child1\\n - Child2' (only 1 space) or '- Parent\\n  - Child1\\n    - Child2\\n      - Child3' (staircase pattern). Each line becomes ONE block."
+        "Markdown text with bullet points and indentation. CRITICAL FORMATTING: Use EXACTLY 2 spaces per indent level (Level 0: 0 spaces, Level 1: 2 spaces, Level 2: 4 spaces). SIBLINGS must have SAME indentation. CORRECT: '- Parent\\n  - Child1\\n  - Child2\\n  - Child3' (all children have 2 spaces). WRONG: '- Parent\\n - Child1\\n - Child2' (only 1 space) or '- Parent\\n  - Child1\\n    - Child2\\n      - Child3' (staircase pattern). Each line becomes ONE block.",
       ),
   }),
 
@@ -69,14 +69,14 @@ export const createBlocksFromMarkdownTool: Tool = {
       for (const flatBlock of flatBlocks) {
         try {
           const finalParentId = flatBlock.parentBlockId?.startsWith("temp_")
-            ? idMapping[flatBlock.parentBlockId] ?? null
-            : flatBlock.parentBlockId ?? null;
+            ? (idMapping[flatBlock.parentBlockId] ?? null)
+            : (flatBlock.parentBlockId ?? null);
 
           const finalAfterBlockId = flatBlock.insertAfterBlockId?.startsWith(
-            "temp_"
+            "temp_",
           )
-            ? idMapping[flatBlock.insertAfterBlockId] ?? null
-            : flatBlock.insertAfterBlockId ?? null;
+            ? (idMapping[flatBlock.insertAfterBlockId] ?? null)
+            : (flatBlock.insertAfterBlockId ?? null);
 
           const newBlock: BlockData = await invoke<BlockData>("create_block", {
             workspacePath: context.workspacePath,
@@ -102,7 +102,7 @@ export const createBlocksFromMarkdownTool: Tool = {
         } catch (blockError) {
           console.error(
             "[createBlocksFromMarkdownTool] Failed to create block:",
-            blockError
+            blockError,
           );
           return {
             success: false,

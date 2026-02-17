@@ -1,6 +1,10 @@
 import { useComputedColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
 import { createContext, memo, useEffect, useMemo, useRef } from "react";
+import {
+  AIFloatingInput,
+  useAIFloatingInput,
+} from "../components/AIFloatingInput";
 import { LinkedReferences } from "../components/LinkedReferences";
 import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
@@ -8,6 +12,7 @@ import { PageContainer } from "../components/layout/PageContainer";
 import { PageHeader } from "../components/layout/PageHeader";
 import { useBlockEditorCommands } from "../hooks/useBlockEditorCommands";
 import { useBlockStore } from "../stores/blockStore";
+import { useBlockUIStore } from "../stores/blockUIStore";
 import { useRegisterCommands } from "../stores/commandStore";
 
 import { useThemeStore } from "../stores/themeStore";
@@ -72,6 +77,48 @@ export function BlockEditor({
   const zoomPath = useViewStore((state) => state.zoomPath);
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
+
+  const aiFloatingInput = useAIFloatingInput();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key.toLowerCase() === "a"
+      ) {
+        e.preventDefault();
+        const focusedBlockId = useBlockUIStore.getState().focusedBlockId;
+        const selectedBlockIds = useBlockUIStore.getState().selectedBlockIds;
+        const targetBlockIds =
+          selectedBlockIds.length > 0
+            ? selectedBlockIds
+            : focusedBlockId
+              ? [focusedBlockId]
+              : [];
+        if (targetBlockIds.length > 0) {
+          aiFloatingInput.open(targetBlockIds);
+        }
+      }
+    };
+
+    const handleAIEditEvent = (e: CustomEvent<{ blockIds: string[] }>) => {
+      aiFloatingInput.open(e.detail.blockIds);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener(
+      "ai-edit-blocks",
+      handleAIEditEvent as EventListener,
+    );
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(
+        "ai-edit-blocks",
+        handleAIEditEvent as EventListener,
+      );
+    };
+  }, [aiFloatingInput]);
 
   // Register page-level command
   useRegisterCommands(
@@ -262,6 +309,15 @@ export function BlockEditor({
 
         <LinkedReferences pageId={pageId} />
       </ContentWrapper>
+
+      {aiFloatingInput.state?.isOpen && (
+        <AIFloatingInput
+          blockIds={aiFloatingInput.state.blockIds}
+          position={aiFloatingInput.state.position}
+          mode={aiFloatingInput.state.mode}
+          onClose={aiFloatingInput.close}
+        />
+      )}
     </PageContainer>
   );
 }

@@ -1,3 +1,4 @@
+import { useAIJobsStore } from "@/stores/aiJobsStore";
 import type { AIProvider } from "@/stores/aiSettingsStore";
 import { useAISettingsStore } from "@/stores/aiSettingsStore";
 import { useBlockStore } from "@/stores/blockStore";
@@ -57,17 +58,47 @@ export class ThreadBlockService {
     promptBlockId: string,
     promptText: string,
     pageId: string,
-  ): Promise<string> {
+  ): Promise<string | null> {
+    console.log("[ThreadBlockService] executePrompt called", {
+      promptBlockId,
+      promptText: promptText.slice(0, 50),
+      pageId,
+    });
+
+    const aiJobsStore = useAIJobsStore.getState();
+    const job = aiJobsStore.createJob({
+      prompt: promptText,
+      mode: "create",
+      targetBlockIds: [promptBlockId],
+    });
+
+    if (!job) {
+      console.log(
+        "[ThreadBlockService] Job creation blocked (duplicate or locked)",
+      );
+      return null;
+    }
+
     const { provider, apiKey, baseUrl, temperature, models } =
       useAISettingsStore.getState();
     const activeModel = models[0] || "";
+
+    console.log("[ThreadBlockService] AI settings", {
+      provider,
+      activeModel,
+      hasApiKey: !!apiKey,
+    });
 
     const threadId = useThreadStore
       .getState()
       .startThread(promptBlockId, activeModel, provider);
 
+    aiJobsStore.setJobThreadId(job.id, threadId);
+    aiJobsStore.updateJobStatus(job.id, "streaming");
+
     const workspacePath = useWorkspaceStore.getState().workspacePath;
     if (!workspacePath) {
+      aiJobsStore.setJobError(job.id, "No workspace path available");
       throw new Error("No workspace path available");
     }
 
@@ -78,10 +109,12 @@ export class ThreadBlockService {
       pageId,
     );
 
+    console.log("[ThreadBlockService] Created response block", {
+      responseBlockId,
+      parentId: promptBlockId,
+    });
+
     if (responseBlockId) {
-      await blockStore.updateBlock(responseBlockId, {
-        blockType: "ai-response",
-      });
       useThreadStore.getState().setResponseBlock(threadId, responseBlockId);
     }
 
@@ -102,9 +135,11 @@ export class ThreadBlockService {
       baseUrl,
       temperature,
       responseBlockId || undefined,
+      job.id,
     ).catch((error) => {
       console.error("[ThreadBlockService] Execution error:", error);
       useThreadStore.getState().failThread(threadId, String(error));
+      aiJobsStore.setJobError(job.id, String(error));
     });
 
     return threadId;
@@ -120,9 +155,11 @@ export class ThreadBlockService {
     baseUrl: string | undefined,
     temperature: number | undefined,
     responseBlockId: string | undefined,
+    jobId: string,
   ): Promise<void> {
     const threadStore = useThreadStore.getState();
     const blockStore = useBlockStore.getState();
+    const aiJobsStore = useAIJobsStore.getState();
 
     try {
       const aiProvider = createAIProvider(
@@ -166,8 +203,15 @@ export class ThreadBlockService {
           finalContent = step.content;
           threadStore.setStreamContent(threadId, finalContent);
 
+          console.log("[ThreadBlockService] Got final_answer", {
+            contentLength: finalContent.length,
+            responseBlockId,
+          });
+
           if (responseBlockId) {
+            console.log("[ThreadBlockService] Updating block content");
             await blockStore.updateBlockContent(responseBlockId, finalContent);
+            console.log("[ThreadBlockService] Block content updated");
           }
         }
       }
@@ -177,30 +221,43 @@ export class ThreadBlockService {
       if (finalState.status === "failed") {
         const errorMsg = finalState.error || "Unknown error";
         threadStore.failThread(threadId, errorMsg);
+        aiJobsStore.setJobError(jobId, errorMsg);
 
         if (responseBlockId) {
           await blockStore.updateBlockContent(
             responseBlockId,
             `Error: ${errorMsg}`,
           );
+          await blockStore.updateBlock(responseBlockId, {
+            blockType: "bullet",
+          });
         }
       } else {
         threadStore.completeThread(threadId);
 
         if (responseBlockId && finalContent) {
           await blockStore.updateBlockContent(responseBlockId, finalContent);
+          await blockStore.updateBlock(responseBlockId, {
+            blockType: "bullet",
+          });
         }
+
+        aiJobsStore.completeJob(jobId);
       }
     } catch (error) {
       const errorMsg =
         error instanceof Error ? error.message : "Execution failed";
       threadStore.failThread(threadId, errorMsg);
+      aiJobsStore.setJobError(jobId, errorMsg);
 
       if (responseBlockId) {
         await blockStore.updateBlockContent(
           responseBlockId,
           `Error: ${errorMsg}`,
         );
+        await blockStore.updateBlock(responseBlockId, {
+          blockType: "bullet",
+        });
       }
     } finally {
       this.orchestrators.delete(threadId);
@@ -324,6 +381,18 @@ export class ThreadBlockService {
       this.orchestrators.delete(threadId);
     }
     useThreadStore.getState().cancelThread(threadId);
+
+    // Also update aiJobsStore to keep both sides in sync
+    const aiJobsStore = useAIJobsStore.getState();
+    const job = aiJobsStore.getJobByThread(threadId);
+    if (
+      job &&
+      job.status !== "done" &&
+      job.status !== "error" &&
+      job.status !== "cancelled"
+    ) {
+      aiJobsStore.cancelJob(job.id);
+    }
   }
 
   buildThreadHistory(promptBlockId: string): ChatMessage[] {

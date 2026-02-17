@@ -5,18 +5,18 @@ import { executeTool } from "../tools/executor";
 import { toolRegistry } from "../tools/registry";
 import type { ToolResult } from "../tools/types";
 import type { ChatMessage, IAIProvider } from "../types";
+import {
+  classifyError,
+  getRecoveryGuidance,
+  isRecoverable,
+} from "./errorRecovery";
+import systemPromptContent from "./system-prompt.md?raw";
 import type {
   AgentConfig,
   AgentState,
   AgentStep,
   IAgentOrchestrator,
 } from "./types";
-import systemPromptContent from "./system-prompt.md?raw";
-import {
-  classifyError,
-  getRecoveryGuidance,
-  isRecoverable,
-} from "./errorRecovery";
 
 interface ToolCallHistory {
   toolName: string;
@@ -53,7 +53,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
   async *execute(
     goal: string,
-    config: AgentConfig
+    config: AgentConfig,
   ): AsyncGenerator<AgentStep, void, unknown> {
     this.shouldStop = false;
     this.toolCallHistory = []; // Reset history for new execution
@@ -81,7 +81,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     };
 
     console.log(
-      `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`
+      `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`,
     );
 
     const allTools = toolRegistry.getAll();
@@ -97,7 +97,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       ) {
         this.state.iterations++;
         console.log(
-          `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`
+          `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`,
         );
 
         this.state.status = "thinking";
@@ -141,7 +141,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               const loopCheck = this.detectLooping();
               if (loopCheck.isLooping) {
                 console.warn(
-                  `[AgentOrchestrator] ⚠️ Looping detected: ${loopCheck.reason}`
+                  `[AgentOrchestrator] ⚠️ Looping detected: ${loopCheck.reason}`,
                 );
 
                 // Inject guidance into conversation history
@@ -162,7 +162,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
               console.log(
                 `[AgentOrchestrator] Tool called: ${toolName}`,
-                params
+                params,
               );
 
               const toolCallStep: AgentStep = {
@@ -183,12 +183,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               const result = await executeTool(
                 toolName,
                 params,
-                config.context
+                config.context,
               );
 
               console.log(
                 "[AgentOrchestrator] Tool result:",
-                result.success ? "✓ Success" : "✗ Failed"
+                result.success ? "✓ Success" : "✗ Failed",
               );
 
               const observationStep: AgentStep = {
@@ -209,7 +209,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               conversationHistory.push({
                 role: "assistant",
                 content: `I called ${toolName} with params ${JSON.stringify(
-                  params
+                  params,
                 )}`,
               });
               conversationHistory.push({
@@ -250,7 +250,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             this.state.status = "completed";
 
             console.log(
-              "[AgentOrchestrator] Final answer received, completing execution"
+              "[AgentOrchestrator] Final answer received, completing execution",
             );
 
             yield finalStep;
@@ -259,7 +259,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
           if (!toolWasCalled && !finalAnswerReceived) {
             console.log(
-              "[AgentOrchestrator] No tool call and no final answer, AI may need more guidance"
+              "[AgentOrchestrator] No tool call and no final answer, AI may need more guidance",
             );
 
             conversationHistory.push({
@@ -279,7 +279,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
           console.error(
             `[AgentOrchestrator] Error classified: ${errorInfo.category} (${errorInfo.severity})`,
-            errorInfo.message
+            errorInfo.message,
           );
 
           // Check if error is recoverable
@@ -294,7 +294,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             // Mark as recovered and continue
             console.log(
               "[AgentOrchestrator] Recovery strategy:",
-              errorInfo.suggestedStrategy
+              errorInfo.suggestedStrategy,
             );
           } else {
             // Fatal error - mark as failed
@@ -310,7 +310,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         this.state.status !== "completed"
       ) {
         console.warn(
-          `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`
+          `[AgentOrchestrator] Max iterations (${this.state.maxIterations}) reached without completion`,
         );
         this.state.status = "failed";
         this.state.error = "Maximum iterations reached without completing task";
@@ -323,7 +323,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
     } finally {
       console.log(
-        `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`
+        `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`,
       );
     }
   }
@@ -347,7 +347,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     if (recentCalls.length >= 3) {
       const lastThree = recentCalls.slice(-3);
       const allSameTool = lastThree.every(
-        (call) => call.toolName === lastThree[0].toolName
+        (call) => call.toolName === lastThree[0].toolName,
       );
       if (allSameTool) {
         return {
@@ -379,12 +379,12 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     // Pattern 3: Create operation followed by repeated list/query calls
     if (recentCalls.length >= 3) {
       const hasCreate = recentCalls.some((call) =>
-        call.toolName.includes("create")
+        call.toolName.includes("create"),
       );
       const last2 = recentCalls.slice(-2);
       const last2AreQueries = last2.every(
         (call) =>
-          call.toolName === "list_pages" || call.toolName === "query_pages"
+          call.toolName === "list_pages" || call.toolName === "query_pages",
       );
       if (hasCreate && last2AreQueries) {
         return {
@@ -404,10 +404,10 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     const createdPages = new Set<string>();
     const createdBlocks = new Set<string>();
     const pagesListed = this.toolCallHistory.some(
-      (c) => c.toolName === "list_pages"
+      (c) => c.toolName === "list_pages",
     );
     const blocksRetrieved = this.toolCallHistory.some(
-      (c) => c.toolName === "get_page_blocks"
+      (c) => c.toolName === "get_page_blocks",
     );
 
     // Analyze tool results to find created resources
@@ -459,7 +459,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         "Generate markdown",
         "Validate markdown",
         "Create blocks",
-        "Verify results",
       ];
       if (result.data) {
         const data = result.data as { id: string; title: string };
@@ -473,35 +472,15 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       this.state.taskProgress.completedSteps.push("Markdown validated");
       this.state.taskProgress.pendingSteps = ["Create blocks"];
     } else if (toolName === "create_blocks_from_markdown" && result?.success) {
-      this.state.taskProgress.phase = "verifying";
+      this.state.taskProgress.phase = "complete";
       this.state.taskProgress.completedSteps.push("Blocks created");
-      this.state.taskProgress.pendingSteps = ["Verify results"];
+      this.state.taskProgress.pendingSteps = [];
       if (result.data) {
         this.state.taskProgress.createdResources.blocks.push({
           id: `page:${result.data?.pageId || "unknown"}`,
           pageId: result.data?.pageId || "unknown",
         });
       }
-    } else if (
-      this.state.taskProgress.phase === "verifying" &&
-      toolName !== "create_blocks_from_markdown"
-    ) {
-      // Still in verification phase
-      if (toolName === "get_page_blocks") {
-        this.state.taskProgress.completedSteps.push("Blocks retrieved");
-        this.state.taskProgress.pendingSteps = [];
-      }
-    }
-
-    // Mark as complete if all done
-    if (
-      this.state.taskProgress.createdResources.pages.length > 0 &&
-      this.state.taskProgress.createdResources.blocks.length > 0 &&
-      this.state.taskProgress.phase === "verifying"
-    ) {
-      this.state.taskProgress.phase = "complete";
-      this.state.taskProgress.completedSteps.push("Task completed");
-      this.state.taskProgress.pendingSteps = [];
     }
   }
 

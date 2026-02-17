@@ -7,7 +7,7 @@ import type { Tool, ToolResult } from "../types";
 export const insertBlockBelowTool: Tool = {
   name: "insert_block_below",
   description:
-    "Insert a new block below a specific block. The new block will be inserted as a sibling (same level) or as the first child if the target block has children and is expanded.",
+    "Insert a SINGLE new block below a specific block. The new block will be inserted as a sibling (same level) or as the first child if the target block has children and is expanded. WARNING: Content must be atomic single-block content. NEVER use newlines in content to simulate lists - that breaks the outliner architecture. For multiple items, use create_blocks_from_markdown instead.",
   category: "block",
   requiresApproval: false,
 
