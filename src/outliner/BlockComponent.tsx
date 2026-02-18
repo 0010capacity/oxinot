@@ -6,11 +6,8 @@ import {
   IconCopy,
   IconIndentDecrease,
   IconIndentIncrease,
-  IconRobot,
-  IconSparkles,
   IconTrash,
 } from "@tabler/icons-react";
-import type React from "react";
 import {
   memo,
   useCallback,
@@ -22,7 +19,6 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { AIBlockOverlay } from "../components/AIBlockOverlay";
 import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
@@ -34,21 +30,17 @@ import {
   ContextMenu,
   type ContextMenuSection,
 } from "../components/common/ContextMenu";
-import { threadBlockService } from "../services/ai/threadBlockService";
-import { useIsBlockLocked } from "../stores/aiJobsStore";
 import {
-  type BlockData,
   useBlockContent,
   useBlockIsCollapsed,
   useBlockMetadata,
   useBlockStore,
-  useBlockType,
   useChildrenIds,
 } from "../stores/blockStore";
+import type { BlockData } from "../stores/blockStore";
 import { useTargetCursorPosition } from "../stores/blockUIStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
-import { useThreadByResponseBlock } from "../stores/threadStore";
 import { useIsBlockFocused } from "../stores/viewStore";
 import { useViewStore } from "../stores/viewStore";
 import * as batchOps from "../utils/batchBlockOperations";
@@ -56,7 +48,6 @@ import { showToast } from "../utils/toast";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { MacroContentWrapper } from "./MacroContentWrapper";
 import { editorStateCache } from "./editorStateCache";
-import { renderMarkdownToHtml } from "./markdownRenderer";
 import "./BlockComponent.css";
 import { INDENT_PER_LEVEL } from "../constants/layout";
 import { useIsBlockSelected } from "../hooks/useBlockSelection";
@@ -78,7 +69,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const isDark = computedColorScheme === "dark";
 
     const blockContent = useBlockContent(blockId);
-    const blockType = useBlockType(blockId);
     const isCollapsed = useBlockIsCollapsed(blockId);
     const childrenIds = useChildrenIds(blockId);
     const hasChildren = childrenIds.length > 0;
@@ -87,16 +77,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const showIndentGuides = useOutlinerSettingsStore(
       (state) => state.showIndentGuides,
     );
-
-    const isAiPrompt = blockType === "ai-prompt";
-    const isAiResponse = blockType === "ai-response";
-    const isAiLocked = useIsBlockLocked(blockId);
-
-    const thread = useThreadByResponseBlock(blockId);
-    const isStreaming = thread?.status === "streaming";
-    const streamContent = thread?.streamContent ?? "";
-    const displayContent =
-      isStreaming && streamContent ? streamContent : (blockContent ?? "");
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
     const createBlock = useBlockStore((state) => state.createBlock);
@@ -221,14 +201,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           : [blockId];
       const isBatchOperation = targetBlocks.length > 1;
 
-      const handleAIEdit = () => {
-        window.dispatchEvent(
-          new CustomEvent("ai-edit-blocks", {
-            detail: { blockIds: targetBlocks },
-          }),
-        );
-      };
-
       return [
         {
           items: [
@@ -275,11 +247,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   useBlockUIStore.getState().clearSelectedBlocks();
                 }
               },
-            },
-            {
-              label: "AI Edit... (⌘⇧A)",
-              icon: <IconRobot size={16} />,
-              onClick: handleAIEdit,
             },
             {
               label: isBatchOperation
@@ -947,29 +914,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       (command: SlashCommand) => {
         setSlashCommand(null);
 
-        if (command.id === "ai") {
-          const content = draftRef.current;
-          const newContent = content.replace(/\/\w*$/, "").trimStart();
-
-          const blockStore = useBlockStore.getState();
-          const pageId = blockStore.currentPageId;
-          if (!pageId) return;
-
-          draftRef.current = newContent;
-          setDraft(newContent);
-
-          commitDraft().then(async () => {
-            await blockStore.updateBlock(blockId, { blockType: "ai-prompt" });
-
-            if (newContent.trim()) {
-              await threadBlockService.executePrompt(
-                blockId,
-                newContent,
-                pageId,
-              );
-            }
-          });
-        } else if (command.id === "code") {
+        if (command.id === "code") {
           const content = draftRef.current;
           const newContent = content.replace(/\/\w*$/, "");
           const updatedContent = newContent + "```typescript\n\n```";
@@ -1056,21 +1001,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             const contentLength = content.length;
 
             if (slashCommand?.show) {
-              return true;
-            }
-
-            if (isAiPrompt && content.trim()) {
-              commitDraft().then(async () => {
-                const blockStore = useBlockStore.getState();
-                const pageId = blockStore.currentPageId;
-                if (pageId) {
-                  await threadBlockService.executePrompt(
-                    blockId,
-                    content,
-                    pageId,
-                  );
-                }
-              });
               return true;
             }
 
@@ -1278,25 +1208,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             return true;
           },
         },
-        {
-          key: "Mod-Enter",
-          preventDefault: true,
-          run: (view: EditorView) => {
-            const content = view.state.doc.toString();
-            if (!content.trim()) return false;
-
-            const blockStore = useBlockStore.getState();
-            const pageId = blockStore.currentPageId;
-            if (!pageId) return false;
-
-            commitDraft().then(async () => {
-              await blockStore.updateBlock(blockId, { blockType: "ai-prompt" });
-
-              await threadBlockService.executePrompt(blockId, content, pageId);
-            });
-            return true;
-          },
-        },
       ];
     }, [
       blockId,
@@ -1468,7 +1379,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               }
             }}
           >
-            <AIBlockOverlay blockId={blockId} />
             {/* Collapse/Expand Toggle */}
             {hasChildren ? (
               <button
@@ -1483,10 +1393,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               <div className="collapse-toggle-placeholder" />
             )}
 
-            {/* Bullet Point / AI Icon - clickable for zoom */}
+            {/* Bullet Point - clickable for zoom */}
             <button
               type="button"
-              className={`block-bullet-wrapper ${isAiPrompt ? "ai-prompt-icon" : ""} ${isAiResponse ? "ai-response-icon" : ""}`}
+              className="block-bullet-wrapper"
               onClick={handleBulletClick}
               style={{
                 cursor: hasChildren ? "pointer" : "default",
@@ -1499,16 +1409,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               }}
               title={hasChildren ? "Click to zoom into this block" : undefined}
             >
-              {isAiPrompt ? (
-                <IconSparkles
-                  size={16}
-                  style={{ color: "var(--color-accent)" }}
-                />
-              ) : isAiResponse ? (
-                <IconRobot size={16} style={{ color: "var(--color-accent)" }} />
-              ) : (
-                <div className="block-bullet" />
-              )}
+              <div className="block-bullet" />
             </button>
 
             {/* Content Editor */}
@@ -1516,86 +1417,65 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               className="block-content-wrapper"
               style={{ position: "relative" }}
             >
-              {isAiResponse ? (
-                <div
-                  className="ai-response-content"
-                  style={{
-                    width: "100%",
-                    minHeight: "20px",
-                    padding: "2px 0",
+              <MacroContentWrapper
+                content={blockContent || ""}
+                blockId={blockId}
+                isFocused={isFocused}
+                onEdit={() => setFocusedBlock(blockId)}
+                onMouseDownCapture={handleStaticMouseDown}
+              >
+                <Popover
+                  opened={isMetadataOpen}
+                  onClose={() => {
+                    setIsMetadataOpen(false);
                   }}
+                  position="bottom"
+                  withArrow
+                  shadow="md"
+                  trapFocus={false}
+                  closeOnEscape
+                  closeOnClickOutside
+                  withinPortal={true}
+                  transitionProps={{ duration: 0 }}
                 >
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: renderMarkdownToHtml(displayContent, {
-                        allowBlocks: true,
-                      }),
-                    }}
-                  />
-                  {isStreaming && <span className="ai-streaming-cursor" />}
-                </div>
-              ) : (
-                <MacroContentWrapper
-                  content={blockContent || ""}
-                  blockId={blockId}
-                  isFocused={isFocused}
-                  onEdit={() => setFocusedBlock(blockId)}
-                  onMouseDownCapture={handleStaticMouseDown}
-                >
-                  <Popover
-                    opened={isMetadataOpen}
-                    onClose={() => {
-                      setIsMetadataOpen(false);
-                    }}
-                    position="bottom"
-                    withArrow
-                    shadow="md"
-                    trapFocus={false}
-                    closeOnEscape
-                    closeOnClickOutside
-                    withinPortal={true}
-                    transitionProps={{ duration: 0 }}
-                  >
-                    <Popover.Target>
-                      <Box style={{ width: "100%" }}>
-                        <Editor
-                          ref={editorRef}
-                          value={draft}
-                          onChange={handleContentChangeWithTrigger}
-                          onFocus={handleFocus}
-                          onBlur={handleBlur}
-                          lineNumbers={false}
-                          lineWrapping={true}
-                          theme={isDark ? "dark" : "light"}
-                          keybindings={keybindings}
-                          isFocused={isFocused}
-                          readOnly={isAiLocked}
-                          className="block-editor"
-                          style={{}}
-                        />
-                      </Box>
-                    </Popover.Target>
-                    <Popover.Dropdown
-                      p={0}
-                      ref={popoverDropdownRef}
-                      style={{ minWidth: "300px" }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
-                    >
-                      <MetadataEditor
-                        blockId={blockId}
-                        onClose={() => {
-                          setIsMetadataOpen(false);
-                          setTimeout(() => {
-                            editorRef.current?.focus();
-                          }, 0);
-                        }}
+                  <Popover.Target>
+                    <Box style={{ width: "100%" }}>
+                      <Editor
+                        ref={editorRef}
+                        value={draft}
+                        onChange={handleContentChangeWithTrigger}
+                        onFocus={handleFocus}
+                        onBlur={handleBlur}
+                        lineNumbers={false}
+                        lineWrapping={true}
+                        theme={isDark ? "dark" : "light"}
+                        keybindings={keybindings}
+                        isFocused={isFocused}
+                        className="block-editor"
+                        style={{}}
                       />
-                    </Popover.Dropdown>
-                  </Popover>
-                </MacroContentWrapper>
-              )}
+                    </Box>
+                  </Popover.Target>
+                  <Popover.Dropdown
+                    p={0}
+                    ref={popoverDropdownRef}
+                    style={{ minWidth: "300px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <MetadataEditor
+                      blockId={blockId}
+                      onClose={() => {
+                        setIsMetadataOpen(false);
+                        setTimeout(() => {
+                          editorRef.current?.focus();
+                        }, 0);
+                      }}
+                    />
+                  </Popover.Dropdown>
+                </Popover>
+              </MacroContentWrapper>
 
               {blockMetadata && (
                 <Box

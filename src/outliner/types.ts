@@ -1,9 +1,4 @@
-export type BlockKind =
-  | "bullet"
-  | "fence"
-  | "code"
-  | "ai-prompt"
-  | "ai-response";
+export type BlockKind = "bullet" | "fence" | "code";
 
 export interface Block {
   id: string;
@@ -22,8 +17,6 @@ export interface Block {
    * - "bullet": existing behavior (Enter creates/splits blocks)
    * - "fence": Enter inserts a newline inside `content` (plain text flow for `///` fence blocks)
    * - "code": Enter inserts a newline inside `content` (code block for ``` ... ``` blocks)
-   * - "ai-prompt": AI prompt block, editable by user, triggers AI execution
-   * - "ai-response": AI response block, read-only, displays AI output
    */
   kind?: BlockKind;
 

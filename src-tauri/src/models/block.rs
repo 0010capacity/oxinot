@@ -26,10 +26,6 @@ pub enum BlockType {
     Code,
     #[serde(rename = "fence")]
     Fence,
-    #[serde(rename = "ai-prompt")]
-    AiPrompt,
-    #[serde(rename = "ai-response")]
-    AiResponse,
 }
 
 impl Default for BlockType {
@@ -40,14 +36,12 @@ impl Default for BlockType {
 
 /// Convert a stored `block_type` string (as persisted in SQLite) to `BlockType`.
 ///
-/// The DB stores `block_type` as a string like: `"bullet" | "code" | "fence" | "ai-prompt" | "ai-response"`.
+/// The DB stores `block_type` as a string like: `"bullet" | "code" | "fence"`.
 /// Unknown values fall back to `Bullet` for forward-compatibility.
 pub fn string_to_block_type(s: &str) -> BlockType {
     match s.to_lowercase().as_str() {
         "code" => BlockType::Code,
         "fence" => BlockType::Fence,
-        "ai-prompt" => BlockType::AiPrompt,
-        "ai-response" => BlockType::AiResponse,
         _ => BlockType::Bullet,
     }
 }

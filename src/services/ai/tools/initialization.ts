@@ -5,6 +5,7 @@ import { filesystemTools } from "./filesystem";
 import { navigationTools } from "./navigation";
 import { pageTools } from "./page";
 import { toolRegistry } from "./registry";
+import { searchTools } from "./search";
 
 /**
  * Initialize the tool registry with all available tools
@@ -27,6 +28,7 @@ export function initializeToolRegistry(): void {
       ...filesystemTools,
       ...contextTools,
       ...navigationTools,
+      ...searchTools,
       pingTool,
     ]);
 

@@ -123,6 +123,13 @@ async fn write_file(file_path: String, content: String) -> Result<bool, String> 
     // Validate input - reject absolute paths and path traversal
     validate_no_path_traversal(&file_path, "file_path")?;
 
+    // Auto-create parent directories if they don't exist
+    if let Some(parent) = Path::new(&file_path).parent() {
+        tokio_fs::create_dir_all(parent)
+            .await
+            .map_err(|e| format!("Error creating parent directories: {}", e))?;
+    }
+
     tokio_fs::write(&file_path, content)
         .await
         .map_err(|e| format!("Error writing file: {}", e))?;

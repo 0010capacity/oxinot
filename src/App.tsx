@@ -19,6 +19,8 @@ import { ErrorNotifications } from "./components/ErrorNotifications";
 import { GitStatusIndicator } from "./components/GitStatusIndicator";
 import { SnowEffect } from "./components/SnowEffect";
 import { TitleBar } from "./components/TitleBar";
+import { CopilotFab } from "./components/copilot/CopilotFab";
+import { CopilotPanel } from "./components/copilot/CopilotPanel";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 
 // Lazy load non-critical components for code splitting
@@ -36,6 +38,7 @@ import { useTranslation } from "react-i18next";
 import { useAdvancedSettingsStore } from "./stores/advancedSettingsStore";
 import { useAppSettingsStore } from "./stores/appSettingsStore";
 import { useBlockStore } from "./stores/blockStore";
+import { useChatStore } from "./stores/chatStore";
 import { usePageStore } from "./stores/pageStore";
 import { useThemeStore } from "./stores/themeStore";
 import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
@@ -480,6 +483,8 @@ function AppContent({ workspacePath }: AppContentProps) {
       <Notifications />
       <ErrorNotifications />
       <SnowEffect />
+      <CopilotFab />
+      <CopilotPanel />
     </>
   );
 }
@@ -517,6 +522,10 @@ function App() {
       analytics.sessionStarted();
     }
   }, [telemetryEnabled, setTelemetryStoreEnabled]);
+
+  useEffect(() => {
+    useChatStore.getState().loadPersisted();
+  }, []);
 
   if (!workspacePath) {
     return (

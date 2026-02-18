@@ -1,15 +1,21 @@
-import { openPageTool } from "./openPageTool";
-import { queryPagesTool } from "./queryPagesTool";
-import { listPagesTool } from "./listPagesTool";
 import { createPageTool } from "./createPageTool";
 import { createPageWithBlocksTool } from "./createPageWithBlocksTool";
+import { deletePageTool } from "./deletePageTool";
+import { listPagesTool } from "./listPagesTool";
+import { movePageTool } from "./movePageTool";
+import { openPageTool } from "./openPageTool";
+import { queryPagesTool } from "./queryPagesTool";
+import { updatePageTitleTool } from "./updatePageTitleTool";
 
 export {
-  openPageTool,
-  queryPagesTool,
-  listPagesTool,
   createPageTool,
   createPageWithBlocksTool,
+  deletePageTool,
+  listPagesTool,
+  movePageTool,
+  openPageTool,
+  queryPagesTool,
+  updatePageTitleTool,
 };
 
 export const pageTools = [
@@ -18,4 +24,7 @@ export const pageTools = [
   listPagesTool,
   createPageTool,
   createPageWithBlocksTool,
+  deletePageTool,
+  updatePageTitleTool,
+  movePageTool,
 ];
