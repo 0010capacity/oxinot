@@ -18,7 +18,7 @@ import type {
   IAgentOrchestrator,
 } from "./types";
 
-const DEFAULT_MAX_ITERATIONS = 8;
+const DEFAULT_MAX_ITERATIONS = 50;
 const DEFAULT_MAX_TOTAL_TOOL_CALLS = 16;
 const CONSECUTIVE_DUPLICATE_NUDGE = 2;
 const CONSECUTIVE_DUPLICATE_STOP = 3;
@@ -285,6 +285,35 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
           if (accumulatedText.trim()) {
             this.emptyResponseCount = 0;
+
+            if (
+              this.totalToolCalls === 0 &&
+              !this.isConversationalResponse(accumulatedText) &&
+              this.state.iterations < 5
+            ) {
+              console.log(
+                `[AgentOrchestrator] No tools called in iteration ${this.state.iterations}, providing escalating feedback`,
+              );
+              conversationHistory.push({
+                role: "assistant",
+                content: accumulatedText,
+              });
+              conversationHistory.push({
+                role: "user",
+                content: this.getEscalatingFeedback(this.state.iterations),
+              });
+              continue;
+            }
+
+            if (
+              this.totalToolCalls === 0 &&
+              !this.isConversationalResponse(accumulatedText)
+            ) {
+              console.warn(
+                "[AgentOrchestrator] Task may be incomplete - no tools were called for an action request",
+              );
+            }
+
             const finalStep = this.createFinalStep(accumulatedText);
             this.state.steps.push(finalStep);
             this.state.status = "completed";
@@ -374,6 +403,35 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   stop(): void {
     console.log("[AgentOrchestrator] Stop requested");
     this.shouldStop = true;
+  }
+
+  private isConversationalResponse(text: string): boolean {
+    const normalized = text.toLowerCase().trim();
+    const conversationalPatterns = [
+      /^(thanks?|thank you|고마워|감사)/,
+      /^(hi|hello|hey|안녕)/,
+      /^(ok(ay)?|alright|좋아|응|네)/,
+      /^(sure|of course|물론)/,
+      /^(got it|understood|알겠)/,
+      /^(cool|great|awesome|좋네|대박)/,
+    ];
+    return (
+      conversationalPatterns.some((p) => p.test(normalized)) ||
+      normalized.length < 10
+    );
+  }
+
+  private getEscalatingFeedback(iteration: number): string {
+    if (iteration === 1) {
+      return "Please use one of the available tools to make progress on the task, or provide a final answer if the task is complete.";
+    }
+    if (iteration === 2) {
+      return "You have not called any tools yet. For tasks that require creating or modifying content, you MUST use tools like `list_pages`, `get_page_blocks`, `create_page`, or `create_blocks_from_markdown`. Do not just describe what you will do - actually call the tool.";
+    }
+    if (iteration === 3) {
+      return "CRITICAL: You are still not using tools. When the user asks you to create, write, or modify content, you MUST immediately call a tool. For example: call `get_page_blocks` to see the current page content, then `create_blocks_from_markdown` to add new content. Stop describing and start executing.";
+    }
+    return "FINAL WARNING: You have not called any tools after multiple attempts. Either call a tool NOW (e.g., `list_pages`, `get_page_blocks`, `create_blocks_from_markdown`) or provide a final answer explaining why the task cannot be completed.";
   }
 
   private getConsecutiveDuplicateCount(

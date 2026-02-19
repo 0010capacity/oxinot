@@ -75,34 +75,34 @@ export class GoogleProvider implements IAIProvider {
       }
 
       const json = await response.json();
-      const firstPart = json.candidates?.[0]?.content?.parts?.[0];
+      const parts = json.candidates?.[0]?.content?.parts || [];
 
-      if (!firstPart) {
+      if (parts.length === 0) {
         return;
       }
 
-      if (firstPart.functionCall) {
-        yield {
-          type: "tool_call",
-          toolCall: {
-            id: `call_${Date.now()}`,
-            name: firstPart.functionCall.name,
-            arguments: firstPart.functionCall.args || {},
-          },
-        };
-        return;
-      }
-
-      if (firstPart.text) {
-        const chunkSize = 10;
-        for (let i = 0; i < firstPart.text.length; i += chunkSize) {
+      for (const part of parts) {
+        if (part.functionCall) {
           yield {
-            type: "text",
-            content: firstPart.text.slice(i, i + chunkSize),
+            type: "tool_call",
+            toolCall: {
+              id: `call_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+              name: part.functionCall.name,
+              arguments: part.functionCall.args || {},
+            },
           };
-          await new Promise((r) => setTimeout(r, 5));
+        } else if (part.text) {
+          const chunkSize = 10;
+          for (let i = 0; i < part.text.length; i += chunkSize) {
+            yield {
+              type: "text",
+              content: part.text.slice(i, i + chunkSize),
+            };
+            await new Promise((r) => setTimeout(r, 5));
+          }
         }
       }
+      return;
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         console.log("[GoogleProvider] Stream aborted");

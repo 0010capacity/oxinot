@@ -110,10 +110,10 @@ export class ClaudeProvider implements IAIProvider {
       const decoder = new TextDecoder();
       let buffer = "";
 
-      let currentToolId = "";
-      let currentToolName = "";
-      let currentToolInput = "";
-      let hasToolCall = false;
+      const toolCalls = new Map<
+        number,
+        { id: string; name: string; input: string }
+      >();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -141,28 +141,34 @@ export class ClaudeProvider implements IAIProvider {
               json.type === "content_block_start" &&
               json.content_block?.type === "tool_use"
             ) {
-              currentToolId = json.content_block.id;
-              currentToolName = json.content_block.name;
-              currentToolInput = "";
-              hasToolCall = true;
+              const index = json.index ?? 0;
+              toolCalls.set(index, {
+                id: json.content_block.id,
+                name: json.content_block.name,
+                input: "",
+              });
             }
 
             if (
               json.type === "content_block_delta" &&
               json.delta?.type === "input_json_delta"
             ) {
-              currentToolInput += json.delta.partial_json;
+              const index = json.index ?? 0;
+              const tc = toolCalls.get(index);
+              if (tc) {
+                tc.input += json.delta.partial_json;
+              }
             }
 
             if (json.type === "message_stop") {
-              if (hasToolCall) {
+              for (const tc of toolCalls.values()) {
                 try {
-                  const args = JSON.parse(currentToolInput || "{}");
+                  const args = JSON.parse(tc.input || "{}");
                   yield {
                     type: "tool_call",
                     toolCall: {
-                      id: currentToolId,
-                      name: currentToolName,
+                      id: tc.id,
+                      name: tc.name,
                       arguments: args,
                     },
                   };

@@ -66,7 +66,7 @@ export class AgentRunService {
         apiKey: config.apiKey,
         baseUrl: config.baseUrl,
         temperature: config.temperature,
-        maxIterations: config.maxIterations ?? 8,
+        maxIterations: config.maxIterations ?? 50,
         maxTotalToolCalls: config.maxTotalToolCalls ?? 16,
       };
 
