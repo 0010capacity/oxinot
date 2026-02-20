@@ -75,22 +75,20 @@ describe("AgentOrchestrator Phase Transition", () => {
     expect(state.executionPhase).toBe("execution"); // Never transitioned because no tools called
   });
 
-  it("should transition to response phase after tool calls followed by text", async () => {
+  it("should complete when AI returns text-only after tool calls in previous iteration", async () => {
     let callCount = 0;
 
-    // First call: tool call + text. This triggers phase transition.
-    vi.mocked(mockProvider.generateStream).mockImplementation(
-      async function* (): AsyncGenerator<StreamChunk> {
-        callCount++;
-        if (callCount === 1) {
-          yield {
-            type: "tool_call",
-            toolCall: { id: "1", name: "test_tool", arguments: {} },
-          };
-          yield { type: "text", content: "I completed the task" };
-        }
-      },
-    );
+    (mockProvider.generateStream as any).mockImplementation(async function* () {
+      callCount++;
+      if (callCount === 1) {
+        yield {
+          type: "tool_call",
+          toolCall: { id: "1", name: "test_tool", arguments: {} },
+        };
+      } else {
+        yield { type: "text", content: "I completed the task" };
+      }
+    });
 
     const orchestrator = new AgentOrchestrator(mockProvider);
     const steps: AgentStep[] = [];
@@ -112,7 +110,7 @@ describe("AgentOrchestrator Phase Transition", () => {
 
     const state = orchestrator.getState();
     expect(state.toolCallsMade).toBe(1);
-    expect(state.executionPhase).toBe("response"); // Phase transitioned after tools + text
+    expect(state.status).toBe("completed");
   });
 
   it("should produce final step with budget message when tool budget exhausted", async () => {

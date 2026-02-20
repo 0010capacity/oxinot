@@ -247,17 +247,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               break;
             }
 
-            // Phase transition: AI called tools AND also returned text
-            // → The text IS the final answer (AI decided it's done)
-            if (accumulatedText.trim() && this.state.toolCallsMade > 0) {
-              const finalStep = this.createFinalStep(accumulatedText);
-              this.state.steps.push(finalStep);
-              this.state.status = "completed";
-              this.state.executionPhase = "response";
-              yield finalStep;
-              break;
-            }
-
             continue;
           }
 
