@@ -17,8 +17,7 @@ import type {
   IAgentOrchestrator,
 } from "./types";
 
-const DEFAULT_MAX_ITERATIONS = 8;
-const DEFAULT_MAX_TOTAL_TOOL_CALLS = 1000;
+const DEFAULT_MAX_ITERATIONS = 10;
 const CONSECUTIVE_DUPLICATE_NUDGE = 2;
 const CONSECUTIVE_DUPLICATE_STOP = 3;
 
@@ -31,7 +30,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     argsKey: string;
     timestamp: number;
   }> = [];
-  private totalToolCalls = 0;
   private emptyResponseCount = 0;
 
   constructor(aiProvider: IAIProvider) {
@@ -54,12 +52,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   ): AsyncGenerator<AgentStep, void, unknown> {
     this.shouldStop = false;
     this.toolCallHistory = [];
-    this.totalToolCalls = 0;
     this.emptyResponseCount = 0;
 
     const maxIterations = config.maxIterations || DEFAULT_MAX_ITERATIONS;
-    const maxTotalToolCalls =
-      config.maxTotalToolCalls || DEFAULT_MAX_TOTAL_TOOL_CALLS;
 
     const executionId = `exec_${Date.now()}_${Math.random()
       .toString(36)
@@ -134,14 +129,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             for (const toolCall of toolCalls) {
               const { id: _id, name: toolName, arguments: params } = toolCall;
 
-              if (this.totalToolCalls >= maxTotalToolCalls) {
-                console.warn(
-                  `[AgentOrchestrator] Max total tool calls (${maxTotalToolCalls}) reached`,
-                );
-                break;
-              }
-
-              this.totalToolCalls++;
               const argsKey = stableStringify(params);
               this.toolCallHistory.push({
                 toolName,
@@ -232,20 +219,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             }
 
             this.emptyResponseCount = 0;
-
-            if (this.totalToolCalls >= maxTotalToolCalls) {
-              console.warn(
-                "[AgentOrchestrator] Tool call budget exhausted, completing",
-              );
-              const finalStep = this.createFinalStep(
-                "Tool call budget exhausted. Task progress: " +
-                  this.getProgressSummary(),
-              );
-              this.state.steps.push(finalStep);
-              this.state.status = "completed";
-              yield finalStep;
-              break;
-            }
 
             continue;
           }
@@ -349,10 +322,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       timestamp: Date.now(),
       content,
     };
-  }
-
-  private getProgressSummary(): string {
-    return `${this.state.toolCallsMade} tool call(s) made across ${this.state.iterations} iteration(s).`;
   }
 
   private buildSystemPrompt(_config: AgentConfig): string {

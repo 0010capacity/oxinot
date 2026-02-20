@@ -113,8 +113,7 @@ describe("AgentOrchestrator Phase Transition", () => {
     expect(state.status).toBe("completed");
   });
 
-  it("should produce final step with budget message when tool budget exhausted", async () => {
-    // Always return tool calls - will hit budget limit
+  it("should stop when max iterations reached without completion", async () => {
     vi.mocked(mockProvider.generateStream).mockImplementation(
       async function* (): AsyncGenerator<StreamChunk> {
         yield {
@@ -129,17 +128,14 @@ describe("AgentOrchestrator Phase Transition", () => {
 
     for await (const step of orchestrator.execute("test", {
       context: {} as any,
-      maxTotalToolCalls: 2, // Low budget
+      maxIterations: 2,
     })) {
       steps.push(step);
     }
 
-    const finalSteps = steps.filter((s) => s.type === "final_answer");
-    expect(finalSteps).toHaveLength(1);
-    expect(finalSteps[0].content).toContain("budget");
-
     const state = orchestrator.getState();
-    expect(state.status).toBe("completed");
+    expect(state.status).toBe("failed");
+    expect(state.error).toContain("iteration");
   });
 
   it("should not have any TaskProgress references in orchestrator source", async () => {
