@@ -14,7 +14,14 @@ import {
   useFloatingPanelStore,
 } from "@/stores/floatingPanelStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import MarkdownIt from "markdown-it";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true,
+});
 
 const PANEL_WIDTH = 380;
 const PANEL_HEIGHT = 500;
@@ -671,15 +678,23 @@ function ThreadFloatingPanelInternal() {
                 lineHeight: 1.5,
                 alignSelf: message.role === "user" ? "flex-end" : "flex-start",
                 maxWidth: "90%",
-                whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
               }}
             >
-              {message.role === "assistant" &&
-              message.isStreaming &&
-              currentStreamingContent
-                ? currentStreamingContent
-                : message.content || (message.isStreaming ? "Thinking..." : "")}
+              {message.role === "assistant" ? (
+                <span
+                  dangerouslySetInnerHTML={{
+                    __html: md.render(
+                      message.isStreaming && currentStreamingContent
+                        ? currentStreamingContent
+                        : message.content ||
+                            (message.isStreaming ? "Thinking..." : ""),
+                    ),
+                  }}
+                />
+              ) : (
+                message.content
+              )}
               {message.role === "assistant" && message.isStreaming && (
                 <span
                   style={{
