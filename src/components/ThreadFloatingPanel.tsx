@@ -643,25 +643,7 @@ function ThreadFloatingPanelInternal() {
         )}
 
         {messages.map((message) => (
-          <div
-            key={message.id}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--spacing-xs)",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "var(--font-size-xs)",
-                color: "var(--color-text-tertiary)",
-                fontWeight: 500,
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              {message.role === "user" ? "You" : "AI"}
-            </div>
+          <div key={message.id}>
             <div
               style={{
                 padding: "var(--spacing-sm) var(--spacing-md)",
