@@ -23,8 +23,12 @@ const md = new MarkdownIt({
   typographer: true,
 });
 
-const PANEL_WIDTH = 380;
-const PANEL_HEIGHT = 500;
+const MIN_PANEL_WIDTH = 320;
+const MAX_PANEL_WIDTH = 600;
+const MIN_PANEL_HEIGHT = 400;
+const MAX_PANEL_HEIGHT = 800;
+const DEFAULT_PANEL_WIDTH = 380;
+const DEFAULT_PANEL_HEIGHT = 500;
 
 let messageIdCounter = 0;
 const generateId = () => `fp_msg_${Date.now()}_${++messageIdCounter}`;
@@ -206,9 +210,65 @@ function ThreadFloatingPanelInternal() {
   const [inputValue, setInputValue] = useState("");
   const [isExecuting, setIsExecuting] = useState(false);
   const [showSessionList, setShowSessionList] = useState(false);
+  const [panelSize, setPanelSize] = useState({
+    width: DEFAULT_PANEL_WIDTH,
+    height: DEFAULT_PANEL_HEIGHT,
+  });
+  const [isResizing, setIsResizing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const orchestratorRef = useRef<AgentOrchestrator | null>(null);
+  const resizeStartRef = useRef<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsResizing(true);
+      resizeStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        w: panelSize.width,
+        h: panelSize.height,
+      };
+    },
+    [panelSize],
+  );
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeStartRef.current) return;
+      const deltaX = resizeStartRef.current.x - e.clientX;
+      const deltaY = resizeStartRef.current.y - e.clientY;
+      const newWidth = Math.max(
+        MIN_PANEL_WIDTH,
+        Math.min(MAX_PANEL_WIDTH, resizeStartRef.current.w + deltaX),
+      );
+      const newHeight = Math.max(
+        MIN_PANEL_HEIGHT,
+        Math.min(MAX_PANEL_HEIGHT, resizeStartRef.current.h + deltaY),
+      );
+      setPanelSize({ width: newWidth, height: newHeight });
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      resizeStartRef.current = null;
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
 
   useEffect(() => {
     try {
@@ -446,26 +506,53 @@ function ThreadFloatingPanelInternal() {
         position: "fixed",
         right: "var(--spacing-lg)",
         bottom: "var(--spacing-lg)",
-        width: `${PANEL_WIDTH}px`,
-        height: `${PANEL_HEIGHT}px`,
-        backgroundColor: "var(--color-bg-elevated)",
+        width: `${panelSize.width}px`,
+        height: `${panelSize.height}px`,
+        backgroundColor: "var(--color-bg-secondary)",
         border: "1px solid var(--color-border-primary)",
         borderRadius: "var(--radius-lg)",
-        boxShadow: "var(--shadow-xl)",
+        boxShadow:
+          "0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)",
         display: "flex",
         flexDirection: "column",
         zIndex: 1000,
         overflow: "hidden",
+        userSelect: isResizing ? "none" : "auto",
       }}
     >
+      <div
+        onMouseDown={handleResizeStart}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: "4px",
+          cursor: "ew-resize",
+          zIndex: 10,
+        }}
+      />
+      <div
+        onMouseDown={handleResizeStart}
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 0,
+          height: "4px",
+          cursor: "ns-resize",
+          zIndex: 10,
+        }}
+      />
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "var(--spacing-sm) var(--spacing-md)",
+          padding: "var(--spacing-xs) var(--spacing-md)",
           borderBottom: "1px solid var(--color-border-secondary)",
-          backgroundColor: "var(--color-bg-tertiary)",
+          backgroundColor: "rgba(0, 0, 0, 0.2)",
+          flexShrink: 0,
         }}
       >
         <div
@@ -643,24 +730,34 @@ function ThreadFloatingPanelInternal() {
         )}
 
         {messages.map((message) => (
-          <div key={message.id}>
+          <div
+            key={message.id}
+            style={{
+              display: "flex",
+              justifyContent:
+                message.role === "user" ? "flex-end" : "flex-start",
+            }}
+          >
             <div
               style={{
                 padding: "var(--spacing-sm) var(--spacing-md)",
-                borderRadius: "var(--radius-md)",
+                borderRadius: "var(--radius-lg)",
                 backgroundColor:
                   message.role === "user"
                     ? "var(--color-accent)"
-                    : "var(--color-bg-secondary)",
+                    : "rgba(255, 255, 255, 0.05)",
                 color:
                   message.role === "user"
                     ? "white"
                     : "var(--color-text-primary)",
                 fontSize: "var(--font-size-sm)",
                 lineHeight: 1.5,
-                alignSelf: message.role === "user" ? "flex-end" : "flex-start",
-                maxWidth: "90%",
+                maxWidth: "85%",
                 wordBreak: "break-word",
+                border:
+                  message.role === "assistant"
+                    ? "1px solid var(--color-border-secondary)"
+                    : "none",
               }}
             >
               {message.role === "assistant" ? (
@@ -705,7 +802,8 @@ function ThreadFloatingPanelInternal() {
         style={{
           padding: "var(--spacing-sm) var(--spacing-md)",
           borderTop: "1px solid var(--color-border-secondary)",
-          backgroundColor: "var(--color-bg-tertiary)",
+          backgroundColor: "rgba(0, 0, 0, 0.2)",
+          flexShrink: 0,
         }}
       >
         <div
@@ -741,7 +839,7 @@ function ThreadFloatingPanelInternal() {
             disabled={!inputValue.trim() || isExecuting}
             aria-label="Send message"
             style={{
-              padding: "var(--spacing-sm)",
+              padding: "var(--spacing-sm) var(--spacing-md)",
               backgroundColor:
                 inputValue.trim() && !isExecuting
                   ? "var(--color-accent)"
@@ -754,6 +852,7 @@ function ThreadFloatingPanelInternal() {
               alignItems: "center",
               justifyContent: "center",
               transition: "background-color var(--transition-fast)",
+              opacity: inputValue.trim() && !isExecuting ? 1 : 0.5,
             }}
           >
             <svg
