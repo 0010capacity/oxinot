@@ -322,11 +322,10 @@ function ThreadFloatingPanelInternal() {
         history,
       })) {
         if (step.type === "tool_call" && step.toolName) {
-          setCurrentStreamingContent(`🔧 ${step.toolName}...`);
+          setCurrentStreamingContent(`Running ${step.toolName}...`);
         } else if (step.type === "observation" && step.toolResult) {
-          const status = step.toolResult.success ? "✅" : "❌";
           setCurrentStreamingContent(
-            `${status} ${step.toolResult.success ? "Done" : "Failed"}`,
+            step.toolResult.success ? "Completed" : "Failed",
           );
         } else if (step.type === "final_answer" && step.content) {
           finalContent = step.content;
