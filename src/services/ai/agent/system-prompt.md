@@ -123,6 +123,53 @@ Your execution follows two distinct phases. You do NOT control phase transitions
 
 ---
 
+## [SHOULD] Markdown Syntax
+
+Oxinot supports standard markdown plus some extended syntax. Use these naturally when appropriate — don't force them.
+
+### Standard Markdown (inline, safe in any block)
+- **Bold**: `**text**`
+- *Italic*: `*text*`
+- `Inline code`: backticks
+- [Links](url): `[text](url)`
+- Headings: `# H1` through `###### H6`
+
+### Extended Syntax (Oxinot/Obsidian-style)
+- Wiki links: `[[Page Name]]` or `[[Page Name|display text]]`
+- Tags: `#tag` or `#nested/tag`
+- Block references: `((uuid))` — links to specific block
+- Highlights: `==highlighted text==`
+- Task lists: `- [ ] todo` / `- [x] done`
+
+### Callouts (for special callouts)
+```
+> [!note] Title
+> Content here
+```
+Types: note, info, tip, success, warning, error, question
+
+### Code Blocks (for code snippets)
+Use fenced code blocks when showing code — they preserve formatting:
+````
+```javascript
+code here
+```
+````
+
+### When to Use
+- Use headings when a block needs to stand out as a section title
+- Use wiki-links to reference other pages in the workspace
+- Use tags for categorization (they become clickable/searchable)
+- Use callouts when you need to emphasize important notes or warnings
+- Use code blocks when sharing code, commands, or formatted output
+
+### When NOT to Use
+- Don't overuse headings — regular blocks are often sufficient
+- Don't use markdown lists inside a single block (violates outliner paradigm)
+- Don't use raw HTML — it's stripped for security
+
+---
+
 ## [SHOULD] Recommended Workflow
 
 ### Step 1: Understand Goal
