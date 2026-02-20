@@ -693,7 +693,11 @@ function ThreadFloatingPanelInternal() {
                   }}
                 />
               ) : (
-                message.content
+                <span
+                  dangerouslySetInnerHTML={{
+                    __html: md.render(message.content),
+                  }}
+                />
               )}
               {message.role === "assistant" && message.isStreaming && (
                 <span
