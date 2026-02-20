@@ -671,13 +671,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     // Commit draft when focus is lost.
     useEffect(() => {
-      console.log(
-        `[BlockComponent:isFocusedEffect] blockId=${blockId.slice(0, 8)}, isFocused=${isFocused}`,
-      );
       if (isFocused === false) {
-        console.log(
-          `[BlockComponent:isFocusedEffect] Focus lost, committing draft for blockId=${blockId.slice(0, 8)}`,
-        );
         commitDraft();
       }
     }, [isFocused, commitDraft, blockId]);
@@ -1144,9 +1138,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             }
 
             if (cursor === 0) {
-              console.log(
-                `[BlockComponent] Backspace at cursor 0 for block ${blockId.slice(0, 8)}, content="${content.slice(0, 20)}"`,
-              );
               mergeWithPrevious(blockId, content);
               return true;
             }
@@ -1230,33 +1221,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           key: "Tab",
           preventDefault: true,
           run: () => {
-            console.log(
-              "[BlockComponent:Tab] Tab key pressed, blockId:",
-              blockId,
-            );
-
             // Start async operations but return true immediately to prevent default behavior
             commitDraft()
               .then(() => {
-                console.log(
-                  "[BlockComponent:Tab] commitDraft done, calling indentBlock",
-                );
-                indentBlock(blockId)
-                  .then(() => {
-                    console.log("[BlockComponent:Tab] indentBlock done");
-                    // Don't restore focus immediately - it causes React Hook errors
-                    // during structural reconciliation. The block content is preserved,
-                    // user can click to refocus if needed.
-                    console.log(
-                      "[BlockComponent:Tab] Focus restoration skipped to avoid Hook errors",
-                    );
-                  })
-                  .catch((err) => {
-                    console.error(
-                      "[BlockComponent:Tab] indentBlock failed:",
-                      err,
-                    );
-                  });
+                indentBlock(blockId).catch((err) => {
+                  console.error(
+                    "[BlockComponent:Tab] indentBlock failed:",
+                    err,
+                  );
+                });
               })
               .catch((err) => {
                 console.error("[BlockComponent:Tab] commitDraft failed:", err);
@@ -1269,11 +1242,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           preventDefault: true,
           run: () => {
             commitDraft().then(() => {
-              outdentBlock(blockId).then(() => {
-                console.log(
-                  "[BlockComponent:Shift-Tab] Focus restoration skipped to avoid Hook errors",
-                );
-              });
+              outdentBlock(blockId);
             });
             return true;
           },
@@ -1428,16 +1397,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 return;
               }
 
-              console.log(
-                `[BlockComponent:onMouseDown] START for blockId=${blockId.slice(0, 8)}, isFocused=${isFocused}`,
-              );
-
               if (isFocused && editorRef.current) {
                 const view = editorRef.current.getView();
                 if (view?.hasFocus) {
-                  console.log(
-                    `[BlockComponent:onMouseDown] Block already focused, updating cursor position for blockId=${blockId.slice(0, 8)}`,
-                  );
                   const range = document.caretRangeFromPoint(
                     e.clientX,
                     e.clientY,
@@ -1461,9 +1423,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               }
 
               if (!isFocused) {
-                console.log(
-                  `[BlockComponent:onMouseDown] Setting focus to blockId=${blockId.slice(0, 8)}`,
-                );
                 setFocusedBlock(blockId);
               }
             }}

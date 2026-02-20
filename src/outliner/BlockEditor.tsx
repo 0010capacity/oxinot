@@ -28,11 +28,6 @@ interface BlockListProps {
 }
 
 const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
-  const mapStart = performance.now();
-  console.log(
-    `[BlockEditor:timing] Rendering ${blocksToShow.length} blocks with .map()`,
-  );
-
   const blocks = useMemo(
     () =>
       blocksToShow.map((blockId: string) => (
@@ -41,14 +36,6 @@ const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
     [blocksToShow],
   );
 
-  requestAnimationFrame(() => {
-    const mapTime = performance.now() - mapStart;
-    console.log(
-      `[BlockEditor:timing] BlockComponent .map() rendered in ${mapTime.toFixed(
-        2,
-      )}ms`,
-    );
-  });
   return <>{blocks}</>;
 });
 
@@ -148,21 +135,7 @@ export function BlockEditor({
 
   useEffect(() => {
     if (pageId && currentPageId !== pageId) {
-      const renderStartTime = performance.now();
-      console.log(
-        `[BlockEditor:timing] Component rendering started for page ${pageId}`,
-      );
-
       openPage(pageId);
-
-      requestAnimationFrame(() => {
-        const renderTime = performance.now() - renderStartTime;
-        console.log(
-          `[BlockEditor:timing] Component render completed in ${renderTime.toFixed(
-            2,
-          )}ms`,
-        );
-      });
     }
   }, [pageId, currentPageId, openPage]);
 
@@ -184,10 +157,6 @@ export function BlockEditor({
         if (blocksById[lastZoomId]) {
           useViewStore.setState({ zoomPath: [...savedZoom] });
           hasRestoredZoomRef.current = true;
-          console.log(
-            `[BlockEditor] Restored zoom for page ${pageId}:`,
-            savedZoom,
-          );
         }
       }
     }
