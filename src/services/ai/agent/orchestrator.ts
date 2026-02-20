@@ -91,10 +91,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       },
     };
 
-    console.log(
-      `[AgentOrchestrator] Starting execution ${executionId} with goal: "${goal}"`,
-    );
-
     const allTools = toolRegistry.getAll();
     const systemPrompt = this.buildSystemPrompt(config);
     const conversationHistory: ChatMessage[] = config.history
@@ -107,9 +103,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
         !this.shouldStop
       ) {
         this.state.iterations++;
-        console.log(
-          `[AgentOrchestrator] Iteration ${this.state.iterations}/${this.state.maxIterations}`,
-        );
 
         this.state.status = "thinking";
 
@@ -270,9 +263,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             }
 
             if (this.state.taskProgress.phase === "complete") {
-              console.log(
-                "[AgentOrchestrator] Task phase is complete, auto-terminating",
-              );
               const finalStep = this.createFinalStep(
                 "Task completed successfully.",
               );
@@ -291,18 +281,11 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             this.state.steps.push(finalStep);
             this.state.status = "completed";
 
-            console.log(
-              "[AgentOrchestrator] Final answer received, completing execution",
-            );
-
             yield finalStep;
             break;
           }
 
           this.emptyResponseCount++;
-          console.log(
-            `[AgentOrchestrator] Empty response (${this.emptyResponseCount})`,
-          );
 
           if (this.emptyResponseCount >= 2) {
             this.state.status = "failed";
@@ -333,11 +316,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               role: "user",
               content: recoveryPrompt,
             });
-
-            console.log(
-              "[AgentOrchestrator] Recovery strategy:",
-              errorInfo.suggestedStrategy,
-            );
           } else {
             this.state.error = errorInfo.message;
             this.state.status = "failed";
@@ -358,14 +336,10 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
 
       if (this.shouldStop) {
-        console.log("[AgentOrchestrator] Execution stopped by user");
         this.state.status = "failed";
         this.state.error = "Execution stopped by user";
       }
     } finally {
-      console.log(
-        `[AgentOrchestrator] Execution ${executionId} finished with status: ${this.state.status}`,
-      );
     }
   }
 
@@ -374,7 +348,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   }
 
   stop(): void {
-    console.log("[AgentOrchestrator] Stop requested");
     this.shouldStop = true;
   }
 

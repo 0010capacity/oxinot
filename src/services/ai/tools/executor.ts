@@ -80,10 +80,6 @@ export async function executeTool(
   options?: { skipApproval?: boolean },
 ): Promise<ToolResult> {
   const startTime = performance.now();
-  console.log(`[executeTool] Starting execution of tool: '${toolName}'`, {
-    params,
-    skipApproval: options?.skipApproval || false,
-  });
 
   // Get tool from registry
   const tool = toolRegistry.get(toolName);
@@ -101,17 +97,10 @@ export async function executeTool(
     };
   }
 
-  console.log(
-    `[executeTool] ✓ Tool '${toolName}' found in registry`,
-    `Category: ${tool.category}, Dangerous: ${tool.isDangerous || false}`,
-  );
-
   // Check if approval is required based on policy
   if (!options?.skipApproval) {
     const policy = useAISettingsStore.getState().toolApprovalPolicy;
     let needsApproval = false;
-
-    console.log(`[executeTool] Checking approval policy: '${policy}'`);
 
     switch (policy) {
       case "always":
@@ -126,11 +115,6 @@ export async function executeTool(
     }
 
     if (needsApproval) {
-      console.log(
-        `[executeTool] Tool requires approval (dangerous: ${
-          tool.isDangerous || false
-        }, requiresApproval: ${tool.requiresApproval || false})`,
-      );
       const approvalStore = useToolApprovalStore.getState();
 
       // Add to pending calls
@@ -141,15 +125,8 @@ export async function executeTool(
         requiresApproval: true,
       });
 
-      console.log(
-        `[executeTool] Waiting for user approval (callId: ${callId})`,
-      );
-
       return waitForApprovalDecision(callId).then(async (decision) => {
         if (decision === "approved") {
-          console.log(
-            "[executeTool] User approved tool execution, proceeding...",
-          );
           return executeTool(toolName, params, context, {
             skipApproval: true,
           });
@@ -165,39 +142,20 @@ export async function executeTool(
         };
       });
     }
-
-    console.log(
-      "[executeTool] No approval required, proceeding with execution",
-    );
   }
 
   try {
     // Validate parameters against schema
-    console.log("[executeTool] Validating parameters against schema...");
     const validatedParams = tool.parameters.parse(params);
-    console.log("[executeTool] ✓ Parameters validated");
 
     // Execute tool
-    console.log("[executeTool] Executing tool function...");
     const result = await executeWithTimeout(
       tool.execute(validatedParams, context),
       TOOL_EXECUTION_TIMEOUT_MS,
       toolName,
     );
 
-    const duration = performance.now() - startTime;
-    console.log(
-      `[executeTool] ✓ Tool execution completed (${duration.toFixed(2)}ms)`,
-      {
-        success: result.success,
-        hasData: !!result.data,
-        hasError: !!result.error,
-      },
-    );
-
-    if (result.success) {
-      console.log("[executeTool] Result data:", result.data);
-    } else {
+    if (!result.success) {
       console.warn("[executeTool] Result error:", result.error);
     }
 

@@ -58,12 +58,6 @@ export class ThreadBlockService {
     promptText: string,
     pageId: string,
   ): Promise<string | null> {
-    console.log("[ThreadBlockService] executePrompt called", {
-      promptBlockId,
-      promptText: promptText.slice(0, 50),
-      pageId,
-    });
-
     const aiJobsStore = useAIJobsStore.getState();
     const job = aiJobsStore.createJob({
       prompt: promptText,
@@ -72,21 +66,12 @@ export class ThreadBlockService {
     });
 
     if (!job) {
-      console.log(
-        "[ThreadBlockService] Job creation blocked (duplicate or locked)",
-      );
       return null;
     }
 
     const { provider, apiKey, baseUrl, temperature, models } =
       useAISettingsStore.getState();
     const activeModel = models[0] || "";
-
-    console.log("[ThreadBlockService] AI settings", {
-      provider,
-      activeModel,
-      hasApiKey: !!apiKey,
-    });
 
     const threadId = useThreadStore
       .getState()
@@ -107,11 +92,6 @@ export class ThreadBlockService {
       "",
       pageId,
     );
-
-    console.log("[ThreadBlockService] Created response block", {
-      responseBlockId,
-      parentId: promptBlockId,
-    });
 
     if (responseBlockId) {
       useThreadStore.getState().setResponseBlock(threadId, responseBlockId);
@@ -190,21 +170,12 @@ export class ThreadBlockService {
         model,
         temperature,
       })) {
-        console.log("[ThreadBlockService] Step:", step.type);
-
         if (step.type === "final_answer" && step.content) {
           finalContent = step.content;
           threadStore.setStreamContent(threadId, finalContent);
 
-          console.log("[ThreadBlockService] Got final_answer", {
-            contentLength: finalContent.length,
-            responseBlockId,
-          });
-
           if (responseBlockId) {
-            console.log("[ThreadBlockService] Updating block content");
             await blockStore.updateBlockContent(responseBlockId, finalContent);
-            console.log("[ThreadBlockService] Block content updated");
           }
         }
       }
