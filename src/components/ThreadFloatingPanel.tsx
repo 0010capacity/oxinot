@@ -179,6 +179,7 @@ function SessionList({
 function ThreadFloatingPanelInternal() {
   const {
     isOpen,
+    openPanel,
     closePanel,
     addUserMessage,
     addAssistantMessage,
@@ -320,7 +321,14 @@ function ThreadFloatingPanelInternal() {
         temperature,
         history,
       })) {
-        if (step.type === "final_answer" && step.content) {
+        if (step.type === "tool_call" && step.toolName) {
+          setCurrentStreamingContent(`🔧 ${step.toolName}...`);
+        } else if (step.type === "observation" && step.toolResult) {
+          const status = step.toolResult.success ? "✅" : "❌";
+          setCurrentStreamingContent(
+            `${status} ${step.toolResult.success ? "Done" : "Failed"}`,
+          );
+        } else if (step.type === "final_answer" && step.content) {
           finalContent = step.content;
           setCurrentStreamingContent(finalContent);
         }
@@ -372,7 +380,59 @@ function ThreadFloatingPanelInternal() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, [createNewSession]);
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={openPanel}
+        aria-label="Open AI panel"
+        style={{
+          position: "fixed",
+          right: "var(--spacing-lg)",
+          bottom: "var(--spacing-lg)",
+          width: "42px",
+          height: "42px",
+          backgroundColor: "var(--color-text-primary)",
+          border: "none",
+          borderRadius: "50%",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "var(--shadow-lg)",
+          transition:
+            "transform var(--transition-fast), box-shadow var(--transition-fast)",
+          zIndex: 1000,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "scale(1.05)";
+          e.currentTarget.style.boxShadow = "var(--shadow-xl)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "scale(1)";
+          e.currentTarget.style.boxShadow = "var(--shadow-lg)";
+        }}
+      >
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+          style={{ color: "var(--color-bg-primary)" }}
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="3"
+          />
+          <circle cx="12" cy="12" r="4" fill="currentColor" />
+        </svg>
+      </button>
+    );
+  }
 
   return (
     <div
