@@ -37,6 +37,7 @@ import { useTranslation } from "react-i18next";
 import { useAdvancedSettingsStore } from "./stores/advancedSettingsStore";
 import { useAppSettingsStore } from "./stores/appSettingsStore";
 import { useBlockStore } from "./stores/blockStore";
+import { useFloatingPanelStore } from "./stores/floatingPanelStore";
 import { usePageStore } from "./stores/pageStore";
 import { useThemeStore } from "./stores/themeStore";
 import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
@@ -246,6 +247,15 @@ function AppContent({ workspacePath }: AppContentProps) {
     onToggleIndex: () => showIndex(),
     onUndo: () => useBlockStore.temporal.getState().undo(),
     onRedo: () => useBlockStore.temporal.getState().redo(),
+    onCopilotToggle: () => useFloatingPanelStore.getState().togglePanel(),
+    onFocusSwitch: () => {
+      const { isOpen } = useFloatingPanelStore.getState();
+      if (isOpen) {
+        document.querySelector<HTMLElement>(".block-editor-container")?.focus();
+      } else {
+        document.querySelector<HTMLElement>(".copilot-input")?.focus();
+      }
+    },
   });
 
   // Listen for block updates from Copilot tools

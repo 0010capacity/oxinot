@@ -12,6 +12,8 @@ export interface KeyboardShortcutHandlers {
   onToggleIndex?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
+  onCopilotToggle?: () => void;
+  onFocusSwitch?: () => void;
 }
 
 const isShortcutMatch = (e: KeyboardEvent, shortcut: Shortcut | undefined) => {
@@ -133,6 +135,34 @@ export const useKeyboardShortcuts = (handlers: KeyboardShortcutHandlers) => {
       if (handlers.onRedo && isShortcutMatch(e, shortcuts.redo)) {
         e.preventDefault();
         handlers.onRedo();
+      }
+      // Copilot Toggle
+      if (
+        handlers.onCopilotToggle &&
+        (shortcuts.copilot_toggle
+          ? isShortcutMatch(e, shortcuts.copilot_toggle)
+          : isShortcutMatch(e, {
+              id: "copilot_toggle",
+              key: ".",
+              modKey: true,
+            }))
+      ) {
+        e.preventDefault();
+        handlers.onCopilotToggle();
+      }
+      // Focus Switch
+      if (
+        handlers.onFocusSwitch &&
+        (shortcuts.focus_switch
+          ? isShortcutMatch(e, shortcuts.focus_switch)
+          : isShortcutMatch(e, {
+              id: "focus_switch",
+              key: "Escape",
+              modKey: true,
+            }))
+      ) {
+        e.preventDefault();
+        handlers.onFocusSwitch();
       }
     };
 

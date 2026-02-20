@@ -21,6 +21,7 @@ export interface ChatSession {
 
 interface FloatingPanelState {
   isOpen: boolean;
+  isExecuting: boolean;
   sessions: ChatSession[];
   currentSessionId: string | null;
   currentStreamingContent: string;
@@ -30,6 +31,7 @@ interface FloatingPanelActions {
   openPanel: () => void;
   closePanel: () => void;
   togglePanel: () => void;
+  setExecuting: (executing: boolean) => void;
   createNewSession: () => string;
   switchSession: (sessionId: string) => void;
   deleteSession: (sessionId: string) => void;
@@ -56,6 +58,7 @@ export const useFloatingPanelStore = create<FloatingPanelStore>()(
   persist(
     immer((set, get) => ({
       isOpen: false,
+      isExecuting: false,
       sessions: [],
       currentSessionId: null,
       currentStreamingContent: "",
@@ -92,6 +95,12 @@ export const useFloatingPanelStore = create<FloatingPanelStore>()(
         } else {
           openPanel();
         }
+      },
+
+      setExecuting: (executing) => {
+        set((state) => {
+          state.isExecuting = executing;
+        });
       },
 
       createNewSession: () => {

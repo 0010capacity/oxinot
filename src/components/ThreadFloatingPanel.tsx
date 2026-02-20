@@ -13,6 +13,7 @@ import {
   useFloatingPanelSessions,
   useFloatingPanelStore,
 } from "@/stores/floatingPanelStore";
+import { useShortcutStore } from "@/stores/shortcutStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import MarkdownIt from "markdown-it";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -187,11 +188,127 @@ function SessionList({
   );
 }
 
+function ModelSelector({ onClose }: { onClose: () => void }) {
+  const { configs, provider, setProvider, setModel, models } =
+    useAISettingsStore();
+  const [localRef] = useState(() => ({ closed: false }));
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (
+        !localRef.closed &&
+        !(e.target as HTMLElement).closest(".model-selector")
+      ) {
+        localRef.closed = true;
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose, localRef]);
+
+  const availableProviders = Object.entries(configs)
+    .filter(([, cfg]) => cfg.apiKey && cfg.models.length > 0)
+    .map(([name, cfg]) => ({
+      name,
+      models: cfg.models,
+      isActive: name === provider,
+    }));
+
+  if (availableProviders.length === 0) {
+    return (
+      <div
+        className="model-selector"
+        style={{
+          position: "absolute",
+          top: "100%",
+          right: 0,
+          backgroundColor: "var(--color-bg-elevated)",
+          border: "1px solid var(--color-border-primary)",
+          borderRadius: "var(--radius-md)",
+          boxShadow: "var(--shadow-lg)",
+          padding: "var(--spacing-sm)",
+          minWidth: "150px",
+          zIndex: 10,
+          fontSize: "var(--font-size-xs)",
+          color: "var(--color-text-tertiary)",
+        }}
+      >
+        Configure API key in settings
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="model-selector"
+      style={{
+        position: "absolute",
+        top: "100%",
+        right: 0,
+        backgroundColor: "var(--color-bg-elevated)",
+        border: "1px solid var(--color-border-primary)",
+        borderRadius: "var(--radius-md)",
+        boxShadow: "var(--shadow-lg)",
+        maxHeight: "250px",
+        overflow: "auto",
+        zIndex: 10,
+        minWidth: "180px",
+      }}
+    >
+      {availableProviders.map((p) => (
+        <div key={p.name}>
+          <div
+            style={{
+              padding: "var(--spacing-xs) var(--spacing-sm)",
+              fontSize: "var(--font-size-xs)",
+              color: "var(--color-text-tertiary)",
+              borderBottom: "1px solid var(--color-border-secondary)",
+            }}
+          >
+            {p.name.toUpperCase()}
+          </div>
+          {p.models.map((model) => (
+            <button
+              key={model}
+              type="button"
+              onClick={() => {
+                if (!p.isActive) {
+                  setProvider(p.name as Parameters<typeof setProvider>[0]);
+                }
+                setModel(model);
+                onClose();
+              }}
+              style={{
+                width: "100%",
+                padding: "var(--spacing-xs) var(--spacing-sm)",
+                backgroundColor:
+                  p.isActive && model === models[0]
+                    ? "var(--color-bg-secondary)"
+                    : "transparent",
+                border: "none",
+                color: "var(--color-text-primary)",
+                fontSize: "var(--font-size-xs)",
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
+              {model}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ThreadFloatingPanelInternal() {
   const {
     isOpen,
+    isExecuting,
     openPanel,
     closePanel,
+    setExecuting,
     addUserMessage,
     addAssistantMessage,
     completeAssistantMessage,
@@ -203,18 +320,24 @@ function ThreadFloatingPanelInternal() {
     updateSessionTitle,
   } = useFloatingPanelStore();
 
+  const { models } = useAISettingsStore();
+  const activeModel = models[0] || "No model";
   const sessions = useFloatingPanelSessions();
   const currentSession = useCurrentSession();
   const messages = currentSession?.messages || [];
+  const shortcuts = useShortcutStore((s) => s.shortcuts);
 
   const [inputValue, setInputValue] = useState("");
-  const [isExecuting, setIsExecuting] = useState(false);
   const [showSessionList, setShowSessionList] = useState(false);
   const [panelSize, setPanelSize] = useState({
     width: DEFAULT_PANEL_WIDTH,
     height: DEFAULT_PANEL_HEIGHT,
   });
   const [isResizing, setIsResizing] = useState(false);
+  const [resizeHoverEdge, setResizeHoverEdge] = useState<"left" | "top" | null>(
+    null,
+  );
+  const [showModelSelector, setShowModelSelector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const orchestratorRef = useRef<AgentOrchestrator | null>(null);
@@ -334,7 +457,7 @@ function ThreadFloatingPanelInternal() {
     const isFirstMessage = messages.length === 0;
 
     setInputValue("");
-    setIsExecuting(true);
+    setExecuting(true);
 
     addUserMessage(trimmedInput);
 
@@ -415,7 +538,7 @@ function ThreadFloatingPanelInternal() {
       console.error("[ThreadFloatingPanel] Execution error:", error);
     } finally {
       orchestratorRef.current = null;
-      setIsExecuting(false);
+      setExecuting(false);
     }
   }, [
     inputValue,
@@ -446,57 +569,97 @@ function ThreadFloatingPanelInternal() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, [createNewSession]);
 
+  const shortcutText = shortcuts.copilot_toggle
+    ? `${shortcuts.copilot_toggle.modKey ? "Cmd+" : ""}${shortcuts.copilot_toggle.key.toUpperCase()}`
+    : "Cmd+.";
+
   if (!isOpen) {
     return (
-      <button
-        type="button"
-        onClick={openPanel}
-        aria-label="Open AI panel"
-        style={{
-          position: "fixed",
-          right: "var(--spacing-lg)",
-          bottom: "var(--spacing-lg)",
-          width: "42px",
-          height: "42px",
-          backgroundColor: "var(--color-text-primary)",
-          border: "none",
-          borderRadius: "50%",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "var(--shadow-lg)",
-          transition:
-            "transform var(--transition-fast), box-shadow var(--transition-fast)",
-          zIndex: 1000,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "scale(1.05)";
-          e.currentTarget.style.boxShadow = "var(--shadow-xl)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "scale(1)";
-          e.currentTarget.style.boxShadow = "var(--shadow-lg)";
-        }}
-      >
-        <svg
-          width="28"
-          height="28"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-          style={{ color: "var(--color-bg-primary)" }}
+      <div style={{ position: "relative" }}>
+        <button
+          type="button"
+          onClick={openPanel}
+          aria-label="Open AI panel"
+          title={`Copilot (${shortcutText})`}
+          style={{
+            position: "fixed",
+            right: "var(--spacing-lg)",
+            bottom: "var(--spacing-lg)",
+            width: "42px",
+            height: "42px",
+            backgroundColor: isExecuting
+              ? "var(--color-accent)"
+              : "var(--color-text-primary)",
+            border: "none",
+            borderRadius: "50%",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: isExecuting
+              ? "0 0 0 3px rgba(124, 58, 237, 0.3), var(--shadow-lg)"
+              : "var(--shadow-lg)",
+            transition:
+              "transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast)",
+            zIndex: 1000,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "scale(1.05)";
+            e.currentTarget.style.boxShadow = isExecuting
+              ? "0 0 0 5px rgba(124, 58, 237, 0.4), var(--shadow-xl)"
+              : "var(--shadow-xl)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.boxShadow = isExecuting
+              ? "0 0 0 3px rgba(124, 58, 237, 0.3), var(--shadow-lg)"
+              : "var(--shadow-lg)";
+          }}
         >
-          <circle
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="3"
-          />
-          <circle cx="12" cy="12" r="4" fill="currentColor" />
-        </svg>
-      </button>
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+            style={{
+              color: "var(--color-bg-primary)",
+              animation: isExecuting
+                ? "pulse 1.5s ease-in-out infinite"
+                : "none",
+            }}
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="3"
+            />
+            <circle cx="12" cy="12" r="4" fill="currentColor" />
+          </svg>
+        </button>
+        {isExecuting && (
+          <div
+            style={{
+              position: "fixed",
+              right: "calc(var(--spacing-lg) + 50px)",
+              bottom: "calc(var(--spacing-lg) + 10px)",
+              backgroundColor: "var(--color-bg-elevated)",
+              color: "var(--color-text-primary)",
+              padding: "var(--spacing-xs) var(--spacing-sm)",
+              borderRadius: "var(--radius-md)",
+              fontSize: "var(--font-size-xs)",
+              whiteSpace: "nowrap",
+              boxShadow: "var(--shadow-md)",
+              border: "1px solid var(--color-border-secondary)",
+              zIndex: 1000,
+            }}
+          >
+            Working...
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -522,26 +685,40 @@ function ThreadFloatingPanelInternal() {
     >
       <div
         onMouseDown={handleResizeStart}
+        onMouseEnter={() => setResizeHoverEdge("left")}
+        onMouseLeave={() => setResizeHoverEdge(null)}
         style={{
           position: "absolute",
           left: 0,
           top: 0,
           bottom: 0,
-          width: "4px",
+          width: "6px",
           cursor: "ew-resize",
           zIndex: 10,
+          backgroundColor:
+            resizeHoverEdge === "left" ? "var(--color-accent)" : "transparent",
+          transition: "background-color var(--transition-fast)",
+          borderTopLeftRadius: "var(--radius-lg)",
+          borderBottomLeftRadius: "var(--radius-lg)",
         }}
       />
       <div
         onMouseDown={handleResizeStart}
+        onMouseEnter={() => setResizeHoverEdge("top")}
+        onMouseLeave={() => setResizeHoverEdge(null)}
         style={{
           position: "absolute",
           left: 0,
           right: 0,
           top: 0,
-          height: "4px",
+          height: "6px",
           cursor: "ns-resize",
           zIndex: 10,
+          backgroundColor:
+            resizeHoverEdge === "top" ? "var(--color-accent)" : "transparent",
+          transition: "background-color var(--transition-fast)",
+          borderTopLeftRadius: "var(--radius-lg)",
+          borderTopRightRadius: "var(--radius-lg)",
         }}
       />
       <div
@@ -557,7 +734,12 @@ function ThreadFloatingPanelInternal() {
       >
         <div
           className="session-list-container"
-          style={{ position: "relative" }}
+          style={{
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--spacing-xs)",
+          }}
         >
           <button
             type="button"
@@ -573,22 +755,11 @@ function ThreadFloatingPanelInternal() {
               color: "var(--color-text-primary)",
             }}
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <path d="M3 12h18M3 6h18M3 18h18" />
-            </svg>
             <span
               style={{
                 fontSize: "var(--font-size-sm)",
                 fontWeight: 600,
-                maxWidth: "200px",
+                maxWidth: `${panelSize.width - 200}px`,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -607,6 +778,7 @@ function ThreadFloatingPanelInternal() {
               style={{
                 transform: showSessionList ? "rotate(180deg)" : "none",
                 transition: "transform var(--transition-fast)",
+                flexShrink: 0,
               }}
             >
               <path d="M6 9l6 6 6-6" />
@@ -632,6 +804,52 @@ function ThreadFloatingPanelInternal() {
             gap: "var(--spacing-xs)",
           }}
         >
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setShowModelSelector(!showModelSelector)}
+              style={{
+                background: "none",
+                border: "1px solid var(--color-border-secondary)",
+                padding: "2px var(--spacing-sm)",
+                cursor: "pointer",
+                color: "var(--color-text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                borderRadius: "var(--radius-sm)",
+                fontSize: "var(--font-size-xs)",
+                transition:
+                  "color var(--transition-fast), border-color var(--transition-fast)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--color-text-primary)";
+                e.currentTarget.style.borderColor =
+                  "var(--color-border-primary)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--color-text-secondary)";
+                e.currentTarget.style.borderColor =
+                  "var(--color-border-secondary)";
+              }}
+            >
+              {activeModel}
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+            {showModelSelector && (
+              <ModelSelector onClose={() => setShowModelSelector(false)} />
+            )}
+          </div>
           <button
             type="button"
             onClick={handleNewSession}
@@ -821,8 +1039,10 @@ function ThreadFloatingPanelInternal() {
             onKeyDown={handleKeyDown}
             placeholder="Ask about your notes..."
             disabled={isExecuting}
+            className="copilot-input"
             style={{
               flex: 1,
+              minWidth: 0,
               padding: "var(--spacing-sm) var(--spacing-md)",
               backgroundColor: "var(--color-bg-primary)",
               border: "1px solid var(--color-border-secondary)",
@@ -839,7 +1059,8 @@ function ThreadFloatingPanelInternal() {
             disabled={!inputValue.trim() || isExecuting}
             aria-label="Send message"
             style={{
-              padding: "var(--spacing-sm) var(--spacing-md)",
+              padding: "var(--spacing-sm)",
+              minWidth: "36px",
               backgroundColor:
                 inputValue.trim() && !isExecuting
                   ? "var(--color-accent)"
@@ -853,6 +1074,7 @@ function ThreadFloatingPanelInternal() {
               justifyContent: "center",
               transition: "background-color var(--transition-fast)",
               opacity: inputValue.trim() && !isExecuting ? 1 : 0.5,
+              flexShrink: 0,
             }}
           >
             <svg
