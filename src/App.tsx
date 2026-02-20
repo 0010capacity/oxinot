@@ -18,6 +18,7 @@ if (typeof window !== "undefined") {
 import { ErrorNotifications } from "./components/ErrorNotifications";
 import { GitStatusIndicator } from "./components/GitStatusIndicator";
 import { SnowEffect } from "./components/SnowEffect";
+import { ThreadFloatingPanel } from "./components/ThreadFloatingPanel";
 import { TitleBar } from "./components/TitleBar";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 
@@ -480,6 +481,7 @@ function AppContent({ workspacePath }: AppContentProps) {
       <Notifications />
       <ErrorNotifications />
       <SnowEffect />
+      <ThreadFloatingPanel />
     </>
   );
 }

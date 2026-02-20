@@ -97,7 +97,9 @@ export class AgentOrchestrator implements IAgentOrchestrator {
 
     const allTools = toolRegistry.getAll();
     const systemPrompt = this.buildSystemPrompt(config);
-    const conversationHistory: ChatMessage[] = [];
+    const conversationHistory: ChatMessage[] = config.history
+      ? [...config.history]
+      : [];
 
     try {
       while (

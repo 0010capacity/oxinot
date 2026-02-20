@@ -1,4 +1,5 @@
 import type { ToolContext, ToolResult } from "../tools/types";
+import type { ChatMessage } from "../types";
 
 /**
  * Agent execution step representing a single action
@@ -102,8 +103,9 @@ export interface AgentConfig {
 
   temperature?: number;
 
-  /** Maximum total tool calls allowed across all iterations */
   maxTotalToolCalls?: number;
+
+  history?: ChatMessage[];
 }
 
 /**
