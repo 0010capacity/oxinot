@@ -3,7 +3,6 @@ import { useBlockUIStore } from "../../../stores/blockUIStore";
 import { usePageStore } from "../../../stores/pageStore";
 import { executeTool } from "../tools/executor";
 import { toolRegistry } from "../tools/registry";
-import type { ToolResult } from "../tools/types";
 import type { ChatMessage, IAIProvider } from "../types";
 import {
   classifyError,
@@ -44,15 +43,8 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       steps: [],
       iterations: 0,
       maxIterations: DEFAULT_MAX_ITERATIONS,
-      taskProgress: {
-        phase: "idle",
-        completedSteps: [],
-        pendingSteps: [],
-        createdResources: {
-          pages: [],
-          blocks: [],
-        },
-      },
+      executionPhase: "execution" as const,
+      toolCallsMade: 0,
     };
   }
 
@@ -80,15 +72,8 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       steps: [],
       iterations: 0,
       maxIterations,
-      taskProgress: {
-        phase: "idle",
-        completedSteps: [],
-        pendingSteps: [],
-        createdResources: {
-          pages: [],
-          blocks: [],
-        },
-      },
+      executionPhase: "execution" as const,
+      toolCallsMade: 0,
     };
 
     const allTools = toolRegistry.getAll();
@@ -131,7 +116,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
             apiKey: config.apiKey,
             baseUrl: config.baseUrl,
             history: conversationHistory,
-            tools: allTools,
+            tools: allTools.length > 0 ? allTools : undefined,
             temperature: config.temperature,
           });
 
@@ -234,7 +219,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               this.state.steps.push(observationStep);
               yield observationStep;
 
-              this.updateTaskProgress(toolName, result);
+              this.state.toolCallsMade++;
 
               conversationHistory.push({
                 role: "assistant",
@@ -262,12 +247,13 @@ export class AgentOrchestrator implements IAgentOrchestrator {
               break;
             }
 
-            if (this.state.taskProgress.phase === "complete") {
-              const finalStep = this.createFinalStep(
-                "Task completed successfully.",
-              );
+            // Phase transition: AI called tools AND also returned text
+            // → The text IS the final answer (AI decided it's done)
+            if (accumulatedText.trim() && this.state.toolCallsMade > 0) {
+              const finalStep = this.createFinalStep(accumulatedText);
               this.state.steps.push(finalStep);
               this.state.status = "completed";
+              this.state.executionPhase = "response";
               yield finalStep;
               break;
             }
@@ -377,82 +363,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   }
 
   private getProgressSummary(): string {
-    const createdPages = new Set<string>();
-    const createdBlocks = new Set<string>();
-    const pagesListed = this.toolCallHistory.some(
-      (c) => c.toolName === "list_pages",
-    );
-    const blocksRetrieved = this.toolCallHistory.some(
-      (c) => c.toolName === "get_page_blocks",
-    );
-
-    for (const step of this.state.steps) {
-      if (step.type === "observation" && step.toolResult?.success) {
-        const data = step.toolResult.data as Record<string, unknown>;
-        if (data?.pageId) {
-          createdPages.add(String(data.pageId));
-        }
-        if (data?.blocksCreated || data?.blocks) {
-          const count =
-            (data.blocksCreated as number) ??
-            (data.blocks as unknown[]).length ??
-            0;
-          createdBlocks.add(`page:${data.pageId}:${count} blocks`);
-        }
-      }
-    }
-
-    let summary = "";
-    if (pagesListed) {
-      summary += "- Pages have been listed\n";
-    }
-    if (createdPages.size > 0) {
-      summary += `- ${createdPages.size} page(s) created\n`;
-    }
-    if (blocksRetrieved) {
-      summary += "- Page blocks have been retrieved\n";
-    }
-    if (createdBlocks.size > 0) {
-      summary += "- Blocks have been created\n";
-    }
-    if (summary === "") {
-      summary = "- No significant progress made yet\n";
-    }
-
-    return summary;
-  }
-
-  private updateTaskProgress(toolName?: string, result?: ToolResult): void {
-    if (toolName?.includes("create_page") && result?.success) {
-      this.state.taskProgress.phase = "creating_page";
-      this.state.taskProgress.completedSteps.push("Page created");
-      this.state.taskProgress.pendingSteps = [
-        "Generate markdown",
-        "Validate markdown",
-        "Create blocks",
-      ];
-      if (result.data) {
-        const data = result.data as { id: string; title: string };
-        this.state.taskProgress.createdResources.pages.push({
-          id: data.id,
-          title: data.title,
-        });
-      }
-    } else if (toolName === "validate_markdown_structure" && result?.success) {
-      this.state.taskProgress.phase = "creating_blocks";
-      this.state.taskProgress.completedSteps.push("Markdown validated");
-      this.state.taskProgress.pendingSteps = ["Create blocks"];
-    } else if (toolName === "create_blocks_from_markdown" && result?.success) {
-      this.state.taskProgress.phase = "complete";
-      this.state.taskProgress.completedSteps.push("Blocks created");
-      this.state.taskProgress.pendingSteps = [];
-      if (result.data) {
-        this.state.taskProgress.createdResources.blocks.push({
-          id: `page:${result.data?.pageId || "unknown"}`,
-          pageId: result.data?.pageId || "unknown",
-        });
-      }
-    }
+    return `${this.state.toolCallsMade} tool call(s) made across ${this.state.iterations} iteration(s).`;
   }
 
   private buildSystemPrompt(_config: AgentConfig): string {
@@ -498,18 +409,6 @@ export class AgentOrchestrator implements IAgentOrchestrator {
       }
       if (selectedIds.length > 3) {
         prompt += `  - ... and ${selectedIds.length - 3} more\n`;
-      }
-    }
-
-    const progress = this.state.taskProgress;
-    if (progress.phase !== "idle") {
-      prompt += "\n\n## Task Progress\n\n";
-      prompt += `- **Current Phase**: ${progress.phase}\n`;
-      if (progress.completedSteps.length > 0) {
-        prompt += `- **Completed**: ${progress.completedSteps.join(", ")}\n`;
-      }
-      if (progress.pendingSteps.length > 0) {
-        prompt += `- **Pending**: ${progress.pendingSteps.join(", ")}\n`;
       }
     }
 
