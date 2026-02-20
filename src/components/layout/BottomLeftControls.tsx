@@ -8,12 +8,12 @@ import {
   IconCommand,
   IconHelp,
   IconHome,
-  IconMoon,
   IconLink,
+  IconMoon,
   IconSearch,
   IconSettings,
-  IconSun,
   IconSnowflake,
+  IconSun,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useSnowStore } from "../../stores/snowStore";
@@ -63,6 +63,7 @@ export function BottomLeftControls({
         left: "8px",
         zIndex: 40,
         display: "flex",
+        flexDirection: "column",
         gap: "4px",
         alignItems: "center",
       }}
