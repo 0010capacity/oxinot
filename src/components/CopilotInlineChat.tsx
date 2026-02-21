@@ -12,11 +12,23 @@ import {
   useFloatingPanelStore,
 } from "@/stores/floatingPanelStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import { showToast } from "@/utils/toast";
 import MarkdownIt from "markdown-it";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const md = new MarkdownIt({ html: false, linkify: true, typographer: true });
+
+interface CommandItem {
+  id: string;
+  label: string;
+  description?: string;
+  action: () => void;
+}
+
+const SLASH_COMMANDS = [
+  { command: "/new", description: "New conversation" },
+  { command: "/model", description: "Switch AI model" },
+  { command: "/session", description: "Switch session" },
+] as const;
 
 async function generateSessionTitle(userMessage: string): Promise<string> {
   const { provider, apiKey, baseUrl, models } = useAISettingsStore.getState();
@@ -51,11 +63,14 @@ export function CopilotInlineChat() {
     setCurrentStreamingContent,
     currentStreamingContent,
     updateSessionTitle,
+    createNewSession,
+    switchSession,
+    sessions,
   } = useFloatingPanelStore();
 
   const currentSession = useCurrentSession();
   const messages = currentSession?.messages || [];
-  const { models, provider, apiKey, baseUrl, temperature } =
+  const { models, provider, apiKey, baseUrl, temperature, setModel } =
     useAISettingsStore();
   const activeModel = models[0] || "";
   const workspacePath = useWorkspaceStore((s) => s.workspacePath);
@@ -63,8 +78,87 @@ export function CopilotInlineChat() {
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [latestResponse, setLatestResponse] = useState<string | null>(null);
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const orchestratorRef = useRef<AgentOrchestrator | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  const getCommandItems = useCallback((): CommandItem[] => {
+    if (!inputValue.startsWith("/")) return [];
+
+    const lowerInput = inputValue.toLowerCase();
+
+    if (lowerInput.startsWith("/model")) {
+      if (inputValue === "/model" || inputValue === "/model ") {
+        return models.map((model) => ({
+          id: model,
+          label: model,
+          action: () => {
+            setModel(model);
+            setInputValue("");
+          },
+        }));
+      }
+      const search = inputValue.slice(7).toLowerCase();
+      return models
+        .filter((m) => m.toLowerCase().includes(search))
+        .map((model) => ({
+          id: model,
+          label: model,
+          action: () => {
+            setModel(model);
+            setInputValue("");
+          },
+        }));
+    }
+
+    if (lowerInput.startsWith("/session")) {
+      if (inputValue === "/session" || inputValue === "/session ") {
+        return sessions
+          .slice()
+          .reverse()
+          .slice(0, 10)
+          .map((session) => ({
+            id: session.id,
+            label: session.title || "Untitled",
+            description: new Date(session.updatedAt).toLocaleDateString(),
+            action: () => {
+              switchSession(session.id);
+              setInputValue("");
+            },
+          }));
+      }
+      const search = inputValue.slice(9).toLowerCase();
+      return sessions
+        .filter((s) => (s.title || "Untitled").toLowerCase().includes(search))
+        .slice()
+        .reverse()
+        .slice(0, 10)
+        .map((session) => ({
+          id: session.id,
+          label: session.title || "Untitled",
+          description: new Date(session.updatedAt).toLocaleDateString(),
+          action: () => {
+            switchSession(session.id);
+            setInputValue("");
+          },
+        }));
+    }
+
+    return SLASH_COMMANDS.filter((cmd) =>
+      cmd.command.toLowerCase().startsWith(lowerInput),
+    ).map((cmd) => ({
+      id: cmd.command,
+      label: cmd.command,
+      description: cmd.description,
+      action: () => {
+        setInputValue(cmd.command + " ");
+      },
+    }));
+  }, [inputValue, models, sessions, setModel, switchSession]);
+
+  const commandItems = getCommandItems();
 
   useEffect(() => {
     try {
@@ -81,16 +175,40 @@ export function CopilotInlineChat() {
     return () => orchestratorRef.current?.stop();
   }, []);
 
+  useEffect(() => {
+    if (!latestResponse) return;
+    const timer = setTimeout(() => setLatestResponse(null), 10000);
+    return () => clearTimeout(timer);
+  }, [latestResponse]);
+
+  useEffect(() => {
+    setSelectedCommandIndex(0);
+  }, [commandItems.length]);
+
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
+    }
+  }, [messages, currentStreamingContent]);
+
   const handleSubmit = useCallback(async () => {
     const trimmedInput = inputValue.trim();
     if (!trimmedInput || isExecuting || !workspacePath) return;
+
+    if (trimmedInput === "/new") {
+      createNewSession();
+      setInputValue("");
+      setLatestResponse(null);
+      return;
+    }
 
     const { currentPageId } = useBlockStore.getState();
     const isFirstMessage = messages.length === 0;
 
     setExecuting(true);
     addUserMessage(trimmedInput);
-    addAssistantMessage("", "");
+    const assistantMessageId = addAssistantMessage("", "");
     setInputValue("");
 
     if (isFirstMessage) {
@@ -136,22 +254,18 @@ export function CopilotInlineChat() {
         }
       }
 
-      completeAssistantMessage("", finalContent || "Task completed");
+      completeAssistantMessage(
+        assistantMessageId,
+        finalContent || "Task completed",
+      );
 
       if (!showHistory && finalContent) {
-        showToast({
-          message:
-            finalContent.length > 100
-              ? finalContent.slice(0, 100) + "..."
-              : finalContent,
-          type: "info",
-          duration: 4000,
-        });
+        setLatestResponse(finalContent);
       }
     } catch (error) {
       console.error("[CopilotInlineChat] Error:", error);
       completeAssistantMessage(
-        "",
+        assistantMessageId,
         `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     } finally {
@@ -169,6 +283,7 @@ export function CopilotInlineChat() {
     completeAssistantMessage,
     setCurrentStreamingContent,
     updateSessionTitle,
+    createNewSession,
     provider,
     baseUrl,
     apiKey,
@@ -178,6 +293,32 @@ export function CopilotInlineChat() {
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (commandItems.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedCommandIndex((i) =>
+          i < commandItems.length - 1 ? i + 1 : 0,
+        );
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedCommandIndex((i) =>
+          i > 0 ? i - 1 : commandItems.length - 1,
+        );
+        return;
+      }
+      if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
+        e.preventDefault();
+        commandItems[selectedCommandIndex].action();
+        return;
+      }
+      if (e.key === "Escape") {
+        setInputValue("");
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -208,6 +349,76 @@ export function CopilotInlineChat() {
             alignItems: "center",
           }}
         >
+          {commandItems.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "100%",
+                left: 0,
+                marginBottom: "4px",
+                backgroundColor: "var(--color-bg-secondary)",
+                border: "1px solid var(--color-border-primary)",
+                borderRadius: "var(--radius-sm)",
+                boxShadow: "var(--shadow-md)",
+                minWidth: "160px",
+                maxWidth: "280px",
+                overflow: "hidden",
+                zIndex: 1001,
+                fontSize: "var(--font-size-xs)",
+              }}
+            >
+              {commandItems.map((item, index) => (
+                <div
+                  key={item.id}
+                  style={{
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                    backgroundColor:
+                      index === selectedCommandIndex
+                        ? "var(--color-accent)"
+                        : "transparent",
+                    color:
+                      index === selectedCommandIndex
+                        ? "white"
+                        : "var(--color-text-primary)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    justifyContent: "space-between",
+                  }}
+                  onMouseEnter={() => setSelectedCommandIndex(index)}
+                  onClick={() => {
+                    item.action();
+                    inputRef.current?.focus();
+                  }}
+                >
+                  <span
+                    style={{
+                      fontWeight: 500,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                  {item.description && (
+                    <span
+                      style={{
+                        color:
+                          index === selectedCommandIndex
+                            ? "rgba(255,255,255,0.7)"
+                            : "var(--color-text-tertiary)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {item.description}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           <input
             ref={inputRef}
             type="text"
@@ -222,7 +433,7 @@ export function CopilotInlineChat() {
             disabled={isExecuting}
             className="copilot-input"
             style={{
-              width: isFocused ? "400px" : "280px",
+              width: isFocused ? "360px" : "300px",
               padding: "var(--spacing-sm) var(--spacing-md)",
               paddingRight: "80px",
               backgroundColor: "var(--color-bg-secondary)",
@@ -248,7 +459,10 @@ export function CopilotInlineChat() {
           >
             <button
               type="button"
-              onClick={() => setShowHistory(!showHistory)}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setShowHistory(!showHistory);
+              }}
               title="Toggle chat history"
               style={{
                 padding: "6px",
@@ -297,7 +511,23 @@ export function CopilotInlineChat() {
                 transition: "all 0.2s ease",
               }}
             >
-              {isExecuting ? "..." : "Send"}
+              {isExecuting ? (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  style={{ animation: "spin 1s linear infinite" }}
+                  aria-label="Loading"
+                >
+                  <title>Loading</title>
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              ) : (
+                "Send"
+              )}
             </button>
           </div>
         </div>
@@ -305,16 +535,18 @@ export function CopilotInlineChat() {
 
       {showHistory && (
         <div
+          ref={chatContainerRef}
+          className="chat-history-container"
           style={{
             position: "fixed",
             right: "var(--spacing-lg)",
+            top: "calc(var(--layout-title-bar-height) + var(--spacing-sm))",
             bottom: "calc(var(--spacing-lg) + 60px)",
             width: "340px",
-            maxHeight: "400px",
             display: "flex",
-            flexDirection: "column-reverse",
+            flexDirection: "column",
             gap: "var(--spacing-sm)",
-            zIndex: 999,
+            zIndex: 50,
             overflowY: "auto",
           }}
         >
@@ -330,77 +562,83 @@ export function CopilotInlineChat() {
               No messages yet
             </div>
           )}
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              style={{
-                padding: "var(--spacing-sm) var(--spacing-md)",
-                borderRadius: "var(--radius-lg)",
-                backgroundColor:
-                  message.role === "user"
-                    ? "var(--color-accent)"
-                    : "var(--color-bg-secondary)",
-                color:
-                  message.role === "user"
-                    ? "white"
-                    : "var(--color-text-primary)",
-                fontSize: "var(--font-size-sm)",
-                lineHeight: 1.5,
-                boxShadow: "var(--shadow-sm)",
-                alignSelf: message.role === "user" ? "flex-end" : "flex-start",
-                maxWidth: "90%",
-              }}
-            >
-              {message.role === "assistant" ? (
-                <span
-                  dangerouslySetInnerHTML={{
-                    __html: md.render(
-                      message.isStreaming && currentStreamingContent
-                        ? currentStreamingContent
-                        : message.content || "",
-                    ),
-                  }}
-                />
-              ) : (
-                message.content
-              )}
-            </div>
-          ))}
+          {messages.map((message) => {
+            const isStreamingEmpty =
+              message.role === "assistant" &&
+              message.isStreaming &&
+              !message.content;
+
+            return (
+              <div
+                key={message.id}
+                style={{
+                  padding: "var(--spacing-sm) var(--spacing-md)",
+                  borderRadius: "var(--radius-lg)",
+                  backgroundColor:
+                    message.role === "user"
+                      ? "var(--color-accent)"
+                      : "var(--color-bg-secondary)",
+                  color:
+                    message.role === "user"
+                      ? "white"
+                      : "var(--color-text-primary)",
+                  fontSize: "var(--font-size-sm)",
+                  lineHeight: 1.5,
+                  boxShadow: "var(--shadow-sm)",
+                  alignSelf:
+                    message.role === "user" ? "flex-end" : "flex-start",
+                  maxWidth: "90%",
+                  animation: isStreamingEmpty
+                    ? "pulseGlow 1.5s ease-in-out infinite"
+                    : undefined,
+                }}
+              >
+                {isStreamingEmpty ? (
+                  <span style={{ opacity: 0.6 }}>Thinking...</span>
+                ) : message.role === "assistant" ? (
+                  <span
+                    dangerouslySetInnerHTML={{
+                      __html: md.render(
+                        message.isStreaming && currentStreamingContent
+                          ? currentStreamingContent
+                          : message.content || "",
+                      ),
+                    }}
+                  />
+                ) : (
+                  message.content
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Working indicator when panel is closed */}
-      {isExecuting && !isFocused && (
+      {!showHistory && latestResponse && (
         <div
           style={{
             position: "fixed",
-            bottom: "calc(var(--spacing-lg) + 50px)",
             right: "var(--spacing-lg)",
-            backgroundColor: "var(--color-accent)",
-            color: "white",
-            padding: "var(--spacing-xs) var(--spacing-md)",
+            bottom: "calc(var(--spacing-lg) + 60px)",
+            width: "340px",
+            maxHeight: "200px",
+            overflowY: "auto",
+            padding: "var(--spacing-sm) var(--spacing-md)",
             borderRadius: "var(--radius-lg)",
-            fontSize: "var(--font-size-xs)",
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--spacing-xs)",
-            zIndex: 1000,
-            animation: "pulse 1.5s ease-in-out infinite",
+            backgroundColor: "var(--color-bg-secondary)",
+            color: "var(--color-text-primary)",
+            fontSize: "var(--font-size-sm)",
+            lineHeight: 1.5,
+            boxShadow: "var(--shadow-md)",
+            zIndex: 999,
+            animation: "fadeIn 0.3s ease",
           }}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <circle cx="12" cy="12" r="4" fill="currentColor" />
-          </svg>
-          Copilot is working...
+          <span
+            dangerouslySetInnerHTML={{
+              __html: md.render(latestResponse),
+            }}
+          />
         </div>
       )}
 
@@ -408,6 +646,25 @@ export function CopilotInlineChat() {
         @keyframes slideInRight {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+        .chat-history-container {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .chat-history-container::-webkit-scrollbar {
+          display: none;
         }
       `}</style>
     </>

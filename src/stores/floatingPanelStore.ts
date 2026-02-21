@@ -37,7 +37,7 @@ interface FloatingPanelActions {
   deleteSession: (sessionId: string) => void;
   updateSessionTitle: (sessionId: string, title: string) => void;
   addUserMessage: (content: string, blockId?: string) => string;
-  addAssistantMessage: (messageId: string, content: string) => void;
+  addAssistantMessage: (messageId: string, content: string) => string;
   setStreamingMessage: (messageId: string, isStreaming: boolean) => void;
   completeAssistantMessage: (messageId: string, content: string) => void;
   setCurrentStreamingContent: (content: string) => void;
@@ -184,13 +184,14 @@ export const useFloatingPanelStore = create<FloatingPanelStore>()(
 
       addAssistantMessage: (messageId, content) => {
         const sessionId = get().currentSessionId;
-        if (!sessionId) return;
+        if (!sessionId) return "";
 
+        const id = messageId || generateMessageId();
         set((state) => {
           const session = state.sessions.find((s) => s.id === sessionId);
           if (session) {
             session.messages.push({
-              id: messageId,
+              id,
               role: "assistant",
               content,
               timestamp: Date.now(),
@@ -198,6 +199,7 @@ export const useFloatingPanelStore = create<FloatingPanelStore>()(
             });
           }
         });
+        return id;
       },
 
       setStreamingMessage: (messageId, isStreaming) => {
