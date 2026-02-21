@@ -1110,6 +1110,9 @@ pub async fn update_block(
         // Update FTS5 index with new content
         index_block_fts(&conn, &request.id, &block.page_id, &new_content)?;
 
+        // Extract and update TODO status from content prefix
+        update_todo_status_metadata(&conn, &request.id, &new_content)?;
+
         // Update metadata if provided
         if let Some(metadata) = &request.metadata {
             save_block_metadata(&conn, &request.id, metadata)?;
@@ -1790,6 +1793,57 @@ fn load_blocks_metadata(
     }
 
     Ok(metadata_map)
+}
+
+const TODO_STATUS_PREFIXES: [(&str, &str); 5] = [
+    ("TODO ", "todo"),
+    ("DOING ", "doing"),
+    ("DONE ", "done"),
+    ("LATER ", "later"),
+    ("CANCELED ", "canceled"),
+];
+
+fn extract_todo_status(content: &str) -> Option<&'static str> {
+    for (prefix, status) in TODO_STATUS_PREFIXES {
+        if content.starts_with(prefix) {
+            return Some(status);
+        }
+    }
+    None
+}
+
+fn update_todo_status_metadata(
+    conn: &Connection,
+    block_id: &str,
+    content: &str,
+) -> Result<(), String> {
+    let status = extract_todo_status(content);
+    
+    match status {
+        Some(status_value) => {
+            conn.execute(
+                "DELETE FROM block_metadata WHERE block_id = ? AND key = 'todoStatus'",
+                [block_id],
+            )
+            .map_err(|e| e.to_string())?;
+            
+            let metadata_id = Uuid::new_v4().to_string();
+            conn.execute(
+                "INSERT INTO block_metadata (id, block_id, key, value) VALUES (?, ?, 'todoStatus', ?)",
+                params![&metadata_id, block_id, status_value],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        None => {
+            conn.execute(
+                "DELETE FROM block_metadata WHERE block_id = ? AND key = 'todoStatus'",
+                [block_id],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+    
+    Ok(())
 }
 
 /// Save metadata for a block to the database
