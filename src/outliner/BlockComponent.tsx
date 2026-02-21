@@ -6,6 +6,8 @@ import {
   IconCopy,
   IconIndentDecrease,
   IconIndentIncrease,
+  IconRobot,
+  IconSparkles,
   IconTrash,
 } from "@tabler/icons-react";
 import type React from "react";
@@ -20,33 +22,41 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { AIBlockOverlay } from "../components/AIBlockOverlay";
 import { Editor, type EditorRef } from "../components/Editor";
 import { MetadataBadges } from "../components/MetadataBadge";
 import { MetadataEditor } from "../components/MetadataEditor";
 import {
+  type SlashCommand,
+  SlashCommandDropdown,
+} from "../components/SlashCommandDropdown";
+import {
   ContextMenu,
   type ContextMenuSection,
 } from "../components/common/ContextMenu";
+import { threadBlockService } from "../services/ai/threadBlockService";
+import { useIsBlockLocked } from "../stores/aiJobsStore";
 import {
   type BlockData,
   useBlockContent,
   useBlockIsCollapsed,
   useBlockMetadata,
   useBlockStore,
+  useBlockType,
   useChildrenIds,
 } from "../stores/blockStore";
 import { useTargetCursorPosition } from "../stores/blockUIStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
+import { useThreadByResponseBlock } from "../stores/threadStore";
 import { useIsBlockFocused } from "../stores/viewStore";
-// NOTE: We intentionally avoid debounced store writes while typing.
-// The editor owns the live draft; we commit on flush points (blur/navigation/etc).
 import { useViewStore } from "../stores/viewStore";
 import * as batchOps from "../utils/batchBlockOperations";
 import { showToast } from "../utils/toast";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { MacroContentWrapper } from "./MacroContentWrapper";
 import { editorStateCache } from "./editorStateCache";
+import { renderMarkdownToHtml } from "./markdownRenderer";
 import "./BlockComponent.css";
 import { INDENT_PER_LEVEL } from "../constants/layout";
 import { useIsBlockSelected } from "../hooks/useBlockSelection";
@@ -68,6 +78,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const isDark = computedColorScheme === "dark";
 
     const blockContent = useBlockContent(blockId);
+    const blockType = useBlockType(blockId);
     const isCollapsed = useBlockIsCollapsed(blockId);
     const childrenIds = useChildrenIds(blockId);
     const hasChildren = childrenIds.length > 0;
@@ -76,6 +87,16 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const showIndentGuides = useOutlinerSettingsStore(
       (state) => state.showIndentGuides,
     );
+
+    const isAiPrompt = blockType === "ai-prompt";
+    const isAiResponse = blockType === "ai-response";
+    const isAiLocked = useIsBlockLocked(blockId);
+
+    const thread = useThreadByResponseBlock(blockId);
+    const isStreaming = thread?.status === "streaming";
+    const streamContent = thread?.streamContent ?? "";
+    const displayContent =
+      isStreaming && streamContent ? streamContent : (blockContent ?? "");
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
     const createBlock = useBlockStore((state) => state.createBlock);
@@ -114,6 +135,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const metadataCloseTimeoutRef = useRef<ReturnType<
       typeof setTimeout
     > | null>(null);
+
+    const [slashCommand, setSlashCommand] = useState<{
+      show: boolean;
+      query: string;
+      position: { top: number; left: number };
+    } | null>(null);
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [blocksToDelete, setBlocksToDelete] = useState<string[]>([]);
@@ -194,6 +221,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           : [blockId];
       const isBatchOperation = targetBlocks.length > 1;
 
+      const handleAIEdit = () => {
+        window.dispatchEvent(
+          new CustomEvent("ai-edit-blocks", {
+            detail: { blockIds: targetBlocks },
+          }),
+        );
+      };
+
       return [
         {
           items: [
@@ -240,6 +275,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   useBlockUIStore.getState().clearSelectedBlocks();
                 }
               },
+            },
+            {
+              label: "AI Edit... (⌘⇧A)",
+              icon: <IconRobot size={16} />,
+              onClick: handleAIEdit,
             },
             {
               label: isBatchOperation
@@ -631,13 +671,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     // Commit draft when focus is lost.
     useEffect(() => {
-      console.log(
-        `[BlockComponent:isFocusedEffect] blockId=${blockId.slice(0, 8)}, isFocused=${isFocused}`,
-      );
       if (isFocused === false) {
-        console.log(
-          `[BlockComponent:isFocusedEffect] Focus lost, committing draft for blockId=${blockId.slice(0, 8)}`,
-        );
         commitDraft();
       }
     }, [isFocused, commitDraft, blockId]);
@@ -869,14 +903,89 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const handleContentChange = useCallback(
       (content: string) => {
-        console.log(
-          `[BlockComponent:handleContentChange] blockId=${blockId.slice(0, 8)}, newContent="${content.slice(0, 30)}"`,
-        );
         draftRef.current = content;
         setDraft(content);
+
+        const cursorPos =
+          editorRef.current?.getView()?.state.selection.main.head ??
+          content.length;
+        const beforeCursor = content.slice(0, cursorPos);
+        const slashMatch = beforeCursor.match(/\/(\w*)$/);
+
+        if (slashMatch) {
+          const rect = editorRef.current
+            ?.getView()
+            ?.dom.getBoundingClientRect();
+          if (rect) {
+            const lineHeight = 20;
+            const lines = beforeCursor.split("\n");
+            const currentLine = lines.length - 1;
+
+            setSlashCommand({
+              show: true,
+              query: slashMatch[1] ?? "",
+              position: {
+                top: rect.top + currentLine * lineHeight + lineHeight + 4,
+                left: rect.left + 8,
+              },
+            });
+          }
+        } else {
+          setSlashCommand(null);
+        }
       },
       [blockId],
     );
+
+    const handleSlashCommandSelect = useCallback(
+      (command: SlashCommand) => {
+        setSlashCommand(null);
+
+        if (command.id === "ai") {
+          const content = draftRef.current;
+          const newContent = content.replace(/\/\w*$/, "").trimStart();
+
+          const blockStore = useBlockStore.getState();
+          const pageId = blockStore.currentPageId;
+          if (!pageId) return;
+
+          draftRef.current = newContent;
+          setDraft(newContent);
+
+          commitDraft().then(async () => {
+            await blockStore.updateBlock(blockId, { blockType: "ai-prompt" });
+
+            if (newContent.trim()) {
+              await threadBlockService.executePrompt(
+                blockId,
+                newContent,
+                pageId,
+              );
+            }
+          });
+        } else if (command.id === "code") {
+          const content = draftRef.current;
+          const newContent = content.replace(/\/\w*$/, "");
+          const updatedContent = newContent + "```typescript\n\n```";
+
+          draftRef.current = updatedContent;
+          setDraft(updatedContent);
+
+          const view = editorRef.current?.getView();
+          if (view) {
+            const insertPos = updatedContent.length - 4;
+            view.dispatch({
+              selection: { anchor: insertPos, head: insertPos },
+            });
+          }
+        }
+      },
+      [blockId, commitDraft],
+    );
+
+    const handleSlashCommandClose = useCallback(() => {
+      setSlashCommand(null);
+    }, []);
 
     const handleBlur = useCallback(async () => {
       // If metadata editor is open, don't close it or commit
@@ -911,8 +1020,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // Create custom keybindings for CodeMirror to handle block operations
     const handleContentChangeWithTrigger = useCallback(
       (value: string) => {
-        draftRef.current = value;
-        setDraft(value);
+        handleContentChange(value);
       },
       [handleContentChange],
     );
@@ -929,46 +1037,58 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         {
           key: "Enter",
           run: (view: EditorView) => {
-            // If Enter was pressed during/after IME composition, skip normal processing
             if (
               imeStateRef.current.isComposing ||
               imeStateRef.current.lastInputWasComposition ||
               imeStateRef.current.enterPressed
             ) {
-              return true; // Already handled by keydown capture
+              return true;
             }
 
             const cursor = view.state.selection.main.head;
             const content = view.state.doc.toString();
             const contentLength = content.length;
 
-            // Check if we're inside a code block
+            if (slashCommand?.show) {
+              return true;
+            }
+
+            if (isAiPrompt && content.trim()) {
+              commitDraft().then(async () => {
+                const blockStore = useBlockStore.getState();
+                const pageId = blockStore.currentPageId;
+                if (pageId) {
+                  await threadBlockService.executePrompt(
+                    blockId,
+                    content,
+                    pageId,
+                  );
+                }
+              });
+              return true;
+            }
+
             const beforeCursor = content.slice(0, cursor);
 
-            // Count opening and closing fences before cursor
             const openFencesBeforeCursor = (beforeCursor.match(/^```/gm) || [])
               .length;
             const closeFencesBeforeCursor = (
               beforeCursor.match(/^```$/gm) || []
             ).length;
 
-            // If we have more opening fences than closing fences, we're inside a code block
             const isInsideCodeBlock =
               openFencesBeforeCursor > closeFencesBeforeCursor;
 
             if (isInsideCodeBlock) {
-              // Allow default behavior (insert newline) when inside code block
               return false;
             }
 
-            // Check if we're at the end of a line that starts with ```
             const line = view.state.doc.lineAt(cursor);
             const lineText = line.text;
             const isAtLineEnd = cursor === line.to;
             const isCodeFence = lineText.trim().match(/^```\w*$/);
 
             if (isCodeFence && isAtLineEnd) {
-              // Auto-create code block structure
               const indent = lineText.match(/^\s*/)?.[0] || "";
 
               view.dispatch({
@@ -995,7 +1115,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               splitBlockAtCursor(blockId, cursor, content);
             }
 
-            return true; // Prevent default CodeMirror behavior
+            return true;
           },
         },
         {
@@ -1018,9 +1138,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             }
 
             if (cursor === 0) {
-              console.log(
-                `[BlockComponent] Backspace at cursor 0 for block ${blockId.slice(0, 8)}, content="${content.slice(0, 20)}"`,
-              );
               mergeWithPrevious(blockId, content);
               return true;
             }
@@ -1104,33 +1221,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           key: "Tab",
           preventDefault: true,
           run: () => {
-            console.log(
-              "[BlockComponent:Tab] Tab key pressed, blockId:",
-              blockId,
-            );
-
             // Start async operations but return true immediately to prevent default behavior
             commitDraft()
               .then(() => {
-                console.log(
-                  "[BlockComponent:Tab] commitDraft done, calling indentBlock",
-                );
-                indentBlock(blockId)
-                  .then(() => {
-                    console.log("[BlockComponent:Tab] indentBlock done");
-                    // Don't restore focus immediately - it causes React Hook errors
-                    // during structural reconciliation. The block content is preserved,
-                    // user can click to refocus if needed.
-                    console.log(
-                      "[BlockComponent:Tab] Focus restoration skipped to avoid Hook errors",
-                    );
-                  })
-                  .catch((err) => {
-                    console.error(
-                      "[BlockComponent:Tab] indentBlock failed:",
-                      err,
-                    );
-                  });
+                indentBlock(blockId).catch((err) => {
+                  console.error(
+                    "[BlockComponent:Tab] indentBlock failed:",
+                    err,
+                  );
+                });
               })
               .catch((err) => {
                 console.error("[BlockComponent:Tab] commitDraft failed:", err);
@@ -1142,16 +1241,27 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           key: "Shift-Tab",
           preventDefault: true,
           run: () => {
-            // Start async operations but return true immediately to prevent default behavior
             commitDraft().then(() => {
-              outdentBlock(blockId).then(() => {
-                // Don't restore focus immediately - it causes React Hook errors
-                // during structural reconciliation. The block content is preserved,
-                // user can click to refocus if needed.
-                console.log(
-                  "[BlockComponent:Shift-Tab] Focus restoration skipped to avoid Hook errors",
-                );
-              });
+              outdentBlock(blockId);
+            });
+            return true;
+          },
+        },
+        {
+          key: "Mod-Enter",
+          preventDefault: true,
+          run: (view: EditorView) => {
+            const content = view.state.doc.toString();
+            if (!content.trim()) return false;
+
+            const blockStore = useBlockStore.getState();
+            const pageId = blockStore.currentPageId;
+            if (!pageId) return false;
+
+            commitDraft().then(async () => {
+              await blockStore.updateBlock(blockId, { blockType: "ai-prompt" });
+
+              await threadBlockService.executePrompt(blockId, content, pageId);
             });
             return true;
           },
@@ -1236,6 +1346,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             ref={blockRowRef}
             className="block-row"
             style={{
+              position: "relative",
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
               backgroundColor: isSelected
                 ? "rgba(128, 128, 128, 0.1)"
@@ -1286,16 +1397,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 return;
               }
 
-              console.log(
-                `[BlockComponent:onMouseDown] START for blockId=${blockId.slice(0, 8)}, isFocused=${isFocused}`,
-              );
-
               if (isFocused && editorRef.current) {
                 const view = editorRef.current.getView();
                 if (view?.hasFocus) {
-                  console.log(
-                    `[BlockComponent:onMouseDown] Block already focused, updating cursor position for blockId=${blockId.slice(0, 8)}`,
-                  );
                   const range = document.caretRangeFromPoint(
                     e.clientX,
                     e.clientY,
@@ -1319,13 +1423,11 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               }
 
               if (!isFocused) {
-                console.log(
-                  `[BlockComponent:onMouseDown] Setting focus to blockId=${blockId.slice(0, 8)}`,
-                );
                 setFocusedBlock(blockId);
               }
             }}
           >
+            <AIBlockOverlay blockId={blockId} />
             {/* Collapse/Expand Toggle */}
             {hasChildren ? (
               <button
@@ -1340,20 +1442,32 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               <div className="collapse-toggle-placeholder" />
             )}
 
-            {/* Bullet Point - clickable for zoom */}
+            {/* Bullet Point / AI Icon - clickable for zoom */}
             <button
               type="button"
-              className="block-bullet-wrapper"
+              className={`block-bullet-wrapper ${isAiPrompt ? "ai-prompt-icon" : ""} ${isAiResponse ? "ai-response-icon" : ""}`}
               onClick={handleBulletClick}
               style={{
                 cursor: hasChildren ? "pointer" : "default",
                 border: "none",
                 background: "transparent",
                 padding: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
               title={hasChildren ? "Click to zoom into this block" : undefined}
             >
-              <div className="block-bullet" />
+              {isAiPrompt ? (
+                <IconSparkles
+                  size={16}
+                  style={{ color: "var(--color-accent)" }}
+                />
+              ) : isAiResponse ? (
+                <IconRobot size={16} style={{ color: "var(--color-accent)" }} />
+              ) : (
+                <div className="block-bullet" />
+              )}
             </button>
 
             {/* Content Editor */}
@@ -1361,67 +1475,87 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               className="block-content-wrapper"
               style={{ position: "relative" }}
             >
-              <MacroContentWrapper
-                content={blockContent || ""}
-                blockId={blockId}
-                isFocused={isFocused}
-                onEdit={() => setFocusedBlock(blockId)}
-                onMouseDownCapture={handleStaticMouseDown}
-              >
-                <Popover
-                  opened={isMetadataOpen}
-                  onClose={() => {
-                    setIsMetadataOpen(false);
+              {isAiResponse ? (
+                <div
+                  className="ai-response-content"
+                  style={{
+                    width: "100%",
+                    minHeight: "20px",
+                    padding: "2px 0",
                   }}
-                  position="bottom"
-                  withArrow
-                  shadow="md"
-                  trapFocus={false}
-                  closeOnEscape
-                  closeOnClickOutside
-                  withinPortal={true}
-                  transitionProps={{ duration: 0 }}
                 >
-                  <Popover.Target>
-                    <Box style={{ width: "100%" }}>
-                      <Editor
-                        ref={editorRef}
-                        value={draft}
-                        onChange={handleContentChangeWithTrigger}
-                        onFocus={handleFocus}
-                        onBlur={handleBlur}
-                        lineNumbers={false}
-                        lineWrapping={true}
-                        theme={isDark ? "dark" : "light"}
-                        keybindings={keybindings}
-                        isFocused={isFocused}
-                        className="block-editor"
-                        style={{}}
-                      />
-                    </Box>
-                  </Popover.Target>
-                  <Popover.Dropdown
-                    p={0}
-                    ref={popoverDropdownRef}
-                    style={{ minWidth: "300px" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: renderMarkdownToHtml(displayContent, {
+                        allowBlocks: true,
+                      }),
                     }}
+                  />
+                  {isStreaming && <span className="ai-streaming-cursor" />}
+                </div>
+              ) : (
+                <MacroContentWrapper
+                  content={blockContent || ""}
+                  blockId={blockId}
+                  isFocused={isFocused}
+                  onEdit={() => setFocusedBlock(blockId)}
+                  onMouseDownCapture={handleStaticMouseDown}
+                >
+                  <Popover
+                    opened={isMetadataOpen}
+                    onClose={() => {
+                      setIsMetadataOpen(false);
+                    }}
+                    position="bottom"
+                    withArrow
+                    shadow="md"
+                    trapFocus={false}
+                    closeOnEscape
+                    closeOnClickOutside
+                    withinPortal={true}
+                    transitionProps={{ duration: 0 }}
                   >
-                    <MetadataEditor
-                      blockId={blockId}
-                      onClose={() => {
-                        setIsMetadataOpen(false);
-                        setTimeout(() => {
-                          editorRef.current?.focus();
-                        }, 0);
+                    <Popover.Target>
+                      <Box style={{ width: "100%" }}>
+                        <Editor
+                          ref={editorRef}
+                          value={draft}
+                          onChange={handleContentChangeWithTrigger}
+                          onFocus={handleFocus}
+                          onBlur={handleBlur}
+                          lineNumbers={false}
+                          lineWrapping={true}
+                          theme={isDark ? "dark" : "light"}
+                          keybindings={keybindings}
+                          isFocused={isFocused}
+                          readOnly={isAiLocked}
+                          className="block-editor"
+                          style={{}}
+                        />
+                      </Box>
+                    </Popover.Target>
+                    <Popover.Dropdown
+                      p={0}
+                      ref={popoverDropdownRef}
+                      style={{ minWidth: "300px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
                       }}
-                    />
-                  </Popover.Dropdown>
-                </Popover>
-              </MacroContentWrapper>
+                    >
+                      <MetadataEditor
+                        blockId={blockId}
+                        onClose={() => {
+                          setIsMetadataOpen(false);
+                          setTimeout(() => {
+                            editorRef.current?.focus();
+                          }, 0);
+                        }}
+                      />
+                    </Popover.Dropdown>
+                  </Popover>
+                </MacroContentWrapper>
+              )}
 
-              {/* Metadata Badge - small indicator with tooltip */}
               {blockMetadata && (
                 <Box
                   onClick={(e) => {
@@ -1484,6 +1618,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             (id) => countDescendantBlocks(id) > 0,
           )}
         />
+
+        {slashCommand?.show && (
+          <SlashCommandDropdown
+            query={slashCommand.query}
+            position={slashCommand.position}
+            onSelect={handleSlashCommandSelect}
+            onClose={handleSlashCommandClose}
+          />
+        )}
       </ContextMenu>
     );
   },

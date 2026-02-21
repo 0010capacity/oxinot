@@ -5,14 +5,30 @@ export interface ParsedBlockNode {
   lineNumber: number;
 }
 
+export interface IndentationIssue {
+  line: number;
+  type: "ODD_INDENT";
+  originalSpaces: number;
+  normalizedSpaces: number;
+  content: string;
+}
+
+export interface ParseOptions {
+  mode: "strict" | "tolerant";
+}
+
 /**
  * Normalize markdown indentation to fix common AI spacing issues.
  * AI models often generate "- Item\n - SubItem" (1 space) instead of "- Item\n  - SubItem" (2 spaces).
  * This function detects and corrects these patterns.
  */
-function normalizeMarkdownIndentation(markdown: string): string {
+export function normalizeMarkdownIndentation(markdown: string): {
+  markdown: string;
+  issues: IndentationIssue[];
+} {
   const lines = markdown.split("\n");
   const normalized: string[] = [];
+  const issues: IndentationIssue[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -37,26 +53,42 @@ function normalizeMarkdownIndentation(markdown: string): string {
     // This fixes AI's common mistake of using 1 space instead of 2
     if (spaceCount % 2 === 1 && spaceCount > 0) {
       const normalizedSpaces = spaceCount + 1;
+      issues.push({
+        line: i + 1,
+        type: "ODD_INDENT",
+        originalSpaces: spaceCount,
+        normalizedSpaces,
+        content: content.trim().substring(0, 50),
+      });
       normalized.push(`${" ".repeat(normalizedSpaces)}${bullet} ${content}`);
       console.log(
         `[markdownBlockParser] Normalized indent: ${spaceCount} spaces → ${normalizedSpaces} spaces for line: "${content.substring(
           0,
-          40
-        )}..."`
+          40,
+        )}..."`,
       );
     } else {
       normalized.push(line);
     }
   }
 
-  return normalized.join("\n");
+  return { markdown: normalized.join("\n"), issues };
 }
 
-export function parseMarkdownToBlocks(markdown: string): ParsedBlockNode[] {
-  // Normalize indentation before parsing
-  const normalizedMarkdown = normalizeMarkdownIndentation(markdown);
+export function parseMarkdownToBlocks(
+  markdown: string,
+  options: ParseOptions = { mode: "tolerant" },
+): { nodes: ParsedBlockNode[]; issues: IndentationIssue[] } {
+  let processedMarkdown = markdown;
+  let issues: IndentationIssue[] = [];
 
-  const lines = normalizedMarkdown.split("\n");
+  if (options.mode === "tolerant") {
+    const result = normalizeMarkdownIndentation(markdown);
+    processedMarkdown = result.markdown;
+    issues = result.issues;
+  }
+
+  const lines = processedMarkdown.split("\n");
   const parsedLines: Array<{
     content: string;
     indent: number;
@@ -85,7 +117,7 @@ export function parseMarkdownToBlocks(markdown: string): ParsedBlockNode[] {
   }
 
   const result = buildHierarchyImpl(parsedLines, -1, 0);
-  return result.nodes;
+  return { nodes: result.nodes, issues };
 }
 
 interface HierarchyResult {
@@ -96,7 +128,7 @@ interface HierarchyResult {
 function buildHierarchyImpl(
   items: Array<{ content: string; indent: number; lineNumber: number }>,
   parentIndent: number,
-  startIndex: number
+  startIndex: number,
 ): HierarchyResult {
   const result: ParsedBlockNode[] = [];
   let i = startIndex;
@@ -130,6 +162,7 @@ function buildHierarchyImpl(
 }
 
 export interface FlattenedBlock {
+  tempId: string;
   content: string;
   parentBlockId: string | null;
   insertAfterBlockId?: string | null;
@@ -137,7 +170,7 @@ export interface FlattenedBlock {
 
 export function flattenBlockHierarchy(
   nodes: ParsedBlockNode[],
-  parentBlockId: string | null = null
+  parentBlockId: string | null = null,
 ): Array<FlattenedBlock & { sourceLineNumber: number }> {
   const result: Array<FlattenedBlock & { sourceLineNumber: number }> = [];
   let lastSiblingId: string | null = null;
@@ -146,6 +179,7 @@ export function flattenBlockHierarchy(
     const tempBlockId = `temp_${Math.random().toString(36).substring(7)}`;
 
     result.push({
+      tempId: tempBlockId,
       content: node.content,
       parentBlockId,
       insertAfterBlockId: lastSiblingId,

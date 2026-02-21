@@ -1916,6 +1916,8 @@ pub fn block_type_to_string(bt: &BlockType) -> String {
         BlockType::Bullet => "bullet".to_string(),
         BlockType::Code => "code".to_string(),
         BlockType::Fence => "fence".to_string(),
+        BlockType::AiPrompt => "ai-prompt".to_string(),
+        BlockType::AiResponse => "ai-response".to_string(),
     }
 }
 

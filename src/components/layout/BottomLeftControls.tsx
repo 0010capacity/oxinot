@@ -8,12 +8,12 @@ import {
   IconCommand,
   IconHelp,
   IconHome,
-  IconMoon,
   IconLink,
+  IconMoon,
   IconSearch,
   IconSettings,
-  IconSun,
   IconSnowflake,
+  IconSun,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useSnowStore } from "../../stores/snowStore";
@@ -63,10 +63,34 @@ export function BottomLeftControls({
         left: "8px",
         zIndex: 40,
         display: "flex",
+        flexDirection: "column",
         gap: "4px",
         alignItems: "center",
       }}
     >
+      <Tooltip
+        label={isSnowEnabled ? "Disable snowfall" : "Enable snowfall"}
+        position="top"
+      >
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          onClick={toggleSnow}
+          styles={{
+            root: {
+              color: isSnowEnabled
+                ? "var(--color-interactive-hover)"
+                : "var(--color-text-secondary)",
+              "&:hover": {
+                backgroundColor: "var(--color-interactive-hover)",
+              },
+            },
+          }}
+        >
+          <IconSnowflake size={16} />
+        </ActionIcon>
+      </Tooltip>
+
       <Tooltip label={t("common.home")} position="top">
         <ActionIcon
           variant="subtle"
@@ -141,29 +165,6 @@ export function BottomLeftControls({
           styles={iconButtonStyles}
         >
           <IconLink size={16} />
-        </ActionIcon>
-      </Tooltip>
-
-      <Tooltip
-        label={isSnowEnabled ? "Disable snowfall" : "Enable snowfall"}
-        position="top"
-      >
-        <ActionIcon
-          variant="subtle"
-          size="md"
-          onClick={toggleSnow}
-          styles={{
-            root: {
-              color: isSnowEnabled
-                ? "var(--color-interactive-hover)"
-                : "var(--color-text-secondary)",
-              "&:hover": {
-                backgroundColor: "var(--color-interactive-hover)",
-              },
-            },
-          }}
-        >
-          <IconSnowflake size={16} />
         </ActionIcon>
       </Tooltip>
     </div>

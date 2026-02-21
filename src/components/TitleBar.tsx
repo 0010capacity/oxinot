@@ -33,7 +33,6 @@ export function TitleBar({ currentWorkspacePath }: TitleBarProps) {
         zIndex: 100,
       }}
     >
-      {/* Left - Navigation buttons */}
       <div
         data-tauri-drag-region
         style={{
@@ -47,7 +46,6 @@ export function TitleBar({ currentWorkspacePath }: TitleBarProps) {
         <NavigationButtons compact />
       </div>
 
-      {/* Center - Workspace picker */}
       <div
         style={{
           position: "absolute",
@@ -60,7 +58,6 @@ export function TitleBar({ currentWorkspacePath }: TitleBarProps) {
         <WorkspacePicker currentWorkspacePath={currentWorkspacePath} />
       </div>
 
-      {/* Right section - Clock only */}
       <div
         style={{
           display: "flex",
@@ -69,8 +66,6 @@ export function TitleBar({ currentWorkspacePath }: TitleBarProps) {
         }}
       >
         <Clock />
-
-        {/* Window controls - only show on Windows/Linux */}
         <WindowControls show={!isMac} />
       </div>
     </div>

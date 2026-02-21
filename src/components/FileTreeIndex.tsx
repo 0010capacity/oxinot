@@ -342,15 +342,8 @@ export function FileTreeIndex() {
     setDragState((currentState) => {
       const { draggedPageId, dragOverPageId, isDragging } = currentState;
 
-      console.log("[FileTreeIndex.handleMouseUp] Called with:", {
-        draggedPageId,
-        dragOverPageId,
-        isDragging,
-      });
-
       // If we never started dragging (just a click), reset and do nothing
       if (!isDragging) {
-        console.log("[FileTreeIndex.handleMouseUp] No drag detected, exiting");
         return {
           isDragging: false,
           draggedPageId: null,
@@ -364,98 +357,30 @@ export function FileTreeIndex() {
 
       // Perform drop if valid
       if (draggedPageId) {
-        const currentPages = pagesRef.current;
-        const draggedPage = currentPages.find((p) => p.id === draggedPageId);
-        const targetPage = currentPages.find((p) => p.id === dragOverPageId);
-
-        console.log("[FileTreeIndex.handleMouseUp] Dragged page:", {
-          id: draggedPage?.id,
-          title: draggedPage?.title,
-          currentParentId: draggedPage?.parentId,
-        });
-
         if (dragOverPageId === "root") {
           // Move to root level
-          console.log(
-            `[FileTreeIndex.handleMouseUp] Moving ${draggedPageId} to root`,
-          );
-          console.log(
-            "[FileTreeIndex.handleMouseUp] Pages state BEFORE movePage:",
-            currentPages.map((p) => ({
-              id: p.id,
-              title: p.title,
-              parentId: p.parentId,
-            })),
-          );
+          movePageRef.current(draggedPageId, null).catch((error) => {
+            const errorMessage = String(error);
+            console.error(
+              "[FileTreeIndex.handleMouseUp] Failed to move page:",
+              error,
+            );
 
-          movePageRef
-            .current(draggedPageId, null)
-            .then(() => {
-              console.log(
-                "[FileTreeIndex.handleMouseUp] Page moved to root successfully",
-              );
+            // Silently ignore validation errors (invalid move operations)
+            if (
+              errorMessage.includes("Cannot move page to itself") ||
+              errorMessage.includes("Cannot move page to its own descendant")
+            ) {
+              return;
+            }
 
-              const finalPage =
-                usePageStore.getState().pagesById[draggedPageId];
-              console.log("[FileTreeIndex.handleMouseUp] Final page state:", {
-                id: finalPage?.id,
-                title: finalPage?.title,
-                parentId: finalPage?.parentId,
-              });
-            })
-            .catch((error) => {
-              const errorMessage = String(error);
-              console.error(
-                "[FileTreeIndex.handleMouseUp] Failed to move page:",
-                error,
-              );
-
-              // Silently ignore validation errors (invalid move operations)
-              if (
-                errorMessage.includes("Cannot move page to itself") ||
-                errorMessage.includes("Cannot move page to its own descendant")
-              ) {
-                console.log(
-                  "[FileTreeIndex.handleMouseUp] Invalid move operation ignored",
-                );
-                return;
-              }
-
-              // Show alert for actual errors
-              alert(`Failed to move page: ${error}`);
-            });
-        } else if (dragOverPageId && draggedPageId !== dragOverPageId) {
-          console.log(
-            `[FileTreeIndex.handleMouseUp] Dropping ${draggedPageId} on ${dragOverPageId}`,
-          );
-          console.log("[FileTreeIndex.handleMouseUp] Target page:", {
-            id: targetPage?.id,
-            title: targetPage?.title,
+            // Show alert for actual errors
+            alert(`Failed to move page: ${error}`);
           });
-          console.log(
-            "[FileTreeIndex.handleMouseUp] Pages state BEFORE movePage:",
-            currentPages.map((p) => ({
-              id: p.id,
-              title: p.title,
-              parentId: p.parentId,
-            })),
-          );
-
+        } else if (dragOverPageId && draggedPageId !== dragOverPageId) {
           movePageRef
             .current(draggedPageId, dragOverPageId)
             .then(() => {
-              console.log(
-                "[FileTreeIndex.handleMouseUp] Page moved successfully",
-              );
-
-              const finalPage =
-                usePageStore.getState().pagesById[draggedPageId];
-              console.log("[FileTreeIndex.handleMouseUp] Final page state:", {
-                id: finalPage?.id,
-                title: finalPage?.title,
-                parentId: finalPage?.parentId,
-              });
-
               setCollapsed((prev) => ({
                 ...prev,
                 [dragOverPageId]: false,
@@ -473,24 +398,13 @@ export function FileTreeIndex() {
                 errorMessage.includes("Cannot move page to itself") ||
                 errorMessage.includes("Cannot move page to its own descendant")
               ) {
-                console.log(
-                  "[FileTreeIndex.handleMouseUp] Invalid move operation ignored",
-                );
                 return;
               }
 
               // Show alert for actual errors
               alert(`Failed to move page: ${error}`);
             });
-        } else {
-          console.log(
-            "[FileTreeIndex.handleMouseUp] Invalid drop target, no action taken",
-          );
         }
-      } else {
-        console.log(
-          "[FileTreeIndex.handleMouseUp] No draggedPageId, no action taken",
-        );
       }
 
       // Reset drag state
@@ -534,7 +448,6 @@ export function FileTreeIndex() {
   const handleCreatePage = useCallback<(title: string) => Promise<void>>(
     async (title: string) => {
       if (!title.trim()) {
-        console.log("[FileTreeIndex] Empty title, ignoring");
         setIsCreating(false);
         setCreatingParentId(null);
         return;
@@ -542,27 +455,14 @@ export function FileTreeIndex() {
 
       setIsSubmitting(true);
       try {
-        console.log(
-          "[FileTreeIndex] Creating page:",
-          title.trim(),
-          "parent:",
-          creatingParentId,
-        );
-
         // If creating a child, ensure parent is a directory first
         if (creatingParentId) {
           const parentPage =
             usePageStore.getState().pagesById[creatingParentId];
-          console.log("[FileTreeIndex] Parent page:", parentPage);
 
           if (parentPage && !parentPage.isDirectory) {
-            console.log(
-              "[FileTreeIndex] Converting parent to directory:",
-              creatingParentId,
-            );
             try {
               await convertToDirectory(creatingParentId);
-              console.log("[FileTreeIndex] Parent converted successfully");
             } catch (conversionError) {
               console.error(
                 "[FileTreeIndex] Failed to convert parent to directory:",
@@ -581,17 +481,7 @@ export function FileTreeIndex() {
           }
         }
 
-        console.log(
-          "[FileTreeIndex] Calling createPage with title:",
-          title.trim(),
-          "parentId:",
-          creatingParentId || undefined,
-        );
-        const newPageId = await createPage(
-          title.trim(),
-          creatingParentId || undefined,
-        );
-        console.log("[FileTreeIndex] Page created with ID:", newPageId);
+        await createPage(title.trim(), creatingParentId || undefined);
 
         // Clean up state immediately
         setIsCreating(false);
@@ -621,7 +511,6 @@ export function FileTreeIndex() {
   );
 
   const handleCancelCreate = useCallback(() => {
-    console.log("[FileTreeIndex] Canceling create");
     setIsCreating(false);
     setCreatingParentId(null);
     setIsSubmitting(false);
@@ -657,31 +546,11 @@ export function FileTreeIndex() {
 
   const handleDeletePage = useCallback(
     (pageId: string) => {
-      console.log(
-        "[FileTreeIndex] handleDeletePage called with pageId:",
-        pageId,
-      );
       const page = pages.find((p) => p.id === pageId);
       if (!page) {
         console.error("[FileTreeIndex] Page not found:", pageId);
         return;
       }
-
-      console.log("[FileTreeIndex] Found page to delete:", {
-        id: page.id,
-        title: page.title,
-        parentId: page.parentId,
-      });
-
-      // Log all pages to see the current state
-      console.log(
-        "[FileTreeIndex] Current pages in store:",
-        pages.map((p) => ({
-          id: p.id,
-          title: p.title,
-          parentId: p.parentId,
-        })),
-      );
 
       setPageToDelete(page);
       setDeleteModalOpened(true);
@@ -691,23 +560,11 @@ export function FileTreeIndex() {
 
   const confirmDeletePage = useCallback(async () => {
     if (!pageToDelete) {
-      console.log("[FileTreeIndex] confirmDeletePage: No page to delete");
       return;
     }
 
-    console.log("[FileTreeIndex] confirmDeletePage: Deleting page:", {
-      id: pageToDelete.id,
-      title: pageToDelete.title,
-      parentId: pageToDelete.parentId,
-    });
-
     try {
-      console.log(
-        "[FileTreeIndex] Calling deletePage with id:",
-        pageToDelete.id,
-      );
       await deletePage(pageToDelete.id);
-      console.log("[FileTreeIndex] deletePage completed successfully");
       setDeleteModalOpened(false);
       setPageToDelete(null);
     } catch (error) {
@@ -717,22 +574,14 @@ export function FileTreeIndex() {
   }, [pageToDelete, deletePage]);
 
   const handleAddChild = useCallback((parentId: string) => {
-    console.log(
-      "[FileTreeIndex] handleAddChild called with parentId:",
-      parentId,
-    );
     setCreatingParentId(parentId);
     setIsCreating(true);
 
     // Expand parent when adding child
-    setCollapsed((prev) => {
-      const newCollapsed = {
-        ...prev,
-        [parentId]: false,
-      };
-      console.log("[FileTreeIndex] Setting collapsed state:", newCollapsed);
-      return newCollapsed;
-    });
+    setCollapsed((prev) => ({
+      ...prev,
+      [parentId]: false,
+    }));
   }, []);
 
   const handleToggleCollapse = useCallback((pageId: string) => {
@@ -756,8 +605,6 @@ export function FileTreeIndex() {
     ) {
       return;
     }
-
-    console.log("[FileTreeIndex] Mouse down on:", pageId);
 
     // Don't prevent default yet - let click events work
     // We'll prevent default only when drag threshold is exceeded

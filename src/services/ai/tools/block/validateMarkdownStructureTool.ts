@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   flattenBlockHierarchy,
+  normalizeMarkdownIndentation,
   parseMarkdownToBlocks,
 } from "../../../../utils/markdownBlockParser";
 import type { Tool, ToolResult } from "../types";
@@ -16,13 +17,13 @@ export const validateMarkdownStructureTool: Tool = {
     markdown: z
       .string()
       .describe(
-        "Markdown text with bullet points to validate. MUST use EXACTLY 2 spaces per indent level (not 1 space, not tabs). Siblings at same level MUST have same indentation. CORRECT: '- Parent\\n  - Child1\\n  - Child2\\n  - Child3' (all children 2 spaces). WRONG: '- Parent\\n - Child1' (1 space) or '- Parent\\n  - Child1\\n    - Child2\\n      - Child3' (staircase)."
+        "Markdown text with bullet points to validate. MUST use EXACTLY 2 spaces per indent level (not 1 space, not tabs). Siblings at same level MUST have same indentation. CORRECT: '- Parent\\n  - Child1\\n  - Child2\\n  - Child3' (all children 2 spaces). WRONG: '- Parent\\n - Child1' (1 space) or '- Parent\\n  - Child1\\n    - Child2\\n      - Child3' (staircase).",
       ),
     expectedBlockCount: z
       .number()
       .optional()
       .describe(
-        "Expected number of blocks (for validation). If provided, returns whether actual count matches."
+        "Expected number of blocks (for validation). If provided, returns whether actual count matches.",
       ),
     maxDepth: z
       .number()
@@ -32,7 +33,13 @@ export const validateMarkdownStructureTool: Tool = {
 
   async execute(params): Promise<ToolResult> {
     try {
-      const parsedNodes = parseMarkdownToBlocks(params.markdown);
+      const { issues: indentationIssues } = normalizeMarkdownIndentation(
+        params.markdown,
+      );
+
+      const { nodes: parsedNodes } = parseMarkdownToBlocks(params.markdown, {
+        mode: "strict",
+      });
 
       if (parsedNodes.length === 0) {
         return {
@@ -78,28 +85,32 @@ export const validateMarkdownStructureTool: Tool = {
       const depthOK =
         params.maxDepth === undefined || maxDepth <= params.maxDepth;
 
-      const isValid = countMatches && depthOK;
+      const isValid = countMatches && depthOK && indentationIssues.length === 0;
 
       const warnings: string[] = [];
       if (!countMatches) {
         warnings.push(
-          `Block count mismatch: got ${blockCount}, expected ${params.expectedBlockCount}`
+          `Block count mismatch: got ${blockCount}, expected ${params.expectedBlockCount}`,
         );
       }
       if (!depthOK) {
         warnings.push(
-          `Nesting depth ${maxDepth} exceeds limit ${params.maxDepth}`
+          `Nesting depth ${maxDepth} exceeds limit ${params.maxDepth}`,
+        );
+      }
+      if (indentationIssues.length > 0) {
+        warnings.push(
+          `${indentationIssues.length} line(s) have odd indentation (should use 2 spaces per level)`,
         );
       }
 
-      // Always return success: true for validation tools
-      // The actual validation result is in data.isValid
       return {
         success: true,
         data: {
           isValid,
           blockCount,
           maxDepth,
+          indentationIssues,
           structure: parsedNodes.map((node) => ({
             content: node.content.slice(0, 60),
             depth: 1,
@@ -110,7 +121,11 @@ export const validateMarkdownStructureTool: Tool = {
         metadata: {
           message: `Parsed ${blockCount} blocks, max depth ${maxDepth}${
             !countMatches ? ` (expected ${params.expectedBlockCount})` : ""
-          }${!depthOK ? ` (exceeds max depth ${params.maxDepth})` : ""}`,
+          }${!depthOK ? ` (exceeds max depth ${params.maxDepth})` : ""}${
+            indentationIssues.length > 0
+              ? ` (${indentationIssues.length} indentation issues)`
+              : ""
+          }`,
         },
       };
     } catch (error) {

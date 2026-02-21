@@ -1,16 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  getBlockTool,
-  updateBlockTool,
   createBlockTool,
   deleteBlockTool,
+  getBlockTool,
   queryBlocksTool,
+  updateBlockTool,
 } from "../";
 
 // Mock Tauri invoke
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+}));
+
+// Mock dispatchBlockUpdate (used by create/update/delete tools)
+vi.mock("../../../../../events", () => ({
+  dispatchBlockUpdate: vi.fn(),
 }));
 
 describe("Block Tools", () => {
@@ -22,11 +27,11 @@ describe("Block Tools", () => {
 
   describe("get_block", () => {
     it("should get block successfully", async () => {
-      const mockBlock = { uuid: "test-uuid", content: "test content" };
+      const mockBlock = { id: "test-uuid", content: "test content" };
       vi.mocked(invoke).mockResolvedValue(mockBlock);
 
       const result = await getBlockTool.execute(
-        { uuid: "test-uuid" },
+        { blockId: "test-uuid" },
         mockContext,
       );
 
@@ -42,7 +47,7 @@ describe("Block Tools", () => {
       vi.mocked(invoke).mockResolvedValue(null);
 
       const result = await getBlockTool.execute(
-        { uuid: "nonexistent" },
+        { blockId: "nonexistent" },
         mockContext,
       );
 
@@ -53,11 +58,16 @@ describe("Block Tools", () => {
 
   describe("update_block", () => {
     it("should update block content", async () => {
-      vi.mocked(invoke).mockResolvedValue(undefined);
+      const mockUpdatedBlock = {
+        id: "test-uuid",
+        content: "new content",
+        pageId: "page-1",
+      };
+      vi.mocked(invoke).mockResolvedValue(mockUpdatedBlock);
 
       const result = await updateBlockTool.execute(
         {
-          uuid: "test-uuid",
+          blockId: "test-uuid",
           content: "new content",
         },
         mockContext,
@@ -75,37 +85,42 @@ describe("Block Tools", () => {
   });
 
   describe("create_block", () => {
-    it("should create block successfully", async () => {
-      // Mock get_block for parent
-      vi.mocked(invoke).mockResolvedValueOnce({ block: { page_id: "page-1" } });
-      // Mock create_block
-      vi.mocked(invoke).mockResolvedValueOnce({
+    it("should create block with pageId", async () => {
+      const mockNewBlock = {
         id: "new-uuid",
         content: "new block",
-      });
+        pageId: "550e8400-e29b-41d4-a716-446655440000",
+      };
+      vi.mocked(invoke).mockResolvedValue(mockNewBlock);
 
       const result = await createBlockTool.execute(
         {
-          parentUuid: "parent-uuid",
+          pageId: "550e8400-e29b-41d4-a716-446655440000",
           content: "new block",
         },
         mockContext,
       );
 
       expect(result.success).toBe(true);
-      expect(invoke).toHaveBeenCalledTimes(2);
-      expect(invoke).toHaveBeenNthCalledWith(1, "get_block", {
-        workspacePath: "/test",
-        request: { block_id: "parent-uuid" },
-      });
-      expect(invoke).toHaveBeenNthCalledWith(2, "create_block", {
+      expect(invoke).toHaveBeenCalledWith("create_block", {
         workspacePath: "/test",
         request: {
-          page_id: "page-1",
-          parent_id: "parent-uuid",
+          pageId: "550e8400-e29b-41d4-a716-446655440000",
+          parentId: null,
+          afterBlockId: null,
           content: "new block",
         },
       });
+    });
+
+    it("should fail when neither pageId nor parentBlockId provided", async () => {
+      const result = await createBlockTool.execute(
+        { content: "orphan block" },
+        mockContext,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("pageId or parentBlockId");
     });
   });
 
@@ -114,7 +129,7 @@ describe("Block Tools", () => {
       vi.mocked(invoke).mockResolvedValue(["deleted-uuid"]);
 
       const result = await deleteBlockTool.execute(
-        { uuid: "deleted-uuid" },
+        { blockId: "deleted-uuid" },
         mockContext,
       );
 

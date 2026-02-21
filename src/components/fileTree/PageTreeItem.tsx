@@ -120,11 +120,6 @@ export function PageTreeItem({
             label: t("common.context_menu.delete"),
             color: "red",
             onClick: () => {
-              console.log("[PageTreeItem] Delete clicked for page:", {
-                id: page.id,
-                title: page.title,
-                parentId: page.parentId,
-              });
               onDelete(page.id);
             },
           },
@@ -135,11 +130,8 @@ export function PageTreeItem({
   );
 
   const handlePageClick = async (e: React.MouseEvent) => {
-    const clickStartTime = performance.now();
     e.stopPropagation();
     if (isEditing) return;
-
-    console.log(`[PageTreeItem:timing] Click started for page ${page.id}`);
 
     const parentNames: string[] = [];
     const pagePathIds: string[] = [];
@@ -159,29 +151,16 @@ export function PageTreeItem({
 
     pagePathIds.push(page.id);
 
-    const uiStartTime = performance.now();
     selectPage(page.id);
     startTransition(() => {
       openNote(page.id, page.title, parentNames, pagePathIds);
     });
-    const uiTime = performance.now() - uiStartTime;
 
-    const dataLoadStartTime = performance.now();
     try {
       await loadPage(page.id);
     } catch (error) {
       console.error("[PageTreeItem] Failed to load page:", error);
     }
-    const dataLoadTime = performance.now() - dataLoadStartTime;
-
-    const totalTime = performance.now() - clickStartTime;
-    console.log(
-      `[PageTreeItem:timing] === CLICK HANDLER COMPLETE: ui=${uiTime.toFixed(
-        2,
-      )}ms, dataLoad=${dataLoadTime.toFixed(2)}ms, total=${totalTime.toFixed(
-        2,
-      )}ms ===`,
-    );
   };
 
   const handleBulletClick = (e: React.MouseEvent) => {
@@ -256,14 +235,7 @@ export function PageTreeItem({
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           onMouseDown={(e) => {
-            console.log("[PageTreeItem] onMouseDown triggered", {
-              pageId: page.id,
-              button: e.button,
-              isEditing,
-              target: (e.target as HTMLElement).tagName,
-            });
             if (!isEditing && e.button === 0) {
-              console.log("[PageTreeItem] Calling onMouseDown handler");
               onMouseDown(e, page.id);
             }
           }}
@@ -459,14 +431,6 @@ export function PageTreeItem({
                       color="red"
                       onClick={(e) => {
                         e.stopPropagation();
-                        console.log(
-                          "[PageTreeItem] Delete button clicked for page:",
-                          {
-                            id: page.id,
-                            title: page.title,
-                            parentId: page.parentId,
-                          },
-                        );
                         onDelete(page.id);
                       }}
                       title="Delete"

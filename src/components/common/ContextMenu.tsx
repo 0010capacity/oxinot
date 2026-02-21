@@ -60,9 +60,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   const handleOpenChange = useCallback(
     (opened: boolean) => {
-      console.log("[ContextMenu] Menu opened:", opened);
-      console.log("[ContextMenu] menuId:", menuId);
-
       if (!opened) {
         setOpenMenuId(null);
         setCoords({ x: 0, y: 0 });
@@ -92,16 +89,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               text: selection.toString(),
               ranges,
             };
-            console.log(
-              "[ContextMenu] Saved selection on mousedown:",
-              savedSelectionRef.current.text,
-            );
             return;
           }
         }
         // No valid selection, clear it
         savedSelectionRef.current = null;
-        console.log("[ContextMenu] No selection on mousedown");
       }
     };
 
@@ -120,24 +112,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       const savedSelection = savedSelectionRef.current;
       let hasSelection = false;
 
-      console.log("[ContextMenu] Right-click detected");
-      console.log("[ContextMenu] savedSelection:", savedSelection);
-
       if (savedSelection && savedSelection.text.trim().length > 0) {
         hasSelection = true;
-        console.log(
-          "[ContextMenu] hasSelection:",
-          hasSelection,
-          "text:",
-          savedSelection.text,
-        );
       }
-
-      console.log("[ContextMenu] Final hasSelection:", hasSelection);
-      console.log(
-        "[ContextMenu] textSelectionSections available:",
-        !!textSelectionSections,
-      );
 
       // If text is actually selected and we have textSelectionSections, use those
       if (
@@ -145,11 +122,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         textSelectionSections &&
         textSelectionSections.length > 0
       ) {
-        console.log("[ContextMenu] Using text selection menu");
         setActiveSections(textSelectionSections);
       } else {
         // Otherwise, use the default sections
-        console.log("[ContextMenu] Using default menu");
         setActiveSections(sections);
       }
 

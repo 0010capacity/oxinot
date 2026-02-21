@@ -61,18 +61,19 @@ export enum ToolCategory {
  * Tool execution context passed to all tools
  */
 export interface ToolContext {
-  /** Current workspace path */
   workspacePath: string;
-
-  /** Current page ID if available */
   currentPageId?: string;
-
-  /** Currently focused block ID if available */
   focusedBlockId?: string;
-
-  /** Currently selected block IDs */
   selectedBlockIds?: string[];
-
-  /** User ID for permission checks */
   userId?: string;
+  sessionId?: string;
+  recordChange?: (change: {
+    type: "create" | "update" | "delete";
+    toolName: string;
+    description: string;
+    blockId?: string;
+    pageId?: string;
+    before?: unknown;
+    after?: unknown;
+  }) => void;
 }

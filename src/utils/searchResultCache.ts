@@ -59,11 +59,6 @@ class SearchResultCache {
     const cached = this.getFromCache(cacheKey);
     if (cached !== null) {
       this.hits++;
-      console.log(
-        `[searchCache] Cache hit for "${query}". Hit rate: ${this.getHitRate().toFixed(
-          1
-        )}%`
-      );
       return cached;
     }
 
@@ -71,7 +66,6 @@ class SearchResultCache {
     this.misses++;
 
     try {
-      console.log(`[searchCache] Cache miss for "${query}". Searching...`);
       const results = await invoke<SearchResult[]>("search_content", {
         workspacePath,
         query: cacheKey,
@@ -101,11 +95,6 @@ class SearchResultCache {
     const age = Date.now() - cached.timestamp;
     if (age > this.TTL_MS) {
       this.cache.delete(query);
-      console.log(
-        `[searchCache] TTL expired for "${query}" (age: ${(age / 1000).toFixed(
-          1
-        )}s)`
-      );
       return null;
     }
 
@@ -119,12 +108,11 @@ class SearchResultCache {
     // Evict oldest if at capacity
     if (this.cache.size >= this.MAX_ENTRIES) {
       const oldest = Array.from(this.cache.entries()).sort(
-        ([, a], [, b]) => a.timestamp - b.timestamp
+        ([, a], [, b]) => a.timestamp - b.timestamp,
       )[0];
 
       if (oldest) {
         this.cache.delete(oldest[0]);
-        console.log(`[searchCache] Evicted oldest query: "${oldest[0]}"`);
       }
     }
 
@@ -133,10 +121,6 @@ class SearchResultCache {
       results,
       timestamp: Date.now(),
     });
-
-    console.log(
-      `[searchCache] Cached "${query}" (${results.length} results). Cache size: ${this.cache.size}/${this.MAX_ENTRIES}`
-    );
   }
 
   /**
@@ -147,7 +131,7 @@ class SearchResultCache {
     const hitRate = total > 0 ? (this.hits / total) * 100 : 0;
     const totalResults = Array.from(this.cache.values()).reduce(
       (sum, cached) => sum + cached.results.length,
-      0
+      0,
     );
     const avgResults = this.cache.size > 0 ? totalResults / this.cache.size : 0;
 
@@ -180,8 +164,7 @@ class SearchResultCache {
 ╠════════════════════════════════════════════════════════╣
 ║ CAPACITY                                               ║
 ║   Cached Queries: ${String(stats.size).padEnd(2)} / ${stats.capacity} (${(
-      (stats.size / stats.capacity) *
-      100
+      (stats.size / stats.capacity) * 100
     ).toFixed(1)}%)
 ║   Avg Results/Query: ${stats.avgResultsPerQuery.toFixed(1)}
 ║                                                        ║
@@ -232,29 +215,12 @@ ${stats.recentQueries.map((q, i) => `║   ${i + 1}. "${q}"`).join("\n")}
    */
   invalidatePattern(pattern: string): void {
     const regex = new RegExp(pattern, "i");
-    let count = 0;
 
     for (const query of this.cache.keys()) {
       if (regex.test(query)) {
         this.cache.delete(query);
-        count++;
       }
     }
-
-    if (count > 0) {
-      console.log(
-        `[searchCache] Invalidated ${count} queries matching "${pattern}"`
-      );
-    }
-  }
-
-  /**
-   * Get hit rate
-   */
-  private getHitRate(): number {
-    const total = this.hits + this.misses;
-    if (total === 0) return 0;
-    return (this.hits / total) * 100;
   }
 }
 
@@ -269,7 +235,6 @@ declare global {
 
 if (typeof window !== "undefined") {
   window.__searchCache = searchResultCache;
-  console.log("[searchCache] 🚀 Search cache available at __searchCache");
 }
 
 export default searchResultCache;

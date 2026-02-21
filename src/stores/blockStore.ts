@@ -20,7 +20,7 @@ export interface BlockData {
   content: string;
   orderWeight: number;
   isCollapsed: boolean;
-  blockType: "bullet" | "code" | "fence";
+  blockType: "bullet" | "code" | "fence" | "ai-prompt" | "ai-response";
   language?: string;
   createdAt: string;
   updatedAt: string;
@@ -119,8 +119,6 @@ export const useBlockStore = create<BlockStore>()(
       // ============ Page Operations ============
 
       openPage: async (pageId: string) => {
-        const pageLoadStartTime = performance.now();
-
         if (get().currentPageId === pageId && get().isLoading) return;
 
         set((state) => {
@@ -134,9 +132,6 @@ export const useBlockStore = create<BlockStore>()(
             throw new Error("No workspace selected");
           }
 
-          console.log(`[blockStore:timing] Page load started for ${pageId}`);
-
-          const ipcStartTime = performance.now();
           const response = await invoke<{
             rootBlocks: BlockData[];
             childrenByParent: Record<string, BlockData[]>;
@@ -145,25 +140,13 @@ export const useBlockStore = create<BlockStore>()(
             workspacePath,
             pageId,
           });
-          const ipcTime = performance.now() - ipcStartTime;
-          console.log(
-            `[blockStore:timing] IPC call completed in ${ipcTime.toFixed(2)}ms`,
-          );
 
-          const normalizeStartTime = performance.now();
           const { blocksById, childrenMap } = normalizeBlocks(
             response.rootBlocks,
-          );
-          const normalizeTime = performance.now() - normalizeStartTime;
-          console.log(
-            `[blockStore:timing] Normalization completed in ${normalizeTime.toFixed(
-              2,
-            )}ms`,
           );
 
           const isRootEmpty = (childrenMap.root ?? []).length === 0;
 
-          const metadataStartTime = performance.now();
           set((state) => {
             state.blocksById = blocksById;
             state.childrenMap = childrenMap;
@@ -181,22 +164,10 @@ export const useBlockStore = create<BlockStore>()(
               state.isLoading = false;
             }
           });
-          const metadataTime = performance.now() - metadataStartTime;
-          console.log(
-            `[blockStore:timing] State update (with metadata) completed in ${metadataTime.toFixed(
-              2,
-            )}ms`,
-          );
 
           if (isRootEmpty) {
-            console.log(
-              `[blockStore] Creating initial block for page ${pageId}...`,
-            );
             try {
               await get().createBlock(null, "");
-              console.log(
-                `[blockStore] Initial block created successfully for page ${pageId}`,
-              );
             } catch (blockError) {
               console.error(
                 `[blockStore] Failed to create initial block for page ${pageId}:`,
@@ -215,17 +186,6 @@ export const useBlockStore = create<BlockStore>()(
               state.isLoading = false;
             });
           }
-
-          const totalTime = performance.now() - pageLoadStartTime;
-          console.log(
-            `[blockStore:timing] === TOTAL PAGE LOAD TIME: ${totalTime.toFixed(
-              2,
-            )}ms (IPC: ${ipcTime.toFixed(
-              2,
-            )}ms, Normalize: ${normalizeTime.toFixed(
-              2,
-            )}ms, Metadata: ${metadataTime.toFixed(2)}ms) ===`,
-          );
         } catch (error) {
           console.error(
             `[blockStore] Failed to load page ${pageId}:`,
@@ -259,18 +219,10 @@ export const useBlockStore = create<BlockStore>()(
             throw new Error("No workspace selected");
           }
 
-          console.log(`[blockStore] Loading root blocks for page ${pageId}...`);
-          const startTime = performance.now();
           const rootBlocks: BlockData[] = await invoke("get_page_blocks_root", {
             workspacePath,
             pageId,
           });
-          const rootLoadTime = performance.now() - startTime;
-          console.log(
-            `[blockStore] Loaded ${
-              rootBlocks.length
-            } root blocks in ${rootLoadTime.toFixed(2)}ms`,
-          );
 
           const {
             blocksById: initialBlocksById,
@@ -289,14 +241,8 @@ export const useBlockStore = create<BlockStore>()(
           });
 
           if (isRootEmpty) {
-            console.log(
-              `[blockStore] Creating initial block for page ${pageId}...`,
-            );
             try {
               await get().createBlock(null, "");
-              console.log(
-                `[blockStore] Initial block created successfully for page ${pageId}`,
-              );
             } catch (blockError) {
               console.error(
                 `[blockStore] Failed to create initial block for page ${pageId}:`,
@@ -323,9 +269,6 @@ export const useBlockStore = create<BlockStore>()(
               parentIds: rootBlockIds,
             })
               .then((childBlocks) => {
-                console.log(
-                  `[blockStore] Loaded ${childBlocks.length} child blocks progressively`,
-                );
                 set((state) => {
                   const {
                     blocksById: newBlocksById,
@@ -350,11 +293,6 @@ export const useBlockStore = create<BlockStore>()(
               },
             )
               .then((metadataMap) => {
-                console.log(
-                  `[blockStore] Loaded metadata for ${
-                    Object.keys(metadataMap).length
-                  } root blocks`,
-                );
                 set((state) => {
                   for (const [blockId, metadata] of Object.entries(
                     metadataMap,
@@ -716,11 +654,19 @@ export const useBlockStore = create<BlockStore>()(
             request: { id, content },
           });
 
+          console.log(
+            `[blockStore:updateBlockContent] invoke DONE blockId=${id.slice(0, 8)}, updating state`,
+          );
+
           // Update state with backend result
           set((state) => {
             if (state.blocksById[id]) {
               state.blocksById[id].content = content;
               state.blocksById[id].updatedAt = new Date().toISOString();
+              console.log(
+                `[blockStore:updateBlockContent] state updated for blockId=${id.slice(0, 8)}`,
+              );
+            } else {
             }
           });
         } catch (error) {
@@ -871,13 +817,8 @@ export const useBlockStore = create<BlockStore>()(
             blockId: id,
           });
 
-          console.log(
-            "[blockStore:indentBlock] Backend returned, new parentId:",
-            updatedBlock.parentId,
-          );
           // Update only the changed block
           get().updatePartialBlocks([updatedBlock]);
-          console.log("[blockStore:indentBlock] updatePartialBlocks completed");
         } catch (error) {
           console.error("Failed to indent block:", error);
           const pageId = get().currentPageId;
@@ -936,16 +877,10 @@ export const useBlockStore = create<BlockStore>()(
       },
 
       mergeWithPrevious: async (id: string, draftContent?: string) => {
-        console.log(
-          `[blockStore] mergeWithPrevious called for block ${id.slice(0, 8)}, draftContent="${(draftContent ?? "").slice(0, 20)}"`,
-        );
         const { blocksById, getPreviousVisibleBlock, deleteBlock } = get();
 
         const { mergingBlockId } = useBlockUIStore.getState();
         if (mergingBlockId === id) {
-          console.log(
-            `[blockStore] Merge already in progress for block ${id.slice(0, 8)}`,
-          );
           return;
         }
 
@@ -963,16 +898,10 @@ export const useBlockStore = create<BlockStore>()(
           // Case 1: If current block is empty, delete it and move focus to previous
           if (contentToMerge === "") {
             const prevBlockId = getPreviousVisibleBlock(id);
-            console.log(
-              `[blockStore] Case 1: Empty block ${id.slice(0, 8)}, prev=${prevBlockId?.slice(0, 8) ?? "null"}`,
-            );
             await deleteBlock(id);
 
             if (prevBlockId) {
               const prevBlock = get().blocksById[prevBlockId];
-              console.log(
-                `[blockStore] Setting focus to ${prevBlockId.slice(0, 8)}, cursor=${prevBlock?.content.length ?? 0}`,
-              );
               useBlockUIStore.getState().requestFocus(prevBlockId);
               useBlockUIStore
                 .getState()
@@ -986,11 +915,7 @@ export const useBlockStore = create<BlockStore>()(
 
           // Case 2: Non-empty block, merge into previous
           const prevBlockId = getPreviousVisibleBlock(id);
-          console.log(
-            `[blockStore] Case 2: Merge block ${id.slice(0, 8)}, prev=${prevBlockId?.slice(0, 8) ?? "null"}`,
-          );
           if (!prevBlockId) {
-            console.log("[blockStore] No previous block found, returning");
             return;
           }
 

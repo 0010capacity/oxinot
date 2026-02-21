@@ -12,7 +12,7 @@ import type { Tool, ToolResult } from "../types";
 export const createBlocksBatchTool: Tool = {
   name: "create_blocks_batch",
   description:
-    "Efficiently create 100+ blocks at once from indented markdown. Uses a single batch operation for better performance than creating blocks one at a time. Recommended for large structures.",
+    "Efficiently create 100+ blocks at once from indented markdown. Uses a single batch operation for better performance than creating blocks one at a time. This is the PREFERRED tool for creating multiple blocks, lists, or hierarchical structures. Each line in the markdown becomes a separate block, and indentation determines parent-child nesting. Never use single-block tools (create_block, insert_block_below) in a loop when this tool can do it in one call.",
   category: "block",
   requiresApproval: false,
 
@@ -21,12 +21,12 @@ export const createBlocksBatchTool: Tool = {
       .string()
       .uuid()
       .describe(
-        "UUID of the page where blocks will be created. Example: '550e8400-e29b-41d4-a716-446655440000'"
+        "UUID of the page where blocks will be created. Example: '550e8400-e29b-41d4-a716-446655440000'",
       ),
     markdown: z
       .string()
       .describe(
-        "Markdown text with bullet points and indentation. Each line becomes a block, indentation determines nesting. Example: '- Item 1\\n  - Item 1.1\\n  - Item 1.2\\n- Item 2'"
+        "Markdown text with bullet points and indentation. Each line becomes a block, indentation determines nesting. Example: '- Item 1\\n  - Item 1.1\\n  - Item 1.2\\n- Item 2'",
       ),
   }),
 
@@ -42,7 +42,9 @@ export const createBlocksBatchTool: Tool = {
         };
       }
 
-      const parsedNodes = parseMarkdownToBlocks(params.markdown);
+      const { nodes: parsedNodes } = parseMarkdownToBlocks(params.markdown, {
+        mode: "tolerant",
+      });
       console.log("[create_blocks_batch] Parsed nodes:", parsedNodes.length);
 
       if (parsedNodes.length === 0) {
@@ -59,10 +61,10 @@ export const createBlocksBatchTool: Tool = {
         pageId: params.pageId,
         parentId: flatBlock.parentBlockId?.startsWith("temp_")
           ? null
-          : flatBlock.parentBlockId ?? null,
+          : (flatBlock.parentBlockId ?? null),
         afterBlockId: flatBlock.insertAfterBlockId?.startsWith("temp_")
           ? null
-          : flatBlock.insertAfterBlockId ?? null,
+          : (flatBlock.insertAfterBlockId ?? null),
         content: flatBlock.content,
         blockType: "bullet" as const,
       }));

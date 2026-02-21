@@ -1,4 +1,5 @@
 import type { ToolContext, ToolResult } from "../tools/types";
+import type { ChatMessage } from "../types";
 
 /**
  * Agent execution step representing a single action
@@ -54,61 +55,34 @@ export interface AgentState {
   /** Error message if failed */
   error?: string;
 
-  /** Task execution progress */
-  taskProgress: TaskProgress;
-}
+  /** Current execution phase */
+  executionPhase: "execution" | "response";
 
-/**
- * Task execution progress state
- */
-export interface TaskProgress {
-  /** Current workflow phase */
-  phase:
-    | "idle"
-    | "analyzing"
-    | "planning"
-    | "creating_page"
-    | "creating_blocks"
-    | "verifying"
-    | "complete";
-
-  /** Completed steps (summary) */
-  completedSteps: string[];
-
-  /** Pending steps (what's left to do) */
-  pendingSteps: string[];
-
-  /** Resources created during execution */
-  createdResources: {
-    pages: Array<{ id: string; title: string }>;
-    blocks: Array<{ id: string; pageId: string }>;
-  };
+  /** Number of tool calls made in this execution */
+  toolCallsMade: number;
 }
 
 /**
  * Agent configuration
  */
 export interface AgentConfig {
-  /** Maximum iterations before giving up */
   maxIterations?: number;
 
-  /** Whether to show detailed step-by-step UI */
   verbose?: boolean;
 
-  /** Tool execution context */
   context: ToolContext;
 
-  /** AI provider API key */
   apiKey?: string;
 
-  /** AI provider base URL */
   baseUrl?: string;
 
-  /** AI model name */
   model?: string;
 
-  /** Temperature for controlling randomness in AI responses (0.0-1.0) */
   temperature?: number;
+
+  maxTotalToolCalls?: number;
+
+  history?: ChatMessage[];
 }
 
 /**
@@ -120,7 +94,7 @@ export interface IAgentOrchestrator {
    */
   execute(
     goal: string,
-    config: AgentConfig
+    config: AgentConfig,
   ): AsyncGenerator<AgentStep, void, unknown>;
 
   /**

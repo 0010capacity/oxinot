@@ -7,7 +7,7 @@ import type { Tool, ToolResult } from "../types";
 export const createBlockTool: Tool = {
   name: "create_block",
   description:
-    "Create a new block in the document. Supports creating root blocks (0-level), nested blocks, and inserting at specific positions.",
+    "Create a SINGLE atomic block. Use for one-item content only. WARNING: If you need to create multiple items, lists, or hierarchies, use create_blocks_from_markdown instead. NEVER use this tool with content containing newlines to simulate lists - that breaks the outliner architecture. Each newline in content creates broken, non-reorderable text, not separate blocks. Supports creating root blocks (0-level), nested blocks, and inserting at specific positions.",
   category: "block",
   requiresApproval: false,
 
@@ -37,7 +37,7 @@ export const createBlockTool: Tool = {
     content: z
       .string()
       .describe(
-        "Markdown content of the new block. Can include formatting (e.g., **bold**, # heading, `code`). Example: '# Title or **Task: Review design**'",
+        "Markdown content of the SINGLE block. Can include inline formatting (e.g., **bold**, `code`). CRITICAL: Do NOT include newlines to create lists - use create_blocks_from_markdown for multi-item content. This content represents ONE atomic item. Example: '**Task: Review design**' or 'Meeting on Friday'",
       ),
   }),
 

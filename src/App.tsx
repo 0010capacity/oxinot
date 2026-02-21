@@ -15,11 +15,11 @@ if (typeof window !== "undefined") {
   });
 }
 
+import { CopilotInlineChat } from "./components/CopilotInlineChat";
 import { ErrorNotifications } from "./components/ErrorNotifications";
 import { GitStatusIndicator } from "./components/GitStatusIndicator";
 import { SnowEffect } from "./components/SnowEffect";
 import { TitleBar } from "./components/TitleBar";
-import { CopilotButton } from "./components/copilot/CopilotButton";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
 
 // Lazy load non-critical components for code splitting
@@ -32,13 +32,12 @@ const SearchModal = lazy(() => import("./components/SearchModal"));
 const SettingsModal = lazy(() => import("./components/SettingsModal"));
 const Updater = lazy(() => import("./components/Updater"));
 const BlockEditor = lazy(() => import("./outliner/BlockEditor"));
-const CopilotPanel = lazy(() => import("./components/copilot/CopilotPanel"));
-import { useCopilotUiStore } from "./stores/copilotUiStore";
 
 import { useTranslation } from "react-i18next";
 import { useAdvancedSettingsStore } from "./stores/advancedSettingsStore";
 import { useAppSettingsStore } from "./stores/appSettingsStore";
 import { useBlockStore } from "./stores/blockStore";
+import { useFloatingPanelStore } from "./stores/floatingPanelStore";
 import { usePageStore } from "./stores/pageStore";
 import { useThemeStore } from "./stores/themeStore";
 import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
@@ -215,10 +214,6 @@ function AppContent({ workspacePath }: AppContentProps) {
     handleMigrationCancel,
   } = useWorkspaceInitializer(workspacePath, openHomepage, setWorkspaceName);
 
-  const copilotOpen = useCopilotUiStore((state) => state.isOpen);
-  const copilotPanelWidth = useCopilotUiStore((state) => state.panelWidth);
-
-  // Register core commands
   useCoreCommands({
     onOpenSearch: () => setSearchOpened(true),
     onOpenSettings: () => setSettingsOpened(true),
@@ -250,9 +245,17 @@ function AppContent({ workspacePath }: AppContentProps) {
     },
     onGoHome: () => showIndex(),
     onToggleIndex: () => showIndex(),
-    onToggleCopilot: () => useCopilotUiStore.getState().toggle(),
     onUndo: () => useBlockStore.temporal.getState().undo(),
     onRedo: () => useBlockStore.temporal.getState().redo(),
+    onCopilotToggle: () => useFloatingPanelStore.getState().togglePanel(),
+    onFocusSwitch: () => {
+      const { isOpen } = useFloatingPanelStore.getState();
+      if (isOpen) {
+        document.querySelector<HTMLElement>(".block-editor-container")?.focus();
+      } else {
+        document.querySelector<HTMLElement>(".copilot-input")?.focus();
+      }
+    },
   });
 
   // Listen for block updates from Copilot tools
@@ -319,11 +322,6 @@ function AppContent({ workspacePath }: AppContentProps) {
     <>
       <AppShell
         padding={0}
-        aside={{
-          width: copilotPanelWidth,
-          breakpoint: "sm",
-          collapsed: { mobile: !copilotOpen, desktop: !copilotOpen },
-        }}
         styles={{
           main: {
             backgroundColor: "var(--color-bg-primary)",
@@ -335,10 +333,8 @@ function AppContent({ workspacePath }: AppContentProps) {
         }}
       >
         <AppShell.Main>
-          {/* Custom Title Bar */}
           <TitleBar currentWorkspacePath={workspacePath} />
 
-          {/* Bottom Left Controls */}
           <BottomLeftControls
             onHomeClick={openHomepage}
             onSettingsClick={() => setSettingsOpened(true)}
@@ -354,9 +350,6 @@ function AppContent({ workspacePath }: AppContentProps) {
             onGraphViewClick={() => setGraphViewOpened(true)}
           />
 
-          <CopilotButton />
-
-          {/* Main Content Panel */}
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
             {!isInitialized ? (
               <Container size="sm" py="xl" mt={50}>
@@ -399,18 +392,10 @@ function AppContent({ workspacePath }: AppContentProps) {
             )}
           </div>
 
-          {/* Git Status Indicator - Bottom Right */}
           <GitStatusIndicator workspacePath={workspacePath} />
         </AppShell.Main>
-
-        <AppShell.Aside>
-          <Suspense fallback={null}>
-            <CopilotPanel />
-          </Suspense>
-        </AppShell.Aside>
       </AppShell>
 
-      {/* Migration Dialog */}
       <Suspense fallback={null}>
         <MigrationDialog
           workspacePath={workspacePath}
@@ -506,6 +491,7 @@ function AppContent({ workspacePath }: AppContentProps) {
       <Notifications />
       <ErrorNotifications />
       <SnowEffect />
+      <CopilotInlineChat />
     </>
   );
 }

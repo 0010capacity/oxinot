@@ -27,9 +27,10 @@ export const DEFAULT_SHORTCUTS: Record<string, Shortcut> = {
   go_home: { id: "go_home", key: "h", modKey: true, shiftKey: true },
   new_page: { id: "new_page", key: "n", modKey: true },
   toggle_index: { id: "toggle_index", key: "\\", modKey: true },
-  toggle_copilot: { id: "toggle_copilot", key: ";", modKey: true },
   undo: { id: "undo", key: "z", modKey: true },
   redo: { id: "redo", key: "z", modKey: true, shiftKey: true },
+  copilot_toggle: { id: "copilot_toggle", key: ".", modKey: true },
+  focus_switch: { id: "focus_switch", key: "Escape", modKey: true },
 };
 
 export const useShortcutStore = create<ShortcutStore>()(

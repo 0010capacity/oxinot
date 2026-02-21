@@ -1,3 +1,4 @@
+use crate::commands::block::block_type_to_string;
 use crate::models::block::{Block, BlockType};
 use chrono::Utc;
 use std::collections::HashMap;
@@ -162,6 +163,26 @@ fn render_blocks(
                     output.push_str(&format!("{}{}\n", indent, line));
                 }
                 output.push_str(&format!("{}///\n", indent));
+            }
+            BlockType::AiPrompt | BlockType::AiResponse => {
+                output.push_str(&format!(
+                    "{}- {}\n",
+                    indent,
+                    sanitize_content_for_markdown(&block.content)
+                ));
+                output.push_str(&format!("{}  {}{}\n", indent, ID_MARKER_PREFIX, block.id));
+                output.push_str(&format!(
+                    "{}  block_type::{}\n",
+                    indent,
+                    block_type_to_string(&block.block_type)
+                ));
+                let mut metadata_keys: Vec<&String> = block.metadata.keys().collect();
+                metadata_keys.sort();
+                for key in metadata_keys {
+                    if let Some(value) = block.metadata.get(key) {
+                        output.push_str(&format!("{}  {}::{}\n", indent, key, value));
+                    }
+                }
             }
         }
 

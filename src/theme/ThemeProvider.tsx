@@ -1,14 +1,14 @@
 import {
   MantineProvider,
-  useComputedColorScheme,
   type MantineThemeOverride,
+  useComputedColorScheme,
 } from "@mantine/core";
 import {
   type ReactNode,
   createContext,
+  useCallback,
   useEffect,
   useMemo,
-  useCallback,
 } from "react";
 import { useThemeStore } from "../stores/themeStore";
 import type { AppTheme } from "./schema";
@@ -41,7 +41,6 @@ function ThemeSynchronizer({ children }: { children: ReactNode }) {
   // Synchronize CSS variables to the document root
   useEffect(() => {
     const root = document.documentElement;
-    console.log("[ThemeSynchronizer] Applying theme:", appTheme.name);
 
     const setCssVariables = (
       element: HTMLElement,

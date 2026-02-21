@@ -14,9 +14,8 @@ export interface AIRequest {
   apiKey?: string;
 
   // Context & Tools
-  history?: ChatMessage[]; // Previous chat history
+  history?: ChatMessage[];
   tools?: Tool[];
-  onToolCall?: (toolName: string, params: unknown) => Promise<unknown>;
 }
 
 export interface ToolCall {
