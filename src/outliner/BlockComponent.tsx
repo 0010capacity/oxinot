@@ -58,8 +58,15 @@ import { MacroContentWrapper } from "./MacroContentWrapper";
 import { editorStateCache } from "./editorStateCache";
 import { renderMarkdownToHtml } from "./markdownRenderer";
 import "./BlockComponent.css";
+import { TodoStatusIcon } from "../components/todo/TodoStatusIcon";
 import { INDENT_PER_LEVEL } from "../constants/layout";
 import { useIsBlockSelected } from "../hooks/useBlockSelection";
+import {
+  extractStatusPrefix,
+  getNextStatus,
+  getTodoStatus,
+  setStatusPrefix,
+} from "../types/todo";
 import { BlockOrderContext } from "./BlockEditor";
 import {
   calculateNextBlockCursorPosition,
@@ -1017,6 +1024,34 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       [blockId, hasChildren, setFocusedBlock],
     );
 
+    const todoStatus = getTodoStatus(blockMetadata);
+
+    const handleTodoStatusCycle = useCallback(async () => {
+      const currentStatus = getTodoStatus(blockMetadata);
+      const content = blockContent || "";
+
+      if (currentStatus) {
+        const nextStatus = getNextStatus(currentStatus);
+        const newContent = setStatusPrefix(
+          extractStatusPrefix(content)?.rest || content,
+          nextStatus,
+        );
+        draftRef.current = newContent;
+        setDraft(newContent);
+        await useBlockStore.getState().updateBlockContent(blockId, newContent);
+      } else {
+        const newContent = setStatusPrefix(content, "todo");
+        draftRef.current = newContent;
+        setDraft(newContent);
+        await useBlockStore.getState().updateBlockContent(blockId, newContent);
+      }
+    }, [blockId, blockMetadata, blockContent]);
+
+    const handleTodoContextMenu = useCallback((e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, []);
+
     // Create custom keybindings for CodeMirror to handle block operations
     const handleContentChangeWithTrigger = useCallback(
       (value: string) => {
@@ -1443,6 +1478,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             )}
 
             {/* Bullet Point / AI Icon - clickable for zoom */}
+            {todoStatus && (
+              <TodoStatusIcon
+                status={todoStatus}
+                onClick={handleTodoStatusCycle}
+                onContextMenu={handleTodoContextMenu}
+              />
+            )}
             <button
               type="button"
               className={`block-bullet-wrapper ${isAiPrompt ? "ai-prompt-icon" : ""} ${isAiResponse ? "ai-response-icon" : ""}`}

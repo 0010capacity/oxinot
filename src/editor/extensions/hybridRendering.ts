@@ -36,7 +36,6 @@
  */
 
 import { syntaxTree } from "@codemirror/language";
-import type { Tree } from "@lezer/common";
 import { Compartment, Facet, RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
@@ -45,6 +44,7 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
+import type { Tree } from "@lezer/common";
 
 import { BlockquoteHandler } from "./handlers/BlockquoteHandler";
 import { CodeBlockHandler } from "./handlers/CodeBlockHandler";
@@ -62,6 +62,7 @@ import { CalloutHandler } from "./handlers/CalloutHandler";
 import { CommentHandler } from "./handlers/CommentHandler";
 import { HighlightHandler } from "./handlers/HighlightHandler";
 import { TagHandler } from "./handlers/TagHandler";
+import { TodoPrefixHandler } from "./handlers/TodoPrefixHandler";
 // Import Obsidian-specific handlers
 import { WikiLinkHandler } from "./handlers/WikiLinkHandler";
 
@@ -268,6 +269,10 @@ function buildDecorations(view: EditorView): DecorationSet {
       );
       decorations.push(
         ...CommentHandler.processLine(lineText, line.from, isEditMode),
+      );
+
+      decorations.push(
+        ...TodoPrefixHandler.processLine(lineText, line.from, isEditMode),
       );
 
       // Block-level callouts (but enforced in CalloutHandler)
