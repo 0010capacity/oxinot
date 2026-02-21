@@ -649,7 +649,7 @@ export const useBlockStore = create<BlockStore>()(
             `[blockStore:updateBlockContent] invoke START blockId=${id.slice(0, 8)}, content="${content.slice(0, 30)}"`,
           );
 
-          await invoke("update_block", {
+          const updatedBlock = await invoke<BlockData>("update_block", {
             workspacePath,
             request: { id, content },
           });
@@ -658,15 +658,17 @@ export const useBlockStore = create<BlockStore>()(
             `[blockStore:updateBlockContent] invoke DONE blockId=${id.slice(0, 8)}, updating state`,
           );
 
-          // Update state with backend result
           set((state) => {
             if (state.blocksById[id]) {
               state.blocksById[id].content = content;
-              state.blocksById[id].updatedAt = new Date().toISOString();
+              state.blocksById[id].updatedAt = updatedBlock.updatedAt;
+              if (updatedBlock.metadata) {
+                state.blocksById[id].metadata = updatedBlock.metadata;
+              }
               console.log(
-                `[blockStore:updateBlockContent] state updated for blockId=${id.slice(0, 8)}`,
+                `[blockStore:updateBlockContent] state updated for blockId=${id.slice(0, 8)}, metadata=`,
+                updatedBlock.metadata,
               );
-            } else {
             }
           });
         } catch (error) {

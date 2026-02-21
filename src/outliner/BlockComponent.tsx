@@ -1477,40 +1477,46 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               <div className="collapse-toggle-placeholder" />
             )}
 
-            {/* Bullet Point / AI Icon - clickable for zoom */}
-            {todoStatus && (
+            {/* Bullet Point / AI Icon / TODO Status - clickable for zoom or cycle */}
+            {todoStatus ? (
               <TodoStatusIcon
                 status={todoStatus}
                 onClick={handleTodoStatusCycle}
                 onContextMenu={handleTodoContextMenu}
               />
+            ) : (
+              <button
+                type="button"
+                className={`block-bullet-wrapper ${isAiPrompt ? "ai-prompt-icon" : ""} ${isAiResponse ? "ai-response-icon" : ""}`}
+                onClick={handleBulletClick}
+                style={{
+                  cursor: hasChildren ? "pointer" : "default",
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                title={
+                  hasChildren ? "Click to zoom into this block" : undefined
+                }
+              >
+                {isAiPrompt ? (
+                  <IconSparkles
+                    size={16}
+                    style={{ color: "var(--color-accent)" }}
+                  />
+                ) : isAiResponse ? (
+                  <IconRobot
+                    size={16}
+                    style={{ color: "var(--color-accent)" }}
+                  />
+                ) : (
+                  <div className="block-bullet" />
+                )}
+              </button>
             )}
-            <button
-              type="button"
-              className={`block-bullet-wrapper ${isAiPrompt ? "ai-prompt-icon" : ""} ${isAiResponse ? "ai-response-icon" : ""}`}
-              onClick={handleBulletClick}
-              style={{
-                cursor: hasChildren ? "pointer" : "default",
-                border: "none",
-                background: "transparent",
-                padding: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              title={hasChildren ? "Click to zoom into this block" : undefined}
-            >
-              {isAiPrompt ? (
-                <IconSparkles
-                  size={16}
-                  style={{ color: "var(--color-accent)" }}
-                />
-              ) : isAiResponse ? (
-                <IconRobot size={16} style={{ color: "var(--color-accent)" }} />
-              ) : (
-                <div className="block-bullet" />
-              )}
-            </button>
 
             {/* Content Editor */}
             <div
