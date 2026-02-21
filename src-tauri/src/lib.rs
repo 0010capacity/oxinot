@@ -549,6 +549,8 @@ pub fn run() {
             commands::graph::get_page_graph_data,
             // Query commands
             commands::query::execute_query_macro,
+            // TODO commands
+            commands::todo::query_todos,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
