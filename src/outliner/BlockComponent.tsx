@@ -1,6 +1,6 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
-import { Box, Menu, Popover, useComputedColorScheme } from "@mantine/core";
+import { Box, Popover, useComputedColorScheme } from "@mantine/core";
 
 import {
   IconCopy,
@@ -1550,57 +1550,83 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
             {/* Bullet Point / AI Icon / TODO Status - clickable for zoom or cycle */}
             {todoStatus ? (
-              <Menu
+              <Popover
                 opened={todoStatusMenuOpen}
                 onChange={setTodoStatusMenuOpen}
                 position="top-start"
                 shadow="md"
-                closeOnItemClick
+                withArrow
+                arrowSize={8}
+                arrowOffset={4}
               >
-                <Menu.Target>
+                <Popover.Target>
                   <TodoStatusIcon
                     status={todoStatus}
                     showTooltip={false}
                     onClick={handleTodoStatusClick}
                     onContextMenu={handleTodoContextMenu}
                   />
-                </Menu.Target>
+                </Popover.Target>
 
-                <Menu.Dropdown>
+                <Popover.Dropdown style={{ padding: 0, minWidth: 140 }}>
                   {ALL_STATUSES.map((s) => (
-                    <Menu.Item
+                    <button
                       key={s}
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSetTodoStatus(s);
                       }}
-                      leftSection={(
-                        <span
-                          style={{
-                            display: "inline-block",
-                            width: 10,
-                            height: 10,
-                            borderRadius: "50%",
-                            background: STATUS_COLORS[s],
-                          }}
-                        />
-                      )}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "none",
+                        background: todoStatus === s ? "var(--color-bg-secondary)" : "transparent",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontSize: "var(--font-size-sm)",
+                        color: "var(--color-text-primary)",
+                      }}
                     >
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: STATUS_COLORS[s],
+                          flexShrink: 0,
+                        }}
+                      />
                       {STATUS_DISPLAY_NAMES[s]}
-                    </Menu.Item>
+                    </button>
                   ))}
-                  <Menu.Divider />
-                  <Menu.Item
-                    color="red"
+                  <div style={{ height: 1, background: "var(--color-border-primary)" }} />
+                  <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleRemoveTodoStatus();
                     }}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      padding: "8px 12px",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      fontSize: "var(--font-size-sm)",
+                      color: "var(--color-error)",
+                    }}
                   >
                     Remove TODO
-                  </Menu.Item>
-                </Menu.Dropdown>
-              </Menu>
+                  </button>
+                </Popover.Dropdown>
+              </Popover>
             ) : (
               <button
                 type="button"
