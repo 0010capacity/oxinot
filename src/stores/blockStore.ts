@@ -66,6 +66,11 @@ interface BlockActions {
   ) => Promise<string | undefined>;
   updateBlock: (id: string, updates: Partial<BlockData>) => Promise<void>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
+  setBlockMetadata: (
+    id: string,
+    key: string,
+    value: string | null,
+  ) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
   splitBlockAtCursor: (
     id: string,
@@ -676,6 +681,54 @@ export const useBlockStore = create<BlockStore>()(
           // Reload to restore correct state
           const pageId = get().currentPageId;
           if (pageId) await get().loadPage(pageId);
+          throw error;
+        }
+      },
+
+      setBlockMetadata: async (
+        id: string,
+        key: string,
+        value: string | null,
+      ) => {
+        const { blocksById } = get();
+        const block = blocksById[id];
+        if (!block) return;
+
+        const currentMetadata = block.metadata ?? {};
+        const newMetadata = { ...currentMetadata };
+
+        if (value === null) {
+          delete newMetadata[key];
+        } else {
+          newMetadata[key] = value;
+        }
+
+        // Optimistic update
+        set((state) => {
+          if (state.blocksById[id]) {
+            state.blocksById[id].metadata = newMetadata;
+          }
+        });
+
+        try {
+          const workspacePath = useWorkspaceStore.getState().workspacePath;
+          if (!workspacePath) throw new Error("No workspace selected");
+
+          await invoke("update_block", {
+            workspacePath,
+            request: {
+              id,
+              metadata: newMetadata,
+            },
+          });
+        } catch (error) {
+          console.error("Failed to set block metadata:", error);
+          // Revert
+          set((state) => {
+            if (state.blocksById[id]) {
+              state.blocksById[id].metadata = currentMetadata;
+            }
+          });
           throw error;
         }
       },
