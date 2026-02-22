@@ -193,7 +193,6 @@ All TODO data is stored in the existing `block_metadata` table via `BlockData.me
 | `deadline` | ISO 8601 date (`2026-03-20`) | Set via UI/Copilot | 2 |
 | `priority` | `A`, `B`, `C` | Set via UI/Copilot | 2 |
 | `repeat` | RRULE string (e.g., `FREQ=WEEKLY;BYDAY=MO`) | Set via UI/Copilot | 4 |
-| `reminder` | ISO 8601 date-time (`2026-03-15T14:00`) | Set via UI/Copilot | 4 |
 
 ### Status Lifecycle
 
@@ -359,8 +358,7 @@ How TODO blocks are created:
 | **Inline typing** | User types `TODO Buy milk` → auto-save → Rust extracts prefix → metadata written | 1 |
 | **Keyboard shortcut** | `Cmd+Enter` inserts `TODO ` prefix at block start → same flow | 1 |
 | **Status icon click** | React calls `blockStore.updateBlockContent(id, newContent)` with prefix change | 1 |
-| **AI Copilot tool** | `create_todo` tool creates block with `TODO ` prefix + sets date/priority metadata | 3 |
-| **Quick Add dialog** | `Cmd+Shift+T` opens dialog → parses input → creates block | 4 |
+| **AI Copilot Input** | `create_todo` tool via Copilot Input — natural language creates block with dates/priority | 3 |
 
 #### Layer 2: Store (Persistence)
 
@@ -592,9 +590,15 @@ pub struct TodoFilter {
 
 ---
 
-### Phase 3: AI Copilot Integration
+### Phase 3: AI Copilot Integration (Unified Interface)
 
-**Goal**: Natural language task creation and queries via Copilot panel.
+**Goal**: Natural language task creation and queries via Copilot Input — the unified interface for AI requests, TODO creation, and natural language date parsing.
+
+**Design Philosophy**: The Copilot Input serves as a unified command interface (like a terminal), handling:
+- AI questions and requests
+- TODO/task creation with natural language dates
+- TODO queries and updates
+- General assistant functionality
 
 #### Files to Create
 
@@ -622,34 +626,25 @@ pub struct TodoFilter {
 
 ---
 
-### Phase 4: Notifications & Quick Add
+### Phase 4: Advanced Features
 
-**Goal**: Desktop notifications for reminders, global quick add dialog.
+**Goal**: Enhanced productivity features for power users.
 
-#### Files to Create
+#### Potential Features
 
-| File | Purpose |
-|------|---------|
-| `src/components/todo/TodoQuickAdd.tsx` | Global quick add dialog |
-| `src/services/notificationService.ts` | Notification scheduling service |
+| Feature | Description |
+|---------|-------------|
+| Recurring Tasks | RRULE-based recurrence, completion triggers next instance |
+| Task Statistics | Completion rates, productivity trends |
+| Bulk Operations | Multi-select and batch update status/dates |
+| Calendar View | Monthly calendar showing scheduled tasks |
+| Kanban Board | Column-based view grouped by status |
 
-#### Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/stores/shortcutStore.ts` | Register `Cmd+Shift+T` for quick add |
-| `src-tauri/Cargo.toml` | Add `tauri-plugin-notification` dependency |
-
-#### Acceptance Criteria
-
-- [ ] `Cmd+Shift+T` opens quick add dialog from anywhere
-- [ ] Quick add parses natural language input (date, priority)
-- [ ] Desktop notification at scheduled reminder time
-- [ ] Clicking notification navigates to the relevant block
+Note: These are deferred to future planning based on user feedback.
 
 ---
 
-### Phase 5: Advanced Features
+### Phase 5: Future Considerations
 
 Deferred to future planning. See [Future Considerations](#future-considerations).
 
@@ -663,7 +658,6 @@ All shortcuts are chosen to avoid conflicts with existing bindings.
 |----------|--------|-------|
 | `Cmd+Enter` | Toggle TODO on current block (add/remove `TODO ` prefix) | 1 |
 | `Cmd+Shift+Enter` | Cycle status on current TODO block (→ DOING → DONE → TODO) | 1 |
-| `Cmd+Shift+T` | Open Quick Add dialog (global) | 4 |
 
 **Existing shortcuts NOT available**:
 - `Cmd+P` → `search`
@@ -729,24 +723,28 @@ All shortcuts are chosen to avoid conflicts with existing bindings.
   └─────────────────────────┘
 ```
 
-### Quick Add Dialog (Phase 4)
+### Quick Add via Copilot Input (Phase 3)
+
+Instead of a separate dialog, TODO quick add is handled through the Copilot Input:
 
 ```
-  ┌─────────────────────────────────────────────────────────┐
-  │  ➕ Quick Add Task                             [⌘⇧T]   │
-  ├─────────────────────────────────────────────────────────┤
-  │  ┌───────────────────────────────────────────────────┐  │
-  │  │ 내일 오후 3시에 팀 미팅                             │  │
-  │  └───────────────────────────────────────────────────┘  │
-  │                                                         │
-  │  Parsed:                                                │
-  │  ├─ Status: TODO                                        │
-  │  ├─ Scheduled: Feb 22, 2026 15:00                       │
-  │  └─ Page: (current page)                                │
-  │                                                         │
-  │  [Cancel]                                 [Add Task]    │
-  └─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│  Copilot Input                                          │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │ 내일 오후 3시에 팀 미팅 잡아줘                      │  │
+│  └───────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+
+→ Copilot processes natural language
+→ create_todo(content="팀 미팅", scheduled="2026-02-23T15:00")
+→ ✅ "팀 미팅" TODO가 현재 페이지에 생성되었습니다
 ```
+
+**Unified Interface Benefits**:
+- Single input for all interactions (AI, TODO, general)
+- Consistent user experience
+- AI can handle ambiguous input gracefully
+- No need to remember separate shortcuts
 
 ---
 
