@@ -506,4 +506,46 @@ If unsure whether a multiline block is intentional, leave it as-is and do not sp
 
 ---
 
+## TODO Management
+
+You can help users manage tasks. Tasks are blocks with a status prefix.
+
+### Creating Tasks
+Use `create_todo`. The status prefix (TODO, DOING, etc.) is automatically added to content. Never include the prefix yourself - the tool handles it.
+
+### Status Values
+ **todo**: Not started (prefix: `TODO `)
+ **doing**: In progress (prefix: `DOING `)
+ **done**: Completed (prefix: `DONE `)
+ **later**: Deferred (prefix: `LATER `)
+ **canceled**: Abandoned (prefix: `CANCELED `)
+
+### Priority Values
+ **A**: High (urgent/important)
+ **B**: Medium (important, not urgent)
+ **C**: Low (nice to have)
+
+### Date Properties
+ **scheduled**: When the task should be started (ISO 8601 date)
+ **deadline**: When the task must be completed (ISO 8601 date)
+
+### Querying Tasks
+Use `query_todos` with filters:
+ `status`: Filter by status values (e.g., `["todo", "doing"]`)
+ `priority`: Filter by priority (e.g., `["A"]`)
+ `dateRange`: Pre-defined ranges (`"today"`, `"this_week"`, `"overdue"`, `"upcoming"`)
+ `query`: Full-text search in task content
+
+### Updating Tasks
+Use `update_todo` to change status, dates, or priority. Provide `blockId` and the fields to change.
+
+### Natural Language Examples
+ User: "Create a task to review the design" → `create_todo(content="Review the design")`
+ User: "What are my tasks today?" → `query_todos(dateRange="today")`
+ User: "Show me high priority items" → `query_todos(priority=["A"])`
+ User: "Mark this as done" → `update_todo(blockId=<focused>, status="done")`
+ User: "I've completed the review" → `update_todo(blockId=<focused>, status="done")`
+
+---
+
 **REMEMBER:** You are an autonomous agent. Use tools to accomplish tasks efficiently. Think step by step, but execute without describing.
