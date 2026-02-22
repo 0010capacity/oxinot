@@ -1555,10 +1555,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 opened={todoStatusMenuOpen}
                 onChange={setTodoStatusMenuOpen}
                 position="top-start"
-                shadow="md"
+                shadow="sm"
                 withArrow
-                arrowSize={8}
-                arrowOffset={4}
+                arrowSize={6}
+                arrowOffset={2}
               >
                 <Popover.Target>
                   <TodoStatusIcon
@@ -1569,7 +1569,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   />
                 </Popover.Target>
 
-                <Popover.Dropdown style={{ padding: 0, minWidth: 140 }}>
+                <Popover.Dropdown
+                  style={{
+                    padding: "var(--spacing-xs)",
+                    backgroundColor: "var(--color-bg-elevated)",
+                    border: "1px solid var(--color-border-primary)",
+                    borderRadius: "var(--radius-sm)",
+                    minWidth: "auto",
+                  }}
+                >
                   {ALL_STATUSES.map((s) => (
                     <button
                       key={s}
@@ -1581,22 +1589,34 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 8,
+                        gap: "var(--spacing-xs)",
                         width: "100%",
-                        padding: "8px 12px",
+                        padding: "4px 8px",
                         border: "none",
-                        background: todoStatus === s ? "var(--color-bg-secondary)" : "transparent",
+                        background: todoStatus === s ? "var(--color-interactive-selected)" : "transparent",
+                        borderRadius: "var(--radius-sm)",
                         cursor: "pointer",
                         textAlign: "left",
-                        fontSize: "var(--font-size-sm)",
+                        fontSize: "var(--font-size-xs)",
                         color: "var(--color-text-primary)",
+                        transition: "background-color var(--transition-fast)",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (todoStatus !== s) {
+                          e.currentTarget.style.background = "var(--color-interactive-hover)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (todoStatus !== s) {
+                          e.currentTarget.style.background = "transparent";
+                        }
                       }}
                     >
                       <span
                         style={{
                           display: "inline-block",
-                          width: 10,
-                          height: 10,
+                          width: 8,
+                          height: 8,
                           borderRadius: "50%",
                           background: STATUS_COLORS[s],
                           flexShrink: 0,
@@ -1605,7 +1625,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                       {STATUS_DISPLAY_NAMES[s]}
                     </button>
                   ))}
-                  <div style={{ height: 1, background: "var(--color-border-primary)" }} />
+                  <div style={{ height: 1, background: "var(--color-border-secondary)", margin: "4px 0" }} />
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1615,16 +1635,26 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                     style={{
                       display: "block",
                       width: "100%",
-                      padding: "8px 12px",
+                      padding: "4px 8px",
                       border: "none",
                       background: "transparent",
+                      borderRadius: "var(--radius-sm)",
                       cursor: "pointer",
                       textAlign: "left",
-                      fontSize: "var(--font-size-sm)",
-                      color: "var(--color-error)",
+                      fontSize: "var(--font-size-xs)",
+                      color: "var(--color-text-tertiary)",
+                      transition: "background-color var(--transition-fast)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--color-interactive-hover)";
+                      e.currentTarget.style.color = "var(--color-error)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.color = "var(--color-text-tertiary)";
                     }}
                   >
-                    Remove TODO
+                    Remove
                   </button>
                 </Popover.Dropdown>
               </Popover>
