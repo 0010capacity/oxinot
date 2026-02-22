@@ -1068,26 +1068,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const todoStatus = getTodoStatus(blockMetadata);
 
-    const handleTodoStatusCycle = useCallback(async () => {
-      const currentStatus = getTodoStatus(blockMetadata);
-      const content = blockContent || "";
-
-      if (currentStatus) {
-        const nextStatus = getNextStatus(currentStatus);
-        const newContent = setStatusPrefix(
-          extractStatusPrefix(content)?.rest || content,
-          nextStatus,
-        );
-        draftRef.current = newContent;
-        setDraft(newContent);
-        await useBlockStore.getState().updateBlockContent(blockId, newContent);
-      } else {
-        const newContent = setStatusPrefix(content, "todo");
-        draftRef.current = newContent;
-        setDraft(newContent);
-        await useBlockStore.getState().updateBlockContent(blockId, newContent);
-      }
-    }, [blockId, blockMetadata, blockContent]);
+    const handleTodoStatusClick = useCallback(() => {
+      setTodoStatusMenuOpen(true);
+    }, []);
 
     const handleTodoContextMenu = useCallback((e: React.MouseEvent) => {
       e.preventDefault();
@@ -1570,14 +1553,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 opened={todoStatusMenuOpen}
                 onChange={setTodoStatusMenuOpen}
                 withinPortal
-                position="bottom-start"
+                position="left-start"
                 shadow="md"
                 closeOnItemClick
               >
                 <Menu.Target>
                   <TodoStatusIcon
                     status={todoStatus}
-                    onClick={handleTodoStatusCycle}
+                    showTooltip={false}
+                    onClick={handleTodoStatusClick}
                     onContextMenu={handleTodoContextMenu}
                   />
                 </Menu.Target>
