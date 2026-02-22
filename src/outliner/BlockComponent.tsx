@@ -1068,7 +1068,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const todoStatus = getTodoStatus(blockMetadata);
 
-    const handleTodoStatusClick = useCallback(() => {
+    const handleTodoStatusClick = useCallback(async () => {
+      await cycleTodoStatus();
       setTodoStatusMenuOpen(true);
     }, []);
 
@@ -1553,7 +1554,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 opened={todoStatusMenuOpen}
                 onChange={setTodoStatusMenuOpen}
                 withinPortal
-                position="left-start"
+                position="top-start"
                 shadow="md"
                 closeOnItemClick
               >
