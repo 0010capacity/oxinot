@@ -1,15 +1,21 @@
+import { Badge, Box, Group, Progress, Text } from "@mantine/core";
 import { useCallback, useEffect, useState } from "react";
-import { Badge, Box, Group, Text } from "@mantine/core";
-import { useTodoStore } from "../../stores/todoStore";
-import { SMART_VIEWS, type SmartView, type SmartViewType } from "../../types/todo";
+import { type TodoStatistics, useTodoStore } from "../../stores/todoStore";
+import {
+  SMART_VIEWS,
+  type SmartView,
+  type SmartViewType,
+} from "../../types/todo";
 import { CollapseToggle } from "../common/CollapseToggle";
 
 export function TodoPanel() {
   const [collapsed, setCollapsed] = useState(false);
   const [activeView, setActiveView] = useState<SmartViewType | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [stats, setStats] = useState<TodoStatistics | null>(null);
 
   const fetchSmartView = useTodoStore((s) => s.fetchSmartView);
+  const fetchStatistics = useTodoStore((s) => s.fetchStatistics);
 
   // Fetch counts for each smart view on mount
   useEffect(() => {
@@ -25,6 +31,15 @@ export function TodoPanel() {
     };
     fetchCounts();
   }, [fetchSmartView]);
+
+  // Fetch statistics on mount
+  useEffect(() => {
+    const loadStats = async () => {
+      const result = await fetchStatistics();
+      setStats(result);
+    };
+    loadStats();
+  }, [fetchStatistics]);
 
   const handleToggleCollapse = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -54,11 +69,56 @@ export function TodoPanel() {
           userSelect: "none",
         }}
       >
-        <CollapseToggle isCollapsed={collapsed} onClick={handleToggleCollapse} />
+        <CollapseToggle
+          isCollapsed={collapsed}
+          onClick={handleToggleCollapse}
+        />
         <Text size="sm" fw={600} c="var(--color-text-primary)">
           📋 Tasks
         </Text>
       </Group>
+
+      {/* Statistics */}
+      {!collapsed && stats && (
+        <Box style={{ padding: "0 12px 8px" }}>
+          <Group gap="xs" mb="xs">
+            <Text size="xs" c="var(--color-text-secondary)">
+              Completion Rate
+            </Text>
+            <Text size="xs" fw={600} c="var(--color-text-primary)">
+              {stats.completionRate}%
+            </Text>
+          </Group>
+          <Progress
+            value={stats.completionRate}
+            size="xs"
+            color="var(--color-success)"
+            style={{ marginBottom: "8px" }}
+          />
+          <Group gap="md">
+            <Text size="xs" c="var(--color-text-secondary)">
+              <Text component="span" fw={600} c="var(--color-text-primary)">
+                {stats.total}
+              </Text>{" "}
+              total
+            </Text>
+            <Text size="xs" c="var(--color-text-secondary)">
+              <Text component="span" fw={600} c="var(--color-success)">
+                {stats.completed}
+              </Text>{" "}
+              done
+            </Text>
+            {stats.overdue > 0 && (
+              <Text size="xs" c="var(--color-text-secondary)">
+                <Text component="span" fw={600} c="var(--color-error)">
+                  {stats.overdue}
+                </Text>{" "}
+                overdue
+              </Text>
+            )}
+          </Group>
+        </Box>
+      )}
 
       {/* Smart Views List */}
       {!collapsed && (
@@ -91,11 +151,7 @@ export function TodoPanel() {
               }}
             >
               <Text size="sm">{view.icon}</Text>
-              <Text
-                size="sm"
-                c="var(--color-text-primary)"
-                style={{ flex: 1 }}
-              >
+              <Text size="sm" c="var(--color-text-primary)" style={{ flex: 1 }}>
                 {view.label}
               </Text>
               {counts[view.id] !== undefined && counts[view.id] > 0 && (
