@@ -1575,87 +1575,88 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                     backgroundColor: "var(--color-bg-elevated)",
                     border: "1px solid var(--color-border-primary)",
                     borderRadius: "var(--radius-sm)",
-                    minWidth: "auto",
                   }}
                 >
-                  {ALL_STATUSES.map((s) => (
+                  <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+                    {ALL_STATUSES.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        title={STATUS_DISPLAY_NAMES[s]}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSetTodoStatus(s);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 24,
+                          height: 24,
+                          padding: 0,
+                          border: "none",
+                          background: todoStatus === s ? "var(--color-interactive-selected)" : "transparent",
+                          borderRadius: "var(--radius-sm)",
+                          cursor: "pointer",
+                          transition: "background-color var(--transition-fast)",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (todoStatus !== s) {
+                            e.currentTarget.style.background = "var(--color-interactive-hover)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (todoStatus !== s) {
+                            e.currentTarget.style.background = "transparent";
+                          }
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "inline-block",
+                            width: 12,
+                            height: 12,
+                            borderRadius: "50%",
+                            background: STATUS_COLORS[s],
+                          }}
+                        />
+                      </button>
+                    ))}
+                    <div style={{ width: 1, height: 16, background: "var(--color-border-secondary)", margin: "0 2px" }} />
                     <button
-                      key={s}
                       type="button"
+                      title="Remove"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleSetTodoStatus(s);
+                        handleRemoveTodoStatus();
                       }}
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "var(--spacing-xs)",
-                        width: "100%",
-                        padding: "4px 8px",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        padding: 0,
                         border: "none",
-                        background: todoStatus === s ? "var(--color-interactive-selected)" : "transparent",
+                        background: "transparent",
                         borderRadius: "var(--radius-sm)",
                         cursor: "pointer",
-                        textAlign: "left",
-                        fontSize: "var(--font-size-xs)",
-                        color: "var(--color-text-primary)",
-                        transition: "background-color var(--transition-fast)",
+                        color: "var(--color-text-tertiary)",
+                        fontSize: 14,
+                        transition: "all var(--transition-fast)",
                       }}
                       onMouseEnter={(e) => {
-                        if (todoStatus !== s) {
-                          e.currentTarget.style.background = "var(--color-interactive-hover)";
-                        }
+                        e.currentTarget.style.background = "var(--color-interactive-hover)";
+                        e.currentTarget.style.color = "var(--color-error)";
                       }}
                       onMouseLeave={(e) => {
-                        if (todoStatus !== s) {
-                          e.currentTarget.style.background = "transparent";
-                        }
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.color = "var(--color-text-tertiary)";
                       }}
                     >
-                      <span
-                        style={{
-                          display: "inline-block",
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          background: STATUS_COLORS[s],
-                          flexShrink: 0,
-                        }}
-                      />
-                      {STATUS_DISPLAY_NAMES[s]}
+                      ×
                     </button>
-                  ))}
-                  <div style={{ height: 1, background: "var(--color-border-secondary)", margin: "4px 0" }} />
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveTodoStatus();
-                    }}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      padding: "4px 8px",
-                      border: "none",
-                      background: "transparent",
-                      borderRadius: "var(--radius-sm)",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      fontSize: "var(--font-size-xs)",
-                      color: "var(--color-text-tertiary)",
-                      transition: "background-color var(--transition-fast)",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--color-interactive-hover)";
-                      e.currentTarget.style.color = "var(--color-error)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.color = "var(--color-text-tertiary)";
-                    }}
-                  >
-                    Remove
-                  </button>
+                  </div>
                 </Popover.Dropdown>
               </Popover>
             ) : (
