@@ -1561,19 +1561,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 arrowOffset={4}
               >
                 <Popover.Target>
-                  <Box
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTodoStatusClick();
-                    }}
+                  <TodoStatusIcon
+                    status={todoStatus}
+                    showTooltip={false}
+                    onClick={handleTodoStatusClick}
                     onContextMenu={handleTodoContextMenu}
-                    style={{ display: "inline-flex" }}
-                  >
-                    <TodoStatusIcon
-                      status={todoStatus}
-                      showTooltip={false}
-                    />
-                  </Box>
+                  />
                 </Popover.Target>
 
                 <Popover.Dropdown style={{ padding: 0, minWidth: 140 }}>

@@ -1,6 +1,6 @@
 import { Tooltip } from "@mantine/core";
 import type { CSSProperties } from "react";
-import { useCallback } from "react";
+import { forwardRef, useCallback } from "react";
 import type { TodoStatus } from "../../types/todo";
 import { STATUS_DISPLAY_NAMES } from "../../types/todo";
 
@@ -128,13 +128,13 @@ function TodoCircleIcon({
   }
 }
 
-export function TodoStatusIcon({
-  status,
-  onClick,
-  onContextMenu,
-  size = 14,
-  showTooltip = true,
-}: TodoStatusIconProps) {
+export const TodoStatusIcon = forwardRef<
+  HTMLButtonElement,
+  TodoStatusIconProps
+>(function TodoStatusIcon(
+  { status, onClick, onContextMenu, size = 14, showTooltip = true },
+  ref,
+) {
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -165,6 +165,7 @@ export function TodoStatusIcon({
 
   const icon = (
     <button
+      ref={ref}
       type="button"
       style={containerStyle}
       onClick={handleClick}
@@ -190,6 +191,6 @@ export function TodoStatusIcon({
   }
 
   return icon;
-}
+});
 
 export { STATUS_COLORS };
