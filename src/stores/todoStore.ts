@@ -1,28 +1,38 @@
+import { invoke } from "@tauri-apps/api/core";
 import { createWithEqualityFn } from "zustand/traditional";
-import type { TodoStatus } from "../types/todo";
+import type { TodoFilter, TodoResult, TodoStatus } from "../types/todo";
 import {
+  SMART_VIEWS,
   extractStatusPrefix,
   getNextStatus,
   setStatusPrefix,
 } from "../types/todo";
 import { useBlockStore } from "./blockStore";
+import { useWorkspaceStore } from "./workspaceStore";
 
 interface TodoState {
   isLoading: boolean;
   error: string | null;
+  todos: TodoResult[];
+  lastFetch: number | null;
 }
 
 interface TodoActions {
   setTodoStatus: (blockId: string, status: TodoStatus) => Promise<void>;
   cycleTodoStatus: (blockId: string) => Promise<void>;
   removeTodoStatus: (blockId: string) => Promise<void>;
+  fetchTodos: (filter: TodoFilter) => Promise<void>;
+  fetchSmartView: (viewId: string) => Promise<void>;
+  clearCache: () => void;
 }
 
 type TodoStore = TodoState & TodoActions;
 
-export const useTodoStore = createWithEqualityFn<TodoStore>()((set) => ({
+export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
   isLoading: false,
   error: null,
+  todos: [],
+  lastFetch: null,
 
   setTodoStatus: async (blockId: string, status: TodoStatus) => {
     try {
@@ -110,5 +120,40 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set) => ({
       console.error("[todoStore] removeTodoStatus error:", message);
       set({ isLoading: false, error: message });
     }
+  },
+
+  fetchTodos: async (filter: TodoFilter) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        throw new Error("No workspace selected");
+      }
+
+      const todos = await invoke<TodoResult[]>("query_todos", {
+        workspacePath,
+        filter,
+      });
+
+      set({ todos, lastFetch: Date.now(), isLoading: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error("[todoStore] fetchTodos error:", message);
+      set({ isLoading: false, error: message });
+    }
+  },
+
+  fetchSmartView: async (viewId: string) => {
+    const smartView = SMART_VIEWS.find((v) => v.id === viewId);
+    if (!smartView) {
+      console.error("[todoStore] Unknown smart view:", viewId);
+      return;
+    }
+    await get().fetchTodos(smartView.filter);
+  },
+
+  clearCache: () => {
+    set({ todos: [], lastFetch: null });
   },
 }));
