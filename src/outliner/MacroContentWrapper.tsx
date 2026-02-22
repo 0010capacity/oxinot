@@ -5,6 +5,7 @@ import QueryBlock from "../components/QueryBlock";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { extractQueryMacros, removeQueryMacros } from "../utils/queryParser";
 import { StaticMarkdownRenderer } from "../components/StaticMarkdownRenderer";
+import { removeStatusPrefix } from "../types/todo";
 
 interface MacroContentWrapperProps {
   content: string;
@@ -58,7 +59,7 @@ export const MacroContentWrapper: React.FC<MacroContentWrapperProps> = ({
     <Stack gap={0}>
       {contentWithoutMacros && (
         <StaticMarkdownRenderer
-          content={contentWithoutMacros}
+          content={removeStatusPrefix(contentWithoutMacros)}
           onMouseDownCapture={onMouseDownCapture}
           style={{}}
         />

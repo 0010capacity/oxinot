@@ -242,9 +242,6 @@ function buildDecorations(view: EditorView): DecorationSet {
 
   // Process line-by-line patterns (not represented in syntax tree)
   // These include both BLOCK-LEVEL and INLINE patterns:
-  // - Block-level: embed pages (![[...]]), embed blocks (!((...))), callouts
-  // - Inline: wiki links ([[...]]), block links (((...)))
-  // Block-level elements are only rendered when alone on their line.
   for (const lr of visibleLineRanges) {
     for (let lineNum = lr.fromLine; lineNum <= lr.toLine; lineNum++) {
       const line = state.doc.line(lineNum);
