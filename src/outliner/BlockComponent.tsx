@@ -1,6 +1,6 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
-import { Box, Popover, useComputedColorScheme } from "@mantine/core";
+import { Box, Menu, Popover, useComputedColorScheme } from "@mantine/core";
 
 import {
   IconCopy,
@@ -62,11 +62,14 @@ import { TodoStatusIcon } from "../components/todo/TodoStatusIcon";
 import { INDENT_PER_LEVEL } from "../constants/layout";
 import { useIsBlockSelected } from "../hooks/useBlockSelection";
 import {
+  ALL_STATUSES,
   extractStatusPrefix,
   getNextStatus,
   getTodoStatus,
   setStatusPrefix,
+  STATUS_DISPLAY_NAMES,
 } from "../types/todo";
+import { STATUS_COLORS } from "../components/todo/TodoStatusIcon";
 import { BlockOrderContext } from "./BlockEditor";
 import {
   calculateNextBlockCursorPosition,
@@ -151,6 +154,43 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [blocksToDelete, setBlocksToDelete] = useState<string[]>([]);
+    const [todoStatusMenuOpen, setTodoStatusMenuOpen] = useState(false);
+
+    const toggleTodoStatus = useCallback(async () => {
+      const currentStatus = getTodoStatus(blockMetadata);
+      const content = blockContent || "";
+
+      if (currentStatus) {
+        // Remove TODO prefix
+        const extracted = extractStatusPrefix(content);
+        const newContent = extracted?.rest || content;
+        draftRef.current = newContent;
+        setDraft(newContent);
+        await useBlockStore.getState().updateBlockContent(blockId, newContent);
+      } else {
+        // Add TODO prefix
+        const newContent = setStatusPrefix(content, "todo");
+        draftRef.current = newContent;
+        setDraft(newContent);
+        await useBlockStore.getState().updateBlockContent(blockId, newContent);
+      }
+    }, [blockId, blockMetadata, blockContent]);
+
+    const cycleTodoStatus = useCallback(async () => {
+      const currentStatus = getTodoStatus(blockMetadata);
+      if (currentStatus) {
+        const nextStatus = getNextStatus(currentStatus);
+        const content = blockContent || "";
+        const extracted = extractStatusPrefix(content);
+        const newContent = setStatusPrefix(
+          extracted?.rest || content,
+          nextStatus,
+        );
+        draftRef.current = newContent;
+        setDraft(newContent);
+        await useBlockStore.getState().updateBlockContent(blockId, newContent);
+      }
+    }, [blockId, blockMetadata, blockContent]);
 
     const copyBlocksAsMarkdown = useCallback(() => {
       const currentSelectedIds = useBlockUIStore.getState().selectedBlockIds;
@@ -1050,7 +1090,34 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const handleTodoContextMenu = useCallback((e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      setTodoStatusMenuOpen(true);
     }, []);
+
+    const handleSetTodoStatus = useCallback(
+      async (status: import("../types/todo").TodoStatus) => {
+        const content = blockContent || "";
+        const extracted = extractStatusPrefix(content);
+        const newContent = setStatusPrefix(
+          extracted?.rest || content,
+          status,
+        );
+        draftRef.current = newContent;
+        setDraft(newContent);
+        setTodoStatusMenuOpen(false);
+        await useBlockStore.getState().updateBlockContent(blockId, newContent);
+      },
+      [blockId, blockContent],
+    );
+
+    const handleRemoveTodoStatus = useCallback(async () => {
+      const content = blockContent || "";
+      const extracted = extractStatusPrefix(content);
+      const newContent = extracted?.rest || content;
+      draftRef.current = newContent;
+      setDraft(newContent);
+      setTodoStatusMenuOpen(false);
+      await useBlockStore.getState().updateBlockContent(blockId, newContent);
+    }, [blockId, blockContent]);
 
     // Create custom keybindings for CodeMirror to handle block operations
     const handleContentChangeWithTrigger = useCallback(
@@ -1283,21 +1350,36 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           },
         },
         {
+          key: "Mod-Shift-Enter",
+          preventDefault: true,
+          run: () => {
+            void cycleTodoStatus();
+            return true;
+          },
+        },
+        {
           key: "Mod-Enter",
           preventDefault: true,
           run: (view: EditorView) => {
-            const content = view.state.doc.toString();
-            if (!content.trim()) return false;
+            // If this is an AI prompt block, execute the prompt
+            if (isAiPrompt) {
+              const content = view.state.doc.toString();
+              if (!content.trim()) return false;
 
-            const blockStore = useBlockStore.getState();
-            const pageId = blockStore.currentPageId;
-            if (!pageId) return false;
+              const blockStore = useBlockStore.getState();
+              const pageId = blockStore.currentPageId;
+              if (!pageId) return false;
 
-            commitDraft().then(async () => {
-              await blockStore.updateBlock(blockId, { blockType: "ai-prompt" });
+              commitDraft().then(async () => {
+                await blockStore.updateBlock(blockId, { blockType: "ai-prompt" });
 
-              await threadBlockService.executePrompt(blockId, content, pageId);
-            });
+                await threadBlockService.executePrompt(blockId, content, pageId);
+              });
+              return true;
+            }
+
+            // Otherwise, toggle TODO
+            void toggleTodoStatus();
             return true;
           },
         },
@@ -1311,6 +1393,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       commitDraft,
       mergeWithPrevious,
       splitBlockAtCursor,
+      toggleTodoStatus,
+      cycleTodoStatus,
+      isAiPrompt,
     ]);
 
     // Render only one indent guide at this block's depth level
@@ -1479,11 +1564,57 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
             {/* Bullet Point / AI Icon / TODO Status - clickable for zoom or cycle */}
             {todoStatus ? (
-              <TodoStatusIcon
-                status={todoStatus}
-                onClick={handleTodoStatusCycle}
-                onContextMenu={handleTodoContextMenu}
-              />
+              <Menu
+                opened={todoStatusMenuOpen}
+                onChange={setTodoStatusMenuOpen}
+                withinPortal
+                position="bottom-start"
+                shadow="md"
+                closeOnItemClick
+              >
+                <Menu.Target>
+                  <TodoStatusIcon
+                    status={todoStatus}
+                    onClick={handleTodoStatusCycle}
+                    onContextMenu={handleTodoContextMenu}
+                  />
+                </Menu.Target>
+
+                <Menu.Dropdown>
+                  {ALL_STATUSES.map((s) => (
+                    <Menu.Item
+                      key={s}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSetTodoStatus(s);
+                      }}
+                      leftSection={(
+                        <span
+                          style={{
+                            display: "inline-block",
+                            width: 10,
+                            height: 10,
+                            borderRadius: "50%",
+                            background: STATUS_COLORS[s],
+                          }}
+                        />
+                      )}
+                    >
+                      {STATUS_DISPLAY_NAMES[s]}
+                    </Menu.Item>
+                  ))}
+                  <Menu.Divider />
+                  <Menu.Item
+                    color="red"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveTodoStatus();
+                    }}
+                  >
+                    Remove TODO
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
             ) : (
               <button
                 type="button"
