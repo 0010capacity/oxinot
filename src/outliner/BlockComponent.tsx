@@ -58,6 +58,7 @@ import { MacroContentWrapper } from "./MacroContentWrapper";
 import { editorStateCache } from "./editorStateCache";
 import { renderMarkdownToHtml } from "./markdownRenderer";
 import "./BlockComponent.css";
+import { TodoDatePicker } from "../components/todo/TodoDatePicker";
 import { TodoStatusIcon } from "../components/todo/TodoStatusIcon";
 import { INDENT_PER_LEVEL } from "../constants/layout";
 import { useIsBlockSelected } from "../hooks/useBlockSelection";
@@ -66,6 +67,7 @@ import {
   extractStatusPrefix,
   getNextStatus,
   getTodoStatus,
+  isOverdue,
   setStatusPrefix,
   STATUS_DISPLAY_NAMES,
 } from "../types/todo";
@@ -1647,6 +1649,63 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   <div className="block-bullet" />
                 )}
               </button>
+            )}
+
+            {/* TODO date/priority badges */}
+            {blockMetadata?.scheduled && (
+              <TodoDatePicker
+                blockId={blockId}
+                type="scheduled"
+                value={blockMetadata.scheduled}
+              />
+            )}
+            {blockMetadata?.deadline && (
+              <TodoDatePicker
+                blockId={blockId}
+                type="deadline"
+                value={blockMetadata.deadline}
+              />
+            )}
+            {blockMetadata?.priority && (
+              <Box
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "2px",
+                  fontSize: "var(--font-size-xs)",
+                  padding: "2px 6px",
+                  borderRadius: "var(--radius-sm)",
+                  backgroundColor:
+                    blockMetadata.priority === "A"
+                      ? "rgba(239, 68, 68, 0.2)"
+                      : blockMetadata.priority === "B"
+                        ? "rgba(234, 179, 8, 0.2)"
+                        : "rgba(59, 130, 246, 0.2)",
+                  color:
+                    blockMetadata.priority === "A"
+                      ? "#ef4444"
+                      : blockMetadata.priority === "B"
+                        ? "#eab308"
+                        : "#3b82f6",
+                  fontWeight: 500,
+                  marginLeft: "4px",
+                }}
+              >
+                {blockMetadata.priority}
+              </Box>
+            )}
+            {isOverdue(blockMetadata) && (
+              <Box
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  fontSize: "var(--font-size-xs)",
+                  color: "var(--color-error)",
+                  marginLeft: "4px",
+                }}
+              >
+                ⚠️ Overdue
+              </Box>
             )}
 
             {/* Content Editor */}
