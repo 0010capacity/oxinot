@@ -121,3 +121,206 @@ export function getNextStatus(currentStatus: TodoStatus): TodoStatus {
   const nextIndex = (currentIndex + 1) % STATUS_CYCLE.length;
   return STATUS_CYCLE[nextIndex];
 }
+
+// ============================================
+// Priority Helpers (Phase 2)
+// ============================================
+
+/** Priority display names */
+export const PRIORITY_DISPLAY_NAMES: Record<Priority, string> = {
+  A: "High",
+  B: "Medium",
+  C: "Low",
+};
+
+/** All priority levels */
+export const ALL_PRIORITIES: Priority[] = ["A", "B", "C"];
+
+/**
+ * Get the priority from block metadata
+ */
+export function getPriority(metadata?: Record<string, string>): Priority | null {
+  const priority = metadata?.priority;
+  if (priority && ALL_PRIORITIES.includes(priority as Priority)) {
+    return priority as Priority;
+  }
+  return null;
+}
+
+/**
+ * Check if a TODO is overdue (deadline < today and not completed)
+ */
+export function isOverdue(metadata?: Record<string, string>): boolean {
+  const status = getTodoStatus(metadata);
+  if (!status || status === "done" || status === "canceled") {
+    return false;
+  }
+  const deadline = metadata?.deadline;
+  if (!deadline) {
+    return false;
+  }
+  const deadlineDate = new Date(deadline);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return deadlineDate < today;
+}
+
+/**
+ * Get scheduled date from metadata
+ */
+export function getScheduledDate(
+  metadata?: Record<string, string>,
+): string | null {
+  return metadata?.scheduled || null;
+}
+
+/**
+ * Get deadline from metadata
+ */
+export function getDeadline(metadata?: Record<string, string>): string | null {
+  return metadata?.deadline || null;
+}
+
+/**
+ * Format date for display (e.g., "Mar 15" or "3월 15일")
+ */
+export function formatDateForDisplay(
+  isoDate: string,
+  locale: "en" | "ko" = "en",
+): string {
+  const date = new Date(isoDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // Check for today/tomorrow/yesterday
+  if (date.toDateString() === today.toDateString()) {
+    return locale === "ko" ? "오늘" : "Today";
+  }
+  if (date.toDateString() === tomorrow.toDateString()) {
+    return locale === "ko" ? "내일" : "Tomorrow";
+  }
+  if (date.toDateString() === yesterday.toDateString()) {
+    return locale === "ko" ? "어제" : "Yesterday";
+  }
+
+  // Format as "Mar 15" or "3월 15일"
+  if (locale === "ko") {
+    return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+  }
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// ============================================
+// Smart View Filter Types (Phase 2)
+// ============================================
+
+/** Smart view types */
+export type SmartViewType =
+  | "today"
+  | "upcoming"
+  | "overdue"
+  | "high_priority"
+  | "all"
+  | "completed";
+
+/** Smart view configuration */
+export interface SmartView {
+  id: SmartViewType;
+  label: string;
+  labelKo: string;
+  icon: string;
+  filter: TodoFilter;
+}
+
+/** Filter options for TODO queries */
+export interface TodoFilter {
+  status?: TodoStatus[];
+  priority?: Priority[];
+  scheduledFrom?: string; // ISO date
+  scheduledTo?: string; // ISO date
+  deadlineFrom?: string; // ISO date
+  deadlineTo?: string; // ISO date
+  overdueOnly?: boolean;
+  pageId?: string;
+}
+
+/** Pre-defined smart views */
+export const SMART_VIEWS: SmartView[] = [
+  {
+    id: "today",
+    label: "Today",
+    labelKo: "오늘",
+    icon: "📅",
+    filter: {
+      status: ["todo", "doing"],
+      scheduledFrom: new Date().toISOString().split("T")[0],
+      scheduledTo: new Date().toISOString().split("T")[0],
+    },
+  },
+  {
+    id: "upcoming",
+    label: "Upcoming",
+    labelKo: "다가오는 일정",
+    icon: "📆",
+    filter: {
+      status: ["todo", "doing"],
+      scheduledFrom: new Date().toISOString().split("T")[0],
+    },
+  },
+  {
+    id: "overdue",
+    label: "Overdue",
+    labelKo: "기한 초과",
+    icon: "⚠️",
+    filter: {
+      status: ["todo", "doing"],
+      overdueOnly: true,
+    },
+  },
+  {
+    id: "high_priority",
+    label: "High Priority",
+    labelKo: "높은 우선순위",
+    icon: "🚩",
+    filter: {
+      status: ["todo", "doing"],
+      priority: ["A"],
+    },
+  },
+  {
+    id: "all",
+    label: "All Tasks",
+    labelKo: "모든 작업",
+    icon: "📥",
+    filter: {
+      status: ["todo", "doing", "later"],
+    },
+  },
+  {
+    id: "completed",
+    label: "Completed",
+    labelKo: "완료됨",
+    icon: "✅",
+    filter: {
+      status: ["done"],
+    },
+  },
+];
+
+/** Result from a TODO query */
+export interface TodoResult {
+  blockId: string;
+  content: string;
+  pageId: string;
+  pageTitle: string;
+  status: TodoStatus;
+  scheduled?: string;
+  deadline?: string;
+  priority?: Priority;
+}
