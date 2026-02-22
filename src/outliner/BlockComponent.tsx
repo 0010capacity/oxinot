@@ -160,7 +160,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const toggleTodoStatus = useCallback(async () => {
       const currentStatus = getTodoStatus(blockMetadata);
-      const content = blockContent || "";
+      // Use draftRef for real-time content
+      const content = draftRef.current || blockContent || "";
 
       if (currentStatus) {
         // Remove TODO prefix
@@ -182,7 +183,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       const currentStatus = getTodoStatus(blockMetadata);
       if (currentStatus) {
         const nextStatus = getNextStatus(currentStatus);
-        const content = blockContent || "";
+        // Use draftRef for real-time content (may differ from store's blockContent during editing)
+        const content = draftRef.current || blockContent || "";
         const extracted = extractStatusPrefix(content);
         const newContent = setStatusPrefix(
           extracted?.rest || content,
@@ -1081,7 +1083,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const handleSetTodoStatus = useCallback(
       async (status: import("../types/todo").TodoStatus) => {
-        const content = blockContent || "";
+        // Use draftRef for real-time content
+        const content = draftRef.current || blockContent || "";
         const extracted = extractStatusPrefix(content);
         const newContent = setStatusPrefix(
           extracted?.rest || content,
@@ -1096,7 +1099,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     );
 
     const handleRemoveTodoStatus = useCallback(async () => {
-      const content = blockContent || "";
+      // Use draftRef for real-time content
+      const content = draftRef.current || blockContent || "";
       const extracted = extractStatusPrefix(content);
       const newContent = extracted?.rest || content;
       draftRef.current = newContent;
