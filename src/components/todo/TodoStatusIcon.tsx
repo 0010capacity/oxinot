@@ -135,6 +135,13 @@ export const TodoStatusIcon = forwardRef<
   { status, onClick, onContextMenu, size = 14, showTooltip = true },
   ref,
 ) {
+  // Prevent mousedown from stealing focus from CodeMirror editor.
+  // Without this, clicking the icon causes CM to blur, which triggers
+  // editorStateCache save/restore and reverts the TODO prefix.
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+  }, []);
+
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -168,6 +175,7 @@ export const TodoStatusIcon = forwardRef<
       ref={ref}
       type="button"
       style={containerStyle}
+      onMouseDown={handleMouseDown}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onContextMenu={handleContextMenu}

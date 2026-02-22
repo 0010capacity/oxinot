@@ -60,18 +60,18 @@ import { renderMarkdownToHtml } from "./markdownRenderer";
 import "./BlockComponent.css";
 import { TodoDatePicker } from "../components/todo/TodoDatePicker";
 import { TodoStatusIcon } from "../components/todo/TodoStatusIcon";
+import { STATUS_COLORS } from "../components/todo/TodoStatusIcon";
 import { INDENT_PER_LEVEL } from "../constants/layout";
 import { useIsBlockSelected } from "../hooks/useBlockSelection";
 import {
   ALL_STATUSES,
+  STATUS_DISPLAY_NAMES,
   extractStatusPrefix,
   getNextStatus,
   getTodoStatus,
   isOverdue,
   setStatusPrefix,
-  STATUS_DISPLAY_NAMES,
 } from "../types/todo";
-import { STATUS_COLORS } from "../components/todo/TodoStatusIcon";
 import { BlockOrderContext } from "./BlockEditor";
 import {
   calculateNextBlockCursorPosition,
@@ -143,6 +143,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const appliedPositionRef = useRef<number | null>(null);
     const popoverDropdownRef = useRef<HTMLDivElement>(null);
 
+    // skipNextOnChangeRef removed - no longer needed since we let onChange flow naturally
     const [isMetadataOpen, setIsMetadataOpen] = useState(false);
     const metadataCloseTimeoutRef = useRef<ReturnType<
       typeof setTimeout
@@ -158,26 +159,47 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const [blocksToDelete, setBlocksToDelete] = useState<string[]>([]);
     const [todoStatusMenuOpen, setTodoStatusMenuOpen] = useState(false);
 
+    const scheduleCacheUpdate = useCallback(
+      (view: EditorView) => {
+        requestAnimationFrame(() => {
+          editorStateCache.set(blockId, view.state);
+        });
+      },
+      [blockId],
+    );
+
     const toggleTodoStatus = useCallback(async () => {
       const currentStatus = getTodoStatus(blockMetadata);
       // Use draftRef for real-time content
       const content = draftRef.current || blockContent || "";
 
+      let newContent: string;
       if (currentStatus) {
         // Remove TODO prefix
         const extracted = extractStatusPrefix(content);
-        const newContent = extracted?.rest || content;
-        draftRef.current = newContent;
-        setDraft(newContent);
-        await useBlockStore.getState().updateBlockContent(blockId, newContent);
+        newContent = extracted?.rest || content;
       } else {
         // Add TODO prefix
-        const newContent = setStatusPrefix(content, "todo");
+        newContent = setStatusPrefix(content, "todo");
+      }
+
+      // Update CodeMirror editor view immediately
+      const view = editorRef.current?.getView();
+      if (view) {
+        // Directly update CodeMirror - it will trigger onChange which updates draft state naturally
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: newContent },
+        });
+        // Keep editorStateCache in sync so any blur/refocus cycle won't revert the prefix
+        scheduleCacheUpdate(view);
+      } else {
+        // Fallback: no editor view, update draft directly
         draftRef.current = newContent;
         setDraft(newContent);
-        await useBlockStore.getState().updateBlockContent(blockId, newContent);
       }
-    }, [blockId, blockMetadata, blockContent]);
+
+      await useBlockStore.getState().updateBlockContent(blockId, newContent);
+    }, [blockId, blockMetadata, blockContent, scheduleCacheUpdate]);
 
     const cycleTodoStatus = useCallback(async () => {
       const currentStatus = getTodoStatus(blockMetadata);
@@ -190,11 +212,25 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           extracted?.rest || content,
           nextStatus,
         );
-        draftRef.current = newContent;
-        setDraft(newContent);
+
+        // Update CodeMirror editor view immediately
+        const view = editorRef.current?.getView();
+        if (view) {
+          // Directly update CodeMirror - it will trigger onChange which updates draft state naturally
+          view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: newContent },
+          });
+          // Keep editorStateCache in sync so any blur/refocus cycle won't revert the prefix
+          scheduleCacheUpdate(view);
+        } else {
+          // Fallback: no editor view, update draft directly
+          draftRef.current = newContent;
+          setDraft(newContent);
+        }
+
         await useBlockStore.getState().updateBlockContent(blockId, newContent);
       }
-    }, [blockId, blockMetadata, blockContent]);
+    }, [blockId, blockMetadata, blockContent, scheduleCacheUpdate]);
 
     const copyBlocksAsMarkdown = useCallback(() => {
       const currentSelectedIds = useBlockUIStore.getState().selectedBlockIds;
@@ -737,13 +773,46 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         // When gaining focus: restore cached state if available
         const cachedState = editorStateCache.get(blockId);
         if (cachedState) {
-          view.setState(cachedState);
+          const cachedDoc = cachedState.doc.toString();
+          const currentDoc = view.state.doc.toString();
+          const latestDraft = draftRef.current || blockContent || "";
+
+          if (cachedDoc === currentDoc) {
+            if (!cachedState.selection.eq(view.state.selection)) {
+              view.dispatch({ selection: cachedState.selection });
+            }
+            return;
+          }
+
+          if (cachedDoc === latestDraft) {
+            view.dispatch({
+              changes: {
+                from: 0,
+                to: view.state.doc.length,
+                insert: cachedDoc,
+              },
+              selection: cachedState.selection,
+            });
+            scheduleCacheUpdate(view);
+            return;
+          }
+
+          if (currentDoc !== latestDraft) {
+            view.dispatch({
+              changes: {
+                from: 0,
+                to: view.state.doc.length,
+                insert: latestDraft,
+              },
+            });
+            scheduleCacheUpdate(view);
+          }
         }
       } else {
         // When losing focus: save current editor state
-        editorStateCache.set(blockId, view.state);
+        scheduleCacheUpdate(view);
       }
-    }, [isFocused, blockId]);
+    }, [isFocused, blockId, blockContent, scheduleCacheUpdate]);
 
     // Focus editor when this block becomes focused
     useEffect(() => {
@@ -1068,7 +1137,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       [blockId, hasChildren, setFocusedBlock],
     );
 
-    const todoStatus = extractStatusPrefix(draftRef.current || blockContent || '')?.status || getTodoStatus(blockMetadata);
+    const todoStatus =
+      extractStatusPrefix(draft || blockContent || "")?.status ||
+      getTodoStatus(blockMetadata);
 
     const handleTodoStatusClick = useCallback(async () => {
       await cycleTodoStatus();
@@ -1086,16 +1157,26 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         // Use draftRef for real-time content
         const content = draftRef.current || blockContent || "";
         const extracted = extractStatusPrefix(content);
-        const newContent = setStatusPrefix(
-          extracted?.rest || content,
-          status,
-        );
-        draftRef.current = newContent;
-        setDraft(newContent);
+        const newContent = setStatusPrefix(extracted?.rest || content, status);
         setTodoStatusMenuOpen(false);
+
+        // Update CodeMirror editor view immediately
+        const view = editorRef.current?.getView();
+        if (view) {
+          // Directly update CodeMirror - it will trigger onChange which updates draft state naturally
+          view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: newContent },
+          });
+          // Keep editorStateCache in sync so any blur/refocus cycle won't revert the prefix
+          editorStateCache.set(blockId, view.state);
+        } else {
+          // Fallback: no editor view, update draft directly
+          setDraft(newContent);
+        }
+
         await useBlockStore.getState().updateBlockContent(blockId, newContent);
       },
-      [blockId, blockContent],
+      [blockId, blockContent, scheduleCacheUpdate],
     );
 
     const handleRemoveTodoStatus = useCallback(async () => {
@@ -1103,11 +1184,24 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       const content = draftRef.current || blockContent || "";
       const extracted = extractStatusPrefix(content);
       const newContent = extracted?.rest || content;
-      draftRef.current = newContent;
-      setDraft(newContent);
       setTodoStatusMenuOpen(false);
+
+      // Update CodeMirror editor view immediately
+      const view = editorRef.current?.getView();
+      if (view) {
+        // Directly update CodeMirror - it will trigger onChange which updates draft state naturally
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: newContent },
+        });
+        // Keep editorStateCache in sync so any blur/refocus cycle won't revert the prefix
+        scheduleCacheUpdate(view);
+      } else {
+        // Fallback: no editor view, update draft directly
+        setDraft(newContent);
+      }
+
       await useBlockStore.getState().updateBlockContent(blockId, newContent);
-    }, [blockId, blockContent]);
+    }, [blockId, blockContent, scheduleCacheUpdate]);
 
     // Create custom keybindings for CodeMirror to handle block operations
     const handleContentChangeWithTrigger = useCallback(
@@ -1361,9 +1455,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               if (!pageId) return false;
 
               commitDraft().then(async () => {
-                await blockStore.updateBlock(blockId, { blockType: "ai-prompt" });
+                await blockStore.updateBlock(blockId, {
+                  blockType: "ai-prompt",
+                });
 
-                await threadBlockService.executePrompt(blockId, content, pageId);
+                await threadBlockService.executePrompt(
+                  blockId,
+                  content,
+                  pageId,
+                );
               });
               return true;
             }
@@ -1581,7 +1681,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                     borderRadius: "var(--radius-sm)",
                   }}
                 >
-                  <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+                  <div
+                    style={{ display: "flex", gap: 2, alignItems: "center" }}
+                  >
                     {ALL_STATUSES.map((s) => (
                       <button
                         key={s}
@@ -1599,14 +1701,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                           height: 24,
                           padding: 0,
                           border: "none",
-                          background: todoStatus === s ? "var(--color-interactive-selected)" : "transparent",
+                          background:
+                            todoStatus === s
+                              ? "var(--color-interactive-selected)"
+                              : "transparent",
                           borderRadius: "var(--radius-sm)",
                           cursor: "pointer",
                           transition: "background-color var(--transition-fast)",
                         }}
                         onMouseEnter={(e) => {
                           if (todoStatus !== s) {
-                            e.currentTarget.style.background = "var(--color-interactive-hover)";
+                            e.currentTarget.style.background =
+                              "var(--color-interactive-hover)";
                           }
                         }}
                         onMouseLeave={(e) => {
@@ -1626,7 +1732,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                         />
                       </button>
                     ))}
-                    <div style={{ width: 1, height: 16, background: "var(--color-border-secondary)", margin: "0 2px" }} />
+                    <div
+                      style={{
+                        width: 1,
+                        height: 16,
+                        background: "var(--color-border-secondary)",
+                        margin: "0 2px",
+                      }}
+                    />
                     <button
                       type="button"
                       title="Remove"
@@ -1650,12 +1763,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                         transition: "all var(--transition-fast)",
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "var(--color-interactive-hover)";
+                        e.currentTarget.style.background =
+                          "var(--color-interactive-hover)";
                         e.currentTarget.style.color = "var(--color-error)";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.color = "var(--color-text-tertiary)";
+                        e.currentTarget.style.color =
+                          "var(--color-text-tertiary)";
                       }}
                     >
                       ×

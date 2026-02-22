@@ -1,6 +1,9 @@
-import { Decoration } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
-import type { DecorationSpec } from "../utils/decorationHelpers";
+import {
+  type DecorationSpec,
+  createHiddenMarker,
+  createSafeReplacement,
+} from "../utils/decorationHelpers";
 import { BaseHandler, type RenderContext } from "./types";
 
 const TODO_PREFIX_REGEX = /^(TODO|DOING|DONE|LATER|CANCELED)\s/;
@@ -37,11 +40,17 @@ export class TodoPrefixHandler extends BaseHandler {
     const absoluteEnd = lineFrom + end;
 
     if (!isEditMode) {
-      decorations.push({
-        from: absoluteStart,
-        to: absoluteEnd,
-        decoration: Decoration.replace({}),
-      });
+      const safeReplacement = createSafeReplacement(
+        absoluteStart,
+        absoluteEnd,
+        lineText,
+        lineFrom,
+      );
+      if (safeReplacement) {
+        decorations.push(safeReplacement);
+      } else {
+        decorations.push(createHiddenMarker(absoluteStart, absoluteEnd, false));
+      }
     }
 
     return decorations;
