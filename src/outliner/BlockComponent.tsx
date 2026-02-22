@@ -1551,6 +1551,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             {/* Bullet Point / AI Icon / TODO Status - clickable for zoom or cycle */}
             {todoStatus ? (
               <Popover
+                withinPortal
                 opened={todoStatusMenuOpen}
                 onChange={setTodoStatusMenuOpen}
                 position="top-start"
