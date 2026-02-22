@@ -1068,7 +1068,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       [blockId, hasChildren, setFocusedBlock],
     );
 
-    const todoStatus = getTodoStatus(blockMetadata);
+    const todoStatus = extractStatusPrefix(draftRef.current || blockContent || '')?.status || getTodoStatus(blockMetadata);
 
     const handleTodoStatusClick = useCallback(async () => {
       await cycleTodoStatus();
