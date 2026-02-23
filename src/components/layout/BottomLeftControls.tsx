@@ -9,6 +9,7 @@ import {
   IconHelp,
   IconHome,
   IconLink,
+  IconListCheck,
   IconMoon,
   IconSearch,
   IconSettings,
@@ -25,6 +26,7 @@ interface BottomLeftControlsProps {
   onHelpClick?: () => void;
   onCommandPaletteClick?: () => void;
   onGraphViewClick?: () => void;
+  onTodoPanelClick?: () => void;
 }
 
 /**
@@ -38,6 +40,7 @@ export function BottomLeftControls({
   onHelpClick,
   onCommandPaletteClick,
   onGraphViewClick,
+  onTodoPanelClick,
 }: BottomLeftControlsProps) {
   const { t } = useTranslation();
   const { toggleColorScheme } = useMantineColorScheme();
@@ -165,6 +168,17 @@ export function BottomLeftControls({
           styles={iconButtonStyles}
         >
           <IconLink size={16} />
+        </ActionIcon>
+      </Tooltip>
+
+      <Tooltip label="TODO List" position="top">
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          onClick={onTodoPanelClick}
+          styles={iconButtonStyles}
+        >
+          <IconListCheck size={16} />
         </ActionIcon>
       </Tooltip>
     </div>

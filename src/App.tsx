@@ -21,6 +21,7 @@ import { GitStatusIndicator } from "./components/GitStatusIndicator";
 import { SnowEffect } from "./components/SnowEffect";
 import { TitleBar } from "./components/TitleBar";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
+import { TodoListFloatingPanel } from "./components/todo/TodoListFloatingPanel";
 
 // Lazy load non-critical components for code splitting
 const CommandPalette = lazy(() => import("./components/CommandPalette"));
@@ -40,13 +41,16 @@ import { useBlockStore } from "./stores/blockStore";
 import { useFloatingPanelStore } from "./stores/floatingPanelStore";
 import { usePageStore } from "./stores/pageStore";
 import { useThemeStore } from "./stores/themeStore";
+import { useTodoPanelStore } from "./stores/todoPanelStore";
 import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
 import { useWorkspaceStore } from "./stores/workspaceStore";
+import { useIsTodoPanelOpen } from "./stores/todoPanelStore";
 
 import { BLOCK_UPDATE_EVENT, type BlockUpdateEventDetail } from "./events";
 import { useCoreCommands } from "./hooks/useCoreCommands";
 import { useHomepage } from "./hooks/useHomepage";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { initializeTodoNotifications } from "./services/notifications/todoNotifications";
 import { useWorkspaceInitializer } from "./hooks/useWorkspaceInitializer";
 import { ThemeProvider } from "./theme/ThemeProvider";
 
@@ -199,6 +203,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   const [helpOpened, setHelpOpened] = useState(false);
   const [commandPaletteOpened, setCommandPaletteOpened] = useState(false);
   const [graphViewOpened, setGraphViewOpened] = useState(false);
+  const isTodoPanelOpen = useIsTodoPanelOpen();
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
@@ -295,6 +300,12 @@ function AppContent({ workspacePath }: AppContentProps) {
     );
   }, [fontFamily, editorFontSize, editorLineHeight, getFontStack]);
 
+  useEffect(() => {
+    if (isInitialized) {
+      initializeTodoNotifications();
+    }
+  }, [isInitialized]);
+
   const handleMigrationCancelWithWorkspace = () => {
     handleMigrationCancel();
     clearError();
@@ -348,6 +359,9 @@ function AppContent({ workspacePath }: AppContentProps) {
               setCommandPaletteOpened(true);
             }}
             onGraphViewClick={() => setGraphViewOpened(true)}
+            onTodoPanelClick={() =>
+              useTodoPanelStore.getState().togglePanel()
+            }
           />
 
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -488,6 +502,10 @@ function AppContent({ workspacePath }: AppContentProps) {
       <Suspense fallback={null}>
         <Updater />
       </Suspense>
+      {/* TODO Panel */}
+      {isTodoPanelOpen && <TodoListFloatingPanel />}
+
+
       <Notifications />
       <ErrorNotifications />
       <SnowEffect />

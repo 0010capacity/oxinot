@@ -16,6 +16,7 @@ pub struct TodoFilter {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TodoResult {
     pub block_id: String,
     pub content: String,

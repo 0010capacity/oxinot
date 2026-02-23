@@ -1,4 +1,12 @@
 import { Badge, Box, Group, Progress, Text } from "@mantine/core";
+import {
+  IconAlertTriangle,
+  IconCalendar,
+  IconCalendarPlus,
+  IconCheck,
+  IconFlag,
+  IconList,
+} from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 import { type TodoStatistics, useTodoStore } from "../../stores/todoStore";
 import {
@@ -7,6 +15,31 @@ import {
   type SmartViewType,
 } from "../../types/todo";
 import { CollapseToggle } from "../common/CollapseToggle";
+
+const ICON_MAP: Record<
+  SmartView["iconName"],
+  | typeof IconCalendar
+  | typeof IconCalendarPlus
+  | typeof IconAlertTriangle
+  | typeof IconFlag
+  | typeof IconList
+  | typeof IconCheck
+> = {
+  IconCalendar,
+  IconCalendarPlus,
+  IconAlertTriangle,
+  IconFlag,
+  IconList,
+  IconCheck,
+};
+
+function SmartViewIcon({
+  iconName,
+  size = 14,
+}: { iconName: SmartView["iconName"]; size?: number }) {
+  const IconComponent = ICON_MAP[iconName];
+  return <IconComponent size={size} stroke={1.5} />;
+}
 
 export function TodoPanel() {
   const [collapsed, setCollapsed] = useState(false);
@@ -17,12 +50,10 @@ export function TodoPanel() {
   const fetchSmartView = useTodoStore((s) => s.fetchSmartView);
   const fetchStatistics = useTodoStore((s) => s.fetchStatistics);
 
-  // Fetch counts for each smart view on mount
   useEffect(() => {
     const fetchCounts = async () => {
       for (const view of SMART_VIEWS) {
         await fetchSmartView(view.id);
-        // Count is the length of returned todos
         setCounts((prev) => ({
           ...prev,
           [view.id]: useTodoStore.getState().todos.length,
@@ -32,7 +63,6 @@ export function TodoPanel() {
     fetchCounts();
   }, [fetchSmartView]);
 
-  // Fetch statistics on mount
   useEffect(() => {
     const loadStats = async () => {
       const result = await fetchStatistics();
@@ -60,7 +90,6 @@ export function TodoPanel() {
         borderBottom: "1px solid var(--color-border-primary)",
       }}
     >
-      {/* Header */}
       <Group
         gap="xs"
         style={{
@@ -73,12 +102,16 @@ export function TodoPanel() {
           isCollapsed={collapsed}
           onClick={handleToggleCollapse}
         />
+        <IconList
+          size={14}
+          stroke={1.5}
+          style={{ color: "var(--color-text-secondary)" }}
+        />
         <Text size="sm" fw={600} c="var(--color-text-primary)">
-          📋 Tasks
+          Tasks
         </Text>
       </Group>
 
-      {/* Statistics */}
       {!collapsed && stats && (
         <Box style={{ padding: "0 12px 8px" }}>
           <Group gap="xs" mb="xs">
@@ -120,7 +153,6 @@ export function TodoPanel() {
         </Box>
       )}
 
-      {/* Smart Views List */}
       {!collapsed && (
         <Box style={{ padding: "0 8px 8px" }}>
           {SMART_VIEWS.map((view) => (
@@ -150,7 +182,7 @@ export function TodoPanel() {
                 }
               }}
             >
-              <Text size="sm">{view.icon}</Text>
+              <SmartViewIcon iconName={view.iconName} size={14} />
               <Text size="sm" c="var(--color-text-primary)" style={{ flex: 1 }}>
                 {view.label}
               </Text>

@@ -234,7 +234,14 @@ export interface SmartView {
   id: SmartViewType;
   label: string;
   labelKo: string;
-  icon: string;
+  /** Tabler icon name for this view */
+  iconName:
+    | "IconCalendar"
+    | "IconCalendarPlus"
+    | "IconAlertTriangle"
+    | "IconFlag"
+    | "IconList"
+    | "IconCheck";
   filter: TodoFilter;
 }
 
@@ -256,7 +263,7 @@ export const SMART_VIEWS: SmartView[] = [
     id: "today",
     label: "Today",
     labelKo: "오늘",
-    icon: "📅",
+    iconName: "IconCalendar",
     filter: {
       status: ["todo", "doing"],
       scheduledFrom: new Date().toISOString().split("T")[0],
@@ -267,7 +274,7 @@ export const SMART_VIEWS: SmartView[] = [
     id: "upcoming",
     label: "Upcoming",
     labelKo: "다가오는 일정",
-    icon: "📆",
+    iconName: "IconCalendarPlus",
     filter: {
       status: ["todo", "doing"],
       scheduledFrom: new Date().toISOString().split("T")[0],
@@ -277,7 +284,7 @@ export const SMART_VIEWS: SmartView[] = [
     id: "overdue",
     label: "Overdue",
     labelKo: "기한 초과",
-    icon: "⚠️",
+    iconName: "IconAlertTriangle",
     filter: {
       status: ["todo", "doing"],
       overdueOnly: true,
@@ -287,7 +294,7 @@ export const SMART_VIEWS: SmartView[] = [
     id: "high_priority",
     label: "High Priority",
     labelKo: "높은 우선순위",
-    icon: "🚩",
+    iconName: "IconFlag",
     filter: {
       status: ["todo", "doing"],
       priority: ["A"],
@@ -297,7 +304,7 @@ export const SMART_VIEWS: SmartView[] = [
     id: "all",
     label: "All Tasks",
     labelKo: "모든 작업",
-    icon: "📥",
+    iconName: "IconList",
     filter: {
       status: ["todo", "doing", "later"],
     },
@@ -306,7 +313,7 @@ export const SMART_VIEWS: SmartView[] = [
     id: "completed",
     label: "Completed",
     labelKo: "완료됨",
-    icon: "✅",
+    iconName: "IconCheck",
     filter: {
       status: ["done"],
     },

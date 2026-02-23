@@ -3,6 +3,9 @@ import type { EditorView } from "@codemirror/view";
 import { Box, Popover, useComputedColorScheme } from "@mantine/core";
 
 import {
+  IconAdjustments,
+  IconCalendar,
+  IconClock,
   IconCopy,
   IconIndentDecrease,
   IconIndentIncrease,
@@ -158,6 +161,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [blocksToDelete, setBlocksToDelete] = useState<string[]>([]);
     const [todoStatusMenuOpen, setTodoStatusMenuOpen] = useState(false);
+    const [showScheduledPicker, setShowScheduledPicker] = useState(false);
+    const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
+    const [showPriorityMenu, setShowPriorityMenu] = useState(false);
 
     const scheduleCacheUpdate = useCallback(
       (view: EditorView) => {
@@ -1158,6 +1164,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         const content = draftRef.current || blockContent || "";
         const extracted = extractStatusPrefix(content);
         const newContent = setStatusPrefix(extracted?.rest || content, status);
+        const currentStatus = todoStatus;
         setTodoStatusMenuOpen(false);
 
         // Update CodeMirror editor view immediately
@@ -1175,8 +1182,30 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         }
 
         await useBlockStore.getState().updateBlockContent(blockId, newContent);
+
+        // Auto-register completed date when status changes to "done"
+        if (
+          status === "done" &&
+          currentStatus !== "done" &&
+          !blockMetadata?.completed
+        ) {
+          const today = new Date().toISOString().split("T")[0];
+          await useBlockStore
+            .getState()
+            .setBlockMetadata(blockId, "completed", today);
+        }
       },
-      [blockId, blockContent, scheduleCacheUpdate],
+      [blockId, blockContent, scheduleCacheUpdate, todoStatus, blockMetadata],
+    );
+
+    const handleSetPriority = useCallback(
+      async (priority: import("../types/todo").Priority | null) => {
+        await useBlockStore
+          .getState()
+          .setBlockMetadata(blockId, "priority", priority);
+        setShowPriorityMenu(false);
+      },
+      [blockId],
     );
 
     const handleRemoveTodoStatus = useCallback(async () => {
@@ -1742,6 +1771,310 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                     />
                     <button
                       type="button"
+                      title="Set scheduled date"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowScheduledPicker(true);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        padding: 0,
+                        border: "none",
+                        background: showScheduledPicker
+                          ? "var(--color-interactive-selected)"
+                          : blockMetadata?.scheduled
+                            ? "var(--color-accent-muted)"
+                            : "transparent",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer",
+                        color: "var(--color-text-secondary)",
+                        transition: "all var(--transition-fast)",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!showScheduledPicker) {
+                          e.currentTarget.style.background =
+                            "var(--color-interactive-hover)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!showScheduledPicker && !blockMetadata?.scheduled) {
+                          e.currentTarget.style.background = "transparent";
+                        } else if (blockMetadata?.scheduled) {
+                          e.currentTarget.style.background =
+                            "var(--color-accent-muted)";
+                        }
+                      }}
+                    >
+                      <IconCalendar size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Set deadline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDeadlinePicker(true);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        padding: 0,
+                        border: "none",
+                        background: showDeadlinePicker
+                          ? "var(--color-interactive-selected)"
+                          : blockMetadata?.deadline
+                            ? "var(--color-accent-muted)"
+                            : "transparent",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer",
+                        color: "var(--color-text-secondary)",
+                        transition: "all var(--transition-fast)",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!showDeadlinePicker) {
+                          e.currentTarget.style.background =
+                            "var(--color-interactive-hover)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!showDeadlinePicker && !blockMetadata?.deadline) {
+                          e.currentTarget.style.background = "transparent";
+                        } else if (blockMetadata?.deadline) {
+                          e.currentTarget.style.background =
+                            "var(--color-accent-muted)";
+                        }
+                      }}
+                    >
+                      <IconClock size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Priority settings"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowPriorityMenu(!showPriorityMenu);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        padding: 0,
+                        border: "none",
+                        background: showPriorityMenu
+                          ? "var(--color-interactive-selected)"
+                          : blockMetadata?.priority
+                            ? "var(--color-accent-muted)"
+                            : "transparent",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer",
+                        color: "var(--color-text-secondary)",
+                        transition: "all var(--transition-fast)",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!showPriorityMenu) {
+                          e.currentTarget.style.background =
+                            "var(--color-interactive-hover)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!showPriorityMenu && !blockMetadata?.priority) {
+                          e.currentTarget.style.background = "transparent";
+                        } else if (blockMetadata?.priority) {
+                          e.currentTarget.style.background =
+                            "var(--color-accent-muted)";
+                        }
+                      }}
+                    >
+                      <IconAdjustments size={14} />
+                    </button>
+                    {/* Priority menu */}
+                    {showPriorityMenu && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          marginTop: "var(--spacing-xs)",
+                          background: "var(--color-bg-secondary)",
+                          border: "1px solid var(--color-border-secondary)",
+                          borderRadius: "var(--radius-md)",
+                          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                          zIndex: 1000,
+                          minWidth: 120,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSetPriority("A");
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "var(--spacing-sm)",
+                            textAlign: "left",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            color: "var(--color-text-primary)",
+                            fontSize: 12,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "var(--spacing-xs)",
+                            transition: "background var(--transition-fast)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background =
+                              "var(--color-interactive-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              background: "var(--color-error)",
+                            }}
+                          />
+                          Priority A
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSetPriority("B");
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "var(--spacing-sm)",
+                            textAlign: "left",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            color: "var(--color-text-primary)",
+                            fontSize: 12,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "var(--spacing-xs)",
+                            transition: "background var(--transition-fast)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background =
+                              "var(--color-interactive-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              background: "var(--color-warning)",
+                            }}
+                          />
+                          Priority B
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSetPriority("C");
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "var(--spacing-sm)",
+                            textAlign: "left",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            color: "var(--color-text-primary)",
+                            fontSize: 12,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "var(--spacing-xs)",
+                            transition: "background var(--transition-fast)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background =
+                              "var(--color-interactive-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              background: "var(--color-accent-muted)",
+                            }}
+                          />
+                          Priority C
+                        </button>
+                        <div
+                          style={{
+                            height: 1,
+                            background: "var(--color-border-secondary)",
+                            margin: "var(--spacing-xs) 0",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSetPriority(null);
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "var(--spacing-sm)",
+                            textAlign: "left",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            color: "var(--color-text-tertiary)",
+                            fontSize: 12,
+                            transition: "background var(--transition-fast)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background =
+                              "var(--color-interactive-hover)";
+                            e.currentTarget.style.color =
+                              "var(--color-text-primary)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color =
+                              "var(--color-text-tertiary)";
+                          }}
+                        >
+                          None
+                        </button>
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        width: 1,
+                        height: 16,
+                        background: "var(--color-border-secondary)",
+                        margin: "0 2px",
+                      }}
+                    />
+                    <button
+                      type="button"
                       title="Remove"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1776,6 +2109,27 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                       ×
                     </button>
                   </div>
+                  {/* Date pickers rendered below the buttons */}
+                  {showScheduledPicker && (
+                    <div style={{ marginTop: "var(--spacing-xs)" }}>
+                      <TodoDatePicker
+                        blockId={blockId}
+                        type="scheduled"
+                        value={blockMetadata?.scheduled || null}
+                        onClose={() => setShowScheduledPicker(false)}
+                      />
+                    </div>
+                  )}
+                  {showDeadlinePicker && (
+                    <div style={{ marginTop: "var(--spacing-xs)" }}>
+                      <TodoDatePicker
+                        blockId={blockId}
+                        type="deadline"
+                        value={blockMetadata?.deadline || null}
+                        onClose={() => setShowDeadlinePicker(false)}
+                      />
+                    </div>
+                  )}
                 </Popover.Dropdown>
               </Popover>
             ) : (

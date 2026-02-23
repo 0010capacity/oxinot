@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createWithEqualityFn } from "zustand/traditional";
+import { dispatchBlockUpdate } from "../events";
 import type { TodoFilter, TodoResult, TodoStatus } from "../types/todo";
 import {
   SMART_VIEWS,
@@ -7,8 +8,13 @@ import {
   getNextStatus,
   setStatusPrefix,
 } from "../types/todo";
-import { useBlockStore } from "./blockStore";
+import type { BlockData } from "./blockStore";
 import { useWorkspaceStore } from "./workspaceStore";
+
+interface BlockWithPath {
+  block: BlockData;
+  ancestorIds: string[];
+}
 
 interface TodoState {
   isLoading: boolean;
@@ -48,8 +54,17 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      const blockStore = useBlockStore.getState();
-      const block = blockStore.blocksById[blockId];
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        throw new Error("No workspace selected");
+      }
+
+      const blockWithPath = await invoke<BlockWithPath | null>("get_block", {
+        workspacePath,
+        request: { block_id: blockId },
+      });
+
+      const block = blockWithPath?.block;
 
       if (!block) {
         throw new Error(`Block not found: ${blockId}`);
@@ -60,8 +75,15 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
       const rest = extracted ? extracted.rest : content;
       const newContent = setStatusPrefix(rest, status);
 
-      await blockStore.updateBlockContent(blockId, newContent);
+      const updatedBlock = await invoke<BlockData>("update_block", {
+        workspacePath,
+        request: {
+          id: blockId,
+          content: newContent,
+        },
+      });
 
+      dispatchBlockUpdate([updatedBlock]);
       set({ isLoading: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -74,8 +96,17 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      const blockStore = useBlockStore.getState();
-      const block = blockStore.blocksById[blockId];
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        throw new Error("No workspace selected");
+      }
+
+      const blockWithPath = await invoke<BlockWithPath | null>("get_block", {
+        workspacePath,
+        request: { block_id: blockId },
+      });
+
+      const block = blockWithPath?.block;
 
       if (!block) {
         throw new Error(`Block not found: ${blockId}`);
@@ -96,12 +127,20 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
       }
 
       const newContent = setStatusPrefix(rest, nextStatus);
-      await blockStore.updateBlockContent(blockId, newContent);
 
+      const updatedBlock = await invoke<BlockData>("update_block", {
+        workspacePath,
+        request: {
+          id: blockId,
+          content: newContent,
+        },
+      });
+
+      dispatchBlockUpdate([updatedBlock]);
       set({ isLoading: false });
     } catch (error) {
+      console.error("[todoStore] cycleTodoStatus error:", error);
       const message = error instanceof Error ? error.message : "Unknown error";
-      console.error("[todoStore] cycleTodoStatus error:", message);
       set({ isLoading: false, error: message });
     }
   },
@@ -110,8 +149,17 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      const blockStore = useBlockStore.getState();
-      const block = blockStore.blocksById[blockId];
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        throw new Error("No workspace selected");
+      }
+
+      const blockWithPath = await invoke<BlockWithPath | null>("get_block", {
+        workspacePath,
+        request: { block_id: blockId },
+      });
+
+      const block = blockWithPath?.block;
 
       if (!block) {
         throw new Error(`Block not found: ${blockId}`);
@@ -121,7 +169,15 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
       const extracted = extractStatusPrefix(content);
 
       if (extracted) {
-        await blockStore.updateBlockContent(blockId, extracted.rest);
+        const updatedBlock = await invoke<BlockData>("update_block", {
+          workspacePath,
+          request: {
+            id: blockId,
+            content: extracted.rest,
+          },
+        });
+
+        dispatchBlockUpdate([updatedBlock]);
       }
 
       set({ isLoading: false });
@@ -136,10 +192,21 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      const blockStore = useBlockStore.getState();
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        throw new Error("No workspace selected");
+      }
+
+      const updatedBlocks: BlockData[] = [];
 
       for (const blockId of blockIds) {
-        const block = blockStore.blocksById[blockId];
+        const blockWithPath = await invoke<BlockWithPath | null>("get_block", {
+          workspacePath,
+          request: { block_id: blockId },
+        });
+
+        const block = blockWithPath?.block;
+
         if (!block) continue;
 
         const content = block.content || "";
@@ -147,7 +214,21 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
         const rest = extracted ? extracted.rest : content;
         const newContent = setStatusPrefix(rest, status);
 
-        await blockStore.updateBlockContent(blockId, newContent);
+        const updatedBlock = await invoke<BlockData>("update_block", {
+          workspacePath,
+          request: {
+            id: blockId,
+            content: newContent,
+          },
+        });
+
+        if (updatedBlock) {
+          updatedBlocks.push(updatedBlock);
+        }
+      }
+
+      if (updatedBlocks.length > 0) {
+        dispatchBlockUpdate(updatedBlocks);
       }
 
       set({ isLoading: false });
@@ -202,7 +283,6 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
     }
 
     try {
-      // Fetch all todos for statistics
       const allTodos = await invoke<TodoResult[]>("query_todos", {
         workspacePath,
         filter: {},
@@ -212,7 +292,6 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
       const completed = allTodos.filter((t) => t.status === "done").length;
       const inProgress = allTodos.filter((t) => t.status === "doing").length;
 
-      // Fetch overdue count
       const overdueTodos = await invoke<TodoResult[]>("query_todos", {
         workspacePath,
         filter: { overdueOnly: true, status: ["todo", "doing", "later"] },

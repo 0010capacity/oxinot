@@ -1,4 +1,5 @@
 import { Box, Button, Group, Popover, Stack } from "@mantine/core";
+import { IconAlarm, IconCalendar } from "@tabler/icons-react";
 import { useCallback, useState } from "react";
 import { useBlockStore } from "../../stores/blockStore";
 
@@ -35,6 +36,7 @@ export function TodoDatePicker({
   }, [blockId, type, setBlockMetadata, onClose]);
 
   const label = type === "scheduled" ? "Scheduled" : "Deadline";
+  const Icon = type === "scheduled" ? IconCalendar : IconAlarm;
 
   return (
     <Popover
@@ -62,7 +64,7 @@ export function TodoDatePicker({
             backgroundColor: "var(--color-bg-secondary)",
           }}
         >
-          {type === "scheduled" ? "📅" : "⏰"}
+          <Icon size={12} stroke={1.5} />
           {value || `Set ${label}`}
         </Box>
       </Popover.Target>

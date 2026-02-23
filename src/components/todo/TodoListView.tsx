@@ -1,4 +1,5 @@
 import {
+  Badge,
   Box,
   Checkbox,
   Group,
@@ -6,7 +7,7 @@ import {
   Text,
   UnstyledButton,
 } from "@mantine/core";
-import { IconX } from "@tabler/icons-react";
+import { IconAlertTriangle, IconCalendar, IconX } from "@tabler/icons-react";
 import { useCallback, useState } from "react";
 import { useTodoStore } from "../../stores/todoStore";
 import type { TodoResult, TodoStatus } from "../../types/todo";
@@ -89,7 +90,6 @@ export function TodoListView({ todos, onTodoClick }: TodoListViewProps) {
 
   return (
     <Box>
-      {/* Bulk Actions Bar */}
       {isSomeSelected && (
         <Group
           gap="xs"
@@ -140,7 +140,6 @@ export function TodoListView({ todos, onTodoClick }: TodoListViewProps) {
         </Group>
       )}
 
-      {/* Select All Header */}
       <Group
         gap="xs"
         style={{
@@ -160,7 +159,6 @@ export function TodoListView({ todos, onTodoClick }: TodoListViewProps) {
         </Text>
       </Group>
 
-      {/* Todo Items */}
       {todos.map((todo) => (
         <Group
           key={todo.blockId}
@@ -186,7 +184,6 @@ export function TodoListView({ todos, onTodoClick }: TodoListViewProps) {
             }
           }}
         >
-          {/* Selection Checkbox */}
           <Checkbox
             checked={selectedIds.has(todo.blockId)}
             onChange={() => handleToggleSelect(todo.blockId)}
@@ -194,15 +191,8 @@ export function TodoListView({ todos, onTodoClick }: TodoListViewProps) {
             size="xs"
           />
 
-          {/* Status Icon */}
-          <TodoStatusIcon
-            status={todo.status}
-            onClick={() => {
-              // Could open status menu here
-            }}
-          />
+          <TodoStatusIcon status={todo.status} onClick={() => {}} />
 
-          {/* Content */}
           <Box style={{ flex: 1, minWidth: 0 }}>
             <Text
               size="sm"
@@ -223,43 +213,41 @@ export function TodoListView({ todos, onTodoClick }: TodoListViewProps) {
             </Text>
           </Box>
 
-          {/* Date & Priority badges */}
           <Group gap="xs">
             {todo.scheduled && (
-              <Text size="xs" c="var(--color-text-secondary)">
-                📅 {formatDateForDisplay(todo.scheduled)}
-              </Text>
+              <Badge
+                size="xs"
+                variant="light"
+                color="blue"
+                leftSection={<IconCalendar size={10} stroke={1.5} />}
+              >
+                {formatDateForDisplay(todo.scheduled)}
+              </Badge>
             )}
             {todo.deadline && (
-              <Text size="xs" c="var(--color-text-secondary)">
-                ⏰ {formatDateForDisplay(todo.deadline)}
-              </Text>
+              <Badge
+                size="xs"
+                variant="light"
+                color="red"
+                leftSection={<IconAlertTriangle size={10} stroke={1.5} />}
+              >
+                {formatDateForDisplay(todo.deadline)}
+              </Badge>
             )}
             {todo.priority && (
-              <Box
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  fontSize: "var(--font-size-xs)",
-                  padding: "2px 6px",
-                  borderRadius: "var(--radius-sm)",
-                  backgroundColor:
-                    todo.priority === "A"
-                      ? "rgba(239, 68, 68, 0.2)"
-                      : todo.priority === "B"
-                        ? "rgba(234, 179, 8, 0.2)"
-                        : "rgba(59, 130, 246, 0.2)",
-                  color:
-                    todo.priority === "A"
-                      ? "#ef4444"
-                      : todo.priority === "B"
-                        ? "#eab308"
-                        : "#3b82f6",
-                  fontWeight: 500,
-                }}
+              <Badge
+                size="xs"
+                variant="light"
+                color={
+                  todo.priority === "A"
+                    ? "red"
+                    : todo.priority === "B"
+                      ? "yellow"
+                      : "blue"
+                }
               >
-                {todo.priority}
-              </Box>
+                P{todo.priority}
+              </Badge>
             )}
           </Group>
         </Group>
