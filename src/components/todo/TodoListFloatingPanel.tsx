@@ -1,4 +1,4 @@
-import { Badge, Box, Group, ScrollArea, Text, Tooltip } from "@mantine/core";
+import { Badge, Box, Group, Text, Tooltip } from "@mantine/core";
 import {
   IconAlertTriangle,
   IconCalendar,
@@ -13,7 +13,8 @@ import {
   IconList,
   IconX,
 } from "@tabler/icons-react";
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
+import { Virtuoso } from "react-virtuoso";
 import { useBlockUIStore } from "../../stores/blockUIStore";
 import { usePageStore } from "../../stores/pageStore";
 import { useTodoPanelStore } from "../../stores/todoPanelStore";
@@ -149,7 +150,7 @@ function StatusBadge({ status }: { status: TodoStatus }) {
   );
 }
 
-function TodoItem({
+const TodoItem = memo(function TodoItem({
   todo,
   onClick,
   onStatusToggle,
@@ -249,7 +250,7 @@ function TodoItem({
       </Group>
     </Box>
   );
-}
+});
 
 export function TodoListFloatingPanel() {
   const isOpen = useTodoPanelStore((s) => s.isOpen);
@@ -423,7 +424,7 @@ export function TodoListFloatingPanel() {
         ))}
       </Box>
 
-      <ScrollArea flex={1} style={{ flex: 1 }}>
+      <Box style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
         {todos.length === 0 ? (
           <Box
             style={{
@@ -435,17 +436,20 @@ export function TodoListFloatingPanel() {
             <Text size="sm">No tasks found</Text>
           </Box>
         ) : (
-          todos.map((todo) => (
-            <TodoItem
-              key={todo.blockId}
-              todo={todo}
-              onClick={() => handleTodoClick(todo)}
-              onStatusToggle={() => handleStatusToggle(todo.blockId)}
-              isUpdating={updatingBlockId === todo.blockId}
-            />
-          ))
+          <Virtuoso
+            data={todos}
+            itemContent={(_index, todo) => (
+              <TodoItem
+                todo={todo}
+                onClick={() => handleTodoClick(todo)}
+                onStatusToggle={() => handleStatusToggle(todo.blockId)}
+                isUpdating={updatingBlockId === todo.blockId}
+              />
+            )}
+            style={{ height: "100%" }}
+          />
         )}
-      </ScrollArea>
+      </Box>
 
       <Box
         style={{
