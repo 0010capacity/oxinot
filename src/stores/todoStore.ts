@@ -267,7 +267,20 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
       console.error("[todoStore] Unknown smart view:", viewId);
       return;
     }
-    await get().fetchTodos(smartView.filter);
+
+    // Compute date filters at fetch time, not import time
+    // This ensures "Today" filter works correctly even if app is open past midnight
+    const today = new Date().toISOString().split("T")[0];
+    const filter = { ...smartView.filter };
+
+    if (viewId === "today") {
+      filter.scheduledFrom = today;
+      filter.scheduledTo = today;
+    } else if (viewId === "upcoming") {
+      filter.scheduledFrom = today;
+    }
+
+    await get().fetchTodos(filter);
   },
 
   fetchStatistics: async (): Promise<TodoStatistics> => {

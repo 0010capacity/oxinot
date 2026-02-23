@@ -31,6 +31,7 @@ export const DEFAULT_SHORTCUTS: Record<string, Shortcut> = {
   redo: { id: "redo", key: "z", modKey: true, shiftKey: true },
   copilot_toggle: { id: "copilot_toggle", key: ".", modKey: true },
   focus_switch: { id: "focus_switch", key: "Escape", modKey: true },
+  todo_panel: { id: "todo_panel", key: "t", modKey: true },
 };
 
 export const useShortcutStore = create<ShortcutStore>()(

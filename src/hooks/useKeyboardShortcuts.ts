@@ -14,6 +14,7 @@ export interface KeyboardShortcutHandlers {
   onRedo?: () => void;
   onCopilotToggle?: () => void;
   onFocusSwitch?: () => void;
+  onTodoPanel?: () => void;
 }
 
 const isShortcutMatch = (e: KeyboardEvent, shortcut: Shortcut | undefined) => {
@@ -163,6 +164,20 @@ export const useKeyboardShortcuts = (handlers: KeyboardShortcutHandlers) => {
       ) {
         e.preventDefault();
         handlers.onFocusSwitch();
+      }
+      // TODO Panel
+      if (
+        handlers.onTodoPanel &&
+        (shortcuts.todo_panel
+          ? isShortcutMatch(e, shortcuts.todo_panel)
+          : isShortcutMatch(e, {
+              id: "todo_panel",
+              key: "t",
+              modKey: true,
+            }))
+      ) {
+        e.preventDefault();
+        handlers.onTodoPanel();
       }
     };
 

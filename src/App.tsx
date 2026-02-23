@@ -42,15 +42,14 @@ import { useFloatingPanelStore } from "./stores/floatingPanelStore";
 import { usePageStore } from "./stores/pageStore";
 import { useThemeStore } from "./stores/themeStore";
 import { useTodoPanelStore } from "./stores/todoPanelStore";
+import { useIsTodoPanelOpen } from "./stores/todoPanelStore";
 import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
 import { useWorkspaceStore } from "./stores/workspaceStore";
-import { useIsTodoPanelOpen } from "./stores/todoPanelStore";
 
 import { BLOCK_UPDATE_EVENT, type BlockUpdateEventDetail } from "./events";
 import { useCoreCommands } from "./hooks/useCoreCommands";
 import { useHomepage } from "./hooks/useHomepage";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { initializeTodoNotifications } from "./services/notifications/todoNotifications";
 import { useWorkspaceInitializer } from "./hooks/useWorkspaceInitializer";
 import { ThemeProvider } from "./theme/ThemeProvider";
 
@@ -261,6 +260,7 @@ function AppContent({ workspacePath }: AppContentProps) {
         document.querySelector<HTMLElement>(".copilot-input")?.focus();
       }
     },
+    onTodoPanel: () => useTodoPanelStore.getState().togglePanel(),
   });
 
   // Listen for block updates from Copilot tools
@@ -299,12 +299,6 @@ function AppContent({ workspacePath }: AppContentProps) {
       `${editorLineHeight}`,
     );
   }, [fontFamily, editorFontSize, editorLineHeight, getFontStack]);
-
-  useEffect(() => {
-    if (isInitialized) {
-      initializeTodoNotifications();
-    }
-  }, [isInitialized]);
 
   const handleMigrationCancelWithWorkspace = () => {
     handleMigrationCancel();
@@ -359,9 +353,7 @@ function AppContent({ workspacePath }: AppContentProps) {
               setCommandPaletteOpened(true);
             }}
             onGraphViewClick={() => setGraphViewOpened(true)}
-            onTodoPanelClick={() =>
-              useTodoPanelStore.getState().togglePanel()
-            }
+            onTodoPanelClick={() => useTodoPanelStore.getState().togglePanel()}
           />
 
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -504,7 +496,6 @@ function AppContent({ workspacePath }: AppContentProps) {
       </Suspense>
       {/* TODO Panel */}
       {isTodoPanelOpen && <TodoListFloatingPanel />}
-
 
       <Notifications />
       <ErrorNotifications />

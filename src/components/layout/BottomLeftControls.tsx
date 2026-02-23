@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Badge,
   Tooltip,
   useComputedColorScheme,
   useMantineColorScheme,
@@ -16,8 +17,10 @@ import {
   IconSnowflake,
   IconSun,
 } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSnowStore } from "../../stores/snowStore";
+import { useTodoStore } from "../../stores/todoStore";
 
 interface BottomLeftControlsProps {
   onHomeClick?: () => void;
@@ -29,10 +32,6 @@ interface BottomLeftControlsProps {
   onTodoPanelClick?: () => void;
 }
 
-/**
- * Bottom-left control buttons (home, settings, help, theme, search, command palette, graph view).
- * Positioned at the bottom-left of the screen for easy access.
- */
 export function BottomLeftControls({
   onHomeClick,
   onSettingsClick,
@@ -48,6 +47,19 @@ export function BottomLeftControls({
   const isDark = computedColorScheme === "dark";
   const isSnowEnabled = useSnowStore((state) => state.isSnowEnabled);
   const toggleSnow = useSnowStore((state) => state.toggleSnow);
+  const todos = useTodoStore((s) => s.todos);
+  const fetchTodos = useTodoStore((s) => s.fetchTodos);
+  const [todoCount, setTodoCount] = useState(0);
+
+  useEffect(() => {
+    fetchTodos({ status: ["todo", "doing"] }).then(() => {
+      setTodoCount(useTodoStore.getState().todos.length);
+    });
+  }, [fetchTodos]);
+
+  useEffect(() => {
+    setTodoCount(todos.length);
+  }, [todos]);
 
   const iconButtonStyles = {
     root: {
@@ -172,14 +184,37 @@ export function BottomLeftControls({
       </Tooltip>
 
       <Tooltip label="TODO List" position="top">
-        <ActionIcon
-          variant="subtle"
-          size="md"
-          onClick={onTodoPanelClick}
-          styles={iconButtonStyles}
-        >
-          <IconListCheck size={16} />
-        </ActionIcon>
+        <div style={{ position: "relative" }}>
+          <ActionIcon
+            variant="subtle"
+            size="md"
+            onClick={onTodoPanelClick}
+            styles={iconButtonStyles}
+          >
+            <IconListCheck size={16} />
+          </ActionIcon>
+          {todoCount > 0 && (
+            <Badge
+              size="xs"
+              color="blue"
+              variant="filled"
+              styles={{
+                root: {
+                  position: "absolute",
+                  top: -4,
+                  right: -4,
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 4px",
+                  fontSize: 10,
+                  fontWeight: 600,
+                },
+              }}
+            >
+              {todoCount > 99 ? "99+" : todoCount}
+            </Badge>
+          )}
+        </div>
       </Tooltip>
     </div>
   );
