@@ -169,7 +169,9 @@ const TodoItem = memo(function TodoItem({
       onClick={onClick}
       style={{
         padding: "var(--spacing-sm) var(--spacing-md)",
-        borderBottom: "1px solid var(--color-border-secondary)",
+        marginBottom: "var(--spacing-xs)",
+        borderRadius: "var(--radius-sm)",
+        backgroundColor: "rgba(255, 255, 255, 0.03)",
         cursor: "pointer",
         transition: "background-color var(--transition-fast)",
       }}
@@ -312,24 +314,24 @@ export function TodoListFloatingPanel() {
     <Box
       style={{
         position: "fixed",
-        right: "var(--spacing-lg)",
+        left: "var(--spacing-lg)",
         top: "calc(var(--layout-title-bar-height) + var(--spacing-sm))",
         bottom: "calc(var(--spacing-lg) + 60px)",
         width: "360px",
-        backgroundColor: "var(--color-bg-elevated)",
-        border: "1px solid var(--color-border-primary)",
-        borderRadius: "var(--radius-md)",
-        boxShadow: "var(--shadow-lg)",
         display: "flex",
         flexDirection: "column",
         zIndex: 100,
         overflow: "hidden",
       }}
     >
+
       <Box
         style={{
           padding: "var(--spacing-sm) var(--spacing-md)",
-          borderBottom: "1px solid var(--color-border-primary)",
+          backgroundColor: "rgba(255, 255, 255, 0.03)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+          borderRadius: "var(--radius-sm)",
+          marginBottom: "var(--spacing-xs)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -454,8 +456,10 @@ export function TodoListFloatingPanel() {
       <Box
         style={{
           padding: "var(--spacing-xs) var(--spacing-md)",
-          borderTop: "1px solid var(--color-border-secondary)",
-          backgroundColor: "var(--color-bg-secondary)",
+          backgroundColor: "rgba(255, 255, 255, 0.03)",
+          borderTop: "1px solid rgba(255, 255, 255, 0.05)",
+          borderRadius: "var(--radius-sm)",
+          marginTop: "var(--spacing-xs)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
