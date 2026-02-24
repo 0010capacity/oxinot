@@ -314,16 +314,36 @@ export function TodoListFloatingPanel() {
     <Box
       style={{
         position: "fixed",
-        left: "var(--spacing-lg)",
-        top: "calc(var(--layout-title-bar-height) + var(--spacing-sm))",
-        bottom: "calc(var(--spacing-lg) + 60px)",
-        width: "360px",
+        bottom: "60px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "480px",
+        maxHeight: "400px",
         display: "flex",
         flexDirection: "column",
-        zIndex: 100,
+        zIndex: 200,
         overflow: "hidden",
+        backgroundColor: "var(--color-bg-elevated)",
+        border: "1px solid var(--color-border-primary)",
+        borderRadius: "var(--radius-md)",
+        boxShadow: "var(--shadow-lg)",
+        animation: "slideUp 0.2s ease-out",
       }}
     >
+      <style>
+        {`
+          @keyframes slideUp {
+            from {
+              opacity: 0;
+              transform: translateX(-50%) translateY(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(-50%) translateY(0);
+            }
+          }
+        `}
+      </style>
 
       <Box
         style={{

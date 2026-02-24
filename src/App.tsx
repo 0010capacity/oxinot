@@ -21,6 +21,7 @@ import { GitStatusIndicator } from "./components/GitStatusIndicator";
 import { SnowEffect } from "./components/SnowEffect";
 import { TitleBar } from "./components/TitleBar";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
+import { TodoIndicator } from "./components/todo/TodoIndicator";
 import { TodoListFloatingPanel } from "./components/todo/TodoListFloatingPanel";
 
 // Lazy load non-critical components for code splitting
@@ -496,6 +497,7 @@ function AppContent({ workspacePath }: AppContentProps) {
       </Suspense>
       {/* TODO Panel */}
       {isTodoPanelOpen && <TodoListFloatingPanel />}
+      <TodoIndicator />
 
       <Notifications />
       <ErrorNotifications />
