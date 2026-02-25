@@ -14,7 +14,6 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { memo, useCallback, useEffect, useState } from "react";
-import { Virtuoso } from "react-virtuoso";
 import { useBlockUIStore } from "../../stores/blockUIStore";
 import { usePageStore } from "../../stores/pageStore";
 import { useTodoPanelStore } from "../../stores/todoPanelStore";
@@ -272,6 +271,12 @@ export function TodoListFloatingPanel() {
 
   useEffect(() => {
     if (isOpen) {
+      console.log(
+        "[TodoListFloatingPanel] Opening, view:",
+        activeView,
+        "todos:",
+        todos.length,
+      );
       fetchSmartView(activeView);
     }
   }, [isOpen, activeView, fetchSmartView]);
@@ -364,7 +369,7 @@ export function TodoListFloatingPanel() {
             style={{ color: "var(--color-text-secondary)" }}
           />
           <Text size="sm" fw={600}>
-            Tasks
+            Tasks ({todos.length})
           </Text>
         </Group>
         <button
@@ -446,7 +451,14 @@ export function TodoListFloatingPanel() {
         ))}
       </Box>
 
-      <Box style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <Box
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "auto",
+          padding: "var(--spacing-xs)",
+        }}
+      >
         {todos.length === 0 ? (
           <Box
             style={{
@@ -458,18 +470,15 @@ export function TodoListFloatingPanel() {
             <Text size="sm">No tasks found</Text>
           </Box>
         ) : (
-          <Virtuoso
-            data={todos}
-            itemContent={(_index, todo) => (
-              <TodoItem
-                todo={todo}
-                onClick={() => handleTodoClick(todo)}
-                onStatusToggle={() => handleStatusToggle(todo.blockId)}
-                isUpdating={updatingBlockId === todo.blockId}
-              />
-            )}
-            style={{ height: "100%" }}
-          />
+          todos.map((todo) => (
+            <TodoItem
+              key={todo.blockId}
+              todo={todo}
+              onClick={() => handleTodoClick(todo)}
+              onStatusToggle={() => handleStatusToggle(todo.blockId)}
+              isUpdating={updatingBlockId === todo.blockId}
+            />
+          ))
         )}
       </Box>
 

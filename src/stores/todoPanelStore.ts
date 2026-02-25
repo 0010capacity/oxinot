@@ -19,7 +19,7 @@ type TodoPanelStore = TodoPanelState & TodoPanelActions;
 export const useTodoPanelStore = create<TodoPanelStore>()(
   immer((set, get) => ({
     isOpen: false,
-    activeView: "today",
+    activeView: "all",
 
     openPanel: () => {
       set((state) => {

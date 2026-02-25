@@ -35,7 +35,7 @@ const STATUS_CONFIG: Record<
 export function TodoIndicator() {
   const todos = useTodoStore((s) => s.todos);
   const fetchTodos = useTodoStore((s) => s.fetchTodos);
-  const openPanel = useTodoPanelStore((s) => s.openPanel);
+  const togglePanel = useTodoPanelStore((s) => s.togglePanel);
   const isOpen = useTodoPanelStore((s) => s.isOpen);
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -62,7 +62,7 @@ export function TodoIndicator() {
     return () => clearInterval(interval);
   }, [visibleTodos.length]);
 
-  if (isOpen || visibleTodos.length === 0) {
+  if (visibleTodos.length === 0) {
     return null;
   }
 
@@ -76,7 +76,7 @@ export function TodoIndicator() {
 
   return (
     <Box
-      onClick={openPanel}
+      onClick={togglePanel}
       style={{
         position: "fixed",
         bottom: "12px",
@@ -87,7 +87,9 @@ export function TodoIndicator() {
         alignItems: "center",
         gap: "8px",
         padding: "6px 14px",
-        backgroundColor: "var(--color-bg-elevated)",
+        backgroundColor: isOpen
+          ? "var(--color-accent)"
+          : "var(--color-bg-elevated)",
         border: "1px solid var(--color-border-primary)",
         borderRadius: "20px",
         cursor: "pointer",
@@ -96,12 +98,15 @@ export function TodoIndicator() {
         boxShadow: "var(--shadow-sm)",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor =
-          "var(--color-interactive-hover)";
+        e.currentTarget.style.backgroundColor = isOpen
+          ? "var(--color-accent)"
+          : "var(--color-interactive-hover)";
         e.currentTarget.style.transform = "translateX(-50%) scale(1.02)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "var(--color-bg-elevated)";
+        e.currentTarget.style.backgroundColor = isOpen
+          ? "var(--color-accent)"
+          : "var(--color-bg-elevated)";
         e.currentTarget.style.transform = "translateX(-50%) scale(1)";
       }}
     >
