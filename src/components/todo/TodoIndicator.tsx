@@ -40,6 +40,7 @@ export function TodoIndicator() {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [visibleTodos, setVisibleTodos] = useState<TodoResult[]>([]);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     fetchTodos({ status: ["todo", "doing"] });
@@ -56,7 +57,11 @@ export function TodoIndicator() {
     if (visibleTodos.length <= 1) return;
 
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % visibleTodos.length);
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentIndex((prev) => (prev + 1) % visibleTodos.length);
+        setIsTransitioning(false);
+      }, 150);
     }, 3000);
 
     return () => clearInterval(interval);
@@ -75,59 +80,78 @@ export function TodoIndicator() {
   const displayContent = extracted ? extracted.rest : currentTodo.content;
 
   return (
-    <Box
-      onClick={togglePanel}
-      style={{
-        position: "fixed",
-        bottom: "12px",
-        left: "50%",
-        transform: "translateX(-50%)",
-        zIndex: 100,
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        padding: "6px 14px",
-        backgroundColor: isOpen
-          ? "var(--color-accent)"
-          : "var(--color-bg-elevated)",
-        border: "1px solid var(--color-border-primary)",
-        borderRadius: "20px",
-        cursor: "pointer",
-        transition: "all var(--transition-fast)",
-        maxWidth: "400px",
-        boxShadow: "var(--shadow-sm)",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = isOpen
-          ? "var(--color-accent)"
-          : "var(--color-interactive-hover)";
-        e.currentTarget.style.transform = "translateX(-50%) scale(1.02)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = isOpen
-          ? "var(--color-accent)"
-          : "var(--color-bg-elevated)";
-        e.currentTarget.style.transform = "translateX(-50%) scale(1)";
-      }}
-    >
-      <IconComponent size={14} stroke={1.5} style={{ color: config.color }} />
-      <Text
-        size="sm"
+    <>
+      <style>
+        {`
+          @keyframes todoFadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}
+      </style>
+      <Box
+        onClick={togglePanel}
         style={{
-          color: "var(--color-text-primary)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+          position: "fixed",
+          bottom: "16px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 100,
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          padding: "4px 10px",
+          backgroundColor: "transparent",
+          borderRadius: "var(--radius-sm)",
+          cursor: "pointer",
+          transition: "opacity var(--transition-fast)",
+          minWidth: "120px",
           maxWidth: "280px",
+          opacity: isOpen ? 0.6 : 1,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.opacity = "1";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.opacity = isOpen ? "0.6" : "1";
         }}
       >
-        {displayContent}
-      </Text>
-      {visibleTodos.length > 1 && (
-        <Text size="xs" c="dimmed" style={{ marginLeft: "4px" }}>
-          {currentIndex + 1}/{visibleTodos.length}
+        <IconComponent
+          size={14}
+          stroke={1.5}
+          style={{ color: config.color, flexShrink: 0 }}
+        />
+        <Text
+          size="xs"
+          style={{
+            color: isOpen
+              ? "var(--color-accent)"
+              : "var(--color-text-secondary)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            flex: 1,
+            minWidth: 0,
+            opacity: isTransitioning ? 0 : 1,
+            transform: isTransitioning ? "translateY(2px)" : "translateY(0)",
+            transition: "opacity 0.15s ease, transform 0.15s ease",
+          }}
+        >
+          {displayContent}
         </Text>
-      )}
-    </Box>
+        {visibleTodos.length > 1 && (
+          <Text
+            size="xs"
+            style={{
+              color: "var(--color-text-tertiary)",
+              flexShrink: 0,
+              fontSize: "10px",
+            }}
+          >
+            {currentIndex + 1}/{visibleTodos.length}
+          </Text>
+        )}
+      </Box>
+    </>
   );
 }

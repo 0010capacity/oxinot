@@ -123,7 +123,7 @@ function StatusCheckbox({
           e.currentTarget.style.transform = "scale(1)";
         }}
       >
-        <IconComponent size={18} stroke={1.5} style={{ color: config.color }} />
+        <IconComponent size={16} stroke={1.5} style={{ color: config.color }} />
       </button>
     </Tooltip>
   );
@@ -141,7 +141,10 @@ function StatusBadge({ status }: { status: TodoStatus }) {
         color: config.color,
         fontWeight: 500,
         textTransform: "uppercase",
-        letterSpacing: "0.5px",
+        letterSpacing: "0.3px",
+        fontSize: "10px",
+        height: "18px",
+        padding: "0 6px",
       }}
     >
       {config.label}
@@ -167,10 +170,8 @@ const TodoItem = memo(function TodoItem({
     <Box
       onClick={onClick}
       style={{
-        padding: "var(--spacing-sm) var(--spacing-md)",
-        marginBottom: "var(--spacing-xs)",
+        padding: "var(--spacing-xs) var(--spacing-sm)",
         borderRadius: "var(--radius-sm)",
-        backgroundColor: "rgba(255, 255, 255, 0.03)",
         cursor: "pointer",
         transition: "background-color var(--transition-fast)",
       }}
@@ -182,13 +183,13 @@ const TodoItem = memo(function TodoItem({
         e.currentTarget.style.backgroundColor = "transparent";
       }}
     >
-      <Group gap="sm" wrap="nowrap" align="flex-start">
+      <Group gap="xs" wrap="nowrap" align="flex-start">
         <StatusCheckbox
           status={todo.status}
           onToggle={onStatusToggle}
           isLoading={isUpdating}
         />
-        <Box style={{ flex: 1, minWidth: 0 }}>
+        <Box style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
           <Group gap="xs" wrap="nowrap" align="center">
             <Text
               size="sm"
@@ -199,54 +200,18 @@ const TodoItem = memo(function TodoItem({
                 whiteSpace: "nowrap",
                 textDecoration:
                   todo.status === "done" ? "line-through" : "none",
-                opacity: todo.status === "done" ? 0.6 : 1,
+                opacity: todo.status === "done" ? 0.5 : 1,
                 flex: 1,
+                lineHeight: 1.4,
               }}
             >
               {displayContent}
             </Text>
             <StatusBadge status={todo.status} />
           </Group>
-          <Group gap="xs" mt={4}>
-            <Text size="xs" c="dimmed">
-              {todo.pageTitle}
-            </Text>
-            {todo.scheduled && (
-              <Badge
-                size="xs"
-                variant="light"
-                color="blue"
-                leftSection={<IconCalendar size={10} stroke={1.5} />}
-              >
-                {formatDateForDisplay(todo.scheduled)}
-              </Badge>
-            )}
-            {todo.deadline && (
-              <Badge
-                size="xs"
-                variant="light"
-                color="red"
-                leftSection={<IconAlertTriangle size={10} stroke={1.5} />}
-              >
-                {formatDateForDisplay(todo.deadline)}
-              </Badge>
-            )}
-            {todo.priority && (
-              <Badge
-                size="xs"
-                variant="light"
-                color={
-                  todo.priority === "A"
-                    ? "red"
-                    : todo.priority === "B"
-                      ? "yellow"
-                      : "blue"
-                }
-              >
-                P{todo.priority}
-              </Badge>
-            )}
-          </Group>
+          <Text size="xs" c="dimmed" mt={2}>
+            {todo.pageTitle}
+          </Text>
         </Box>
       </Group>
     </Box>
@@ -271,12 +236,6 @@ export function TodoListFloatingPanel() {
 
   useEffect(() => {
     if (isOpen) {
-      console.log(
-        "[TodoListFloatingPanel] Opening, view:",
-        activeView,
-        "todos:",
-        todos.length,
-      );
       fetchSmartView(activeView);
     }
   }, [isOpen, activeView, fetchSmartView]);
@@ -319,11 +278,11 @@ export function TodoListFloatingPanel() {
     <Box
       style={{
         position: "fixed",
-        bottom: "60px",
+        bottom: "52px",
         left: "50%",
         transform: "translateX(-50%)",
-        width: "480px",
-        maxHeight: "400px",
+        width: "420px",
+        maxHeight: "360px",
         display: "flex",
         flexDirection: "column",
         zIndex: 200,
@@ -332,7 +291,7 @@ export function TodoListFloatingPanel() {
         border: "1px solid var(--color-border-primary)",
         borderRadius: "var(--radius-md)",
         boxShadow: "var(--shadow-lg)",
-        animation: "slideUp 0.2s ease-out",
+        animation: "slideUp 0.15s ease-out",
       }}
     >
       <style>
@@ -340,7 +299,7 @@ export function TodoListFloatingPanel() {
           @keyframes slideUp {
             from {
               opacity: 0;
-              transform: translateX(-50%) translateY(20px);
+              transform: translateX(-50%) translateY(10px);
             }
             to {
               opacity: 1;
@@ -350,26 +309,39 @@ export function TodoListFloatingPanel() {
         `}
       </style>
 
+      {/* Header */}
       <Box
         style={{
-          padding: "var(--spacing-sm) var(--spacing-md)",
-          backgroundColor: "rgba(255, 255, 255, 0.03)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-          borderRadius: "var(--radius-sm)",
-          marginBottom: "var(--spacing-xs)",
+          padding: "var(--spacing-xs) var(--spacing-sm)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          borderBottom: "1px solid var(--color-border-secondary)",
         }}
       >
-        <Group gap="xs">
+        <Group gap="xs" align="center">
           <IconList
-            size={16}
+            size={14}
             stroke={1.5}
             style={{ color: "var(--color-text-secondary)" }}
           />
-          <Text size="sm" fw={600}>
-            Tasks ({todos.length})
+          <Text
+            size="xs"
+            fw={500}
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            Tasks
+          </Text>
+          <Text
+            size="xs"
+            style={{
+              color: "var(--color-text-tertiary)",
+              backgroundColor: "var(--color-interactive-hover)",
+              padding: "1px 6px",
+              borderRadius: "var(--radius-sm)",
+            }}
+          >
+            {todos.length}
           </Text>
         </Group>
         <button
@@ -378,34 +350,34 @@ export function TodoListFloatingPanel() {
           style={{
             background: "transparent",
             border: "none",
-            color: "var(--color-text-secondary)",
+            color: "var(--color-text-tertiary)",
             cursor: "pointer",
             padding: "4px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             borderRadius: "var(--radius-sm)",
-            transition: "background-color var(--transition-fast)",
+            transition: "all var(--transition-fast)",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor =
-              "var(--color-interactive-hover)";
+            e.currentTarget.style.color = "var(--color-text-secondary)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "transparent";
+            e.currentTarget.style.color = "var(--color-text-tertiary)";
           }}
         >
-          <IconX size={14} stroke={1.5} />
+          <IconX size={12} stroke={1.5} />
         </button>
       </Box>
 
+      {/* View Tabs */}
       <Box
         style={{
-          padding: "var(--spacing-xs) var(--spacing-sm)",
-          borderBottom: "1px solid var(--color-border-secondary)",
+          padding: "2px",
           display: "flex",
           justifyContent: "center",
           gap: "2px",
+          borderBottom: "1px solid var(--color-border-secondary)",
         }}
       >
         {SMART_VIEWS.map((view) => (
@@ -414,8 +386,8 @@ export function TodoListFloatingPanel() {
               type="button"
               onClick={() => setActiveView(view.id)}
               style={{
-                width: 32,
-                height: 28,
+                width: 28,
+                height: 24,
                 padding: 0,
                 display: "flex",
                 alignItems: "center",
@@ -430,27 +402,30 @@ export function TodoListFloatingPanel() {
                 color:
                   activeView === view.id
                     ? "white"
-                    : "var(--color-text-secondary)",
+                    : "var(--color-text-tertiary)",
                 transition: "all var(--transition-fast)",
               }}
               onMouseEnter={(e) => {
                 if (activeView !== view.id) {
                   e.currentTarget.style.backgroundColor =
                     "var(--color-interactive-hover)";
+                  e.currentTarget.style.color = "var(--color-text-secondary)";
                 }
               }}
               onMouseLeave={(e) => {
                 if (activeView !== view.id) {
                   e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "var(--color-text-tertiary)";
                 }
               }}
             >
-              <SmartViewIcon iconName={view.iconName} size={16} />
+              <SmartViewIcon iconName={view.iconName} size={14} />
             </button>
           </Tooltip>
         ))}
       </Box>
 
+      {/* Content */}
       <Box
         style={{
           flex: 1,
@@ -467,7 +442,7 @@ export function TodoListFloatingPanel() {
               color: "var(--color-text-tertiary)",
             }}
           >
-            <Text size="sm">No tasks found</Text>
+            <Text size="xs">No tasks</Text>
           </Box>
         ) : (
           todos.map((todo) => (
@@ -482,27 +457,21 @@ export function TodoListFloatingPanel() {
         )}
       </Box>
 
-      <Box
-        style={{
-          padding: "var(--spacing-xs) var(--spacing-md)",
-          backgroundColor: "rgba(255, 255, 255, 0.03)",
-          borderTop: "1px solid rgba(255, 255, 255, 0.05)",
-          borderRadius: "var(--radius-sm)",
-          marginTop: "var(--spacing-xs)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Text size="xs" c="dimmed">
-          {todos.length} task{todos.length !== 1 ? "s" : ""}
-        </Text>
-        {activeViewData && (
-          <Text size="xs" c="dimmed">
+      {/* Footer */}
+      {activeViewData && (
+        <Box
+          style={{
+            padding: "var(--spacing-xs) var(--spacing-sm)",
+            borderTop: "1px solid var(--color-border-secondary)",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <Text size="xs" style={{ color: "var(--color-text-tertiary)" }}>
             {activeViewData.label}
           </Text>
-        )}
-      </Box>
+        </Box>
+      )}
     </Box>
   );
 }
