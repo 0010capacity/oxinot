@@ -7,7 +7,7 @@ import { ClaudeProvider } from "./ClaudeProvider";
 
 export function createAIProvider(
   type: AIProviderType,
-  baseUrl: string
+  baseUrl: string,
 ): IAIProvider {
   switch (type) {
     case "google":

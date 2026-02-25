@@ -44,7 +44,8 @@ export function useSearchCache(options: UseSearchCacheOptions = {}) {
 
         setResults(searchResults);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Search failed";
+        const errorMessage =
+          err instanceof Error ? err.message : "Search failed";
         setError(errorMessage);
         setResults([]);
         console.error("[useSearchCache] Error:", err);

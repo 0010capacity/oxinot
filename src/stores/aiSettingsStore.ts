@@ -59,7 +59,7 @@ interface AISettingsStore extends AISettings {
   addPromptTemplate: (name: string, content: string) => void;
   updatePromptTemplate: (
     id: string,
-    updates: Partial<Omit<PromptTemplate, "id">>
+    updates: Partial<Omit<PromptTemplate, "id">>,
   ) => void;
   deletePromptTemplate: (id: string) => void;
 
@@ -272,7 +272,7 @@ export const useAISettingsStore = createWithEqualityFn<AISettingsStore>()(
       updatePromptTemplate: (id, updates) =>
         set((state) => ({
           promptTemplates: state.promptTemplates.map((t) =>
-            t.id === id ? { ...t, ...updates } : t
+            t.id === id ? { ...t, ...updates } : t,
           ),
         })),
 
@@ -333,6 +333,6 @@ export const useAISettingsStore = createWithEqualityFn<AISettingsStore>()(
           state.temperature = configs[provider].temperature;
         }
       },
-    }
-  )
+    },
+  ),
 );

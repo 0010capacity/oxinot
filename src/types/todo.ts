@@ -139,7 +139,9 @@ export const ALL_PRIORITIES: Priority[] = ["A", "B", "C"];
 /**
  * Get the priority from block metadata
  */
-export function getPriority(metadata?: Record<string, string>): Priority | null {
+export function getPriority(
+  metadata?: Record<string, string>,
+): Priority | null {
   const priority = metadata?.priority;
   if (priority && ALL_PRIORITIES.includes(priority as Priority)) {
     return priority as Priority;

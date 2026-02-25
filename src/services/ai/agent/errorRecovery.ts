@@ -157,7 +157,7 @@ export function classifyError(error: Error | string | ToolResult): ErrorInfo {
     severity = ErrorSeverity.RECOVERABLE;
     suggestedStrategy = RecoveryStrategy.ALTERNATIVE;
     guidance = `Tool '${extractToolName(
-      error
+      error,
     )}' is not available. Use a different tool.`;
   } else if (
     lowerMessage.includes("api") ||
@@ -190,7 +190,7 @@ export function classifyError(error: Error | string | ToolResult): ErrorInfo {
  * Extract tool name from error message for better error messages
  */
 function extractToolName(
-  error: Error | string | ToolResult
+  error: Error | string | ToolResult,
 ): string | undefined {
   if (typeof error === "string") {
     const match = error.match(/tool ['"]([^'"]+)['"]/);

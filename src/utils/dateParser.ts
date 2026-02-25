@@ -75,7 +75,9 @@ export function parseDate(input: string): ParseResult | null {
     }
 
     // English: next Monday, this Friday, Monday
-    const enPattern = new RegExp(`(next\\s+|this\\s+)?${DAY_NAMES_EN[i]}(day)?`);
+    const enPattern = new RegExp(
+      `(next\\s+|this\\s+)?${DAY_NAMES_EN[i]}(day)?`,
+    );
     const enMatch = normalized.match(enPattern);
     if (enMatch) {
       const isNextWeek = enMatch[1]?.includes("next");
@@ -101,7 +103,9 @@ export function parseDate(input: string): ParseResult | null {
   }
 
   // English: in N days, N days from now
-  const daysAfterEnMatch = normalized.match(/(?:in\s+)?(\d+)\s*days?(?:\s+from\s+now)?/);
+  const daysAfterEnMatch = normalized.match(
+    /(?:in\s+)?(\d+)\s*days?(?:\s+from\s+now)?/,
+  );
   if (daysAfterEnMatch) {
     const days = Number.parseInt(daysAfterEnMatch[1], 10);
     return { date: addDays(getToday(), days), hasTime: false };
@@ -137,7 +141,7 @@ export function parseDate(input: string): ParseResult | null {
 
   // English: March 15, Mar 15, 3/15, 15/3, 2026-03-15
   const enDateMatch = normalized.match(
-    /(?:(\d{4})[-/])?(\d{1,2})[-/](\d{1,2})/
+    /(?:(\d{4})[-/])?(\d{1,2})[-/](\d{1,2})/,
   );
   if (enDateMatch) {
     const year = enDateMatch[1]
@@ -158,7 +162,7 @@ export function parseDate(input: string): ParseResult | null {
 
   // Korean: 오후 3시, 오전 9시 30분
   const timeKoMatch = normalized.match(
-    /(오전|오후)\s*(\d{1,2})시(?:\s*(\d{1,2})분)?/
+    /(오전|오후)\s*(\d{1,2})시(?:\s*(\d{1,2})분)?/,
   );
   if (timeKoMatch) {
     const isPM = timeKoMatch[1] === "오후";
@@ -173,9 +177,7 @@ export function parseDate(input: string): ParseResult | null {
   }
 
   // English: 3pm, 3:30 pm, 15:00
-  const timeEnMatch = normalized.match(
-    /(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i
-  );
+  const timeEnMatch = normalized.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
   if (timeEnMatch && !normalized.includes("월") && !normalized.includes("일")) {
     let hour = Number.parseInt(timeEnMatch[1], 10);
     const minute = timeEnMatch[2] ? Number.parseInt(timeEnMatch[2], 10) : 0;
