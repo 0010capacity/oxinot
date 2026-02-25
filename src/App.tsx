@@ -354,7 +354,6 @@ function AppContent({ workspacePath }: AppContentProps) {
               setCommandPaletteOpened(true);
             }}
             onGraphViewClick={() => setGraphViewOpened(true)}
-            onTodoPanelClick={() => useTodoPanelStore.getState().togglePanel()}
           />
 
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>

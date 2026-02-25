@@ -1,6 +1,6 @@
 import {
   ActionIcon,
-  Badge,
+
   Tooltip,
   useComputedColorScheme,
   useMantineColorScheme,
@@ -10,17 +10,14 @@ import {
   IconHelp,
   IconHome,
   IconLink,
-  IconListCheck,
   IconMoon,
   IconSearch,
   IconSettings,
   IconSnowflake,
   IconSun,
 } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSnowStore } from "../../stores/snowStore";
-import { useTodoStore } from "../../stores/todoStore";
 
 interface BottomLeftControlsProps {
   onHomeClick?: () => void;
@@ -29,7 +26,6 @@ interface BottomLeftControlsProps {
   onHelpClick?: () => void;
   onCommandPaletteClick?: () => void;
   onGraphViewClick?: () => void;
-  onTodoPanelClick?: () => void;
 }
 
 export function BottomLeftControls({
@@ -39,7 +35,6 @@ export function BottomLeftControls({
   onHelpClick,
   onCommandPaletteClick,
   onGraphViewClick,
-  onTodoPanelClick,
 }: BottomLeftControlsProps) {
   const { t } = useTranslation();
   const { toggleColorScheme } = useMantineColorScheme();
@@ -47,19 +42,6 @@ export function BottomLeftControls({
   const isDark = computedColorScheme === "dark";
   const isSnowEnabled = useSnowStore((state) => state.isSnowEnabled);
   const toggleSnow = useSnowStore((state) => state.toggleSnow);
-  const todos = useTodoStore((s) => s.todos);
-  const fetchTodos = useTodoStore((s) => s.fetchTodos);
-  const [todoCount, setTodoCount] = useState(0);
-
-  useEffect(() => {
-    fetchTodos({ status: ["todo", "doing"] }).then(() => {
-      setTodoCount(useTodoStore.getState().todos.length);
-    });
-  }, [fetchTodos]);
-
-  useEffect(() => {
-    setTodoCount(todos.length);
-  }, [todos]);
 
   const iconButtonStyles = {
     root: {
@@ -181,40 +163,6 @@ export function BottomLeftControls({
         >
           <IconLink size={16} />
         </ActionIcon>
-      </Tooltip>
-
-      <Tooltip label="TODO List" position="top">
-        <div style={{ position: "relative" }}>
-          <ActionIcon
-            variant="subtle"
-            size="md"
-            onClick={onTodoPanelClick}
-            styles={iconButtonStyles}
-          >
-            <IconListCheck size={16} />
-          </ActionIcon>
-          {todoCount > 0 && (
-            <Badge
-              size="xs"
-              color="blue"
-              variant="filled"
-              styles={{
-                root: {
-                  position: "absolute",
-                  top: -4,
-                  right: -4,
-                  minWidth: 16,
-                  height: 16,
-                  padding: "0 4px",
-                  fontSize: 10,
-                  fontWeight: 600,
-                },
-              }}
-            >
-              {todoCount > 99 ? "99+" : todoCount}
-            </Badge>
-          )}
-        </div>
       </Tooltip>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Box, Group, Text, Tooltip } from "@mantine/core";
+import { Box, Text, Tooltip } from "@mantine/core";
 import {
   IconAlertTriangle,
   IconCalendar,
@@ -11,7 +11,6 @@ import {
   IconCircleX,
   IconFlag,
   IconList,
-  IconX,
 } from "@tabler/icons-react";
 import { memo, useCallback, useEffect, useState } from "react";
 import { useBlockUIStore } from "../../stores/blockUIStore";
@@ -173,6 +172,7 @@ export function TodoListFloatingPanel() {
   const isOpen = useTodoPanelStore((s) => s.isOpen);
   const activeView = useTodoPanelStore((s) => s.activeView);
   const closePanel = useTodoPanelStore((s) => s.closePanel);
+
   const setActiveView = useTodoPanelStore((s) => s.setActiveView);
 
   const todos = useTodoStore((s) => s.todos);
@@ -262,72 +262,14 @@ export function TodoListFloatingPanel() {
 
       <Box
         style={{
-          padding: "6px 8px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          borderBottom: "1px solid var(--color-border-secondary)",
-        }}
-      >
-        <Group gap="xs" align="center">
-          <IconList
-            size={12}
-            stroke={1.5}
-            style={{ color: "var(--color-text-tertiary)" }}
-          />
-          <Text
-            size="xs"
-            style={{ color: "var(--color-text-tertiary)", fontSize: "11px" }}
-          >
-            Tasks
-          </Text>
-          <Text
-            size="xs"
-            style={{
-              color: "var(--color-text-tertiary)",
-              fontSize: "10px",
-              backgroundColor: "var(--color-interactive-hover)",
-              padding: "0 5px",
-              borderRadius: "var(--radius-sm)",
-            }}
-          >
-            {todos.length}
-          </Text>
-        </Group>
-        <button
-          type="button"
-          onClick={closePanel}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "var(--color-text-tertiary)",
-            cursor: "pointer",
-            padding: "2px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: "var(--radius-sm)",
-            transition: "color var(--transition-fast)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = "var(--color-text-secondary)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = "var(--color-text-tertiary)";
-          }}
-        >
-          <IconX size={12} stroke={1.5} />
-        </button>
-      </Box>
-
-      <Box
-        style={{
           padding: "4px",
           display: "flex",
           justifyContent: "center",
+          alignItems: "center",
           gap: "2px",
         }}
       >
+
         {SMART_VIEWS.map((view) => (
           <Tooltip key={view.id} label={view.label} position="bottom">
             <button
