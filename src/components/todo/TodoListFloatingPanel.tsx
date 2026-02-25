@@ -1,4 +1,4 @@
-import { Badge, Box, Group, Text, Tooltip } from "@mantine/core";
+import { Box, Group, Text, Tooltip } from "@mantine/core";
 import {
   IconAlertTriangle,
   IconCalendar,
@@ -20,11 +20,7 @@ import { useTodoPanelStore } from "../../stores/todoPanelStore";
 import { useTodoStore } from "../../stores/todoStore";
 import { useViewStore } from "../../stores/viewStore";
 import type { SmartView, TodoResult, TodoStatus } from "../../types/todo";
-import {
-  SMART_VIEWS,
-  extractStatusPrefix,
-  formatDateForDisplay,
-} from "../../types/todo";
+import { SMART_VIEWS, extractStatusPrefix } from "../../types/todo";
 
 const ICON_MAP: Record<
   SmartView["iconName"],
@@ -45,32 +41,27 @@ const ICON_MAP: Record<
 
 const STATUS_CONFIG: Record<
   TodoStatus,
-  { icon: typeof IconCircle; color: string; label: string }
+  { icon: typeof IconCircle; color: string }
 > = {
   todo: {
     icon: IconCircle,
     color: "var(--color-text-tertiary)",
-    label: "TODO",
   },
   doing: {
     icon: IconCircleDot,
     color: "var(--color-accent)",
-    label: "DOING",
   },
   done: {
     icon: IconCircleCheck,
     color: "var(--color-success)",
-    label: "DONE",
   },
   later: {
     icon: IconCircleDashed,
     color: "var(--color-warning)",
-    label: "LATER",
   },
   canceled: {
     icon: IconCircleX,
     color: "var(--color-error)",
-    label: "CANCELED",
   },
 };
 
@@ -80,76 +71,6 @@ function SmartViewIcon({
 }: { iconName: SmartView["iconName"]; size?: number }) {
   const IconComponent = ICON_MAP[iconName];
   return <IconComponent size={size} stroke={1.5} />;
-}
-
-function StatusCheckbox({
-  status,
-  onToggle,
-  isLoading,
-}: {
-  status: TodoStatus;
-  onToggle: () => void;
-  isLoading?: boolean;
-}) {
-  const config = STATUS_CONFIG[status];
-  const IconComponent = config.icon;
-
-  return (
-    <Tooltip label={`Status: ${config.label} (click to cycle)`} position="top">
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle();
-        }}
-        disabled={isLoading}
-        style={{
-          background: "transparent",
-          border: "none",
-          padding: 0,
-          cursor: isLoading ? "wait" : "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: isLoading ? 0.5 : 1,
-          transition: "transform var(--transition-fast)",
-        }}
-        onMouseEnter={(e) => {
-          if (!isLoading) {
-            e.currentTarget.style.transform = "scale(1.1)";
-          }
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "scale(1)";
-        }}
-      >
-        <IconComponent size={16} stroke={1.5} style={{ color: config.color }} />
-      </button>
-    </Tooltip>
-  );
-}
-
-function StatusBadge({ status }: { status: TodoStatus }) {
-  const config = STATUS_CONFIG[status];
-
-  return (
-    <Badge
-      size="xs"
-      variant="light"
-      style={{
-        backgroundColor: `color-mix(in srgb, ${config.color} 15%, transparent)`,
-        color: config.color,
-        fontWeight: 500,
-        textTransform: "uppercase",
-        letterSpacing: "0.3px",
-        fontSize: "10px",
-        height: "18px",
-        padding: "0 6px",
-      }}
-    >
-      {config.label}
-    </Badge>
-  );
 }
 
 const TodoItem = memo(function TodoItem({
@@ -163,6 +84,8 @@ const TodoItem = memo(function TodoItem({
   onStatusToggle: () => void;
   isUpdating: boolean;
 }) {
+  const config = STATUS_CONFIG[todo.status];
+  const IconComponent = config.icon;
   const extracted = extractStatusPrefix(todo.content);
   const displayContent = extracted ? extracted.rest : todo.content;
 
@@ -170,10 +93,13 @@ const TodoItem = memo(function TodoItem({
     <Box
       onClick={onClick}
       style={{
-        padding: "var(--spacing-xs) var(--spacing-sm)",
+        padding: "6px 8px",
         borderRadius: "var(--radius-sm)",
         cursor: "pointer",
         transition: "background-color var(--transition-fast)",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "8px",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor =
@@ -183,37 +109,62 @@ const TodoItem = memo(function TodoItem({
         e.currentTarget.style.backgroundColor = "transparent";
       }}
     >
-      <Group gap="xs" wrap="nowrap" align="flex-start">
-        <StatusCheckbox
-          status={todo.status}
-          onToggle={onStatusToggle}
-          isLoading={isUpdating}
-        />
-        <Box style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-          <Group gap="xs" wrap="nowrap" align="center">
-            <Text
-              size="sm"
-              style={{
-                color: "var(--color-text-primary)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                textDecoration:
-                  todo.status === "done" ? "line-through" : "none",
-                opacity: todo.status === "done" ? 0.5 : 1,
-                flex: 1,
-                lineHeight: 1.4,
-              }}
-            >
-              {displayContent}
-            </Text>
-            <StatusBadge status={todo.status} />
-          </Group>
-          <Text size="xs" c="dimmed" mt={2}>
-            {todo.pageTitle}
-          </Text>
-        </Box>
-      </Group>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onStatusToggle();
+        }}
+        disabled={isUpdating}
+        style={{
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          marginTop: "2px",
+          cursor: isUpdating ? "wait" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: isUpdating ? 0.5 : 1,
+          transition: "transform var(--transition-fast)",
+        }}
+        onMouseEnter={(e) => {
+          if (!isUpdating) {
+            e.currentTarget.style.transform = "scale(1.15)";
+          }
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "scale(1)";
+        }}
+      >
+        <IconComponent size={14} stroke={1.5} style={{ color: config.color }} />
+      </button>
+      <Box style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+        <Text
+          size="xs"
+          style={{
+            color: "var(--color-text-primary)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            textDecoration: todo.status === "done" ? "line-through" : "none",
+            opacity: todo.status === "done" ? 0.5 : 1,
+            lineHeight: 1.4,
+          }}
+        >
+          {displayContent}
+        </Text>
+        <Text
+          size="xs"
+          style={{
+            color: "var(--color-text-tertiary)",
+            fontSize: "10px",
+            marginTop: "2px",
+          }}
+        >
+          {todo.pageTitle}
+        </Text>
+      </Box>
     </Box>
   );
 });
@@ -281,8 +232,8 @@ export function TodoListFloatingPanel() {
         bottom: "52px",
         left: "50%",
         transform: "translateX(-50%)",
-        width: "420px",
-        maxHeight: "360px",
+        width: "320px",
+        maxHeight: "320px",
         display: "flex",
         flexDirection: "column",
         zIndex: 200,
@@ -299,7 +250,7 @@ export function TodoListFloatingPanel() {
           @keyframes slideUp {
             from {
               opacity: 0;
-              transform: translateX(-50%) translateY(10px);
+              transform: translateX(-50%) translateY(8px);
             }
             to {
               opacity: 1;
@@ -309,10 +260,9 @@ export function TodoListFloatingPanel() {
         `}
       </style>
 
-      {/* Header */}
       <Box
         style={{
-          padding: "var(--spacing-xs) var(--spacing-sm)",
+          padding: "6px 8px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -321,14 +271,13 @@ export function TodoListFloatingPanel() {
       >
         <Group gap="xs" align="center">
           <IconList
-            size={14}
+            size={12}
             stroke={1.5}
-            style={{ color: "var(--color-text-secondary)" }}
+            style={{ color: "var(--color-text-tertiary)" }}
           />
           <Text
             size="xs"
-            fw={500}
-            style={{ color: "var(--color-text-secondary)" }}
+            style={{ color: "var(--color-text-tertiary)", fontSize: "11px" }}
           >
             Tasks
           </Text>
@@ -336,8 +285,9 @@ export function TodoListFloatingPanel() {
             size="xs"
             style={{
               color: "var(--color-text-tertiary)",
+              fontSize: "10px",
               backgroundColor: "var(--color-interactive-hover)",
-              padding: "1px 6px",
+              padding: "0 5px",
               borderRadius: "var(--radius-sm)",
             }}
           >
@@ -352,12 +302,12 @@ export function TodoListFloatingPanel() {
             border: "none",
             color: "var(--color-text-tertiary)",
             cursor: "pointer",
-            padding: "4px",
+            padding: "2px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             borderRadius: "var(--radius-sm)",
-            transition: "all var(--transition-fast)",
+            transition: "color var(--transition-fast)",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.color = "var(--color-text-secondary)";
@@ -370,24 +320,22 @@ export function TodoListFloatingPanel() {
         </button>
       </Box>
 
-      {/* View Tabs */}
       <Box
         style={{
-          padding: "2px",
+          padding: "4px",
           display: "flex",
           justifyContent: "center",
           gap: "2px",
-          borderBottom: "1px solid var(--color-border-secondary)",
         }}
       >
         {SMART_VIEWS.map((view) => (
-          <Tooltip key={view.id} label={view.label} position="bottom" withArrow>
+          <Tooltip key={view.id} label={view.label} position="bottom">
             <button
               type="button"
               onClick={() => setActiveView(view.id)}
               style={{
-                width: 28,
-                height: 24,
+                width: 24,
+                height: 20,
                 padding: 0,
                 display: "flex",
                 alignItems: "center",
@@ -409,40 +357,39 @@ export function TodoListFloatingPanel() {
                 if (activeView !== view.id) {
                   e.currentTarget.style.backgroundColor =
                     "var(--color-interactive-hover)";
-                  e.currentTarget.style.color = "var(--color-text-secondary)";
                 }
               }}
               onMouseLeave={(e) => {
                 if (activeView !== view.id) {
                   e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "var(--color-text-tertiary)";
                 }
               }}
             >
-              <SmartViewIcon iconName={view.iconName} size={14} />
+              <SmartViewIcon iconName={view.iconName} size={12} />
             </button>
           </Tooltip>
         ))}
       </Box>
 
-      {/* Content */}
       <Box
         style={{
           flex: 1,
           minHeight: 0,
           overflow: "auto",
-          padding: "var(--spacing-xs)",
+          padding: "4px",
         }}
       >
         {todos.length === 0 ? (
           <Box
             style={{
-              padding: "var(--spacing-lg)",
+              padding: "var(--spacing-md)",
               textAlign: "center",
               color: "var(--color-text-tertiary)",
             }}
           >
-            <Text size="xs">No tasks</Text>
+            <Text size="xs" style={{ fontSize: "11px" }}>
+              No tasks
+            </Text>
           </Box>
         ) : (
           todos.map((todo) => (
@@ -457,17 +404,19 @@ export function TodoListFloatingPanel() {
         )}
       </Box>
 
-      {/* Footer */}
       {activeViewData && (
         <Box
           style={{
-            padding: "var(--spacing-xs) var(--spacing-sm)",
+            padding: "4px 8px",
             borderTop: "1px solid var(--color-border-secondary)",
             display: "flex",
             justifyContent: "center",
           }}
         >
-          <Text size="xs" style={{ color: "var(--color-text-tertiary)" }}>
+          <Text
+            size="xs"
+            style={{ color: "var(--color-text-tertiary)", fontSize: "10px" }}
+          >
             {activeViewData.label}
           </Text>
         </Box>
