@@ -1,6 +1,6 @@
 import { useComputedColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
-import { createContext, memo, useEffect, useMemo, useRef } from "react";
+import { createContext, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AIFloatingInput,
   useAIFloatingInput,
@@ -228,6 +228,138 @@ export function BlockEditor({
     return computed;
   }, [blocksToShow, blocksById, childrenMap]);
 
+  // Drag selection state
+  const blocksListRef = useRef<HTMLDivElement>(null);
+  const [isDragPending, setIsDragPending] = useState(false); // Potential drag started
+  const [isDragging, setIsDragging] = useState(false); // Actual drag in progress
+  const [dragStart, setDragStart] = useState<{ x: number; y: number; blockId: string } | null>(null);
+  const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
+  const DRAG_THRESHOLD = 5; // Minimum pixels to move before considering it a drag
+
+  // Get block ID from element under cursor
+  const getBlockIdFromPoint = useCallback((x: number, y: number): string | null => {
+    const element = document.elementFromPoint(x, y);
+    if (!element) return null;
+    const blockRow = element.closest('[data-block-row-id]');
+    return blockRow?.getAttribute('data-block-row-id') || null;
+  }, []);
+
+  // Handle pointer down - record potential drag start
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    // Only start on left click
+    if (e.button !== 0) return;
+    
+    // Don't start if clicking inside CodeMirror editor or on interactive elements
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('.cm-editor') ||
+      target.closest('.block-bullet-wrapper') ||
+      target.closest('.collapse-toggle') ||
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('input')
+    ) {
+      return;
+    }
+
+    const blockId = getBlockIdFromPoint(e.clientX, e.clientY);
+    if (!blockId) return;
+
+    // Record potential drag start (don't select yet)
+    setIsDragPending(true);
+    setDragStart({ x: e.clientX, y: e.clientY, blockId });
+    setDragCurrent({ x: e.clientX, y: e.clientY });
+  }, [getBlockIdFromPoint]);
+
+
+
+  // Use document-level listeners for reliable drag handling
+  useEffect(() => {
+    if (!isDragPending && !isDragging) return;
+
+    const onPointerUp = () => {
+      // If click without drag, clear any existing selection
+      if (isDragPending && !isDragging) {
+        useBlockUIStore.getState().clearSelectedBlocks();
+        useBlockUIStore.getState().clearSelectionAnchor();
+      }
+      setIsDragPending(false);
+      setIsDragging(false);
+      setDragStart(null);
+      setDragCurrent(null);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!dragStart) return;
+
+      const dx = e.clientX - dragStart.x;
+      const dy = e.clientY - dragStart.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // Start actual drag when threshold is crossed
+      if (isDragPending && !isDragging && distance > DRAG_THRESHOLD) {
+        setIsDragging(true);
+        setIsDragPending(false);
+        useBlockUIStore.getState().setSelectionAnchor(dragStart.blockId);
+        useBlockUIStore.getState().setSelectedBlocks([dragStart.blockId]);
+      }
+
+      if (!isDragging && distance <= DRAG_THRESHOLD) return;
+
+      setDragCurrent({ x: e.clientX, y: e.clientY });
+
+      const currentBlockId = getBlockIdFromPoint(e.clientX, e.clientY);
+      if (currentBlockId && currentBlockId !== dragStart.blockId) {
+        const { selectBlockRange } = useBlockUIStore.getState();
+        selectBlockRange(dragStart.blockId, currentBlockId, blockOrder);
+      } else if (currentBlockId === dragStart.blockId) {
+        useBlockUIStore.getState().setSelectedBlocks([dragStart.blockId]);
+      }
+    };
+
+    const onPointerCancel = () => {
+      setIsDragPending(false);
+      setIsDragging(false);
+      setDragStart(null);
+      setDragCurrent(null);
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDragPending(false);
+        setIsDragging(false);
+        setDragStart(null);
+        setDragCurrent(null);
+        useBlockUIStore.getState().clearSelectedBlocks();
+      }
+    };
+
+    document.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointercancel', onPointerCancel);
+    document.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointercancel', onPointerCancel);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isDragPending, isDragging, dragStart, getBlockIdFromPoint, blockOrder]);
+
+  // Calculate selection rectangle for visual feedback
+  const selectionRect = useMemo(() => {
+    if (!isDragging || !dragStart || !dragCurrent) return null;
+    
+    const left = Math.min(dragStart.x, dragCurrent.x);
+    const top = Math.min(dragStart.y, dragCurrent.y);
+    const width = Math.abs(dragCurrent.x - dragStart.x);
+    const height = Math.abs(dragCurrent.y - dragStart.y);
+    
+    return { left, top, width, height };
+  }, [isDragging, dragStart, dragCurrent]);
+
+
   if (error) {
     return (
       <PageContainer>
@@ -252,12 +384,15 @@ export function BlockEditor({
         )}
 
         <div
+          ref={blocksListRef}
           className="blocks-list"
           style={{
             fontSize: `${editorFontSize}px`,
             lineHeight: editorLineHeight,
             height: "100%",
+            userSelect: isDragging ? "none" : undefined,
           }}
+          onPointerDown={handlePointerDown}
         >
           {blocksToShow.length === 0 ? (
             <div className="empty-state">
@@ -271,6 +406,23 @@ export function BlockEditor({
             <BlockOrderContext.Provider value={blockOrder}>
               <BlockList blocksToShow={blocksToShow} />
             </BlockOrderContext.Provider>
+          )}
+          
+          {/* Selection rectangle overlay */}
+          {selectionRect && (
+            <div
+              style={{
+                position: "fixed",
+                left: selectionRect.left,
+                top: selectionRect.top,
+                width: selectionRect.width,
+                height: selectionRect.height,
+                backgroundColor: "rgba(59, 130, 246, 0.2)",
+                border: "1px solid rgba(59, 130, 246, 0.5)",
+                pointerEvents: "none",
+                zIndex: 1000,
+              }}
+            />
           )}
         </div>
 

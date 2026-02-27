@@ -1583,6 +1583,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: Selection via mouse is the primary UX; keyboard navigation is handled by collapse button and arrow keys */}
           <div
             ref={blockRowRef}
+            data-block-row-id={blockId}
             className="block-row"
             style={{
               position: "relative",
