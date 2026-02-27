@@ -27,6 +27,13 @@ export interface BlockData {
   metadata?: Record<string, string>;
 }
 
+// Result of a block move operation (indent/outdent)
+interface MoveResult {
+  moved_block: BlockData;
+  affected_siblings: BlockData[];
+}
+
+
 export type BlockStatus = "synced" | "optimistic" | "syncing" | "error";
 
 interface BlockState {
@@ -866,14 +873,15 @@ export const useBlockStore = create<BlockStore>()(
             "[blockStore:indentBlock] Calling backend indent_block for:",
             id,
           );
-          // Backend returns the updated block
-          const updatedBlock: BlockData = await invoke("indent_block", {
+          // Backend returns MoveResult with moved_block and affected_siblings
+          const result: MoveResult = await invoke("indent_block", {
             workspacePath,
             blockId: id,
           });
 
-          // Update only the changed block
-          get().updatePartialBlocks([updatedBlock]);
+          // Update the moved block and any affected siblings (from rebalancing)
+          const allUpdated = [result.moved_block, ...result.affected_siblings];
+          get().updatePartialBlocks(allUpdated);
         } catch (error) {
           console.error("Failed to indent block:", error);
           const pageId = get().currentPageId;
@@ -893,14 +901,15 @@ export const useBlockStore = create<BlockStore>()(
             throw new Error("No workspace selected");
           }
 
-          // Backend returns the updated block
-          const updatedBlock: BlockData = await invoke("outdent_block", {
+          // Backend returns MoveResult with moved_block and affected_siblings
+          const result: MoveResult = await invoke("outdent_block", {
             workspacePath,
             blockId: id,
           });
 
-          // Update only the changed block
-          get().updatePartialBlocks([updatedBlock]);
+          // Update the moved block and any affected siblings (from rebalancing)
+          const allUpdated = [result.moved_block, ...result.affected_siblings];
+          get().updatePartialBlocks(allUpdated);
         } catch (error) {
           console.error("Failed to outdent block:", error);
           const pageId = get().currentPageId;
