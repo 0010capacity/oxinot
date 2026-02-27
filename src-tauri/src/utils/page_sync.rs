@@ -157,19 +157,33 @@ fn find_marker_idx(lines: &[String], block_id: &str) -> Option<usize> {
     None
 }
 
-/// From a marker line index, walk upward to find the bullet-start line (`- `) at the same indent.
+/// From a marker line index, walk upward to find the bullet-start line (`- `).
+/// Note: Marker lines are 2 spaces MORE indented than their bullet lines.
 /// Returns the start index of the segment.
 fn find_bullet_segment_start(lines: &[String], marker_idx: usize) -> Option<usize> {
     if marker_idx == 0 {
         return None;
     }
 
-    let indent_len_val = indent_len(&lines[marker_idx]);
+    // Marker is 2 spaces more indented than the bullet line
+    let marker_indent = indent_len(&lines[marker_idx]);
+    let bullet_indent = if marker_indent >= 2 {
+        marker_indent - 2
+    } else {
+        return None; // Invalid: marker should be at least 2 spaces
+    };
 
     let mut j = marker_idx;
     while j > 0 {
         j -= 1;
-        if indent_len(&lines[j]) != indent_len_val {
+        let line_indent = indent_len(&lines[j]);
+        // Check if this line has the expected bullet indent
+        if line_indent != bullet_indent {
+            // Skip lines with same indent as marker (metadata lines)
+            if line_indent == marker_indent {
+                continue;
+            }
+            // Different indent - could be content continuation or error
             return None;
         }
         if lines[j].trim_start().starts_with("- ") {

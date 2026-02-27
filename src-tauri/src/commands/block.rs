@@ -45,6 +45,18 @@ pub struct GetBlockAncestorsRequest {
     pub block_id: String,
 }
 
+/// Result of a block move operation (indent/outdent/move)
+/// Includes the moved block and any siblings that were rebalanced
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MoveResult {
+    /// The block that was moved
+    pub moved_block: Block,
+    /// Siblings that had their order_weight changed due to rebalancing
+    /// (empty if no rebalancing occurred)
+    pub affected_siblings: Vec<Block>,
+}
+
+
 /// Helper: load a single block from DB, or return None.
 fn get_block_by_id_opt(conn: &Connection, id: &str) -> Result<Option<Block>, String> {
     let block_opt = conn
@@ -1009,7 +1021,7 @@ pub async fn create_block(
             &request.page_id,
             request.parent_id.as_deref(),
             request.after_block_id.as_deref(),
-        )?
+        )?.0  // Extract just the order_weight, ignore rebalance flag
     };
 
     let id = Uuid::new_v4().to_string();
@@ -1283,7 +1295,7 @@ pub async fn move_block(
             &block.page_id,
             request.new_parent_id.as_deref(),
             request.after_block_id.as_deref(),
-        )?
+        )?.0  // Extract just the order_weight, ignore rebalance flag
     };
 
     let now = Utc::now().to_rfc3339();
@@ -1323,7 +1335,7 @@ pub async fn indent_block(
     app: tauri::AppHandle,
     workspace_path: String,
     block_id: String,
-) -> Result<Block, String> {
+) -> Result<MoveResult, String> {
     let conn = open_workspace_db(&workspace_path)?;
     let conn_mutex = Mutex::new(conn);
 
@@ -1339,14 +1351,26 @@ pub async fn indent_block(
             .map_err(|_| "Cannot indent: no previous sibling".to_string())?
     };
 
-    // Calculate new order_weight as child of previous sibling
-    let new_order = {
+    // Find the last child of prev_sibling (if any) to insert after it
+    let last_child_id: Option<String> = {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
+            "SELECT id FROM blocks WHERE page_id = ? AND parent_id = ? ORDER BY order_weight DESC LIMIT 1",
+            params![&block.page_id, &prev_sibling.id],
+            |row| row.get(0),
+        )
+        .ok()
+    };
+
+    // Calculate new order_weight as child of previous sibling, after its last child
+    // Returns (new_order, did_rebalance)
+    let (new_order, did_rebalance) = {
         let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
         calculate_new_order_weight(
             &conn,
             &block.page_id,
             Some(&prev_sibling.id),
-            None, // Add at the end
+            last_child_id.as_deref(), // Insert after last child (None if no children = first child)
         )?
     };
 
@@ -1366,6 +1390,17 @@ pub async fn indent_block(
         get_block_by_id(&conn, &block_id)?
     };
 
+    // Fetch affected siblings if rebalancing occurred
+    let affected_siblings = if did_rebalance {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        // Get all siblings except the moved block itself
+        let mut siblings = get_siblings_as_blocks(&conn, &block.page_id, Some(&prev_sibling.id))?;
+        siblings.retain(|b| b.id != block_id);
+        siblings
+    } else {
+        vec![]
+    };
+
     // Sync to markdown file
     sync_page_to_markdown_after_move(
         &conn_mutex,
@@ -1378,7 +1413,10 @@ pub async fn indent_block(
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
-    Ok(updated_block)
+    Ok(MoveResult {
+        moved_block: updated_block,
+        affected_siblings,
+    })
 }
 
 /// Outdent a block (make it a sibling of its parent)
@@ -1387,7 +1425,7 @@ pub async fn outdent_block(
     app: tauri::AppHandle,
     workspace_path: String,
     block_id: String,
-) -> Result<Block, String> {
+) -> Result<MoveResult, String> {
     let conn = open_workspace_db(&workspace_path)?;
     let conn_mutex = Mutex::new(conn);
 
@@ -1407,7 +1445,8 @@ pub async fn outdent_block(
     };
 
     // Calculate new order_weight as sibling of parent
-    let new_order = {
+    // Returns (new_order, did_rebalance)
+    let (new_order, did_rebalance) = {
         let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
         calculate_new_order_weight(
             &conn,
@@ -1433,6 +1472,17 @@ pub async fn outdent_block(
         get_block_by_id(&conn, &block_id)?
     };
 
+    // Fetch affected siblings if rebalancing occurred
+    let affected_siblings = if did_rebalance {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        // Get all siblings at the new parent level (parent's parent)
+        let mut siblings = get_siblings_as_blocks(&conn, &block.page_id, parent.parent_id.as_deref())?;
+        siblings.retain(|b| b.id != block_id);
+        siblings
+    } else {
+        vec![]
+    };
+
     // Sync to markdown file
     sync_page_to_markdown_after_move(
         &conn_mutex,
@@ -1445,7 +1495,10 @@ pub async fn outdent_block(
     // Emit workspace changed event for git monitoring
     crate::utils::events::emit_workspace_changed(&app, &workspace_path);
 
-    Ok(updated_block)
+    Ok(MoveResult {
+        moved_block: updated_block,
+        affected_siblings,
+    })
 }
 
 /// Toggle collapse state of a block
@@ -1638,7 +1691,7 @@ fn calculate_new_order_weight(
     page_id: &str,
     parent_id: Option<&str>,
     after_block_id: Option<&str>,
-) -> Result<f64, String> {
+) -> Result<(f64, bool), String> {
     let (before, after) = get_neighbor_weights(conn, page_id, parent_id, after_block_id)?;
 
     // Check rebalancing
@@ -1659,10 +1712,10 @@ fn calculate_new_order_weight(
         // Re-fetch
         let (before_new, after_new) =
             get_neighbor_weights(conn, page_id, parent_id, after_block_id)?;
-        return Ok(fractional_index::calculate_middle(before_new, after_new));
+        return Ok((fractional_index::calculate_middle(before_new, after_new), true));
     }
 
-    Ok(fractional_index::calculate_middle(before, after))
+    Ok((fractional_index::calculate_middle(before, after), false))
 }
 
 fn get_neighbor_weights(
@@ -1731,6 +1784,44 @@ fn rebalance_siblings(
     }
 
     Ok(())
+}
+
+
+/// Fetch all sibling blocks under a given parent
+fn get_siblings_as_blocks(
+    conn: &Connection,
+    page_id: &str,
+    parent_id: Option<&str>,
+) -> Result<Vec<Block>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, page_id, parent_id, content, order_weight,
+                is_collapsed, block_type, language, created_at, updated_at
+             FROM blocks WHERE page_id = ? AND parent_id IS ? ORDER BY order_weight",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let blocks = stmt
+        .query_map(params![page_id, parent_id], |row| {
+            Ok(Block {
+                id: row.get(0)?,
+                page_id: row.get(1)?,
+                parent_id: row.get(2)?,
+                content: row.get(3)?,
+                order_weight: row.get(4)?,
+                is_collapsed: row.get::<_, i32>(5)? != 0,
+                block_type: crate::models::block::string_to_block_type(&row.get::<_, String>(6)?),
+                language: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+                metadata: HashMap::new(),
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(blocks)
 }
 
 /// Load metadata for a block from the database
@@ -2032,7 +2123,7 @@ pub async fn create_blocks_batch(
                 &block_request.page_id,
                 block_request.parent_id.as_deref(),
                 last_block_id.as_deref(),
-            )?
+            )?.0  // Extract just the order_weight, ignore rebalance flag
         };
 
         let id = Uuid::new_v4().to_string();
