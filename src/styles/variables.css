@@ -53,6 +53,13 @@
   --layout-indent-size: 24px;
   --layout-indent-guide-color: rgba(255, 255, 255, 0.08);
 
+  /* Indent guide offset: distance from depth-padding edge to bullet center.
+     = collapse-toggle-margin-left + collapse-toggle-size + flex-gap + bullet-container-size / 2 */
+  --layout-indent-guide-offset: calc(
+    var(--spacing-sm) + var(--layout-collapse-toggle-size) + var(--spacing-sm) +
+      var(--layout-bullet-container-size) / 2
+  );
+
   /* Transitions */
   --transition-fast: 0.1s ease;
   --transition-normal: 0.15s ease;
@@ -93,7 +100,7 @@
   --color-bullet-default: rgba(255, 255, 255, 0.35);
   --color-bullet-hover: rgba(255, 255, 255, 0.65);
   --color-bullet-active: rgba(255, 255, 255, 0.9);
-  --color-indent-guide: rgba(255, 255, 255, 0.08);
+  --color-indent-guide: var(--layout-indent-guide-color);
 
   /* Graph Node Colors */
   --color-graph-node-page: #ffffff;
