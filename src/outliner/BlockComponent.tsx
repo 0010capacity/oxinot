@@ -1566,13 +1566,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       isAiPrompt,
     ]);
 
-    // Render only one indent guide at this block's depth level
+    // Render indent guide at parent level's bullet center
     const indentGuide =
       showIndentGuides && depth > 0 ? (
         <div
           className="indent-guide"
           style={{
-            left: `${depth * INDENT_PER_LEVEL + 18}px`, // Align with collapse toggle center (20px width / 2 + 4px margin)
+            left: `calc(${(depth - 1) * INDENT_PER_LEVEL}px + var(--layout-indent-guide-offset))`,
           }}
         />
       ) : null;
