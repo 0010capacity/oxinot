@@ -6,13 +6,13 @@ import {
   useAIFloatingInput,
 } from "../components/AIFloatingInput";
 import { LinkedReferences } from "../components/LinkedReferences";
-import { SubPagesSection } from "../components/SubPagesSection";
 import { ContentWrapper } from "../components/layout/ContentWrapper";
 import { PageContainer } from "../components/layout/PageContainer";
 import { PageHeader } from "../components/layout/PageHeader";
 import { useBlockEditorCommands } from "../hooks/useBlockEditorCommands";
 import { useBlockStore } from "../stores/blockStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
+import { usePageStore } from "../stores/pageStore";
 import { useRegisterCommands } from "../stores/commandStore";
 
 import { useThemeStore } from "../stores/themeStore";
@@ -24,19 +24,43 @@ import "./BlockEditor.css";
 export const BlockOrderContext = createContext<string[]>([]);
 
 interface BlockListProps {
-  blocksToShow: string[];
+  rootBlocks: string[];
+  subpageBlocks: string[];
 }
 
-const BlockList = memo(function BlockList({ blocksToShow }: BlockListProps) {
-  const blocks = useMemo(
+const BlockList = memo(function BlockList({
+  rootBlocks,
+  subpageBlocks,
+}: BlockListProps) {
+  const rootBlockElements = useMemo(
     () =>
-      blocksToShow.map((blockId: string) => (
+      rootBlocks.map((blockId: string) => (
         <BlockComponent key={blockId} blockId={blockId} depth={0} />
       )),
-    [blocksToShow],
+    [rootBlocks],
   );
 
-  return <>{blocks}</>;
+  const subpageBlockElements = useMemo(
+    () =>
+      subpageBlocks.map((blockId: string) => (
+        <BlockComponent key={blockId} blockId={blockId} depth={0} />
+      )),
+    [subpageBlocks],
+  );
+
+  const hasSubpages = subpageBlocks.length > 0;
+
+  return (
+    <>
+      {rootBlockElements}
+      {hasSubpages && (
+        <div className="subpages-divider">
+          <div className="subpages-divider-line" />
+        </div>
+      )}
+      {subpageBlockElements}
+    </>
+  );
 });
 
 interface BlockEditorProps {
@@ -56,10 +80,16 @@ export function BlockEditor({
   const isDark = computedColorScheme === "dark";
 
   const openPage = useBlockStore((state) => state.openPage);
+  const loadSubpageBlocks = useBlockStore((state) => state.loadSubpageBlocks);
+  const clearSubpageBlocks = useBlockStore((state) => state.clearSubpageBlocks);
   const currentPageId = useBlockStore((state) => state.currentPageId);
   const error = useBlockStore((state) => state.error);
   const childrenMap = useBlockStore((state) => state.childrenMap);
   const blocksById = useBlockStore((state) => state.blocksById);
+
+  // Page data for finding child pages
+  const pagesById = usePageStore((state) => state.pagesById);
+  const pageIds = usePageStore((state) => state.pageIds);
 
   const zoomPath = useViewStore((state) => state.zoomPath);
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
@@ -139,6 +169,27 @@ export function BlockEditor({
     }
   }, [pageId, currentPageId, openPage]);
 
+  // Get child page IDs for the current page
+  const childPageIds = useMemo(() => {
+    return pageIds
+      .map((id) => pagesById[id])
+      .filter(
+        (page) =>
+          page && page.parentId === pageId && !page.isDirectory,
+      )
+      .map((page) => page.id);
+  }, [pageIds, pagesById, pageId]);
+
+  // Load subpage blocks when main page is loaded
+  useEffect(() => {
+    if (currentPageId === pageId && childPageIds.length > 0) {
+      loadSubpageBlocks(childPageIds);
+    }
+    return () => {
+      clearSubpageBlocks();
+    };
+  }, [currentPageId, pageId, childPageIds, loadSubpageBlocks, clearSubpageBlocks]);
+
   const clearZoom = useViewStore((state) => state.clearZoom);
   const zoomByPageId = useViewStore((state) => state.zoomByPageId);
   const hasRestoredZoomRef = useRef(false);
@@ -179,20 +230,29 @@ export function BlockEditor({
   }, [zoomPath, blocksById, clearZoom]);
 
   const blocksToShowRef = useRef<string[]>([]);
-  const blocksToShow = useMemo(() => {
-    let toShow: string[] = [];
-
+  const rootBlocks = useMemo(() => {
     if (zoomPath.length > 0) {
       const zoomRootId = zoomPath[zoomPath.length - 1];
       if (zoomRootId && blocksById[zoomRootId]) {
-        toShow = [zoomRootId];
-      } else {
-        toShow = [];
+        if (zoomRootId.startsWith("subpage-header:")) {
+          return [];
+        }
+        return [zoomRootId];
       }
-    } else {
-      toShow = childrenMap.root || [];
+      return [];
     }
+    return childrenMap.root || [];
+  }, [zoomPath, childrenMap, blocksById]);
 
+  const subpageBlocks = useMemo(() => {
+    if (zoomPath.length > 0) {
+      return [];
+    }
+    return childrenMap.subpages || [];
+  }, [zoomPath, childrenMap]);
+
+  const blocksToShow = useMemo(() => {
+    const toShow = [...rootBlocks, ...subpageBlocks];
     if (
       blocksToShowRef.current.length !== toShow.length ||
       !blocksToShowRef.current.every(
@@ -202,7 +262,7 @@ export function BlockEditor({
       blocksToShowRef.current = toShow;
     }
     return blocksToShowRef.current;
-  }, [zoomPath, childrenMap, blocksById]);
+  }, [rootBlocks, subpageBlocks]);
 
   const blockOrder = useMemo(() => {
     const memoComputeStart = performance.now();
@@ -230,11 +290,27 @@ export function BlockEditor({
 
   // Drag selection state
   const blocksListRef = useRef<HTMLDivElement>(null);
-  const [isDragPending, setIsDragPending] = useState(false); // Potential drag started
-  const [isDragging, setIsDragging] = useState(false); // Actual drag in progress
+  const [isDragPending, setIsDragPending] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number; blockId: string } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
-  const DRAG_THRESHOLD = 5; // Minimum pixels to move before considering it a drag
+  const DRAG_THRESHOLD = 5;
+
+  // Refs to track state in event handlers (avoids stale closure issues)
+  const isDragPendingRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef<{ x: number; y: number; blockId: string } | null>(null);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    isDragPendingRef.current = isDragPending;
+  }, [isDragPending]);
+  useEffect(() => {
+    isDraggingRef.current = isDragging;
+  }, [isDragging]);
+  useEffect(() => {
+    dragStartRef.current = dragStart;
+  }, [dragStart]);
 
   // Get block ID from element under cursor
   const getBlockIdFromPoint = useCallback((x: number, y: number): string | null => {
@@ -246,10 +322,8 @@ export function BlockEditor({
 
   // Handle pointer down - record potential drag start
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    // Only start on left click
     if (e.button !== 0) return;
-    
-    // Don't start if clicking inside CodeMirror editor or on interactive elements
+
     const target = e.target as HTMLElement;
     if (
       target.closest('.cm-editor') ||
@@ -265,21 +339,16 @@ export function BlockEditor({
     const blockId = getBlockIdFromPoint(e.clientX, e.clientY);
     if (!blockId) return;
 
-    // Record potential drag start (don't select yet)
     setIsDragPending(true);
     setDragStart({ x: e.clientX, y: e.clientY, blockId });
     setDragCurrent({ x: e.clientX, y: e.clientY });
   }, [getBlockIdFromPoint]);
 
-
-
-  // Use document-level listeners for reliable drag handling
+  // Stable document-level listeners (registered once)
   useEffect(() => {
-    if (!isDragPending && !isDragging) return;
-
     const onPointerUp = () => {
       // If click without drag, clear any existing selection
-      if (isDragPending && !isDragging) {
+      if (isDragPendingRef.current && !isDraggingRef.current) {
         useBlockUIStore.getState().clearSelectedBlocks();
         useBlockUIStore.getState().clearSelectionAnchor();
       }
@@ -290,30 +359,30 @@ export function BlockEditor({
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (!dragStart) return;
+      if (!dragStartRef.current) return;
 
-      const dx = e.clientX - dragStart.x;
-      const dy = e.clientY - dragStart.y;
+      const dx = e.clientX - dragStartRef.current.x;
+      const dy = e.clientY - dragStartRef.current.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       // Start actual drag when threshold is crossed
-      if (isDragPending && !isDragging && distance > DRAG_THRESHOLD) {
+      if (isDragPendingRef.current && !isDraggingRef.current && distance > DRAG_THRESHOLD) {
         setIsDragging(true);
         setIsDragPending(false);
-        useBlockUIStore.getState().setSelectionAnchor(dragStart.blockId);
-        useBlockUIStore.getState().setSelectedBlocks([dragStart.blockId]);
+        useBlockUIStore.getState().setSelectionAnchor(dragStartRef.current.blockId);
+        useBlockUIStore.getState().setSelectedBlocks([dragStartRef.current.blockId]);
       }
 
-      if (!isDragging && distance <= DRAG_THRESHOLD) return;
+      if (!isDraggingRef.current && distance <= DRAG_THRESHOLD) return;
 
       setDragCurrent({ x: e.clientX, y: e.clientY });
 
       const currentBlockId = getBlockIdFromPoint(e.clientX, e.clientY);
-      if (currentBlockId && currentBlockId !== dragStart.blockId) {
+      if (currentBlockId && currentBlockId !== dragStartRef.current.blockId) {
         const { selectBlockRange } = useBlockUIStore.getState();
-        selectBlockRange(dragStart.blockId, currentBlockId, blockOrder);
-      } else if (currentBlockId === dragStart.blockId) {
-        useBlockUIStore.getState().setSelectedBlocks([dragStart.blockId]);
+        selectBlockRange(dragStartRef.current.blockId, currentBlockId, blockOrder);
+      } else if (currentBlockId === dragStartRef.current.blockId) {
+        useBlockUIStore.getState().setSelectedBlocks([dragStartRef.current.blockId]);
       }
     };
 
@@ -345,7 +414,7 @@ export function BlockEditor({
       document.removeEventListener('pointercancel', onPointerCancel);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [isDragPending, isDragging, dragStart, getBlockIdFromPoint, blockOrder]);
+  }, [blockOrder, getBlockIdFromPoint]);
 
   // Calculate selection rectangle for visual feedback
   const selectionRect = useMemo(() => {
@@ -404,7 +473,7 @@ export function BlockEditor({
             </div>
           ) : (
             <BlockOrderContext.Provider value={blockOrder}>
-              <BlockList blocksToShow={blocksToShow} />
+              <BlockList rootBlocks={rootBlocks} subpageBlocks={subpageBlocks} />
             </BlockOrderContext.Provider>
           )}
           
@@ -425,8 +494,6 @@ export function BlockEditor({
             />
           )}
         </div>
-
-        <SubPagesSection currentPageId={pageId} />
 
         <LinkedReferences pageId={pageId} />
       </ContentWrapper>

@@ -20,7 +20,7 @@ export interface BlockData {
   content: string;
   orderWeight: number;
   isCollapsed: boolean;
-  blockType: "bullet" | "code" | "fence" | "ai-prompt" | "ai-response";
+  blockType: "bullet" | "code" | "fence" | "ai-prompt" | "ai-response" | "subpage-header";
   language?: string;
   createdAt: string;
   updatedAt: string;
@@ -58,6 +58,8 @@ interface BlockState {
 interface BlockActions {
   // 페이지 로드
   loadPage: (pageId: string) => Promise<void>;
+  loadSubpageBlocks: (pageIds: string[]) => Promise<void>;
+  clearSubpageBlocks: () => void;
   clearPage: () => void;
   updatePartialBlocks: (
     blocks: BlockData[],
@@ -358,6 +360,123 @@ export const useBlockStore = create<BlockStore>()(
           mergingBlockId: null,
           mergingTargetBlockId: null,
           targetCursorPosition: null,
+        });
+      },
+
+      loadSubpageBlocks: async (pageIds: string[]) => {
+        if (pageIds.length === 0) return;
+
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) return;
+
+        const newBlocksById: Record<string, BlockData> = {};
+        const newChildrenMap: Record<string, string[]> = {};
+        const subpageRootIds: string[] = [];
+
+        for (const pageId of pageIds) {
+          try {
+            const response = await invoke<{
+              rootBlocks: BlockData[];
+              childrenByParent: Record<string, BlockData[]>;
+              metadata: Record<string, Record<string, string>>;
+            }>("get_page_blocks_complete", {
+              workspacePath,
+              pageId,
+            });
+
+            const headerBlockId = `subpage-header:${pageId}`;
+            const now = new Date().toISOString();
+            const headerBlock: BlockData = {
+              id: headerBlockId,
+              pageId,
+              parentId: null,
+              content: `[[${pageId}]]`,
+              orderWeight: Date.now(),
+              isCollapsed: false,
+              blockType: "subpage-header",
+              createdAt: now,
+              updatedAt: now,
+            };
+
+            newBlocksById[headerBlockId] = headerBlock;
+            subpageRootIds.push(headerBlockId);
+
+            const transformedBlocks: BlockData[] = [];
+            const rootChildren: string[] = [];
+
+            for (const block of response.rootBlocks) {
+              const newId = `subpage:${pageId}:${block.id}`;
+              transformedBlocks.push({
+                ...block,
+                id: newId,
+                parentId: headerBlockId,
+              });
+              rootChildren.push(newId);
+            }
+
+            for (const blocks of Object.values(response.childrenByParent)) {
+              for (const block of blocks) {
+                const newId = `subpage:${pageId}:${block.id}`;
+                const newParentId = block.parentId
+                  ? `subpage:${pageId}:${block.parentId}`
+                  : null;
+                transformedBlocks.push({
+                  ...block,
+                  id: newId,
+                  parentId: newParentId,
+                });
+              }
+            }
+
+            for (const [blockId, metadata] of Object.entries(response.metadata)) {
+              const newId = `subpage:${pageId}:${blockId}`;
+              const block = transformedBlocks.find((b) => b.id === newId);
+              if (block) {
+                block.metadata = metadata;
+              }
+            }
+
+            for (const block of transformedBlocks) {
+              newBlocksById[block.id] = block;
+              if (block.parentId) {
+                if (!newChildrenMap[block.parentId]) {
+                  newChildrenMap[block.parentId] = [];
+                }
+                newChildrenMap[block.parentId].push(block.id);
+              }
+            }
+
+            newChildrenMap[headerBlockId] = rootChildren;
+          } catch (error) {
+            console.error(
+              `[blockStore] Failed to load subpage blocks for ${pageId}:`,
+              error,
+            );
+          }
+        }
+
+        set((state) => {
+          Object.assign(state.blocksById, newBlocksById);
+          Object.assign(state.childrenMap, newChildrenMap);
+          state.childrenMap["subpages"] = subpageRootIds;
+        });
+      },
+
+      clearSubpageBlocks: () => {
+        set((state) => {
+          const idsToRemove = Object.keys(state.blocksById).filter(
+            (id) => id.startsWith("subpage:") || id.startsWith("subpage-header:"),
+          );
+          for (const id of idsToRemove) {
+            delete state.blocksById[id];
+            delete state.blockStatus[id];
+          }
+          for (const key of Object.keys(state.childrenMap)) {
+            if (key.startsWith("subpage:") || key.startsWith("subpage-header:")) {
+              delete state.childrenMap[key];
+            }
+          }
+          delete state.childrenMap["subpages"];
         });
       },
 

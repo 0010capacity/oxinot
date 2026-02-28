@@ -48,6 +48,7 @@ import {
   useBlockType,
   useChildrenIds,
 } from "../stores/blockStore";
+import { usePageStore } from "../stores/pageStore";
 import { useTargetCursorPosition } from "../stores/blockUIStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
@@ -105,7 +106,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const isAiPrompt = blockType === "ai-prompt";
     const isAiResponse = blockType === "ai-response";
+    const isSubpageHeader = blockType === "subpage-header";
     const isAiLocked = useIsBlockLocked(blockId);
+
+    // For subpage-header: get page opening functions
+    const pagesById = usePageStore((state) => state.pagesById);
+    const selectPage = usePageStore((state) => state.selectPage);
+    const openNote = useViewStore((state) => state.openNote);
+    const loadPage = useBlockStore((state) => state.loadPage);
+
+    // Extract pageId from subpage-header block id
+    const subpageId = isSubpageHeader ? blockId.replace("subpage-header:", "") : null;
+    const subpageTitle = subpageId ? (pagesById[subpageId]?.title || subpageId) : null;
 
     const thread = useThreadByResponseBlock(blockId);
     const isStreaming = thread?.status === "streaming";
@@ -1143,6 +1155,43 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       [blockId, hasChildren, setFocusedBlock],
     );
 
+    // Handle clicking on subpage-header to open the page
+    const handleSubpageHeaderClick = useCallback(
+      async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!subpageId) return;
+
+        const page = pagesById[subpageId];
+        if (!page) return;
+
+        const parentNames: string[] = [];
+        const pagePathIds: string[] = [];
+
+        const buildParentPath = (pid: string) => {
+          const p = pagesById[pid];
+          if (!p) return;
+          if (p.parentId) {
+            buildParentPath(p.parentId);
+          }
+          parentNames.push(p.title);
+          pagePathIds.push(p.id);
+        };
+
+        if (page.parentId) {
+          buildParentPath(page.parentId);
+        }
+
+        selectPage(page.id);
+        openNote(page.id, page.title, parentNames, pagePathIds);
+
+        try {
+          await loadPage(page.id);
+        } catch (error) {
+          console.error("[BlockComponent] Failed to load page:", error);
+        }
+      },
+      [subpageId, pagesById, selectPage, openNote, loadPage],
+    );
     const todoStatus =
       extractStatusPrefix(draft || blockContent || "")?.status ||
       getTodoStatus(blockMetadata);
@@ -2247,6 +2296,25 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   />
                   {isStreaming && <span className="ai-streaming-cursor" />}
                 </div>
+              ) : isSubpageHeader ? (
+                <button
+                  type="button"
+                  className="subpage-header-link"
+                  onClick={handleSubpageHeaderClick}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    fontSize: "inherit",
+                    fontWeight: 500,
+                    color: "var(--color-text-primary)",
+                    textAlign: "left",
+                    width: "100%",
+                  }}
+                >
+                  {subpageTitle}
+                </button>
               ) : (
                 <MacroContentWrapper
                   content={blockContent || ""}

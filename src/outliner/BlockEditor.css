@@ -282,3 +282,15 @@
   color: var(--color-text-tertiary);
   opacity: var(--opacity-dimmed);
 }
+
+/* Subpages divider */
+.subpages-divider {
+  margin: 24px 0;
+  padding: 0;
+}
+
+.subpages-divider-line {
+  height: 1px;
+  background-color: var(--color-border-primary);
+  margin: 0 -8px;
+}
