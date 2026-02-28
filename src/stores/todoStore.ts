@@ -4,11 +4,14 @@ import { dispatchBlockUpdate } from "../events";
 import type { TodoFilter, TodoResult, TodoStatus } from "../types/todo";
 import {
   SMART_VIEWS,
+  STATUS_TO_PREFIX,
   extractStatusPrefix,
   getNextStatus,
   setStatusPrefix,
 } from "../types/todo";
 import type { BlockData } from "./blockStore";
+import { useAppSettingsStore } from "./appSettingsStore";
+import { usePageStore } from "./pageStore";
 import { useWorkspaceStore } from "./workspaceStore";
 
 interface BlockWithPath {
@@ -40,6 +43,11 @@ interface TodoActions {
   fetchSmartView: (viewId: string) => Promise<void>;
   fetchStatistics: () => Promise<TodoStatistics>;
   clearCache: () => void;
+  /**
+   * Create a new TODO in today's daily note with scheduled date set to today.
+   * Automatically creates the daily note if it doesn't exist.
+   */
+  createTodo: (content: string) => Promise<TodoResult | null>;
 }
 
 type TodoStore = TodoState & TodoActions;
@@ -333,8 +341,77 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
     }
   },
 
-  clearCache: () => {
+clearCache: () => {
     set({ todos: [], lastFetch: null });
+  },
+
+  createTodo: async (content: string): Promise<TodoResult | null> => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        throw new Error("No workspace selected");
+      }
+
+      // Get today's date
+      const today = new Date();
+      const todayStr = today.toISOString().split("T")[0];
+
+      // Get the daily note path for today
+      const dailyNotePath = useAppSettingsStore.getState().getDailyNotePath(today);
+
+      // Get or create the daily note page
+      const pageId = await usePageStore.getState().openPageByPath(dailyNotePath);
+
+      // Create the TODO block with "TODO " prefix
+      const fullContent = STATUS_TO_PREFIX.todo + content;
+
+      const newBlock = await invoke<BlockData>("create_block", {
+        workspacePath,
+        request: {
+          pageId,
+          parentId: null, // Root level block
+          afterBlockId: null,
+          content: fullContent,
+        },
+      });
+
+      // Set metadata: todoStatus and scheduled
+      const metadata: Record<string, string> = {
+        todoStatus: "todo",
+        scheduled: todayStr,
+      };
+
+      await invoke("set_block_metadata", {
+        workspacePath,
+        request: {
+          block_id: newBlock.id,
+          metadata,
+        },
+      });
+
+      // Dispatch update to refresh UI
+      dispatchBlockUpdate([newBlock]);
+
+      // Create the result
+      const todoResult: TodoResult = {
+        blockId: newBlock.id,
+        content: fullContent,
+        pageId,
+        pageTitle: dailyNotePath.split("/").pop() || dailyNotePath,
+        status: "todo",
+        scheduled: todayStr,
+      };
+
+      set({ isLoading: false });
+      return todoResult;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error("[todoStore] createTodo error:", message);
+      set({ isLoading: false, error: message });
+      return null;
+    }
   },
 }));
 

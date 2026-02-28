@@ -11,15 +11,16 @@ import {
   IconCircleX,
   IconFlag,
   IconList,
+  IconPlus,
 } from "@tabler/icons-react";
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useBlockUIStore } from "../../stores/blockUIStore";
 import { usePageStore } from "../../stores/pageStore";
 import { useTodoPanelStore } from "../../stores/todoPanelStore";
 import { useTodoStore } from "../../stores/todoStore";
-import { useViewStore } from "../../stores/viewStore";
 import type { SmartView, TodoResult, TodoStatus } from "../../types/todo";
 import { SMART_VIEWS, extractStatusPrefix } from "../../types/todo";
+import { useViewStore } from "../../stores/viewStore";
 
 const ICON_MAP: Record<
   SmartView["iconName"],
@@ -114,6 +115,11 @@ const TodoItem = memo(function TodoItem({
           e.stopPropagation();
           onStatusToggle();
         }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         disabled={isUpdating}
         style={{
           background: "transparent",
@@ -175,16 +181,19 @@ export function TodoListFloatingPanel() {
 
   const setActiveView = useTodoPanelStore((s) => s.setActiveView);
 
-  const todos = useTodoStore((s) => s.todos);
+const todos = useTodoStore((s) => s.todos);
   const fetchSmartView = useTodoStore((s) => s.fetchSmartView);
   const cycleTodoStatus = useTodoStore((s) => s.cycleTodoStatus);
+  const createTodo = useTodoStore((s) => s.createTodo);
+  const isLoading = useTodoStore((s) => s.isLoading);
 
   const openPageById = usePageStore((s) => s.openPageById);
   const zoomToBlock = useViewStore((s) => s.zoomToBlock);
   const setFocusedBlock = useBlockUIStore((s) => s.setFocusedBlock);
 
-  const [updatingBlockId, setUpdatingBlockId] = useState<string | null>(null);
-
+const [updatingBlockId, setUpdatingBlockId] = useState<string | null>(null);
+  const [quickAddValue, setQuickAddValue] = useState("");
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (isOpen) {
       fetchSmartView(activeView);
@@ -200,9 +209,15 @@ export function TodoListFloatingPanel() {
         await openPageById(todo.pageId);
       }
 
-      setTimeout(() => {
+      // Clear any existing timeout before setting new one
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      timeoutRef.current = setTimeout(() => {
         zoomToBlock(todo.blockId);
         setFocusedBlock(todo.blockId);
+        timeoutRef.current = null;
       }, 100);
     },
     [closePanel, openPageById, zoomToBlock, setFocusedBlock],
@@ -218,8 +233,35 @@ export function TodoListFloatingPanel() {
         setUpdatingBlockId(null);
       }
     },
-    [cycleTodoStatus, fetchSmartView, activeView],
+[cycleTodoStatus, fetchSmartView, activeView],
   );
+
+  const handleQuickAdd = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      const trimmedValue = quickAddValue.trim();
+      if (!trimmedValue) return;
+
+      try {
+        await createTodo(trimmedValue);
+        setQuickAddValue("");
+        await fetchSmartView(activeView);
+      } catch (error) {
+        console.error("[TodoListFloatingPanel] Failed to create todo:", error);
+      }
+    },
+    [quickAddValue, createTodo, fetchSmartView, activeView],
+  );
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const activeViewData = SMART_VIEWS.find((v) => v.id === activeView);
 
@@ -270,7 +312,7 @@ export function TodoListFloatingPanel() {
         }}
       >
 
-        {SMART_VIEWS.map((view) => (
+{SMART_VIEWS.map((view) => (
           <Tooltip key={view.id} label={view.label} position="bottom">
             <button
               type="button"
@@ -312,6 +354,39 @@ export function TodoListFloatingPanel() {
           </Tooltip>
         ))}
       </Box>
+
+      {/* Quick-add input */}
+      <form onSubmit={handleQuickAdd}>
+        <Box
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "4px 8px",
+            borderTop: "1px solid var(--color-border-secondary)",
+            borderBottom: "1px solid var(--color-border-secondary)",
+            backgroundColor: "var(--color-bg-secondary)",
+          }}
+        >
+          <IconPlus size={12} stroke={1.5} style={{ color: "var(--color-text-tertiary)", flexShrink: 0 }} />
+          <input
+            type="text"
+            value={quickAddValue}
+            onChange={(e) => setQuickAddValue(e.target.value)}
+            placeholder="Add a task..."
+            disabled={isLoading}
+            style={{
+              flex: 1,
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              fontSize: "var(--font-size-xs)",
+              color: "var(--color-text-primary)",
+              padding: "2px 0",
+            }}
+          />
+        </Box>
+      </form>
 
       <Box
         style={{
