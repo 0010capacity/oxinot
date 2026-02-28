@@ -14,6 +14,7 @@ import { useBlockStore } from "../stores/blockStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { usePageStore } from "../stores/pageStore";
 import { useRegisterCommands } from "../stores/commandStore";
+import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 
 import { useThemeStore } from "../stores/themeStore";
 import { useViewStore } from "../stores/viewStore";
@@ -94,6 +95,7 @@ export function BlockEditor({
   const zoomPath = useViewStore((state) => state.zoomPath);
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
+  const showBulletThreading = useOutlinerSettingsStore((s) => s.showBulletThreading);
 
   const aiFloatingInput = useAIFloatingInput();
 
@@ -454,7 +456,7 @@ export function BlockEditor({
 
         <div
           ref={blocksListRef}
-          className="blocks-list"
+          className={`blocks-list${showBulletThreading ? " bullet-threading" : ""}`}
           style={{
             fontSize: `${editorFontSize}px`,
             lineHeight: editorLineHeight,

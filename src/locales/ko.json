@@ -178,6 +178,8 @@
       "description": "블록 에디터 동작을 사용자 정의합니다",
       "indent_guides": "들여쓰기 가이드 표시",
       "indent_guides_desc": "들여쓰기 수준을 보여주는 수직선을 표시합니다",
+      "bullet_threading": "불릿 스레딩 표시",
+      "bullet_threading_desc": "블록 위에 마우스를 올리면 계층 경로를 강조 표시합니다",
       "auto_expand": "블록 자동 펼치기",
       "auto_expand_desc": "탐색 시 접힌 블록을 자동으로 펼칩니다",
       "block_count": "블록 수 표시",

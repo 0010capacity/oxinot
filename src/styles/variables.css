@@ -102,6 +102,10 @@
   --color-bullet-active: rgba(255, 255, 255, 0.9);
   --color-indent-guide: var(--layout-indent-guide-color);
 
+  /* Bullet Threading */
+  --color-thread-line: var(--color-accent);
+  --layout-thread-line-width: 1px;
+
   /* Graph Node Colors */
   --color-graph-node-page: #ffffff;
   --color-graph-node-block: #e0e0e0;

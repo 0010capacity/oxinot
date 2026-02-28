@@ -59,6 +59,8 @@ export interface HomepageSettingsProps extends SettingsComponentProps {
 export interface OutlinerSettingsProps extends SettingsComponentProps {
   showIndentGuides: boolean;
   toggleIndentGuides: () => void;
+  showBulletThreading: boolean;
+  toggleBulletThreading: () => void;
   autoExpandBlocks: boolean;
   setAutoExpandBlocks: (value: boolean) => void;
   showBlockCount: boolean;

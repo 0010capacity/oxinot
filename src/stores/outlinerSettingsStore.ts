@@ -86,6 +86,7 @@ export const FONT_OPTIONS: {
 
 interface OutlinerSettings {
   showIndentGuides: boolean;
+  showBulletThreading: boolean;
   fontFamily: FontFamily;
   autoExpandBlocks: boolean;
   showBlockCount: boolean;
@@ -97,6 +98,8 @@ interface OutlinerSettings {
 interface OutlinerSettingsStore extends OutlinerSettings {
   toggleIndentGuides: () => void;
   setShowIndentGuides: (value: boolean) => void;
+  toggleBulletThreading: () => void;
+  setShowBulletThreading: (value: boolean) => void;
   setFontFamily: (font: FontFamily) => void;
   getFontStack: () => string;
   setAutoExpandBlocks: (value: boolean) => void;
@@ -112,6 +115,7 @@ export const useOutlinerSettingsStore =
       (set, get) => ({
         // Default settings
         showIndentGuides: true,
+        showBulletThreading: true,
         fontFamily: "Inter",
         autoExpandBlocks: true,
         showBlockCount: false,
@@ -125,6 +129,12 @@ export const useOutlinerSettingsStore =
 
         setShowIndentGuides: (value: boolean) =>
           set({ showIndentGuides: value }),
+
+        toggleBulletThreading: () =>
+          set((state) => ({ showBulletThreading: !state.showBulletThreading })),
+
+        setShowBulletThreading: (value: boolean) =>
+          set({ showBulletThreading: value }),
 
         setAutoExpandBlocks: (value: boolean) =>
           set({ autoExpandBlocks: value }),

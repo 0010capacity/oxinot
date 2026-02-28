@@ -178,6 +178,8 @@
       "description": "Customize the block editor behavior",
       "indent_guides": "Show indent guides",
       "indent_guides_desc": "Display vertical lines to show indentation levels",
+      "bullet_threading": "Show bullet threading",
+      "bullet_threading_desc": "Highlight the hierarchy path when hovering over a block",
       "auto_expand": "Auto-expand blocks",
       "auto_expand_desc": "Automatically expand collapsed blocks when navigating",
       "block_count": "Show block count",

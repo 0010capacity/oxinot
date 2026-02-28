@@ -33,6 +33,9 @@ interface BlockUIState {
 
   // IME 조합 상태
   isComposing: boolean;
+
+  // 블릿 스레딩 호버 상태
+  hoveredBlockId: string | null;
 }
 
 interface BlockUIActions {
@@ -89,6 +92,8 @@ interface BlockUIActions {
   // IME 상태 관리
   setIsComposing: (isComposing: boolean) => void;
 
+  // 블릿 스레딩 호버
+  setHoveredBlock: (id: string | null) => void;
   // 전체 UI 상태 초기화
   reset: () => void;
 }
@@ -108,6 +113,7 @@ const initialState: BlockUIState = {
   pendingFocusSelection: null,
   focusRequest: null,
   isComposing: false,
+  hoveredBlockId: null,
 };
 
 // ============ Store Implementation ============
@@ -299,6 +305,12 @@ export const useBlockUIStore = create<BlockUIStore>()(
       });
     },
 
+    setHoveredBlock: (id: string | null) => {
+      set((state) => {
+        state.hoveredBlockId = id;
+      });
+    },
+
     reset: () => {
       set(initialState);
     },
@@ -333,3 +345,6 @@ export const useHasSelection = () =>
 
 export const useSelectionCount = () =>
   useBlockUIStore((state) => state.selectedBlockIds.length);
+
+export const useHoveredBlockId = () =>
+  useBlockUIStore((state) => state.hoveredBlockId);

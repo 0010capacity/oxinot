@@ -6,6 +6,8 @@ export function OutlinerSettings({
   matchesSearch,
   showIndentGuides,
   toggleIndentGuides,
+  showBulletThreading,
+  toggleBulletThreading,
   autoExpandBlocks,
   setAutoExpandBlocks,
   showBlockCount,
@@ -34,6 +36,15 @@ export function OutlinerSettings({
               description={t("settings.outliner.indent_guides_desc")}
               checked={showIndentGuides}
               onChange={toggleIndentGuides}
+            />
+          )}
+
+          {matchesSearch("bullet threading") && (
+            <Switch
+              label={t("settings.outliner.bullet_threading")}
+              description={t("settings.outliner.bullet_threading_desc")}
+              checked={showBulletThreading}
+              onChange={toggleBulletThreading}
             />
           )}
 

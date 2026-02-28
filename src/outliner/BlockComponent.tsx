@@ -1591,6 +1591,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         <div
           ref={blockComponentRef}
           className="block-component"
+          data-block-depth={depth}
+          style={{ "--block-depth": depth } as React.CSSProperties}
           onMouseDown={(e) => {
             // Save text selection before right-click might clear it
             if (e.button === 2) {
