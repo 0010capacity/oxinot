@@ -7,10 +7,17 @@
  */
 
 /**
- * Heading font sizes (multiplier relative to base font)
- * Index corresponds to heading level (0 = H1, 5 = H6)
+ * Heading CSS variable names by level
+ * These correspond to --heading-size-h1 through --heading-size-h6 in variables.css
  */
-export const HEADING_SIZES = [2.2, 2.0, 1.8, 1.6, 1.4, 1.2];
+const HEADING_CSS_VARS = {
+  1: "--heading-size-h1",
+  2: "--heading-size-h2",
+  3: "--heading-size-h3",
+  4: "--heading-size-h4",
+  5: "--heading-size-h5",
+  6: "--heading-size-h6",
+} as const;
 
 /**
  * Heading font weights by level
@@ -121,13 +128,13 @@ export const CHECKBOX_STYLES = {
 } as const;
 
 /**
- * Helper function to get heading size for a given level
+ * Helper function to get heading CSS variable for a given level
  */
-export function getHeadingSize(level: number): number {
+export function getHeadingSize(level: number): string {
   if (level < 1 || level > 6) {
-    return 1; // Default to base size
+    return "1em"; // Default to base size
   }
-  return HEADING_SIZES[level - 1];
+  return `var(${HEADING_CSS_VARS[level as keyof typeof HEADING_CSS_VARS]})`;
 }
 
 /**
@@ -139,16 +146,19 @@ export function getHeadingWeight(level: number): string {
   }
   return HEADING_WEIGHTS[level as keyof typeof HEADING_WEIGHTS];
 }
-
 /**
  * Helper function to build heading style string
+ * Uses CSS variables for consistency with static renderer
  */
 export function getHeadingStyle(level: number): string {
-  const size = getHeadingSize(level);
   const weight = getHeadingWeight(level);
+  const sizeVar =
+    level >= 1 && level <= 6
+      ? HEADING_CSS_VARS[level as keyof typeof HEADING_CSS_VARS]
+      : "--heading-size-h6";
   return `
     font-weight: ${weight};
-    font-size: ${size}em;
+    font-size: var(${sizeVar});
     line-height: 1.3;
     text-decoration: none;
     border-bottom: none;
@@ -164,37 +174,40 @@ export function getMarkerStyle(isOnCursorLine: boolean): string {
 
 /**
  * Helper function to build inline code style string
+ * Uses CSS variables for consistency with static renderer
  */
 export function getInlineCodeStyle(): string {
   return `
-    font-family: ${CODE_STYLES.fontFamily};
-    background-color: ${CODE_STYLES.backgroundColor};
-    padding: ${CODE_STYLES.padding};
-    border-radius: ${CODE_STYLES.borderRadius};
-    font-size: ${CODE_STYLES.fontSize};
+    font-family: var(--font-family-mono);
+    background-color: var(--color-bg-tertiary);
+    padding: var(--inline-element-padding);
+    border-radius: var(--inline-element-border-radius);
+    font-size: 0.9em;
   `.trim();
 }
 
 /**
  * Helper function to build blockquote style string
+ * Uses CSS variables for consistency with static renderer
  */
 export function getBlockquoteStyle(): string {
   return `
-    border-left: ${BLOCKQUOTE_STYLES.borderLeft};
-    padding-left: ${BLOCKQUOTE_STYLES.paddingLeft};
-    color: ${BLOCKQUOTE_STYLES.color};
-    font-style: ${BLOCKQUOTE_STYLES.fontStyle};
+    border-left: 3px solid var(--color-border-secondary);
+    padding-left: var(--spacing-md);
+    color: var(--color-text-secondary);
+    font-style: italic;
   `.trim();
 }
 
 /**
  * Helper function to build link style string
+ * Uses CSS variables for consistency with static renderer
  */
 export function getLinkStyle(): string {
   return `
-    color: ${LINK_STYLES.color};
-    text-decoration: ${LINK_STYLES.textDecoration};
-    cursor: ${LINK_STYLES.cursor};
+    color: var(--color-accent);
+    text-decoration: none;
+    cursor: pointer;
   `.trim();
 }
 
@@ -209,11 +222,12 @@ export function getTableCellStyle(): string {
 
 /**
  * Helper function to build table header style string
+ * Uses CSS variables for consistency with static renderer
  */
 export function getTableHeaderStyle(): string {
   return `
-    font-weight: ${TABLE_STYLES.headerFontWeight};
-    background: ${TABLE_STYLES.headerBackground};
+    font-weight: 600;
+    background: var(--color-bg-tertiary);
   `.trim();
 }
 
@@ -222,31 +236,46 @@ export function getTableHeaderStyle(): string {
  */
 export function getStrikethroughStyle(): string {
   return `
-    text-decoration: ${STRIKETHROUGH_STYLES.textDecoration};
-    opacity: ${STRIKETHROUGH_STYLES.opacity};
+    text-decoration: line-through;
+    opacity: 0.7;
   `.trim();
 }
 
 /**
  * Helper function to build footnote reference style string
+ * Uses CSS variables for consistency with static renderer
  */
 export function getFootnoteRefStyle(): string {
   return `
-    color: ${FOOTNOTE_STYLES.reference.color};
-    font-size: ${FOOTNOTE_STYLES.reference.fontSize};
-    vertical-align: ${FOOTNOTE_STYLES.reference.verticalAlign};
-    cursor: ${FOOTNOTE_STYLES.reference.cursor};
+    color: var(--color-accent);
+    font-size: 0.85em;
+    vertical-align: super;
+    cursor: pointer;
   `.trim();
 }
 
 /**
  * Helper function to build footnote definition style string
+ * Uses CSS variables for consistency with static renderer
  */
 export function getFootnoteDefStyle(): string {
   return `
-    color: ${FOOTNOTE_STYLES.definition.color};
-    font-size: ${FOOTNOTE_STYLES.definition.fontSize};
-    font-style: ${FOOTNOTE_STYLES.definition.fontStyle};
-    opacity: ${FOOTNOTE_STYLES.definition.opacity};
+    color: var(--color-text-tertiary);
+    font-size: 0.9em;
+    font-style: italic;
+    opacity: 0.8;
+  `.trim();
+}
+
+/**
+ * Helper function to build highlight style string
+ * Uses CSS variables for consistency with static renderer
+ */
+export function getHighlightStyle(): string {
+  return `
+    background: var(--color-highlight-bg);
+    padding: 0.1em 0.2em;
+    border-radius: 2px;
+    font-weight: 500;
   `.trim();
 }
