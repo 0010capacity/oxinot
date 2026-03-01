@@ -75,7 +75,9 @@
     "go_forward": "앞으로가기",
     "toggle_theme": "테마 전환",
     "command_palette": "명령 팔레트 (Cmd+K)",
-    "calendar": "달력"
+    "calendar": "달력",
+    "writing_mode_toggle": "집필 모드 (Enter = 줄바꿈)",
+    "writing_mode_disabled": "집필 모드 (페이지를 먼저 열어주세요)"
   },
   "tooltips": {
     "remove_remote": "원격 저장소 제거"

@@ -1,7 +1,6 @@
 import type { KeyBinding } from "@codemirror/view";
 import { flattenBlocks } from "./blockUtils";
 import type { Block, BlockAction } from "./types";
-
 /**
  * Create keybindings for a specific block in the outliner
  */
@@ -97,6 +96,22 @@ export function createBlockKeybindings(
         dispatch({
           type: "INDENT_BLOCK",
           payload: { blockId },
+        });
+        return true;
+      },
+    },
+    {
+      key: "Mod-Shift-Enter",
+      run: () => {
+        // Cmd/Ctrl+Shift+Enter always creates new block
+        // This provides a way to create blocks even in writing mode
+        dispatch({
+          type: "ADD_BLOCK",
+          payload: {
+            afterBlockId: blockId,
+            level: block.level,
+            content: "",
+          },
         });
         return true;
       },

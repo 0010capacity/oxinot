@@ -318,3 +318,22 @@
   background-color: var(--color-border-primary);
   margin: 0 -8px;
 }
+
+/* Writing mode button - appears on hover or when active */
+
+/* Writing mode: focused block highlight */
+.writing-mode-focused {
+  background-color: color-mix(in srgb, var(--color-accent) 6%, transparent) !important;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-accent) 50%, transparent);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+/* Multi-line block rendering helpers */
+.multiline-blank {
+  height: 0.6em;
+}
+
+.multiline-text {
+  line-height: inherit;
+}

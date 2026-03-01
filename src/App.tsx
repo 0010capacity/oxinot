@@ -21,9 +21,6 @@ import { GitStatusIndicator } from "./components/GitStatusIndicator";
 import { SnowEffect } from "./components/SnowEffect";
 import { TitleBar } from "./components/TitleBar";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
-import { TodoIndicator } from "./components/todo/TodoIndicator";
-import { TodoListFloatingPanel } from "./components/todo/TodoListFloatingPanel";
-
 // Lazy load non-critical components for code splitting
 const CommandPalette = lazy(() => import("./components/CommandPalette"));
 const FileTreeIndex = lazy(() => import("./components/FileTreeIndex"));
@@ -42,8 +39,6 @@ import { useBlockStore } from "./stores/blockStore";
 import { useFloatingPanelStore } from "./stores/floatingPanelStore";
 import { usePageStore } from "./stores/pageStore";
 import { useThemeStore } from "./stores/themeStore";
-import { useTodoPanelStore } from "./stores/todoPanelStore";
-import { useIsTodoPanelOpen } from "./stores/todoPanelStore";
 import { useBreadcrumb, useViewMode, useViewStore } from "./stores/viewStore";
 import { useWorkspaceStore } from "./stores/workspaceStore";
 
@@ -190,7 +185,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   const pageIds = usePageStore((state) => state.pageIds);
   const viewMode = useViewMode();
   const breadcrumb = useBreadcrumb();
-  const { showIndex, setWorkspaceName, showPage } = useViewStore();
+  const { showIndex, setWorkspaceName, showPage, toggleWritingMode } = useViewStore();
 
   const fontFamily = useThemeStore((state) => state.fontFamily);
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
@@ -203,7 +198,6 @@ function AppContent({ workspacePath }: AppContentProps) {
   const [helpOpened, setHelpOpened] = useState(false);
   const [commandPaletteOpened, setCommandPaletteOpened] = useState(false);
   const [graphViewOpened, setGraphViewOpened] = useState(false);
-  const isTodoPanelOpen = useIsTodoPanelOpen();
 
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
@@ -261,7 +255,7 @@ function AppContent({ workspacePath }: AppContentProps) {
         document.querySelector<HTMLElement>(".copilot-input")?.focus();
       }
     },
-    onTodoPanel: () => useTodoPanelStore.getState().togglePanel(),
+    onWritingMode: () => toggleWritingMode(),
   });
 
   // Listen for block updates from Copilot tools
@@ -353,7 +347,6 @@ function AppContent({ workspacePath }: AppContentProps) {
               setSearchOpened(false);
               setCommandPaletteOpened(true);
             }}
-            onGraphViewClick={() => setGraphViewOpened(true)}
           />
 
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -494,9 +487,6 @@ function AppContent({ workspacePath }: AppContentProps) {
       <Suspense fallback={null}>
         <Updater />
       </Suspense>
-      {/* TODO Panel */}
-      {isTodoPanelOpen && <TodoListFloatingPanel />}
-      <TodoIndicator />
 
       <Notifications />
       <ErrorNotifications />

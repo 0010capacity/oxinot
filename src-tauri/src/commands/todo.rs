@@ -24,8 +24,12 @@ pub struct TodoResult {
     pub page_title: String,
     pub status: String,
     pub scheduled: Option<String>,
+    pub scheduled_time: Option<String>,
     pub deadline: Option<String>,
+    pub deadline_time: Option<String>,
     pub priority: Option<String>,
+    pub repeat: Option<String>,
+    pub completed_at: Option<String>,
 }
 
 #[tauri::command]
@@ -49,7 +53,7 @@ pub async fn query_todos(
         status_filter.iter().map(|_| "?".to_string()).collect();
     let status_placeholders_str = status_placeholders.join(",");
 
-    // Build the SQL with optional JOINs for scheduled, deadline, priority
+    // Build the SQL with optional JOINs for all metadata fields
     let mut sql = format!(
         r#"
         SELECT DISTINCT
@@ -59,17 +63,29 @@ pub async fn query_todos(
             p.title,
             bm_status.value as status,
             bm_sched.value as scheduled,
+            bm_sched_time.value as scheduled_time,
             bm_dead.value as deadline,
-            bm_prio.value as priority
+            bm_dead_time.value as deadline_time,
+            bm_prio.value as priority,
+            bm_repeat.value as repeat,
+            bm_completed.value as completed_at
         FROM block_metadata bm_status
         JOIN blocks b ON b.id = bm_status.block_id
         JOIN pages p ON p.id = b.page_id
         LEFT JOIN block_metadata bm_sched
             ON bm_sched.block_id = bm_status.block_id AND bm_sched.key = 'scheduled'
+        LEFT JOIN block_metadata bm_sched_time
+            ON bm_sched_time.block_id = bm_status.block_id AND bm_sched_time.key = 'scheduledTime'
         LEFT JOIN block_metadata bm_dead
             ON bm_dead.block_id = bm_status.block_id AND bm_dead.key = 'deadline'
+        LEFT JOIN block_metadata bm_dead_time
+            ON bm_dead_time.block_id = bm_status.block_id AND bm_dead_time.key = 'deadlineTime'
         LEFT JOIN block_metadata bm_prio
             ON bm_prio.block_id = bm_status.block_id AND bm_prio.key = 'priority'
+        LEFT JOIN block_metadata bm_repeat
+            ON bm_repeat.block_id = bm_status.block_id AND bm_repeat.key = 'repeat'
+        LEFT JOIN block_metadata bm_completed
+            ON bm_completed.block_id = bm_status.block_id AND bm_completed.key = 'completedAt'
         WHERE bm_status.key = 'todoStatus'
           AND bm_status.value IN ({})
         "#,
@@ -148,8 +164,12 @@ pub async fn query_todos(
                 page_title: row.get(3)?,
                 status: row.get(4)?,
                 scheduled: row.get(5)?,
-                deadline: row.get(6)?,
-                priority: row.get(7)?,
+                scheduled_time: row.get(6)?,
+                deadline: row.get(7)?,
+                deadline_time: row.get(8)?,
+                priority: row.get(9)?,
+                repeat: row.get(10)?,
+                completed_at: row.get(11)?,
             })
         })
         .map_err(|e| e.to_string())?

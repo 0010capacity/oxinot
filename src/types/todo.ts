@@ -12,6 +12,29 @@ export type TodoStatus = "todo" | "doing" | "done" | "later" | "canceled";
 /** Priority levels for TODO blocks */
 export type Priority = "A" | "B" | "C";
 
+/** Repeat frequency for recurring tasks */
+export type RepeatFrequency = "daily" | "weekly" | "monthly" | "yearly" | "custom";
+
+/** Repeat configuration for recurring tasks */
+export interface RepeatConfig {
+  /** Frequency type */
+  frequency: RepeatFrequency;
+  /** Days of week for weekly repeat (0=Sunday, 6=Saturday) */
+  daysOfWeek?: number[];
+  /** Day of month for monthly repeat */
+  dayOfMonth?: number;
+  /** Month for yearly repeat */
+  month?: number;
+  /** Day of month for yearly repeat */
+  dayOfYear?: number;
+  /** Custom RRULE string */
+  customRule?: string;
+  /** End date for repeat (ISO date string) */
+  endDate?: string;
+  /** Number of occurrences after which to stop */
+  count?: number;
+}
+
 /** Status prefixes recognized in block content (uppercase with trailing space) */
 export const STATUS_PREFIXES: Record<string, TodoStatus> = {
   "TODO ": "todo",
@@ -324,12 +347,141 @@ export const SMART_VIEWS: SmartView[] = [
 
 /** Result from a TODO query */
 export interface TodoResult {
-  blockId: string;
-  content: string;
-  pageId: string;
-  pageTitle: string;
-  status: TodoStatus;
+blockId: string;
+content: string;
+pageId: string;
+pageTitle: string;
+status: TodoStatus;
   scheduled?: string;
+  scheduledTime?: string; // Time in HH:MM format
   deadline?: string;
+  deadlineTime?: string; // Time in HH:MM format
   priority?: Priority;
+  repeat?: RepeatConfig;
+  completedAt?: string; // ISO date when marked as done
 }
+
+// ============================================
+// Time & Repeat Helpers (Phase 3)
+// ============================================
+
+/**
+ * Parse time string (HH:MM) to hours and minutes
+ */
+export function parseTime(timeStr: string): { hours: number; minutes: number } | null {
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return { hours, minutes };
+}
+
+/**
+ * Format hours and minutes to HH:MM string
+ */
+export function formatTime(hours: number, minutes: number): string {
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+}
+
+/**
+ * Get time from metadata
+ */
+export function getScheduledTime(
+  metadata?: Record<string, string>,
+): string | null {
+  return metadata?.scheduledTime || null;
+}
+
+/**
+ * Get deadline time from metadata
+ */
+export function getDeadlineTime(
+  metadata?: Record<string, string>,
+): string | null {
+  return metadata?.deadlineTime || null;
+}
+
+/**
+ * Get repeat config from metadata
+ */
+export function getRepeatConfig(
+  metadata?: Record<string, string>,
+): RepeatConfig | null {
+  if (!metadata?.repeat) return null;
+  try {
+    return JSON.parse(metadata.repeat) as RepeatConfig;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Calculate the next occurrence date for a recurring task
+ */
+export function getNextOccurrence(
+  currentDate: string,
+  repeat: RepeatConfig,
+): string | null {
+  const date = new Date(currentDate);
+  
+  switch (repeat.frequency) {
+    case "daily":
+      date.setDate(date.getDate() + 1);
+      break;
+    case "weekly":
+      if (repeat.daysOfWeek && repeat.daysOfWeek.length > 0) {
+        // Find next day of week
+        const currentDay = date.getDay();
+        const sortedDays = [...repeat.daysOfWeek].sort((a, b) => a - b);
+        const nextDay = sortedDays.find((d) => d > currentDay);
+        if (nextDay !== undefined) {
+          date.setDate(date.getDate() + (nextDay - currentDay));
+        } else {
+          // Next week, first day in list
+          date.setDate(date.getDate() + (7 - currentDay + sortedDays[0]));
+        }
+      } else {
+        date.setDate(date.getDate() + 7);
+      }
+      break;
+    case "monthly":
+      if (repeat.dayOfMonth) {
+        date.setMonth(date.getMonth() + 1);
+        date.setDate(repeat.dayOfMonth);
+      } else {
+        date.setMonth(date.getMonth() + 1);
+      }
+      break;
+    case "yearly":
+      if (repeat.month !== undefined && repeat.dayOfYear) {
+        date.setFullYear(date.getFullYear() + 1);
+        date.setMonth(repeat.month);
+        date.setDate(repeat.dayOfYear);
+      } else {
+        date.setFullYear(date.getFullYear() + 1);
+      }
+      break;
+    case "custom":
+      // Custom RRULE not implemented yet
+      return null;
+  }
+  
+  // Check end conditions
+  if (repeat.endDate) {
+    const endDate = new Date(repeat.endDate);
+    if (date > endDate) return null;
+  }
+  
+  return date.toISOString().split("T")[0];
+}
+
+/**
+ * Get completed date from metadata
+ */
+export function getCompletedAt(
+  metadata?: Record<string, string>,
+): string | null {
+  return metadata?.completedAt || null;
+}
+

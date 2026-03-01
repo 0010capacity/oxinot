@@ -9,6 +9,7 @@ import {
   IconCopy,
   IconIndentDecrease,
   IconIndentIncrease,
+  IconRobot,
   IconSparkles,
   IconTrash,
 } from "@tabler/icons-react";
@@ -111,8 +112,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // For subpage-header: get page opening functions
     const pagesById = usePageStore((state) => state.pagesById);
     const selectPage = usePageStore((state) => state.selectPage);
-    const openNote = useViewStore((state) => state.openNote);
-    const loadPage = useBlockStore((state) => state.loadPage);
+  const openNote = useViewStore((state) => state.openNote);
+  const writingMode = useViewStore((state) => state.writingMode);
+  const loadPage = useBlockStore((state) => state.loadPage);
 
     // Extract pageId from subpage-header block id
     const subpageId = isSubpageHeader ? blockId.replace("subpage-header:", "") : null;
@@ -1290,6 +1292,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         {
           key: "Enter",
           run: (view: EditorView) => {
+            // Writing mode: Enter creates newline, not new block
+            const writingMode = useViewStore.getState().writingMode;
+            if (writingMode) {
+              return false; // Let CodeMirror handle default newline
+            }
+
             if (
               imeStateRef.current.isComposing ||
               imeStateRef.current.lastInputWasComposition ||
@@ -1624,7 +1632,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           <div
             ref={blockRowRef}
             data-block-row-id={blockId}
-            className="block-row"
+            className={`block-row${writingMode && isFocused ? " writing-mode-focused" : ""}`}
             style={{
               position: "relative",
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,

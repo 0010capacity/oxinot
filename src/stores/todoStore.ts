@@ -83,11 +83,18 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
       const rest = extracted ? extracted.rest : content;
       const newContent = setStatusPrefix(rest, status);
 
+      // Set completedAt when marking as done
+      const metadata: Record<string, string> | undefined =
+        status === "done"
+          ? { completedAt: new Date().toISOString().split("T")[0] }
+          : undefined;
+
       const updatedBlock = await invoke<BlockData>("update_block", {
         workspacePath,
         request: {
           id: blockId,
           content: newContent,
+          metadata,
         },
       });
 

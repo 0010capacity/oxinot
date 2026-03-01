@@ -75,7 +75,9 @@
     "go_forward": "Go forward",
     "toggle_theme": "Toggle theme",
     "command_palette": "Command Palette (Cmd+K)",
-    "calendar": "Calendar"
+    "calendar": "Calendar",
+    "writing_mode_toggle": "Writing Mode (Enter = newline)",
+    "writing_mode_disabled": "Writing Mode (open a page first)"
   },
   "tooltips": {
     "remove_remote": "Remove remote"

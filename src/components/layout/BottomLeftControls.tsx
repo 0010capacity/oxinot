@@ -9,8 +9,8 @@ import {
   IconCommand,
   IconHelp,
   IconHome,
-  IconLink,
   IconMoon,
+  IconPencil,
   IconSearch,
   IconSettings,
   IconSnowflake,
@@ -18,6 +18,7 @@ import {
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useSnowStore } from "../../stores/snowStore";
+import { useViewStore } from "../../stores/viewStore";
 
 interface BottomLeftControlsProps {
   onHomeClick?: () => void;
@@ -25,7 +26,6 @@ interface BottomLeftControlsProps {
   onSearchClick?: () => void;
   onHelpClick?: () => void;
   onCommandPaletteClick?: () => void;
-  onGraphViewClick?: () => void;
 }
 
 export function BottomLeftControls({
@@ -34,7 +34,6 @@ export function BottomLeftControls({
   onSearchClick,
   onHelpClick,
   onCommandPaletteClick,
-  onGraphViewClick,
 }: BottomLeftControlsProps) {
   const { t } = useTranslation();
   const { toggleColorScheme } = useMantineColorScheme();
@@ -42,6 +41,9 @@ export function BottomLeftControls({
   const isDark = computedColorScheme === "dark";
   const isSnowEnabled = useSnowStore((state) => state.isSnowEnabled);
   const toggleSnow = useSnowStore((state) => state.toggleSnow);
+  const writingMode = useViewStore((state) => state.writingMode);
+  const toggleWritingMode = useViewStore((state) => state.toggleWritingMode);
+  const viewMode = useViewStore((state) => state.mode);
 
   const iconButtonStyles = {
     root: {
@@ -51,7 +53,6 @@ export function BottomLeftControls({
       },
     },
   };
-
   return (
     <div
       style={{
@@ -65,6 +66,34 @@ export function BottomLeftControls({
         alignItems: "center",
       }}
     >
+      <Tooltip
+        label={
+          viewMode === "note"
+            ? t("navigation.writing_mode_toggle")
+            : t("navigation.writing_mode_disabled")
+        }
+        position="top"
+      >
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          onClick={toggleWritingMode}
+          disabled={viewMode !== "note"}
+          styles={{
+            root: {
+              color: writingMode && viewMode === "note"
+                ? "var(--color-interactive-hover)"
+                : "var(--color-text-secondary)",
+              "&:hover": {
+                backgroundColor: "var(--color-interactive-hover)",
+              },
+            },
+          }}
+        >
+          <IconPencil size={16} />
+        </ActionIcon>
+      </Tooltip>
+
       <Tooltip
         label={isSnowEnabled ? "Disable snowfall" : "Enable snowfall"}
         position="top"
@@ -151,17 +180,6 @@ export function BottomLeftControls({
           styles={iconButtonStyles}
         >
           <IconCommand size={16} />
-        </ActionIcon>
-      </Tooltip>
-
-      <Tooltip label="Graph View" position="top">
-        <ActionIcon
-          variant="subtle"
-          size="md"
-          onClick={onGraphViewClick}
-          styles={iconButtonStyles}
-        >
-          <IconLink size={16} />
         </ActionIcon>
       </Tooltip>
     </div>
