@@ -22,83 +22,55 @@
 }
 
 /* ==========================================================================
-   Bullet Threading — hover-activated hierarchy path visualization
-   When hovering a block, thread lines highlight the path from root to the
-   hovered block. Uses CSS :hover bubbling + :has() for zero-JS performance.
-   Each .block-component sets --block-depth via inline style.
+   Bullet Threading — focus-activated hierarchy path visualization
+   The threading path is now rendered via SVG (ThreadingPath.tsx).
+   This CSS only handles the focused bullet glow effect.
    ========================================================================== */
 
-/* --- Ancestor path: highlight indent guides when any descendant is hovered ---
-   :hover bubbles up the DOM, so each ancestor block-component gets :hover.
-   We highlight its indent-guide to visualize the threading path.
-   Only activate when the .bullet-threading class is on an ancestor. */
-.bullet-threading .block-component:hover > .indent-guide {
-  background-color: var(--color-thread-line);
-  transition: background-color var(--transition-fast);
-}
-
-/* --- Hovered block's bullet: glow effect ---
-   The deepest hovered block = :hover but has no hovered child block. */
-.bullet-threading
-  .block-component:hover:not(:has(.block-component:hover))
-  > .block-row
-  .block-bullet {
+/* --- Focused block's bullet: glow effect ---
+   The focused block gets a prominent glow to indicate selection. */
+.bullet-threading .block-component:focus-within > .block-row .block-bullet {
   background-color: var(--color-thread-line);
   box-shadow: 0 0 0 3px
     color-mix(in srgb, var(--color-thread-line) 20%, transparent);
   transition: all var(--transition-fast);
 }
 
-/* --- Elbow connector: L-shaped line from parent guide to hovered bullet ---
-   Drawn as ::before on block-row of the deepest hovered block.
-   Horizontal line at bullet vertical center, spanning one indent level.
-   Hidden for root blocks (depth 0) which have no parent guide. */
-.bullet-threading
-  .block-component:hover:not(:has(.block-component:hover))
-  > .block-row::before {
-  content: "";
-  position: absolute;
-  /* Vertical center of the bullet row */
-  top: calc(var(--block-padding-top) + var(--layout-bullet-container-size) / 2);
-  /* Start at parent's indent guide: (depth-1)*indent + guide-offset */
-  left: calc(
-    (var(--block-depth, 0) - 1) * var(--layout-indent-size) +
-      var(--layout-indent-guide-offset)
-  );
-  /* Span exactly one indent level */
-  width: var(--layout-indent-size);
-  height: 0;
-  border-bottom: var(--layout-thread-line-width) solid var(--color-thread-line);
-  pointer-events: none;
-  z-index: var(--z-index-base);
-}
-
-/* Hide elbow for root-level blocks — no parent indent guide to connect from */
-.bullet-threading
-  .block-component[data-block-depth="0"]:hover:not(:has(.block-component:hover))
-  > .block-row::before {
-  display: none;
-}
-
-/* --- Downward thread: vertical line below hovered block through children ---
-   Shows the continuation of the thread path into the child area.
-   Positioned at the hovered block's own bullet center (its depth). */
-.bullet-threading
-  .block-component:hover:not(:has(.block-component:hover))
-  > .block-children::before {
-  content: "";
+/* --- Threading path SVG container --- */
+.threading-path-container {
   position: absolute;
   top: 0;
-  bottom: 0;
-  left: calc(
-    var(--block-depth, 0) * var(--layout-indent-size) +
-      var(--layout-indent-guide-offset)
-  );
-  width: var(--layout-thread-line-width);
-  background-color: var(--color-thread-line);
+  left: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
-  z-index: var(--z-index-base);
+  z-index: 5;
 }
+
+.threading-path-container svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.threading-path-container path {
+  fill: none;
+  stroke: var(--color-thread-line);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--color-thread-line) 40%, transparent));
+  opacity: 0.9;
+}
+
+/* Smooth transition when path changes */
+.threading-path-line {
+  transition: d 0.2s ease-out, opacity 0.15s ease-in-out;
+}
+
 
 .block-row {
   display: flex;
@@ -222,6 +194,18 @@
   .block-row:has(.block-editor .cm-focused) .block-bullet {
     background-color: rgba(0, 0, 0, 0.8);
   }
+}
+
+[data-mantine-color-scheme="light"] .block-bullet {
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+[data-mantine-color-scheme="light"] .block-bullet-wrapper:hover .block-bullet {
+  background-color: rgba(0, 0, 0, 0.55);
+}
+
+[data-mantine-color-scheme="light"] .block-row:has(.block-editor .cm-focused) .block-bullet {
+  background-color: rgba(0, 0, 0, 0.8);
 }
 
 /* Content Wrapper */

@@ -20,6 +20,7 @@ import { useThemeStore } from "../stores/themeStore";
 import { useViewStore } from "../stores/viewStore";
 import { showToast } from "../utils/toast";
 import { BlockComponent } from "./BlockComponent";
+import { ThreadingPath } from "./ThreadingPath";
 import "./BlockEditor.css";
 
 export const BlockOrderContext = createContext<string[]>([]);
@@ -267,7 +268,6 @@ export function BlockEditor({
   }, [rootBlocks, subpageBlocks]);
 
   const blockOrder = useMemo(() => {
-    const memoComputeStart = performance.now();
     const getAllVisibleBlocks = (blockIds: string[]): string[] => {
       const result: string[] = [];
       for (const blockId of blockIds) {
@@ -281,12 +281,6 @@ export function BlockEditor({
       return result;
     };
     const computed = getAllVisibleBlocks(blocksToShow);
-    const memoComputeTime = performance.now() - memoComputeStart;
-    console.log(
-      `[BlockEditor:timing] useMemo blockOrder computed in ${memoComputeTime.toFixed(
-        2,
-      )}ms (${computed.length} visible blocks)`,
-    );
     return computed;
   }, [blocksToShow, blocksById, childrenMap]);
 
@@ -491,10 +485,12 @@ export function BlockEditor({
                 backgroundColor: "rgba(59, 130, 246, 0.2)",
                 border: "1px solid rgba(59, 130, 246, 0.5)",
                 pointerEvents: "none",
-                zIndex: 1000,
               }}
             />
           )}
+          
+          {/* Threading path visualization */}
+          {showBulletThreading && <ThreadingPath />}
         </div>
 
         <LinkedReferences pageId={pageId} />
