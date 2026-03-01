@@ -57,8 +57,8 @@ export class CommentHandler extends BaseHandler {
                 opacity: 0.6;
                 font-style: italic;
                 background: var(--color-bg-secondary);
-                padding: 0.1em 0.3em;
-                border-radius: 3px;
+                padding: var(--inline-element-padding);
+                border-radius: var(--inline-element-border-radius);
               `,
             },
           }),

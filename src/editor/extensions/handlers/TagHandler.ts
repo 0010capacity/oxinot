@@ -63,8 +63,8 @@ export class TagHandler extends BaseHandler {
             style: `
               color: var(--color-success);
               background: color-mix(in srgb, var(--color-success), transparent 90%);
-              padding: 0.1em 0.3em;
-              border-radius: 3px;
+              padding: var(--inline-element-padding);
+              border-radius: var(--inline-element-border-radius);
               cursor: pointer;
               font-weight: 500;
               font-size: 0.95em;

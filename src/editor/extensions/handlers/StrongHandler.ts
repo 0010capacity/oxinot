@@ -56,7 +56,7 @@ export class StrongHandler extends BaseHandler {
       decorations.push(
         createStyledText(node.from + markerLength, node.to - markerLength, {
           className: "cm-strong",
-          style: "font-weight: bold;",
+          style: "font-weight: 600;",
         }),
       );
     }
