@@ -375,6 +375,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               },
             },
 
+            {
               label: isBatchOperation
                 ? `${t("common.delete") || "Delete"} (${targetBlocks.length})`
                 : t("common.delete") || "Delete",
