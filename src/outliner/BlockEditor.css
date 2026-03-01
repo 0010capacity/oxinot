@@ -331,6 +331,9 @@
 
 /* Multi-line block rendering helpers */
 .multiline-blank {
+  line-height: var(--editor-line-height);
+}
+.multiline-blank {
   height: 0.6em;
 }
 
