@@ -1696,6 +1696,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 return;
               }
 
+              // Clear selection on plain left-click (no modifiers) immediately on mousedown
+              // so re-renders from setFocusedBlock don't swallow the subsequent onClick
+              if (e.button === 0 && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                useBlockUIStore.getState().clearSelectedBlocks();
+                useBlockUIStore.getState().clearSelectionAnchor();
+              }
+
               if (isFocused && editorRef.current) {
                 const view = editorRef.current.getView();
                 if (view?.hasFocus) {
