@@ -343,11 +343,11 @@ export function BlockEditor({
   // Stable document-level listeners (registered once)
   useEffect(() => {
     const onPointerUp = () => {
+      // Immediately clear refs to prevent stale state in subsequent pointermove events
+      isDragPendingRef.current = false;
+      isDraggingRef.current = false;
+      dragStartRef.current = null;
       // If click without drag, clear any existing selection
-      if (isDragPendingRef.current && !isDraggingRef.current) {
-        useBlockUIStore.getState().clearSelectedBlocks();
-        useBlockUIStore.getState().clearSelectionAnchor();
-      }
       setIsDragPending(false);
       setIsDragging(false);
       setDragStart(null);
@@ -369,9 +369,12 @@ export function BlockEditor({
         useBlockUIStore.getState().setSelectedBlocks([dragStartRef.current.blockId]);
       }
 
-      if (!isDraggingRef.current && distance <= DRAG_THRESHOLD) return;
+      if (!isDragPendingRef.current && !isDraggingRef.current) return;
 
       setDragCurrent({ x: e.clientX, y: e.clientY });
+
+      // Only update block selection when actually dragging (threshold crossed)
+      if (!isDraggingRef.current) return;
 
       const currentBlockId = getBlockIdFromPoint(e.clientX, e.clientY);
       if (currentBlockId && currentBlockId !== dragStartRef.current.blockId) {
@@ -383,6 +386,9 @@ export function BlockEditor({
     };
 
     const onPointerCancel = () => {
+      isDragPendingRef.current = false;
+      isDraggingRef.current = false;
+      dragStartRef.current = null;
       setIsDragPending(false);
       setIsDragging(false);
       setDragStart(null);
