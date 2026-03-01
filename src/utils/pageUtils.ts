@@ -65,6 +65,10 @@ export const buildPageBreadcrumb = (
 /**
  * Creates pages along a path, creating intermediate pages if needed
  * Returns the ID of the final page in the path
+ *
+ * IMPORTANT: This function is NOT atomic. If it fails partway through,
+ * some pages may have been created. The caller should handle this case
+ * (e.g., by retrying or cleaning up).
  */
 export const createPageHierarchy = async (
   fullPath: string,
@@ -85,7 +89,16 @@ export const createPageHierarchy = async (
       // If this is an intermediate path (not the last part),
       // ensure it's a directory
       if (!isLastPart && convertToDirectoryFn) {
-        await convertToDirectoryFn(existingPage);
+        try {
+          await convertToDirectoryFn(existingPage);
+        } catch (error) {
+          console.error(
+            `[createPageHierarchy] Failed to convert "${currentPath}" to directory:`,
+            error,
+          );
+          // Continue anyway - the page exists, just not as a directory
+          // sync_workspace will handle the hierarchy on next login
+        }
       }
       parentId = existingPage;
     } else {
@@ -95,7 +108,15 @@ export const createPageHierarchy = async (
         // If this is an intermediate path (not the last part),
         // convert it to a directory
         if (!isLastPart && convertToDirectoryFn) {
-          await convertToDirectoryFn(newPageId);
+          try {
+            await convertToDirectoryFn(newPageId);
+          } catch (error) {
+            console.error(
+              `[createPageHierarchy] Failed to convert "${currentPath}" to directory:`,
+              error,
+            );
+            // Continue anyway - sync_workspace will fix this on next login
+          }
         }
 
         parentId = newPageId;

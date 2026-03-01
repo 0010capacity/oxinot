@@ -8,7 +8,7 @@ import { useViewStore } from "../stores/viewStore";
 import { useBlockStore } from "../stores/blockStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import type { BlockData } from "../stores/blockStore";
-
+import { buildPageBreadcrumb } from "../utils/pageUtils";
 interface CalendarDropdownProps {
   onClose: () => void;
 }
@@ -17,9 +17,8 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const pagesById = usePageStore((state) => state.pagesById);
   const pageIds = usePageStore((state) => state.pageIds);
-  const createPage = usePageStore((state) => state.createPage);
   const setCurrentPageId = usePageStore((state) => state.setCurrentPageId);
-  const loadPages = usePageStore((state) => state.loadPages);
+  const openPageByPath = usePageStore((state) => state.openPageByPath);
   const openNote = useViewStore((state) => state.openNote);
   const getDailyNotePath = useAppSettingsStore(
     (state) => state.getDailyNotePath,
@@ -186,117 +185,59 @@ export function CalendarDropdown({ onClose }: CalendarDropdownProps) {
     );
     const fullPath = getFullDailyNotePath(selectedDate);
 
-    // Check if page already exists using our optimized map
-    const pageId = pagePathMap.get(fullPath);
-    const page = pageId ? pagesById[pageId] : undefined;
+    try {
+      // Use openPageByPath which internally calls createPageHierarchy
+      // This ensures intermediate paths are converted to directories
+      const pageId = await openPageByPath(fullPath);
 
-    if (!page) {
-      // Create new daily note page with full path
-      try {
-        // Split path and create nested structure
-        const pathParts = fullPath.split("/");
-        let parentId: string | undefined = undefined;
+      // Get fresh page data from store after opening
+      const freshPagesById = usePageStore.getState().pagesById;
+      const page = freshPagesById[pageId];
 
-        // Create parent pages if they don't exist
-        for (let i = 0; i < pathParts.length; i++) {
-          const currentPath = pathParts.slice(0, i + 1).join("/");
-
-          // Use map for O(1) lookup instead of O(N) find
-          const existingPageId = pagePathMap.get(currentPath);
-
-          if (existingPageId) {
-            parentId = existingPageId;
-          } else {
-            const newPageId = await createPage(pathParts[i], parentId);
-            parentId = newPageId;
-          }
-        }
-
-        // Reload pages to ensure breadcrumb updates correctly
-        await loadPages();
-
-        // Get fresh store state after reload
-        const freshPagesById = usePageStore.getState().pagesById;
-
-        // Note: After reload, our local pagePathMap is stale until next render.
-        // We need to find the newly created page ID.
-        // Since we just created it, we can traverse looking for the leaf pathPart with the correct parent.
-
-        // However, for simplicity and correctness in this async flow, we can re-scan or just rebuild the path logic locally
-        // for this one-time operation, OR better yet, leverage the `parentId` (which is the leaf ID now).
-        // `parentId` variable holds the ID of the last created/found page from the loop above.
-
-        const createdPageId = parentId;
-
-        if (createdPageId) {
-          // Copy template blocks if template is set
-          if (dailyNoteTemplateId) {
-            await copyTemplateBlocks(dailyNoteTemplateId, createdPageId);
-          }
-
-          const createdPage = freshPagesById[createdPageId];
-          if (createdPage) {
-            // Build parent names array for breadcrumb
-            const parentNames: string[] = [];
-            const pagePathIds: string[] = [];
-
-            const buildParentPath = (pid: string) => {
-              const p = freshPagesById[pid];
-              if (!p) return;
-
-              if (p.parentId) {
-                buildParentPath(p.parentId);
-                const parentPage = freshPagesById[p.parentId];
-                if (parentPage) {
-                  parentNames.push(parentPage.title);
-                  pagePathIds.push(p.parentId);
-                }
-              }
-            };
-
-            buildParentPath(createdPageId);
-            pagePathIds.push(createdPageId);
-
-            setCurrentPageId(createdPageId);
-            openNote(
-              createdPageId,
-              createdPage.title,
-              parentNames,
-              pagePathIds,
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Failed to create daily note:", error);
+      if (!page) {
+        throw new Error("Page not found after opening");
       }
-    } else {
-      // Open existing page
-      const parentNames: string[] = [];
-      const pagePathIds: string[] = [];
 
-      const buildParentPath = (pid: string) => {
-        const p = pagesById[pid];
-        if (!p) return;
+      // Copy template blocks only if the page is truly empty
+      // Check block count to prevent overwriting existing content
+      if (dailyNoteTemplateId && workspacePath) {
+        try {
+          const blocks: BlockData[] = await invoke("get_page_blocks", {
+            workspacePath,
+            pageId,
+          });
 
-        if (p.parentId) {
-          buildParentPath(p.parentId);
-          const parentPage = pagesById[p.parentId];
-          if (parentPage) {
-            parentNames.push(parentPage.title);
-            pagePathIds.push(p.parentId);
+          // Only copy template if page has just the initial empty block
+          const isEmptyPage =
+            blocks.length === 1 &&
+            (blocks[0].content === "" ||
+              blocks[0].content === page.title ||
+              blocks[0].content === `- ${page.title}`);
+
+          if (isEmptyPage) {
+            await copyTemplateBlocks(dailyNoteTemplateId, pageId);
           }
+        } catch (blockError) {
+          console.warn(
+            "[CalendarDropdown] Failed to check blocks, skipping template:",
+            blockError,
+          );
         }
-      };
+      }
 
-      buildParentPath(page.id);
-      pagePathIds.push(page.id);
+      // Build breadcrumb using utility function
+      const { names, ids } = buildPageBreadcrumb(pageId, freshPagesById);
 
-      setCurrentPageId(page.id);
-      openNote(page.id, page.title, parentNames, pagePathIds);
+      setCurrentPageId(pageId);
+      openNote(pageId, page.title, names, ids);
+    } catch (error) {
+      console.error("[CalendarDropdown] Failed to open daily note:", error);
     }
 
     onClose();
   };
+
+
 
   const handlePrevMonth = () => {
     setCurrentDate(
