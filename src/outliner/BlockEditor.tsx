@@ -464,6 +464,14 @@ export function BlockEditor({
             userSelect: isDragging ? "none" : undefined,
           }}
           onPointerDown={handlePointerDown}
+          onClick={(e: React.MouseEvent) => {
+            // If click landed directly on blocks-list (not on a block row), clear selection
+            const target = e.target as HTMLElement;
+            if (!target.closest('[data-block-row-id]')) {
+              useBlockUIStore.getState().clearSelectedBlocks();
+              useBlockUIStore.getState().clearSelectionAnchor();
+            }
+          }}
         >
           {blocksToShow.length === 0 ? (
             <div className="empty-state">
