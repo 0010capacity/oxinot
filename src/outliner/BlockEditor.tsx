@@ -20,6 +20,7 @@ import { useThemeStore } from "../stores/themeStore";
 import { useViewStore } from "../stores/viewStore";
 import { showToast } from "../utils/toast";
 import { BlockComponent } from "./BlockComponent";
+import { ThreadingPath } from "./ThreadingPath";
 import "./BlockEditor.css";
 
 export const BlockOrderContext = createContext<string[]>([]);
@@ -267,7 +268,6 @@ export function BlockEditor({
   }, [rootBlocks, subpageBlocks]);
 
   const blockOrder = useMemo(() => {
-    const memoComputeStart = performance.now();
     const getAllVisibleBlocks = (blockIds: string[]): string[] => {
       const result: string[] = [];
       for (const blockId of blockIds) {
@@ -281,12 +281,6 @@ export function BlockEditor({
       return result;
     };
     const computed = getAllVisibleBlocks(blocksToShow);
-    const memoComputeTime = performance.now() - memoComputeStart;
-    console.log(
-      `[BlockEditor:timing] useMemo blockOrder computed in ${memoComputeTime.toFixed(
-        2,
-      )}ms (${computed.length} visible blocks)`,
-    );
     return computed;
   }, [blocksToShow, blocksById, childrenMap]);
 
@@ -349,11 +343,11 @@ export function BlockEditor({
   // Stable document-level listeners (registered once)
   useEffect(() => {
     const onPointerUp = () => {
+      // Immediately clear refs to prevent stale state in subsequent pointermove events
+      isDragPendingRef.current = false;
+      isDraggingRef.current = false;
+      dragStartRef.current = null;
       // If click without drag, clear any existing selection
-      if (isDragPendingRef.current && !isDraggingRef.current) {
-        useBlockUIStore.getState().clearSelectedBlocks();
-        useBlockUIStore.getState().clearSelectionAnchor();
-      }
       setIsDragPending(false);
       setIsDragging(false);
       setDragStart(null);
@@ -375,9 +369,12 @@ export function BlockEditor({
         useBlockUIStore.getState().setSelectedBlocks([dragStartRef.current.blockId]);
       }
 
-      if (!isDraggingRef.current && distance <= DRAG_THRESHOLD) return;
+      if (!isDragPendingRef.current && !isDraggingRef.current) return;
 
       setDragCurrent({ x: e.clientX, y: e.clientY });
+
+      // Only update block selection when actually dragging (threshold crossed)
+      if (!isDraggingRef.current) return;
 
       const currentBlockId = getBlockIdFromPoint(e.clientX, e.clientY);
       if (currentBlockId && currentBlockId !== dragStartRef.current.blockId) {
@@ -389,6 +386,9 @@ export function BlockEditor({
     };
 
     const onPointerCancel = () => {
+      isDragPendingRef.current = false;
+      isDraggingRef.current = false;
+      dragStartRef.current = null;
       setIsDragPending(false);
       setIsDragging(false);
       setDragStart(null);
@@ -464,6 +464,14 @@ export function BlockEditor({
             userSelect: isDragging ? "none" : undefined,
           }}
           onPointerDown={handlePointerDown}
+          onClick={(e: React.MouseEvent) => {
+            // If click landed directly on blocks-list (not on a block row), clear selection
+            const target = e.target as HTMLElement;
+            if (!target.closest('[data-block-row-id]')) {
+              useBlockUIStore.getState().clearSelectedBlocks();
+              useBlockUIStore.getState().clearSelectionAnchor();
+            }
+          }}
         >
           {blocksToShow.length === 0 ? (
             <div className="empty-state">
@@ -491,10 +499,12 @@ export function BlockEditor({
                 backgroundColor: "rgba(59, 130, 246, 0.2)",
                 border: "1px solid rgba(59, 130, 246, 0.5)",
                 pointerEvents: "none",
-                zIndex: 1000,
               }}
             />
           )}
+          
+          {/* Threading path visualization */}
+          {showBulletThreading && <ThreadingPath />}
         </div>
 
         <LinkedReferences pageId={pageId} />

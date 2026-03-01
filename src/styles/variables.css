@@ -113,7 +113,7 @@
   --color-indent-guide: var(--layout-indent-guide-color);
 
   /* Bullet Threading */
-  --color-thread-line: var(--color-accent);
+  --color-thread-line: var(--color-text-tertiary);
   --layout-thread-line-width: 1px;
 
   /* Graph Node Colors */

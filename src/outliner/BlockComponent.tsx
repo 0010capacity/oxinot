@@ -1667,6 +1667,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 useBlockUIStore.getState().clearSelectionAnchor();
               }
             }}
+            onDoubleClick={(e: React.MouseEvent) => {
+              const target = e.target as HTMLElement;
+              const isCollapseButton = target.closest(".collapse-toggle");
+              const isBulletButton = target.closest(".block-bullet-wrapper");
+              if (isCollapseButton || isBulletButton) return;
+              e.stopPropagation();
+              useBlockUIStore.getState().setSelectedBlocks([blockId]);
+            }}
             onMouseDown={(e: React.MouseEvent) => {
               const target = e.target as HTMLElement;
               const isCollapseButton = target.closest(".collapse-toggle");
@@ -1674,6 +1682,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
               if (isCollapseButton || isBulletButton) {
                 return;
+              }
+
+              // Clear selection on plain left-click (no modifiers) immediately on mousedown
+              // so re-renders from setFocusedBlock don't swallow the subsequent onClick
+              if (e.button === 0 && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                useBlockUIStore.getState().clearSelectedBlocks();
+                useBlockUIStore.getState().clearSelectionAnchor();
               }
 
               if (isFocused && editorRef.current) {
