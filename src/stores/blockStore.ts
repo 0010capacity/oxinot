@@ -81,6 +81,7 @@ interface BlockActions {
     value: string | null,
   ) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
+  duplicateBlock: (id: string) => Promise<string | undefined>;
   splitBlockAtCursor: (
     id: string,
     offset: number,
@@ -958,6 +959,53 @@ export const useBlockStore = create<BlockStore>()(
           // Reload to restore correct state
           const pageId = get().currentPageId;
           if (pageId) await get().loadPage(pageId);
+          throw error;
+        }
+      },
+
+      duplicateBlock: async (id: string) => {
+        const { blocksById, childrenMap, currentPageId } = get();
+        const block = blocksById[id];
+        if (!block) return undefined;
+
+        // Determine where to place the duplicated block
+        const target = getInsertBelowTarget(id, blocksById, childrenMap);
+        const parentId = target.parentId;
+        const afterBlockIdForBackend = target.afterBlockId;
+
+        try {
+          const workspacePath = useWorkspaceStore.getState().workspacePath;
+          if (!workspacePath) {
+            throw new Error("No workspace selected");
+          }
+
+          const newBlock: BlockData = await invoke("create_block", {
+            workspacePath,
+            request: {
+              pageId: currentPageId,
+              parentId,
+              afterBlockId: afterBlockIdForBackend,
+              content: block.content,
+            },
+          });
+
+          // Update blockType if it's different from default
+          if (block.blockType !== "bullet") {
+            await invoke("update_block", {
+              workspacePath,
+              blockId: newBlock.id,
+              updates: { blockType: block.blockType },
+            });
+          }
+
+          // Reload to get the updated state
+          if (currentPageId) {
+            await get().loadPage(currentPageId);
+          }
+
+          return newBlock.id;
+        } catch (error) {
+          console.error("Failed to duplicate block:", error);
           throw error;
         }
       },

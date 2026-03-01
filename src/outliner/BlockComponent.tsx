@@ -9,7 +9,6 @@ import {
   IconCopy,
   IconIndentDecrease,
   IconIndentIncrease,
-  IconRobot,
   IconSparkles,
   IconTrash,
 } from "@tabler/icons-react";
@@ -127,6 +126,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
     const createBlock = useBlockStore((state) => state.createBlock);
+    const duplicateBlock = useBlockStore((state) => state.duplicateBlock);
     const indentBlock = useBlockStore((state) => state.indentBlock);
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
@@ -326,13 +326,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           : [blockId];
       const isBatchOperation = targetBlocks.length > 1;
 
-      const handleAIEdit = () => {
-        window.dispatchEvent(
-          new CustomEvent("ai-edit-blocks", {
-            detail: { blockIds: targetBlocks },
-          }),
-        );
-      };
 
       return [
         {
@@ -374,19 +367,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               icon: <IconCopy size={16} />,
               onClick: async () => {
                 for (const id of targetBlocks) {
-                  await createBlock(id);
+                  await duplicateBlock(id);
                 }
                 if (isBatchOperation) {
                   useBlockUIStore.getState().clearSelectedBlocks();
                 }
               },
             },
-            {
-              label: "AI Edit... (⌘⇧A)",
-              icon: <IconRobot size={16} />,
-              onClick: handleAIEdit,
-            },
-            {
+
               label: isBatchOperation
                 ? `${t("common.delete") || "Delete"} (${targetBlocks.length})`
                 : t("common.delete") || "Delete",
@@ -429,7 +417,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       blockId,
       indentBlock,
       outdentBlock,
-      createBlock,
+      duplicateBlock,
       copyBlocksAsMarkdown,
     ]);
 
