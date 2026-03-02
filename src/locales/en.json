@@ -412,30 +412,7 @@
       "aria_dialog": "{{label}} date picker",
       "aria_clear": "Clear {{label}} date"
     },
-    "calendar": {
-      "tabs": {
-        "date": "Date",
-        "today": "Today",
-        "overdue": "Overdue",
-        "all": "All"
-      },
-      "stats": {
-        "this_day": "This Day",
-        "today": "Today",
-        "overdue": "Overdue",
-        "upcoming": "Upcoming"
-      },
-      "search_placeholder": "Search tasks...",
-      "quick_add_placeholder": "Add a task...",
-      "no_tasks_found": "No tasks found",
-      "try_different_search": "Try a different search term",
-      "selected": "{{count}} selected",
-      "done": "Done",
-      "delete": "Delete",
-      "clear": "Clear",
-      "task_list": "Tasks",
-      "calendar_grid": "Calendar"
-    },
+
 
     "command_palette_title": "Command Palette",
     "command_palette_content": "The Command Palette gives you quick access to all app features:\n• **Open** - Press Cmd+K (Mac) or Ctrl+K (Windows/Linux)\n• **Search** - Type to find commands by name, description, keywords, or category\n• **Run** - Press Enter or click to execute a command\n• **Keyboard** - Some commands show their keyboard shortcuts",
@@ -466,5 +443,29 @@
     "slow_performance_content": "• Try collapsing large nested sections\n• Close pages with 1000+ blocks (split into smaller pages)\n• Restart the app to free memory",
     "keyboard_shortcuts_summary": "Keyboard Shortcuts Summary",
     "shortcuts_table": "Command Palette | Cmd/Ctrl+K\nSearch | Cmd/Ctrl+F\nNew Block | Enter\nLine Break | Shift+Enter\nIndent | Tab\nOutdent | Shift+Tab\nMove Block Up | Cmd/Ctrl+Arrow Up\nMove Block Down | Cmd/Ctrl+Arrow Down\nSelect Block | Ctrl/Cmd+Click\nRange Select | Shift+Click\nDeselect | Escape"
+  },
+  "calendar": {
+    "tabs": {
+      "date": "Date",
+      "today": "Today",
+      "overdue": "Overdue",
+      "all": "All"
+    },
+    "stats": {
+      "this_day": "This Day",
+      "today": "Today",
+      "overdue": "Overdue",
+      "upcoming": "Upcoming"
+    },
+    "search_placeholder": "Search tasks...",
+    "quick_add_placeholder": "Add a task...",
+    "no_tasks_found": "No tasks found",
+    "try_different_search": "Try a different search term",
+    "selected": "{{count}} selected",
+    "done": "Done",
+    "delete": "Delete",
+    "clear": "Clear",
+    "task_list": "Tasks",
+    "calendar_grid": "Calendar"
   }
 }
