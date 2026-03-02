@@ -446,26 +446,26 @@
   },
   "calendar": {
     "tabs": {
-      "date": "날짜",
+      "date": "선택된 날",
       "today": "오늘",
       "overdue": "기한 초과",
       "all": "전체"
     },
     "stats": {
-      "this_day": "이 날",
-      "today": "오늘",
+      "this_day": "오늘",
+      "today": "할 일",
       "overdue": "기한 초과",
       "upcoming": "예정됨"
     },
-    "search_placeholder": "작업 검색…",
-    "quick_add_placeholder": "작업 추가…",
-    "no_tasks_found": "작업 없음",
-    "try_different_search": "다른 검색어 시도",
+    "search_placeholder": "할 일을 검색해보세요",
+    "quick_add_placeholder": "할 일 추가",
+    "no_tasks_found": "등록된 할 일이 없습니다",
+    "try_different_search": "다른 검색어로 다시 시도해보세요",
     "selected": "{{count}}개 선택됨",
     "done": "완료",
     "delete": "삭제",
-    "clear": "지우기",
-    "task_list": "작업 목록",
+    "clear": "초기화",
+    "task_list": "할 일",
     "calendar_grid": "달력"
   }
 }
