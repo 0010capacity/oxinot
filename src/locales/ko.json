@@ -466,7 +466,7 @@
     "task_list": "할 일",
     "calendar_grid": "달력",
     "task_groups": {
-      "scheduled": "스케줄됨",
+      "scheduled": "예정됨",
       "deadline": "마감일",
       "other": "기타"
     },

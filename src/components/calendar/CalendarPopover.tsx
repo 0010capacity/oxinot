@@ -3,6 +3,7 @@ import type { SmartViewType, TodoResult } from "@/types/todo";
 import { removeStatusPrefix } from "@/types/todo";
 import { IconCheck, IconSearch, IconX } from "@tabler/icons-react";
 import { format } from "date-fns";
+import { enUS, ko } from "date-fns/locale";
 import type { CSSProperties, RefObject } from "react";
 import {
   useCallback,
@@ -205,10 +206,10 @@ function StatCard({
 // SelectedDateCard — prominent date display for sidebar top
 // ---------------------------------------------------------------------------
 
-function SelectedDateCard({ selectedDate }: { selectedDate: Date }) {
+function SelectedDateCard({ selectedDate, locale }: { selectedDate: Date; locale: string }) {
   const dayNum = format(selectedDate, "d");
-  const dayName = format(selectedDate, "EEEE");
-  const monthYear = format(selectedDate, "MMMM yyyy");
+  const dayName = format(selectedDate, "EEEE", { locale: locale === "ko" ? ko : enUS });
+  const monthYear = format(selectedDate, "MMMM yyyy", { locale: locale === "ko" ? ko : enUS });
 
   return (
     <div
@@ -285,7 +286,7 @@ function CalendarSidebar({
   upcomingCount: number;
   onTabChange: (tab: TabId) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <div
@@ -298,7 +299,7 @@ function CalendarSidebar({
       }}
     >
       {/* Selected date */}
-      <SelectedDateCard selectedDate={selectedDate} />
+      <SelectedDateCard selectedDate={selectedDate} locale={i18n.language} />
 
       {/* Stats grid — 2×2 */}
       <div

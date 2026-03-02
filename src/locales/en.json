@@ -466,7 +466,7 @@
     "task_list": "Tasks",
     "calendar_grid": "Calendar",
     "task_groups": {
-      "scheduled": "Scheduled Today",
+      "scheduled": "Scheduled",
       "deadline": "Deadline Today",
       "other": "Other"
     },
