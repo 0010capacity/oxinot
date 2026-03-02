@@ -44,8 +44,10 @@ export const useAppSettingsStore = createWithEqualityFn<AppSettingsStore>()(
         const dateStr = `${year}-${month}-${day}`;
         const basePath = get().dailyNotesPath;
 
-        // Return path like "Daily/2025-01-10"
-        return basePath ? `${basePath}/${dateStr}` : dateStr;
+        // Return path like "Daily/2025/01/2025-01-10" (year/month/date hierarchy)
+        return basePath
+          ? `${basePath}/${year}/${month}/${dateStr}`
+          : `${year}/${month}/${dateStr}`;
       },
     }),
     {
