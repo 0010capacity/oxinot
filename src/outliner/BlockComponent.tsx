@@ -131,8 +131,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     // Sync optimistic content with blockContent when it changes externally
     // (e.g., page reload, undo, external sync).
+    // CRITICAL: Only sync when content matches draft to avoid overwriting unsaved edits.
+    // When focus is lost, useLayoutEffect handles setting optimisticContent from draftRef.
     useEffect(() => {
-      setOptimisticContent(blockContent ?? "");
+      if (blockContent === draftRef.current) {
+        setOptimisticContent(blockContent ?? "");
+      }
     }, [blockContent]);
 
     const displayContent =
@@ -1145,6 +1149,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       if (isMetadataOpen) {
         return;
       }
+      // Eagerly snapshot draft → optimisticContent so StaticMarkdownRenderer
+      // has the correct content when isFocused transitions to false.
+      // This is a safety net for the useLayoutEffect([isFocused]) bridge:
+      // handleBlur fires (CodeMirror lost DOM focus) before React re-renders,
+      // so we set optimisticContent here to cover any timing gap.
+      setOptimisticContent(draftRef.current);
 
       // Normal blur handling (metadata editor is not open)
       await commitDraft();

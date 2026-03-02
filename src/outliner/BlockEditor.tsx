@@ -444,7 +444,20 @@ export function BlockEditor({
   }
 
   return (
-    <PageContainer className={isDark ? "theme-dark" : "theme-light"}>
+    <PageContainer
+      className={isDark ? "theme-dark" : "theme-light"}
+      onPointerDownCapture={(e: React.PointerEvent) => {
+        // Clear block focus when clicking outside blocks-list
+        // (e.g., page header, linked references, empty content area).
+        if (e.button !== 0) return;
+        const target = e.target as HTMLElement;
+        if (!target.closest(".blocks-list")) {
+          useBlockUIStore.getState().clearSelectedBlocks();
+          useBlockUIStore.getState().clearSelectionAnchor();
+          useBlockUIStore.getState().setFocusedBlock(null);
+        }
+      }}
+    >
       <ContentWrapper>
         {workspaceName && onNavigateHome && (
           <PageHeader
