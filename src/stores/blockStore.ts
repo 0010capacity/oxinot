@@ -477,6 +477,7 @@ export const useBlockStore = create<BlockStore>()(
               delete state.childrenMap[key];
             }
           }
+          // biome-ignore lint/performance/noDelete: must fully remove key from object
           delete state.childrenMap.subpages;
         });
       },
