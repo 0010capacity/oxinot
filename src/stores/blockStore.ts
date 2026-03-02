@@ -1370,7 +1370,7 @@ export const useBlockStore = create<BlockStore>()(
  * Consider using granular selectors (useBlockContent, etc.) for better performance.
  */
 export const useBlock = (id: string) =>
-  useBlockStore((state) => state.blocksById[id]);
+  useBlockStore((state) => state.blocksById[id], shallow);
 
 /**
  * Get children IDs for a parent.

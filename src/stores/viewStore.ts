@@ -1,5 +1,6 @@
 import { immer } from "zustand/middleware/immer";
 import { createWithEqualityFn } from "zustand/traditional";
+import { shallow } from "zustand/shallow";
 import { useBlockStore } from "./blockStore";
 import type { BlockData } from "./blockStore";
 import { useNavigationStore } from "./navigationStore";
@@ -228,7 +229,7 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
 export const useViewMode = () => useViewStore((state) => state.mode);
 export const useCurrentNotePath = () =>
   useViewStore((state) => state.currentNotePath);
-export const useBreadcrumb = () => useViewStore((state) => state.breadcrumb);
+export const useBreadcrumb = () => useViewStore((state) => state.breadcrumb, shallow);
 export const useFocusedBlockId = () =>
   useViewStore((state) => state.focusedBlockId);
 

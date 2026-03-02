@@ -14,7 +14,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import type { CSSProperties } from "react";
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 import type { Priority, TodoResult, TodoStatus } from "../../types/todo";
 import { formatDateForDisplay, removeStatusPrefix } from "../../types/todo";
 import { TodoStatusIcon } from "./TodoStatusIcon";
@@ -102,7 +102,7 @@ function DateBadge({
   );
 }
 
-export function TaskItem({
+export const TaskItem = memo(function TaskItem({
   task,
   isSelected,
   onSelect,
@@ -227,8 +227,6 @@ export function TaskItem({
           size={isCompact ? 14 : 16}
           onClick={handleCheckboxClick}
         />
-        {/* Status Icon */}
-        <TodoStatusIcon status={task.status} size={isCompact ? 14 : 16} />
 
         {/* Content area */}
         {isCompact ? (
@@ -314,4 +312,4 @@ export function TaskItem({
       )}
     </>
   );
-}
+});

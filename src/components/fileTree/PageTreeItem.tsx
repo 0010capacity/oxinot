@@ -7,7 +7,7 @@ import {
 } from "@mantine/core";
 import { IconCheck, IconX } from "@tabler/icons-react";
 import type React from "react";
-import { startTransition, useEffect, useMemo, useRef } from "react";
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { INDENT_PER_LEVEL } from "../../constants/layout";
 import { useBlockStore } from "../../stores/blockStore";
@@ -53,7 +53,7 @@ interface PageTreeItemProps {
   children?: React.ReactNode;
 }
 
-export function PageTreeItem({
+export const PageTreeItem = memo(function PageTreeItem({
   page,
   depth,
   childCount,
@@ -123,7 +123,7 @@ export function PageTreeItem({
     [page.id, onAddChild, onEdit, onDelete, t],
   );
 
-  const handlePageClick = async (e: React.MouseEvent) => {
+  const handlePageClick = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isEditing) return;
 
@@ -155,25 +155,38 @@ export function PageTreeItem({
     } catch (error) {
       console.error("[PageTreeItem] Failed to load page:", error);
     }
-  };
+  }, [page.id, page.parentId, page.title]);
 
-  const handleBulletClick = (e: React.MouseEvent) => {
+  const handleBulletClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (hasChildren) {
       onToggleCollapse(page.id);
     }
-  };
+  }, [hasChildren, onToggleCollapse, page.id]);
 
-  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       onEditSubmit();
     } else if (e.key === "Escape") {
       onEditCancel();
     }
-  };
+  }, [onEditSubmit, onEditCancel]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const moveFocus = useCallback((direction: number) => {
+    const buttons = Array.from(
+      document.querySelectorAll(".page-tree-item-button"),
+    ) as HTMLElement[];
+    const currentIndex = buttons.indexOf(document.activeElement as HTMLElement);
+    if (currentIndex !== -1) {
+      const nextIndex = currentIndex + direction;
+      if (nextIndex >= 0 && nextIndex < buttons.length) {
+        buttons[nextIndex].focus();
+      }
+    }
+  }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "ArrowRight") {
       if (hasChildren && isCollapsed) {
         e.preventDefault();
@@ -195,20 +208,8 @@ export function PageTreeItem({
       e.stopPropagation();
       moveFocus(-1);
     }
-  };
+  }, [hasChildren, isCollapsed, onToggleCollapse, page.id, moveFocus]);
 
-  const moveFocus = (direction: number) => {
-    const buttons = Array.from(
-      document.querySelectorAll(".page-tree-item-button"),
-    ) as HTMLElement[];
-    const currentIndex = buttons.indexOf(document.activeElement as HTMLElement);
-    if (currentIndex !== -1) {
-      const nextIndex = currentIndex + direction;
-      if (nextIndex >= 0 && nextIndex < buttons.length) {
-        buttons[nextIndex].focus();
-      }
-    }
-  };
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -387,4 +388,4 @@ export function PageTreeItem({
       {!isCollapsed && children}
     </div>
   );
-}
+});
