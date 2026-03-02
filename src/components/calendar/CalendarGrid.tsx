@@ -85,13 +85,7 @@ const navButtonStyle: CSSProperties = {
   flexShrink: 0,
 };
 
-const gridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: `repeat(7, ${CELL}px)`,
-  gridAutoRows: `${CELL}px`,
-  gap: GAP,
-  width: GRID_W,
-};
+
 
 const weekdayStyle: CSSProperties = {
   fontSize: 8,

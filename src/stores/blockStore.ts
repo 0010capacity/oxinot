@@ -477,7 +477,7 @@ export const useBlockStore = create<BlockStore>()(
               delete state.childrenMap[key];
             }
           }
-          state.childrenMap.subpages = undefined;
+          delete state.childrenMap.subpages;
         });
       },
 

@@ -22,7 +22,7 @@ function AIFloatingInputInternal({
   blockIds,
   position,
   onClose,
-  mode = "edit",
+  mode: _mode = "edit",
 }: AIFloatingInputProps) {
   const [prompt, setPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
