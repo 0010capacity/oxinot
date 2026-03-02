@@ -1,4 +1,8 @@
+import { useAppSettingsStore } from "@/stores/appSettingsStore";
+import { usePageStore } from "@/stores/pageStore";
 import { useTodoStore } from "@/stores/todoStore";
+import { useViewStore } from "@/stores/viewStore";
+import { buildPageBreadcrumb } from "@/utils/pageUtils";
 import type { SmartViewType, TodoResult } from "@/types/todo";
 import { removeStatusPrefix } from "@/types/todo";
 import { IconCheck, IconSearch, IconX } from "@tabler/icons-react";
@@ -688,6 +692,12 @@ export function CalendarPopover({
   const [visible, setVisible] = useState(false);
   const [animReady, setAnimReady] = useState(false);
 
+  const getDailyNotePath = useAppSettingsStore(
+    (state) => state.getDailyNotePath,
+  );
+  const { openPageByPath } = usePageStore();
+  const { openNote } = useViewStore();
+
   // Dynamic TABS based on i18n
   const tabs = useMemo<TabConfig[]>(
     () => [
@@ -863,6 +873,25 @@ export function CalendarPopover({
     setActiveTab("date");
   }, []);
 
+  const handleDateDoubleClick = useCallback(
+    async (date: Date) => {
+      try {
+        const fullPath = getDailyNotePath(date);
+        const pageId = await openPageByPath(fullPath);
+        const freshPageData = usePageStore.getState().pagesById[pageId];
+        if (freshPageData) {
+          const freshPagesById = usePageStore.getState().pagesById;
+          const { names, ids } = buildPageBreadcrumb(pageId, freshPagesById);
+          openNote(pageId, freshPageData.title, names, ids);
+        }
+        onClose();
+      } catch (error) {
+        console.error("[CalendarPopover] Failed to open daily note:", error);
+      }
+    },
+    [getDailyNotePath, openPageByPath, openNote, onClose],
+  );
+
   const handleTabChange = useCallback((tab: TabId) => {
     setActiveTab(tab);
   }, []);
@@ -1001,6 +1030,7 @@ export function CalendarPopover({
           <CalendarGrid
             selectedDate={activeTab === "date" ? selectedDate : undefined}
             onDateSelect={handleDateSelect}
+            onDateDoubleClick={handleDateDoubleClick}
             todosByDate={todosByDate}
             showNavigation
           />

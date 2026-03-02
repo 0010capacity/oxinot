@@ -343,17 +343,47 @@ impl FileSyncService {
     }
 
     /// Convert a page file to a directory
+    /// 
+    /// IMPORTANT: This function is idempotent. If the page is already a directory,
+    /// it returns the current file_path without making any filesystem changes.
+    /// This prevents cascading nested directories when called multiple times.
     pub async fn convert_page_to_directory(
         &self,
         conn_mutex: &Mutex<Connection>,
         page_id: &str,
     ) -> Result<String, String> {
         let page = self.get_page_from_db(conn_mutex, page_id)?;
+
+        // Idempotency guard: if already a directory, return current path
+        if page.is_directory {
+            if let Some(fp) = &page.file_path {
+                return Ok(fp.clone());
+            }
+            // Fallback: compute the path from hierarchy
+            let abs = self.get_page_file_path(conn_mutex, page_id).await?;
+            return self.compute_rel_path(&abs).await;
+        }
+
         let old_abs_file_path = if let Some(fp) = &page.file_path {
             self.workspace_path.join(fp)
         } else {
             self.get_page_file_path(conn_mutex, page_id).await?
         };
+
+        // Filesystem-level idempotency: check if already converted on disk
+        // (handles crash recovery where file was moved but DB wasn't updated)
+        let parent = old_abs_file_path
+            .parent()
+            .ok_or("Cannot get parent directory")?;
+        let file_stem = old_abs_file_path.file_stem().ok_or("Invalid file name")?;
+        let dir_path = parent.join(file_stem);
+        let converted_file_path = dir_path.join(format!("{}.md", file_stem.to_string_lossy()));
+
+        // If the target directory structure already exists, just return the path
+        // This prevents re-nesting when the DB is_directory flag is stale
+        if converted_file_path.exists() && converted_file_path != old_abs_file_path {
+            return self.compute_rel_path(&converted_file_path).await;
+        }
 
         let content = if old_abs_file_path.exists() {
             fs::read_to_string(&old_abs_file_path)
@@ -363,18 +393,11 @@ impl FileSyncService {
             format!("- {}\n", page.title)
         };
 
-        let parent = old_abs_file_path
-            .parent()
-            .ok_or("Cannot get parent directory")?;
-        let file_stem = old_abs_file_path.file_stem().ok_or("Invalid file name")?;
-
-        let dir_path = parent.join(file_stem);
         fs::create_dir_all(&dir_path)
             .await
             .map_err(|e| format!("Failed to create directory: {}", e))?;
 
-        let new_file_path = dir_path.join(format!("{}.md", file_stem.to_string_lossy()));
-        fs::write(&new_file_path, content)
+        fs::write(&converted_file_path, content)
             .await
             .map_err(|e| format!("Failed to write file: {}", e))?;
 
@@ -384,7 +407,7 @@ impl FileSyncService {
                 .map_err(|e| format!("Failed to remove old file: {}", e))?;
         }
 
-        self.compute_rel_path(&new_file_path).await
+        self.compute_rel_path(&converted_file_path).await
     }
 
     /// Convert a directory page to a file

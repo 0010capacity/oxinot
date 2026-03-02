@@ -389,36 +389,45 @@ fn sync_directory(
 
     // (1) Process subdirectories first so we can create directory pages (Dir/Dir.md)
     // and pass the correct parent_id when indexing their contents.
+    // IMPORTANT: Every directory MUST have a folder note to serve as its page.
+    // If a folder note doesn't exist, we auto-create it to prevent orphaning.
     for entry in dir_entries {
         let path = entry.path();
         let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
         let folder_note_path = path.join(format!("{}.md", dir_name));
 
-        let page_id = if folder_note_path.exists() {
-            // Store relative path in found_files
-            let rel_path = compute_rel_path(&folder_note_path, workspace_root)?;
-            found_files.insert(rel_path.clone());
+        // Auto-create folder note if it doesn't exist
+        if !folder_note_path.exists() {
+            println!(
+                "[sync_directory] Auto-creating folder note: {:?}",
+                folder_note_path
+            );
+            // Create a minimal folder note with just a heading
+            let initial_content = format!("- {}", dir_name);
+            fs::write(&folder_note_path, &initial_content)
+                .map_err(|e| format!("Failed to create folder note {:?}: {}", folder_note_path, e))?;
+        }
 
-            let id = sync_or_create_file(
-                conn,
-                workspace_root,
-                &folder_note_path,
-                parent_page_id,
-                true,
-                existing_pages,
-                synced_pages,
-                synced_blocks,
-            )?;
-            Some(id)
-        } else {
-            None
-        };
+        // Now folder note is guaranteed to exist
+        let rel_path = compute_rel_path(&folder_note_path, workspace_root)?;
+        found_files.insert(rel_path.clone());
+
+        let page_id = sync_or_create_file(
+            conn,
+            workspace_root,
+            &folder_note_path,
+            parent_page_id,
+            true,
+            existing_pages,
+            synced_pages,
+            synced_blocks,
+        )?;
 
         sync_directory(
             conn,
             workspace_root,
             &path,
-            page_id.as_deref().or(parent_page_id),
+            Some(&page_id),
             existing_pages,
             found_files,
             synced_pages,
@@ -508,14 +517,16 @@ fn sync_or_create_file(
         .map(|d| d.as_secs() as i64);
 
     // Check if page already exists in DB using relative path
-    if let Some(page_id) = existing_pages.get(&rel_path) {
-        println!("Page already exists in DB: {} -> {}", file_name, page_id);
+    let page_id_opt = existing_pages.get(&rel_path).cloned();
 
+
+    if let Some(page_id) = page_id_opt {
+        println!("Page already exists in DB: {} -> {}", file_name, page_id);
         // Determine if blocks need reindex
         let (db_mtime, db_size): (Option<i64>, Option<i64>) = conn
             .query_row(
                 "SELECT file_mtime, file_size FROM pages WHERE id = ?",
-                [page_id],
+                [&page_id],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .map_err(|e| e.to_string())?;
@@ -523,11 +534,13 @@ fn sync_or_create_file(
         let needs_reindex = db_mtime != mtime || db_size != Some(size);
 
         // Always keep hierarchy metadata in sync
+        // For upgrades, also update file_path from virtual path to real file path
         conn.execute(
-            "UPDATE pages SET parent_id = :parent_id, is_directory = :is_directory, file_mtime = :file_mtime, file_size = :file_size, updated_at = :updated_at WHERE id = :id",
+            "UPDATE pages SET parent_id = :parent_id, is_directory = :is_directory, file_path = :file_path, file_mtime = :file_mtime, file_size = :file_size, updated_at = :updated_at WHERE id = :id",
             named_params! {
                 ":parent_id": parent_page_id,
                 ":is_directory": if is_directory { 1 } else { 0 },
+                ":file_path": &rel_path,
                 ":file_mtime": mtime,
                 ":file_size": size,
                 ":updated_at": Utc::now().to_rfc3339(),
@@ -537,9 +550,9 @@ fn sync_or_create_file(
         .map_err(|e| e.to_string())?;
 
         // Update page_paths
-        page_path_service::update_page_path(conn, page_id, &rel_path)
+        page_path_service::update_page_path(conn, &page_id, &rel_path)
             .map_err(|e| format!("Failed to update page path: {}", e))?;
-
+        
         if needs_reindex {
             // Safe reindex: preserve blocks in DB that are newer than the markdown file
             // to prevent data loss during async sync operations
@@ -554,7 +567,7 @@ fn sync_or_create_file(
                 .map_err(|e| e.to_string())?;
 
             let existing_block_ids: Vec<(String, String)> = stmt
-                .query_map([page_id], |row| {
+                .query_map([&page_id], |row| {
                     Ok((row.get(0)?, row.get(1)?))
                 })
                 .map_err(|e| e.to_string())?
@@ -562,7 +575,7 @@ fn sync_or_create_file(
                 .map_err(|e| e.to_string())?;
 
             // Parse blocks from markdown
-            let markdown_blocks = markdown_to_blocks(&content, page_id);
+            let markdown_blocks = markdown_to_blocks(&content, &page_id);
             let markdown_block_ids: std::collections::HashSet<String> =
                 markdown_blocks.iter().map(|b| b.id.clone()).collect();
 
@@ -620,7 +633,7 @@ fn sync_or_create_file(
                 .map_err(|e| e.to_string())?;
 
                 // Update FTS5 index
-                index_block_fts(&conn, &block.id, page_id, &block.content)?;
+                index_block_fts(&conn, &block.id, &page_id, &block.content)?;
             }
 
             *synced_pages += 1;
