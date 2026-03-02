@@ -24,7 +24,7 @@
     "new_page": "New page",
     "home": "Home",
     "delete_page": "Delete Page",
-    "delete_page_question": "Delete <strong>{{title}}</strong>?",
+    "delete_page_question": "Delete \"{{title}}\"?",
     "remove_workspace": "Remove Workspace",
     "remove_workspace_question": "Are you sure you want to remove \"{{name}}\" from your recent workspaces?",
     "remove": "Remove",

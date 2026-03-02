@@ -24,7 +24,7 @@
     "new_page": "새 페이지",
     "home": "홈",
     "delete_page": "페이지 삭제",
-    "delete_page_question": "<strong>{{title}}</strong>을(를) 삭제하시겠습니까?",
+    "delete_page_question": "\"{{title}}\"을(를) 삭제하시겠습니까?",
     "remove_workspace": "워크스페이스 제거",
     "remove_workspace_question": "\"{{name}}\" 워크스페이스를 최근 목록에서 제거하시겠습니까?",
     "remove": "제거",

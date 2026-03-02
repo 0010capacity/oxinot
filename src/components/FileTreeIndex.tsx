@@ -1,4 +1,5 @@
 import { Button, Group, Modal, Stack, Text } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { IconPlus } from "@tabler/icons-react";
 import type React from "react";
 import {
@@ -236,12 +237,13 @@ export function FileTreeIndex() {
     loadPages,
     createPage,
     updatePageTitle,
-    deletePage,
+    deletePageRecursive,
     movePage,
     convertToDirectory,
   } = usePageStore();
 
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
+
   const workspaceName = workspacePath?.split("/").pop() || "Workspace";
   const showIndentGuides = useOutlinerSettingsStore(
     (state) => state.showIndentGuides,
@@ -374,8 +376,12 @@ export function FileTreeIndex() {
               return;
             }
 
-            // Show alert for actual errors
-            alert(`Failed to move page: ${error}`);
+            // Show notification for actual errors
+            notifications.show({
+              color: "red",
+              title: "Error",
+              message: `Failed to move page: ${error}`,
+          });
           });
         } else if (dragOverPageId && draggedPageId !== dragOverPageId) {
           movePageRef
@@ -401,8 +407,12 @@ export function FileTreeIndex() {
                 return;
               }
 
-              // Show alert for actual errors
-              alert(`Failed to move page: ${error}`);
+              // Show notification for actual errors
+              notifications.show({
+                color: "red",
+                title: "Error",
+                message: `Failed to move page: ${error}`,
+              });
             });
         }
       }
@@ -469,13 +479,15 @@ export function FileTreeIndex() {
                 conversionError,
               );
               setIsSubmitting(false);
-              alert(
-                `Failed to convert parent to directory: ${
+              notifications.show({
+                color: "red",
+                title: "Error",
+                message: `Failed to convert parent to directory: ${
                   conversionError instanceof Error
                     ? conversionError.message
                     : String(conversionError)
                 }`,
-              );
+              });
               return;
             }
           }
@@ -500,11 +512,13 @@ export function FileTreeIndex() {
         setIsSubmitting(false);
         setIsCreating(false);
         setCreatingParentId(null);
-        alert(
-          `Failed to create page: ${
+        notifications.show({
+          color: "red",
+          title: "Error",
+          message: `Failed to create page: ${
             error instanceof Error ? error.message : String(error)
           }`,
-        );
+        });
       }
     },
     [creatingParentId, createPage, convertToDirectory],
@@ -564,14 +578,18 @@ export function FileTreeIndex() {
     }
 
     try {
-      await deletePage(pageToDelete.id);
+      await deletePageRecursive(pageToDelete.id);
       setDeleteModalOpened(false);
       setPageToDelete(null);
     } catch (error) {
       console.error("[FileTreeIndex] Failed to delete page:", error);
-      alert(`Failed to delete page: ${error}`);
+      notifications.show({
+        color: "red",
+        title: "Error",
+        message: `Failed to delete page: ${error}`,
+      });
     }
-  }, [pageToDelete, deletePage]);
+  }, [pageToDelete, deletePageRecursive]);
 
   const handleAddChild = useCallback((parentId: string) => {
     setCreatingParentId(parentId);

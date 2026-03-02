@@ -51,6 +51,7 @@ import { CodeBlockHandler } from "./handlers/CodeBlockHandler";
 import { EmphasisHandler } from "./handlers/EmphasisHandler";
 // Import standard markdown handlers
 import { HeadingHandler } from "./handlers/HeadingHandler";
+import { HorizontalRuleHandler } from "./handlers/HorizontalRuleHandler";
 import { InlineCodeHandler } from "./handlers/InlineCodeHandler";
 import { LinkHandler } from "./handlers/LinkHandler";
 import { SetextHeadingHandler } from "./handlers/SetextHeadingHandler";
@@ -100,7 +101,10 @@ function createHandlerRegistry(): HandlerRegistry {
 
   // Register all handlers
   // Order matters - handlers are checked in registration order
+  // Register all handlers
+  // Order matters - handlers are checked in registration order
   registry.registerAll([
+    new HorizontalRuleHandler(), // Horizontal rules (---)
     new TaskListHandler(), // Check task lists before generic list items
     new HeadingHandler(), // ATX Headings (# ## ###)
     new SetextHeadingHandler(), // Setext Headings (underlined with === or ---)
@@ -110,7 +114,7 @@ function createHandlerRegistry(): HandlerRegistry {
     new CodeBlockHandler(), // Code blocks
     new LinkHandler(), // Links
     new BlockquoteHandler(), // Blockquotes
-  ]);
+  ])
 
   return registry;
 }

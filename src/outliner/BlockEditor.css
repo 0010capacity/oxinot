@@ -323,8 +323,8 @@
 
 /* Writing mode: focused block highlight */
 .writing-mode-focused {
-  background-color: color-mix(in srgb, var(--color-accent) 6%, transparent) !important;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-accent) 50%, transparent);
+  background-color: rgba(128, 128, 128, 0.08) !important;
+  box-shadow: inset 0 0 0 2px rgba(128, 128, 128, 0.25) !important;
   border-radius: var(--radius-sm);
   transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
 }
