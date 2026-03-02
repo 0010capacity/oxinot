@@ -489,5 +489,12 @@
       "confirm": "삭제",
       "cancel": "취소"
     }
+  },
+  "backlinks": {
+    "title": "{{count}}개의 역링크",
+    "title_plural": "{{count}}개의 역링크",
+    "reference": "{{count}}개 참조",
+    "reference_plural": "{{count}}개 참조",
+    "error": "역링크를 불러오지 못했습니다"
   }
 }

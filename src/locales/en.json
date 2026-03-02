@@ -489,5 +489,12 @@
       "confirm": "Delete",
       "cancel": "Cancel"
     }
+  },
+  "backlinks": {
+    "title": "{{count}} Backlink",
+    "title_plural": "{{count}} Backlinks",
+    "reference": "{{count}} reference",
+    "reference_plural": "{{count}} references",
+    "error": "Failed to load backlinks"
   }
 }

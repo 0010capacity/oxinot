@@ -1,6 +1,7 @@
 import { Accordion, Box, Stack, Text } from "@mantine/core";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePageStore } from "../stores/pageStore";
 import { useViewStore } from "../stores/viewStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
@@ -22,6 +23,7 @@ interface LinkedReferencesProps {
 }
 
 export function LinkedReferences({ pageId }: LinkedReferencesProps) {
+  const { t } = useTranslation();
   const [backlinks, setBacklinks] = useState<BacklinkGroup[]>([]);
   const [error, setError] = useState<string | null>(null);
   const workspacePath = useWorkspaceStore((state) => state.workspacePath);
@@ -97,29 +99,15 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
         }}
       >
         <Text size="sm" c="red">
-          Failed to load linked references: {error}
+          {t("backlinks.error")}: {error}
         </Text>
       </Box>
     );
   }
 
+  // 역링크가 없으면 아무것도 표시하지 않음
   if (backlinkCount === 0) {
-    return (
-      <Box
-        style={{
-          padding: "24px 0",
-          borderTop: "1px solid var(--color-border-primary)",
-          marginTop: "40px",
-        }}
-      >
-        <Text size="sm" fw={600} mb="sm">
-          Linked References
-        </Text>
-        <Text size="sm" c="dimmed">
-          No pages link to this page yet.
-        </Text>
-      </Box>
-    );
+    return null;
   }
 
   return (
@@ -131,7 +119,7 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
       }}
     >
       <Text size="sm" fw={600} mb="md">
-        {pageCount} Linked Reference{pageCount !== 1 ? "s" : ""}
+        {t("backlinks.title", { count: pageCount })}
       </Text>
 
       <Accordion
@@ -186,8 +174,11 @@ export function LinkedReferences({ pageId }: LinkedReferencesProps) {
                   {data.page_title}
                 </Text>
                 <Text size="xs" c="dimmed">
-                  ({data.blocks.length} reference
-                  {data.blocks.length !== 1 ? "s" : ""})
+                  (
+                  {t("backlinks.reference", {
+                    count: data.blocks.length,
+                  })}
+                  )
                 </Text>
               </Box>
             </Accordion.Control>
