@@ -21,6 +21,7 @@ import { GitStatusIndicator } from "./components/GitStatusIndicator";
 import { SnowEffect } from "./components/SnowEffect";
 import { TitleBar } from "./components/TitleBar";
 import { BottomLeftControls } from "./components/layout/BottomLeftControls";
+
 // Lazy load non-critical components for code splitting
 const CommandPalette = lazy(() => import("./components/CommandPalette"));
 const FileTreeIndex = lazy(() => import("./components/FileTreeIndex"));
@@ -185,7 +186,8 @@ function AppContent({ workspacePath }: AppContentProps) {
   const pageIds = usePageStore((state) => state.pageIds);
   const viewMode = useViewMode();
   const breadcrumb = useBreadcrumb();
-  const { showIndex, setWorkspaceName, showPage, toggleWritingMode } = useViewStore();
+  const { showIndex, setWorkspaceName, showPage, toggleWritingMode } =
+    useViewStore();
 
   const fontFamily = useThemeStore((state) => state.fontFamily);
   const editorFontSize = useThemeStore((state) => state.editorFontSize);

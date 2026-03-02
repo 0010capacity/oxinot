@@ -1,10 +1,10 @@
 import { Popover } from "@mantine/core";
-import { DatePicker } from "@mantine/dates";
 import { IconAlarm, IconCalendar } from "@tabler/icons-react";
 import { format, isToday, parseISO } from "date-fns";
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { useBlockStore } from "../../stores/blockStore";
+import { CalendarGrid } from "../calendar/CalendarGrid";
 
 interface TodoDatePickerProps {
   blockId: string;
@@ -12,6 +12,10 @@ interface TodoDatePickerProps {
   value?: string | null;
   onClose?: () => void;
 }
+
+// ---------------------------------------------------------------------------
+// Styles (CSS-variable only)
+// ---------------------------------------------------------------------------
 
 const styles = {
   trigger: {
@@ -37,6 +41,10 @@ const styles = {
 
   dropdown: {
     padding: "var(--spacing-sm)",
+    backgroundColor: "var(--color-bg-elevated)",
+    border: "1px solid var(--color-border-secondary)",
+    borderRadius: "var(--radius-md)",
+    width: "280px",
   } satisfies CSSProperties,
 
   footer: {
@@ -60,6 +68,10 @@ const styles = {
   } satisfies CSSProperties,
 };
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function formatTriggerLabel(value: string | null | undefined): string | null {
   if (!value) return null;
   try {
@@ -70,6 +82,10 @@ function formatTriggerLabel(value: string | null | undefined): string | null {
     return value;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export function TodoDatePicker({
   blockId,
@@ -82,17 +98,16 @@ export function TodoDatePicker({
   const setBlockMetadata = useBlockStore((s) => s.setBlockMetadata);
 
   const selectedDate = useMemo(() => {
-    if (!value) return null;
+    if (!value) return undefined;
     try {
       return parseISO(value);
     } catch {
-      return null;
+      return undefined;
     }
   }, [value]);
 
   const handleSelectDate = useCallback(
-    async (date: Date | null) => {
-      if (!date) return;
+    async (date: Date) => {
       const isoDate = format(date, "yyyy-MM-dd");
       await setBlockMetadata(blockId, type, isoDate);
       setOpened(false);
@@ -153,48 +168,10 @@ export function TodoDatePicker({
 
       <Popover.Dropdown style={styles.dropdown}>
         <div onKeyDown={handleKeyDown} aria-label={`${label} date picker`}>
-          <DatePicker
-            value={selectedDate}
-            onChange={handleSelectDate}
-            size="sm"
-            styles={{
-              calendarHeader: {
-                marginBottom: "var(--spacing-xs)",
-              },
-              calendarHeaderLevel: {
-                fontSize: "var(--font-size-sm)",
-                fontWeight: 600,
-                color: "var(--color-text-primary)",
-              },
-              calendarHeaderControl: {
-                color: "var(--color-text-secondary)",
-                backgroundColor: "transparent",
-                "&:hover": {
-                  backgroundColor: "var(--color-interactive-hover)",
-                  color: "var(--color-text-primary)",
-                },
-              },
-              month: {
-                padding: 0,
-              },
-              weekday: {
-                fontSize: "var(--font-size-xs)",
-                fontWeight: 500,
-                color: "var(--color-text-tertiary)",
-                textTransform: "uppercase",
-              },
-              day: {
-                fontSize: "var(--font-size-sm)",
-                color: "var(--color-text-primary)",
-                borderRadius: "var(--radius-md)",
-                "&:hover": {
-                  backgroundColor: "var(--color-interactive-hover)",
-                },
-              },
-              monthCell: {
-                padding: "2px",
-              },
-            }}
+          <CalendarGrid
+            selectedDate={selectedDate}
+            onDateSelect={handleSelectDate}
+            showNavigation
           />
 
           {value && (

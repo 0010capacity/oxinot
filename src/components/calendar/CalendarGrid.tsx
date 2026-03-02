@@ -1,8 +1,19 @@
 import type { TodoResult } from "@/types/todo";
-import { DatePicker } from "@mantine/dates";
-import { format, isToday as isDateToday, isSameDay } from "date-fns";
-import { useCallback, useMemo, useState } from "react";
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  isToday as isDateToday,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from "date-fns";
 import type { CSSProperties } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 type TodosByDate = Record<string, TodoResult[]>;
 
@@ -14,35 +25,195 @@ interface CalendarGridProps {
   defaultMonth?: Date;
 }
 
-const styles = {
-  container: {
-    fontFamily: "var(--font-family)",
-    fontSize: "var(--font-size-sm)",
-    color: "var(--color-text-primary)",
-    userSelect: "none",
-  } satisfies CSSProperties,
+const WEEKDAYS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"] as const;
 
-  badge: {
-    position: "absolute",
-    top: "2px",
-    right: "2px",
-    minWidth: "14px",
-    height: "14px",
-    padding: "0 3px",
-    borderRadius: "var(--radius-lg)",
-    backgroundColor: "var(--color-success)",
-    color: "var(--color-bg-primary)",
-    fontSize: "9px",
-    fontWeight: 700,
-    lineHeight: "14px",
-    textAlign: "center",
-    pointerEvents: "none",
-  } satisfies CSSProperties,
-};
+// Cell size and gap — single source of truth
+const CELL = 28;
+const GAP = 2;
+// Total grid width: 7 cells + 6 gaps
+export const GRID_W = 7 * CELL + 6 * GAP; // 208px
 
 function toISODateKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
 }
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
+const containerStyle: CSSProperties = {
+  fontFamily: "var(--font-family)",
+  color: "var(--color-text-primary)",
+  userSelect: "none",
+  width: GRID_W,
+  flexShrink: 0,
+};
+
+const headerStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  width: GRID_W,
+  marginBottom: 4,
+};
+
+const headerLabelStyle: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 700,
+  color: "var(--color-text-primary)",
+  cursor: "default",
+  letterSpacing: "0.01em",
+};
+
+const navButtonStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 20,
+  height: 20,
+  border: "none",
+  borderRadius: "var(--radius-sm)",
+  backgroundColor: "transparent",
+  color: "var(--color-text-tertiary)",
+  cursor: "pointer",
+  fontSize: 16,
+  lineHeight: 1,
+  padding: 0,
+  transition:
+    "background-color var(--transition-fast), color var(--transition-fast)",
+  flexShrink: 0,
+};
+
+const gridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: `repeat(7, ${CELL}px)`,
+  gridAutoRows: `${CELL}px`,
+  gap: GAP,
+  width: GRID_W,
+};
+
+const weekdayStyle: CSSProperties = {
+  fontSize: 8,
+  fontWeight: 700,
+  color: "var(--color-text-tertiary)",
+  textTransform: "uppercase",
+  textAlign: "center",
+  width: CELL,
+  height: 18,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  lineHeight: 1,
+  letterSpacing: "0.05em",
+};
+
+const dayCellBase: CSSProperties = {
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: CELL,
+  height: CELL,
+  borderRadius: "var(--radius-sm)",
+  border: "none",
+  backgroundColor: "transparent",
+  cursor: "pointer",
+  fontSize: 11,
+  fontFamily: "var(--font-family)",
+  lineHeight: 1,
+  padding: 0,
+  transition:
+    "background-color var(--transition-fast), color var(--transition-fast)",
+};
+
+const badgeStyle: CSSProperties = {
+  position: "absolute",
+  top: 2,
+  right: 2,
+  minWidth: 10,
+  height: 10,
+  padding: "0 2px",
+  borderRadius: "var(--radius-lg)",
+  backgroundColor: "var(--color-accent)",
+  color: "#fff",
+  fontSize: 7,
+  fontWeight: 700,
+  lineHeight: "10px",
+  textAlign: "center",
+  pointerEvents: "none",
+};
+
+// ---------------------------------------------------------------------------
+// DayCell
+// ---------------------------------------------------------------------------
+
+function DayCell({
+  date,
+  isCurrentMonth,
+  isSelected,
+  isToday,
+  todoCount,
+  onClick,
+}: {
+  date: Date;
+  isCurrentMonth: boolean;
+  isSelected: boolean;
+  isToday: boolean;
+  todoCount: number;
+  onClick: (date: Date) => void;
+}) {
+  const handleClick = useCallback(() => onClick(date), [onClick, date]);
+
+  const style: CSSProperties = {
+    ...dayCellBase,
+    color: isSelected
+      ? "#fff"
+      : !isCurrentMonth
+        ? "var(--color-text-tertiary)"
+        : isToday
+          ? "var(--color-accent)"
+          : "var(--color-text-primary)",
+    backgroundColor: isSelected ? "var(--color-accent)" : "transparent",
+    fontWeight: isSelected ? 700 : isToday ? 600 : 400,
+    outline:
+      isToday && !isSelected ? "1.5px solid var(--color-accent)" : "none",
+    outlineOffset: -1,
+    opacity: !isCurrentMonth ? 0.35 : 1,
+  };
+
+  return (
+    <button
+      type="button"
+      style={style}
+      onClick={handleClick}
+      aria-label={format(date, "EEEE, MMMM d, yyyy")}
+      aria-pressed={isSelected}
+      aria-current={isToday ? "date" : undefined}
+      onMouseEnter={(e) => {
+        if (!isSelected) {
+          e.currentTarget.style.backgroundColor =
+            "var(--color-interactive-hover)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isSelected) {
+          e.currentTarget.style.backgroundColor = "transparent";
+        }
+      }}
+    >
+      {date.getDate()}
+      {todoCount > 0 && (
+        <span style={badgeStyle} aria-hidden="true">
+          {todoCount > 9 ? "9+" : todoCount}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CalendarGrid
+// ---------------------------------------------------------------------------
 
 export function CalendarGrid({
   selectedDate,
@@ -55,107 +226,103 @@ export function CalendarGrid({
     defaultMonth ?? selectedDate ?? new Date(),
   );
 
-  const handleDateChange = useCallback(
-    (date: Date | null) => {
-      if (date && onDateSelect) {
-        onDateSelect(date);
-      }
-    },
+  const handlePrevMonth = useCallback(
+    () => setViewDate((d) => subMonths(d, 1)),
+    [],
+  );
+  const handleNextMonth = useCallback(
+    () => setViewDate((d) => addMonths(d, 1)),
+    [],
+  );
+  const handleDateClick = useCallback(
+    (date: Date) => onDateSelect?.(date),
     [onDateSelect],
   );
 
-  const calendarStyles = useMemo(
-    () => ({
-      calendarHeader: {
-        display: showNavigation ? "flex" : "none",
-        marginBottom: "var(--spacing-xs)",
-      },
-      calendarHeaderLevel: {
-        fontSize: "var(--font-size-sm)",
-        fontWeight: 600,
-        color: "var(--color-text-primary)",
-      },
-      calendarHeaderControl: {
-        color: "var(--color-text-secondary)",
-        backgroundColor: "transparent",
-        "&:hover": {
-          backgroundColor: "var(--color-interactive-hover)",
-          color: "var(--color-text-primary)",
-        },
-      },
-      month: {
-        padding: 0,
-      },
-      weekday: {
-        fontSize: "var(--font-size-xs)",
-        fontWeight: 500,
-        color: "var(--color-text-tertiary)",
-        textTransform: "uppercase" as const,
-      },
-      day: {
-        fontSize: "var(--font-size-sm)",
-        color: "var(--color-text-primary)",
-        borderRadius: "var(--radius-md)",
-        position: "relative" as const,
-        "&:hover": {
-          backgroundColor: "var(--color-interactive-hover)",
-        },
-      },
-      monthCell: {
-        padding: "2px",
-      },
-    }),
-    [showNavigation],
-  );
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(viewDate);
+    const monthEnd = endOfMonth(viewDate);
+    const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    return eachDayOfInterval({ start: gridStart, end: gridEnd });
+  }, [viewDate]);
 
-  const renderDay = useCallback(
-    (date: Date) => {
-      const dateKey = toISODateKey(date);
-      const todos = todosByDate[dateKey];
-      const todoCount = todos?.length ?? 0;
-      const isSelected = selectedDate ? isSameDay(date, selectedDate) : false;
-      const isToday = isDateToday(date);
-
-      return (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            position: "relative",
-          }}
-        >
-          <span
-            style={{
-              fontWeight: isSelected ? 600 : isToday ? 700 : 400,
-            }}
-          >
-            {date.getDate()}
-          </span>
-          {todoCount > 0 && (
-            <span style={styles.badge} aria-hidden="true">
-              {todoCount > 99 ? "99+" : todoCount}
-            </span>
-          )}
-        </div>
-      );
-    },
-    [todosByDate, selectedDate],
-  );
+  const monthLabel = format(viewDate, "MMMM yyyy");
 
   return (
-    <div style={styles.container} aria-label="Calendar">
-      <DatePicker
-        value={selectedDate ?? null}
-        onChange={handleDateChange}
-        date={viewDate}
-        onDateChange={setViewDate}
-        size="sm"
-        renderDay={renderDay}
-        styles={calendarStyles}
-      />
+    <div style={containerStyle} aria-label="Calendar">
+      {showNavigation && (
+        <div style={headerStyle}>
+          <button
+            type="button"
+            style={navButtonStyle}
+            onClick={handlePrevMonth}
+            aria-label="Previous month"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor =
+                "var(--color-interactive-hover)";
+              e.currentTarget.style.color = "var(--color-text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "var(--color-text-tertiary)";
+            }}
+          >
+            ‹
+          </button>
+          <span style={headerLabelStyle}>{monthLabel}</span>
+          <button
+            type="button"
+            style={navButtonStyle}
+            onClick={handleNextMonth}
+            aria-label="Next month"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor =
+                "var(--color-interactive-hover)";
+              e.currentTarget.style.color = "var(--color-text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "var(--color-text-tertiary)";
+            }}
+          >
+            ›
+          </button>
+        </div>
+      )}
+
+      <div style={gridStyle} role="grid" aria-label={monthLabel}>
+        {WEEKDAYS.map((day) => (
+          <div
+            key={day}
+            style={weekdayStyle}
+            role="columnheader"
+            aria-label={day}
+          >
+            {day}
+          </div>
+        ))}
+
+        {calendarDays.map((day) => {
+          const key = toISODateKey(day);
+          const todoCount = todosByDate[key]?.length ?? 0;
+          const isSelected = selectedDate
+            ? isSameDay(day, selectedDate)
+            : false;
+
+          return (
+            <DayCell
+              key={key}
+              date={day}
+              isCurrentMonth={isSameMonth(day, viewDate)}
+              isSelected={isSelected}
+              isToday={isDateToday(day)}
+              todoCount={todoCount}
+              onClick={handleDateClick}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }

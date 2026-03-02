@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createWithEqualityFn } from "zustand/traditional";
 import { dispatchBlockUpdate } from "../events";
-import type { TodoFilter, TodoResult, TodoStatus } from "../types/todo";
+import type { Priority, TodoFilter, TodoResult, TodoStatus } from "../types/todo";
 import {
   SMART_VIEWS,
   STATUS_TO_PREFIX,
@@ -19,11 +19,21 @@ interface BlockWithPath {
   ancestorIds: string[];
 }
 
+interface ViewCounts {
+  today: number;
+  upcoming: number;
+  overdue: number;
+  highPriority: number;
+  all: number;
+  completed: number;
+}
+
 interface TodoState {
   isLoading: boolean;
   error: string | null;
   todos: TodoResult[];
   lastFetch: number | null;
+  viewCounts: ViewCounts;
 }
 
 interface TodoStatistics {
@@ -39,10 +49,13 @@ interface TodoActions {
   cycleTodoStatus: (blockId: string) => Promise<void>;
   removeTodoStatus: (blockId: string) => Promise<void>;
   bulkUpdateStatus: (blockIds: string[], status: TodoStatus) => Promise<void>;
+  bulkUpdatePriority: (blockIds: string[], priority: Priority) => Promise<void>;
+  bulkReschedule: (blockIds: string[], date: string) => Promise<void>;
   fetchTodos: (filter: TodoFilter) => Promise<void>;
   fetchSmartView: (viewId: string) => Promise<void>;
   fetchStatistics: () => Promise<TodoStatistics>;
   clearCache: () => void;
+  fetchViewCounts: () => Promise<void>;
   /**
    * Create a new TODO in today's daily note with scheduled date set to today.
    * Automatically creates the daily note if it doesn't exist.
@@ -57,6 +70,14 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
   error: null,
   todos: [],
   lastFetch: null,
+  viewCounts: {
+    today: 0,
+    upcoming: 0,
+    overdue: 0,
+    highPriority: 0,
+    all: 0,
+    completed: 0,
+  },
 
   setTodoStatus: async (blockId: string, status: TodoStatus) => {
     try {
@@ -101,7 +122,7 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
       dispatchBlockUpdate([updatedBlock]);
       set({ isLoading: false });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : String(error);
       console.error("[todoStore] setTodoStatus error:", message);
       set({ isLoading: false, error: message });
     }
@@ -155,7 +176,7 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
       set({ isLoading: false });
     } catch (error) {
       console.error("[todoStore] cycleTodoStatus error:", error);
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : String(error);
       set({ isLoading: false, error: message });
     }
   },
@@ -197,7 +218,7 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
 
       set({ isLoading: false });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : String(error);
       console.error("[todoStore] removeTodoStatus error:", message);
       set({ isLoading: false, error: message });
     }
@@ -248,8 +269,60 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
 
       set({ isLoading: false });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : String(error);
       console.error("[todoStore] bulkUpdateStatus error:", message);
+      set({ isLoading: false, error: message });
+    }
+  },
+
+  bulkUpdatePriority: async (blockIds: string[], priority: Priority) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        throw new Error("No workspace selected");
+      }
+
+      for (const blockId of blockIds) {
+        await invoke("update_block", {
+          workspacePath,
+          request: {
+            id: blockId,
+            metadata: { priority },
+          },
+        });
+      }
+      set({ isLoading: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[todoStore] bulkUpdatePriority error:", message);
+      set({ isLoading: false, error: message });
+    }
+  },
+
+  bulkReschedule: async (blockIds: string[], date: string) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const workspacePath = useWorkspaceStore.getState().workspacePath;
+      if (!workspacePath) {
+        throw new Error("No workspace selected");
+      }
+
+      for (const blockId of blockIds) {
+        await invoke("update_block", {
+          workspacePath,
+          request: {
+            id: blockId,
+            metadata: { scheduled: date },
+          },
+        });
+      }
+      set({ isLoading: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[todoStore] bulkReschedule error:", message);
       set({ isLoading: false, error: message });
     }
   },
@@ -270,7 +343,7 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
 
       set({ todos, lastFetch: Date.now(), isLoading: false });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : String(error);
       console.error("[todoStore] fetchTodos error:", message);
       set({ isLoading: false, error: message });
     }
@@ -296,6 +369,45 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
     }
 
     await get().fetchTodos(filter);
+  },
+
+  fetchViewCounts: async () => {
+    const workspacePath = useWorkspaceStore.getState().workspacePath;
+    if (!workspacePath) return;
+
+    const today = new Date().toISOString().split("T")[0];
+
+    try {
+      const [todayRes, upcomingRes, overdueRes, highPriorityRes, allRes, completedRes] =
+        await Promise.all(
+          SMART_VIEWS.map((sv) => {
+            const filter = { ...sv.filter };
+            if (sv.id === "today") {
+              filter.scheduledFrom = today;
+              filter.scheduledTo = today;
+            } else if (sv.id === "upcoming") {
+              filter.scheduledFrom = today;
+            }
+            return invoke<TodoResult[]>("query_todos", {
+              workspacePath,
+              filter,
+            });
+          }),
+        );
+
+      set({
+        viewCounts: {
+          today: todayRes.length,
+          upcoming: upcomingRes.length,
+          overdue: overdueRes.length,
+          highPriority: highPriorityRes.length,
+          all: allRes.length,
+          completed: completedRes.length,
+        },
+      });
+    } catch (error) {
+      console.error("[todoStore] fetchViewCounts error:", error);
+    }
   },
 
   fetchStatistics: async (): Promise<TodoStatistics> => {
@@ -348,8 +460,8 @@ export const useTodoStore = createWithEqualityFn<TodoStore>()((set, get) => ({
     }
   },
 
-clearCache: () => {
-    set({ todos: [], lastFetch: null });
+  clearCache: () => {
+    set({ todos: [], lastFetch: null, viewCounts: { today: 0, upcoming: 0, overdue: 0, highPriority: 0, all: 0, completed: 0 } });
   },
 
   createTodo: async (content: string): Promise<TodoResult | null> => {
@@ -390,10 +502,10 @@ clearCache: () => {
         scheduled: todayStr,
       };
 
-      await invoke("set_block_metadata", {
+      await invoke("update_block", {
         workspacePath,
         request: {
-          block_id: newBlock.id,
+          id: newBlock.id,
           metadata,
         },
       });
@@ -414,7 +526,7 @@ clearCache: () => {
       set({ isLoading: false });
       return todoResult;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : String(error);
       console.error("[todoStore] createTodo error:", message);
       set({ isLoading: false, error: message });
       return null;
