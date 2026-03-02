@@ -22,6 +22,7 @@ type TodosByDate = Record<string, TodoResult[]>;
 interface CalendarGridProps {
   selectedDate?: Date;
   onDateSelect?: (date: Date) => void;
+  onDateDoubleClick?: (date: Date) => void;
   todosByDate?: TodosByDate;
   showNavigation?: boolean;
   defaultMonth?: Date;
@@ -155,6 +156,7 @@ function DayCell({
   isToday,
   todoCount,
   onClick,
+  onDoubleClick,
   language = "en",
 }: {
   date: Date;
@@ -163,9 +165,11 @@ function DayCell({
   isToday: boolean;
   todoCount: number;
   onClick: (date: Date) => void;
+  onDoubleClick?: (date: Date) => void;
   language?: string;
 }) {
   const handleClick = useCallback(() => onClick(date), [onClick, date]);
+  const handleDoubleClick = useCallback(() => onDoubleClick?.(date), [onDoubleClick, date]);
 
   const style: CSSProperties = {
     ...dayCellBase,
@@ -189,6 +193,7 @@ function DayCell({
       type="button"
       style={style}
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       aria-label={format(date, "EEEE, MMMM d, yyyy", { locale: language === "ko" ? ko : enUS })}
       aria-pressed={isSelected}
       aria-current={isToday ? "date" : undefined}
@@ -228,6 +233,7 @@ function getWeekdayNames(language: string) {
 export function CalendarGrid({
   selectedDate,
   onDateSelect,
+  onDateDoubleClick,
   todosByDate = {},
   showNavigation = true,
   defaultMonth,
@@ -248,6 +254,10 @@ export function CalendarGrid({
   const handleDateClick = useCallback(
     (date: Date) => onDateSelect?.(date),
     [onDateSelect],
+  );
+  const handleDateDoubleClick = useCallback(
+    (date: Date) => onDateDoubleClick?.(date),
+    [onDateDoubleClick],
   );
 
   const calendarDays = useMemo(() => {
@@ -330,6 +340,7 @@ export function CalendarGrid({
               isToday={isDateToday(day)}
               todoCount={todoCount}
               onClick={handleDateClick}
+              onDoubleClick={handleDateDoubleClick}
               language={i18n.language}
             />
           );
