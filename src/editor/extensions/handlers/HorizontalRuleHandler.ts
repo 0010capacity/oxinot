@@ -6,48 +6,22 @@
  * - *** (three or more asterisks)
  * - ___ (three or more underscores)
  *
- * - Renders a visual horizontal line
- * - Hides the markdown syntax in preview mode
- * - Shows dimmed syntax in edit mode
+ * Rendering strategy (no widget — uses Decoration.line + CSS ::after):
+ * - Adds a line-level class to the .cm-line element
+ * - Hides the markdown syntax text
+ * - Draws the visual line via CSS ::after pseudo-element
+ * - This avoids widget-in-cm-line margin/padding mismatch issues
+ * - Shows dimmed syntax when cursor is on the line in edit mode
  */
 
-import { WidgetType } from "@codemirror/view";
+import { Decoration } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import type { DecorationSpec } from "../utils/decorationHelpers";
-import { createHiddenMarker, createWidget } from "../utils/decorationHelpers";
+import { createHiddenMarker } from "../utils/decorationHelpers";
 import { BaseHandler, type RenderContext } from "./types";
 
-// Horizontal rule widget
-class HorizontalRuleWidget extends WidgetType {
-  toDOM(): HTMLElement {
-    const container = document.createElement("div");
-    container.className = "cm-horizontal-rule";
-    container.setAttribute("contenteditable", "false");
-    container.style.display = "flex";
-    container.style.alignItems = "center";
-    container.style.margin = "var(--spacing-md) 0";
-    container.style.minHeight = "24px";
-    container.style.userSelect = "none";
-    container.style.pointerEvents = "none";
-
-    const line = document.createElement("div");
-    line.style.flex = "1";
-    line.style.height = "1px";
-    line.style.backgroundColor = "var(--color-border-primary)";
-    line.style.borderRadius = "var(--radius-sm)";
-
-    container.appendChild(line);
-    return container;
-  }
-
-  ignoreEvent(): boolean {
-    return false;
-  }
-
-  eq(): boolean {
-    return true;
-  }
-}
+// Pre-built line decoration (reusable, immutable)
+const hrLineDecoration = Decoration.line({ class: "cm-hr-line" });
 
 export class HorizontalRuleHandler extends BaseHandler {
   constructor() {
@@ -71,15 +45,25 @@ export class HorizontalRuleHandler extends BaseHandler {
       return decorations;
     }
 
-    // Hide the markdown syntax in preview mode, show dimmed in edit mode
-    decorations.push(
-      createHiddenMarker(line.from, line.to, context.isEditMode),
-    );
+    // Check if cursor is on this line (in edit mode, show dimmed syntax)
+    const isOnCursorLine =
+      context.cursor.pos >= line.from && context.cursor.pos <= line.to;
 
-    // Add the horizontal rule widget
-    decorations.push(
-      createWidget(line.from, new HorizontalRuleWidget(), 0),
-    );
+    if (context.isEditMode && isOnCursorLine) {
+      // Edit mode with cursor on line: show dimmed syntax
+      decorations.push(createHiddenMarker(line.from, line.to, true));
+    } else {
+      // Preview mode or cursor not on line:
+      // 1. Add line decoration to style the .cm-line element itself
+      decorations.push({
+        from: line.from,
+        to: line.from,
+        decoration: hrLineDecoration,
+      });
+
+      // 2. Hide the markdown syntax text (---, ***, ___)
+      decorations.push(createHiddenMarker(line.from, line.to, false));
+    }
 
     return decorations;
   }

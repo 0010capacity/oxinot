@@ -518,9 +518,9 @@ function buildDecorations(view: EditorView): DecorationSet {
   // Build decoration set using RangeSetBuilder
   const builder = new RangeSetBuilder<Decoration>();
   for (const spec of sortedDecorations) {
-    // Allow from === to for widgets (point decorations), but skip for marks
-    const isWidget = spec.decoration.spec?.widget !== undefined;
-    if (!isWidget && spec.from >= spec.to) continue;
+    // Skip invalid decorations where from > to
+    // Allow from === to for point decorations (widgets, line decorations)
+    if (spec.from > spec.to) continue;
 
     try {
       builder.add(spec.from, spec.to, spec.decoration);
@@ -928,6 +928,23 @@ export const hybridRenderingTheme = EditorView.theme({
     padding: "0.5em",
     display: "block",
     borderRadius: "4px",
+  },
+
+  // Horizontal rule — rendered via Decoration.line() + CSS ::after
+  // The text is hidden; the line itself draws the rule via pseudo-element.
+  // Margin values must match static <hr> in block-styles.css (margin: 4px 0).
+  ".cm-hr-line": {
+    position: "relative",
+    lineHeight: "0 !important",
+    padding: "4px 0 !important",
+  },
+  ".cm-hr-line::after": {
+    content: "''",
+    display: "block",
+    width: "100%",
+    height: "1px",
+    backgroundColor: "var(--color-border-primary)",
+    borderRadius: "var(--radius-sm)",
   },
 
   // Line height
