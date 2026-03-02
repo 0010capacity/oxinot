@@ -30,6 +30,8 @@ export function LanguageSettings({
                 const newLang = value || "en";
                 setLanguage(newLang);
                 i18n.changeLanguage(newLang);
+                // Explicitly save to localStorage so LanguageDetector picks it up
+                localStorage.setItem("i18nextLng", newLang);
               }}
               data={[
                 { label: "English", value: "en" },

@@ -17,6 +17,8 @@ interface NavigationState {
   breadcrumb: string[];
   pagePathIds: string[];
   zoomByPageId: Record<string, string[]>;
+  // Writing mode: Enter creates newline instead of new block
+  writingMode: boolean;
 }
 
 interface ViewState extends NavigationState {
@@ -36,6 +38,7 @@ interface ViewState extends NavigationState {
   zoomOutToNote: () => void;
   goBack: () => void;
   setWorkspaceName: (name: string) => void;
+  toggleWritingMode: () => void;
   reset: () => void;
 }
 
@@ -48,6 +51,7 @@ const initialState: NavigationState = {
   breadcrumb: [],
   pagePathIds: [],
   zoomByPageId: {},
+  writingMode: false,
 };
 
 export const useViewStore = createWithEqualityFn<ViewState>()(
@@ -205,6 +209,12 @@ export const useViewStore = createWithEqualityFn<ViewState>()(
         if (state.mode === "index") {
           state.breadcrumb = [name];
         }
+      });
+    },
+
+    toggleWritingMode: () => {
+      set((state) => {
+        state.writingMode = !state.writingMode;
       });
     },
 

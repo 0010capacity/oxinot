@@ -8,6 +8,7 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
+import { getHighlightStyle } from "../theme/styles";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
@@ -16,10 +17,6 @@ import {
 import { BaseHandler, type RenderContext } from "./types";
 
 export class HighlightHandler extends BaseHandler {
-  constructor() {
-    super("HighlightHandler");
-  }
-
   canHandle(_node: SyntaxNode): boolean {
     // Highlights are not in standard markdown, process line-by-line
     return false;
@@ -57,17 +54,11 @@ export class HighlightHandler extends BaseHandler {
       decorations.push(
         createStyledText(contentStart, contentEnd, {
           className: "cm-highlight",
-          style: `
-            background: linear-gradient(to bottom, rgba(255, 235, 59, 0.3), rgba(255, 235, 59, 0.4));
-            padding: 0.1em 0.2em;
-            border-radius: 2px;
-            font-weight: 500;
-          `,
+          style: getHighlightStyle(),
         }),
       );
 
       // Hide closing ==
-      decorations.push(createHiddenMarker(contentEnd, end, isEditMode));
       match = highlightRegex.exec(lineText);
     }
 

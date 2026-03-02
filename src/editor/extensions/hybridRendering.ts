@@ -36,7 +36,6 @@
  */
 
 import { syntaxTree } from "@codemirror/language";
-import type { Tree } from "@lezer/common";
 import { Compartment, Facet, RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
@@ -45,12 +44,14 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
+import type { Tree } from "@lezer/common";
 
 import { BlockquoteHandler } from "./handlers/BlockquoteHandler";
 import { CodeBlockHandler } from "./handlers/CodeBlockHandler";
 import { EmphasisHandler } from "./handlers/EmphasisHandler";
 // Import standard markdown handlers
 import { HeadingHandler } from "./handlers/HeadingHandler";
+import { HorizontalRuleHandler } from "./handlers/HorizontalRuleHandler";
 import { InlineCodeHandler } from "./handlers/InlineCodeHandler";
 import { LinkHandler } from "./handlers/LinkHandler";
 import { SetextHeadingHandler } from "./handlers/SetextHeadingHandler";
@@ -62,6 +63,7 @@ import { CalloutHandler } from "./handlers/CalloutHandler";
 import { CommentHandler } from "./handlers/CommentHandler";
 import { HighlightHandler } from "./handlers/HighlightHandler";
 import { TagHandler } from "./handlers/TagHandler";
+import { TodoPrefixHandler } from "./handlers/TodoPrefixHandler";
 // Import Obsidian-specific handlers
 import { WikiLinkHandler } from "./handlers/WikiLinkHandler";
 
@@ -99,7 +101,10 @@ function createHandlerRegistry(): HandlerRegistry {
 
   // Register all handlers
   // Order matters - handlers are checked in registration order
+  // Register all handlers
+  // Order matters - handlers are checked in registration order
   registry.registerAll([
+    new HorizontalRuleHandler(), // Horizontal rules (---)
     new TaskListHandler(), // Check task lists before generic list items
     new HeadingHandler(), // ATX Headings (# ## ###)
     new SetextHeadingHandler(), // Setext Headings (underlined with === or ---)
@@ -109,7 +114,7 @@ function createHandlerRegistry(): HandlerRegistry {
     new CodeBlockHandler(), // Code blocks
     new LinkHandler(), // Links
     new BlockquoteHandler(), // Blockquotes
-  ]);
+  ])
 
   return registry;
 }
@@ -241,9 +246,6 @@ function buildDecorations(view: EditorView): DecorationSet {
 
   // Process line-by-line patterns (not represented in syntax tree)
   // These include both BLOCK-LEVEL and INLINE patterns:
-  // - Block-level: embed pages (![[...]]), embed blocks (!((...))), callouts
-  // - Inline: wiki links ([[...]]), block links (((...)))
-  // Block-level elements are only rendered when alone on their line.
   for (const lr of visibleLineRanges) {
     for (let lineNum = lr.fromLine; lineNum <= lr.toLine; lineNum++) {
       const line = state.doc.line(lineNum);
@@ -268,6 +270,10 @@ function buildDecorations(view: EditorView): DecorationSet {
       );
       decorations.push(
         ...CommentHandler.processLine(lineText, line.from, isEditMode),
+      );
+
+      decorations.push(
+        ...TodoPrefixHandler.processLine(lineText, line.from, isEditMode),
       );
 
       // Block-level callouts (but enforced in CalloutHandler)

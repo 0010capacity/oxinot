@@ -118,6 +118,18 @@
   }
 }
 
+[data-mantine-color-scheme="dark"] .block-bullet {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+[data-mantine-color-scheme="dark"] .block-bullet.active {
+  background-color: rgba(255, 255, 255, 1);
+}
+
+[data-mantine-color-scheme="dark"] .block-bullet-container:hover .block-bullet {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
 /* Light mode explicit styles */
 @media (prefers-color-scheme: light) {
   .block-bullet {
@@ -131,6 +143,18 @@
   .block-bullet-container:hover .block-bullet {
     background-color: rgba(0, 0, 0, 0.55);
   }
+}
+
+[data-mantine-color-scheme="light"] .block-bullet {
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+[data-mantine-color-scheme="light"] .block-bullet.active {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+[data-mantine-color-scheme="light"] .block-bullet-container:hover .block-bullet {
+  background-color: rgba(0, 0, 0, 0.55);
 }
 
 /* Fence blocks */
@@ -281,4 +305,38 @@
   padding: 60px 20px;
   color: var(--color-text-tertiary);
   opacity: var(--opacity-dimmed);
+}
+
+/* Subpages divider */
+.subpages-divider {
+  margin: 24px 0;
+  padding: 0;
+}
+
+.subpages-divider-line {
+  height: 1px;
+  background-color: var(--color-border-primary);
+  margin: 0 -8px;
+}
+
+/* Writing mode button - appears on hover or when active */
+
+/* Writing mode: focused block highlight */
+.writing-mode-focused {
+  background-color: rgba(128, 128, 128, 0.08) !important;
+  box-shadow: inset 0 0 0 2px rgba(128, 128, 128, 0.25) !important;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+/* Multi-line block rendering helpers */
+.multiline-blank {
+  line-height: var(--editor-line-height);
+}
+.multiline-blank {
+  height: 0.6em;
+}
+
+.multiline-text {
+  line-height: inherit;
 }

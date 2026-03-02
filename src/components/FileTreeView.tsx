@@ -1,27 +1,37 @@
+import { Button, Group, Modal, Stack, Text } from "@mantine/core";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { type FileSystemItem, tauriAPI } from "../tauri-api";
+import { BulletPoint } from "./common/BulletPoint";
+import { CollapseToggle } from "./common/CollapseToggle";
 import { ContextMenu, type ContextMenuSection } from "./common/ContextMenu";
+import { ContentWrapper } from "./layout/ContentWrapper";
+import { PageContainer } from "./layout/PageContainer";
+import { PageHeader } from "./layout/PageHeader";
 
 interface FileTreeNodeProps {
   item: FileSystemItem;
   level: number;
   onFileClick: (path: string) => void;
+  onRequestDelete: (item: FileSystemItem) => void;
 }
+
+const INDENT_SIZE = 24;
 
 const FileTreeNode: React.FC<FileTreeNodeProps> = ({
   item,
   level,
   onFileClick,
+  onRequestDelete,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [children, setChildren] = useState<FileSystemItem[]>([]);
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const { deleteItem, renameItem } = useWorkspaceStore();
+  const { renameItem } = useWorkspaceStore();
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -34,28 +44,16 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
   const handleToggle = async () => {
     if (item.is_directory) {
       if (!isExpanded) {
-        // Load children when expanding
         try {
           const items = await tauriAPI.readDirectory(item.path);
           setChildren(items);
         } catch (error) {
-          console.error("Error loading children:", error);
+          console.error("[FileTreeView] Error loading children:", error);
         }
       }
       setIsExpanded(!isExpanded);
     } else if (item.is_file && item.name.endsWith(".md")) {
       onFileClick(item.path);
-    }
-  };
-
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirm(`Are you sure you want to delete ${item.name}?`)) {
-      try {
-        await deleteItem(item.path);
-      } catch (error) {
-        console.error("Error deleting item:", error);
-      }
     }
   };
 
@@ -78,7 +76,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
       await renameItem(item.path, finalName);
       setIsRenaming(false);
     } catch (error) {
-      console.error("Error renaming item:", error);
+      console.error("[FileTreeView] Error renaming item:", error);
       setIsRenaming(false);
     }
   };
@@ -105,20 +103,20 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
           onClick: handleRename,
         },
         {
-          label: t("common.context_menu.delete"),
-          color: "red",
-          onClick: () => {
-            if (confirm(`Are you sure you want to delete ${item.name}?`)) {
-              deleteItem(item.path).catch((error) => {
-                console.error("Error deleting item:", error);
-              });
-            }
-          },
-        },
-        {
           label: t("common.context_menu.copy_path"),
           onClick: () => {
             navigator.clipboard.writeText(item.path);
+          },
+        },
+      ],
+    },
+    {
+      items: [
+        {
+          label: t("common.context_menu.delete"),
+          color: "red",
+          onClick: () => {
+            onRequestDelete(item);
           },
         },
       ],
@@ -133,46 +131,68 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
   }
 
   return (
-    <div className="group/node relative">
-      <ContextMenu sections={contextMenuSections} className="w-full h-full">
-        {/* Wrapper div for ContextMenu trigger area - contains arrow and main row */}
-        <div className="relative">
-          {item.is_directory && (
-            <button
-              type="button"
-              className="absolute -left-6 top-1.5 p-0.5 opacity-0 group-hover/node:opacity-100 transition-opacity cursor-pointer text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 select-none z-10 border-0 bg-transparent"
-              title={isExpanded ? "Collapse" : "Expand"}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggle();
-              }}
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                {isExpanded ? "arrow_drop_down" : "arrow_right"}
-              </span>
-            </button>
-          )}
-
+    <div style={{ position: "relative" }}>
+      <ContextMenu sections={contextMenuSections}>
+        <div style={{ position: "relative" }}>
           <button
             type="button"
-            className={`flex items-start gap-2 py-1 -ml-2 pl-2 rounded-md hover:bg-surface-light dark:hover:bg-white/5 transition-colors pr-2 cursor-pointer w-full text-left ${
-              item.is_directory ? "" : ""
-            }`}
             onClick={(e) => {
               e.stopPropagation();
               handleToggle();
             }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--spacing-sm)",
+              paddingTop: "2px",
+              paddingBottom: "2px",
+              paddingLeft: `${level * INDENT_SIZE}px`,
+              paddingRight: "var(--spacing-sm)",
+              borderRadius: "var(--radius-sm)",
+              transition: "background-color var(--transition-normal)",
+              cursor: "pointer",
+              width: "100%",
+              textAlign: "left",
+              border: "none",
+              background: "none",
+              userSelect: "none",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor =
+                "var(--color-interactive-hover)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
           >
-            <div className="relative flex items-center justify-center h-6 w-6 shrink-0 cursor-pointer mt-0.5 group/bullet">
-              {item.is_directory ? (
-                <span className="material-symbols-outlined text-[18px] text-gray-500 dark:text-gray-400">
-                  folder
-                </span>
-              ) : (
-                <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-600 group-hover/bullet:bg-gray-600 dark:group-hover/bullet:bg-gray-400 transition-colors" />
-              )}
-            </div>
+            {/* Collapse/Expand Toggle */}
+            {item.is_directory ? (
+              <CollapseToggle
+                isCollapsed={!isExpanded}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggle();
+                }}
+                style={{
+                  opacity: isExpanded
+                    ? "var(--opacity-dimmed)"
+                    : "var(--opacity-disabled)",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  flexShrink: 0,
+                  width: "var(--layout-collapse-toggle-size)",
+                  height: "var(--layout-collapse-toggle-size)",
+                }}
+              />
+            )}
 
+            {/* Bullet Point */}
+            <BulletPoint type="default" />
+
+            {/* Name or Rename Input */}
             {isRenaming ? (
               <input
                 ref={renameInputRef}
@@ -181,41 +201,55 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={handleRenameKeyDown}
                 onBlur={handleRenameSubmit}
-                className="flex-1 min-w-0 px-2 py-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded outline-none focus:border-blue-500 dark:focus:border-blue-400 text-gray-800 dark:text-gray-200"
                 onClick={(e) => e.stopPropagation()}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  padding: "2px 8px",
+                  backgroundColor: "var(--color-interactive-hover)",
+                  border: "1px solid var(--color-border-primary)",
+                  borderRadius: "var(--radius-sm)",
+                  outline: "none",
+                  color: "var(--color-text-primary)",
+                  fontSize: "var(--font-size-sm)",
+                  lineHeight: "24px",
+                }}
               />
             ) : (
-              <>
-                <div className="flex-1 min-w-0 break-words outline-none text-gray-800 dark:text-gray-200">
-                  {item.name.replace(".md", "")}
-                </div>
-
-                <div className="flex items-center gap-1 opacity-0 group-hover/node:opacity-100 transition-opacity">
-                  <button
-                    type="button"
-                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 hover:text-red-500 transition-colors"
-                    title="Delete"
-                    onClick={handleDelete}
-                  >
-                    <span className="material-symbols-outlined text-[16px]">
-                      delete
-                    </span>
-                  </button>
-                </div>
-              </>
+              <div
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  color: "var(--color-text-primary)",
+                  fontSize: "var(--font-size-sm)",
+                  lineHeight: "24px",
+                  fontWeight: item.is_directory ? 500 : 400,
+                }}
+              >
+                {item.name.replace(".md", "")}
+              </div>
             )}
           </button>
         </div>
       </ContextMenu>
 
       {item.is_directory && isExpanded && children.length > 0 && (
-        <div className="pl-6 ml-[11px] border-l border-gray-100 dark:border-white/5 flex flex-col mt-0.5">
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           {children.map((child) => (
             <FileTreeNode
               key={child.path}
               item={child}
               level={level + 1}
               onFileClick={onFileClick}
+              onRequestDelete={onRequestDelete}
             />
           ))}
         </div>
@@ -227,6 +261,11 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
 export const FileTreeView: React.FC = () => {
   const { workspacePath, fileTree, openFile, currentPath } =
     useWorkspaceStore();
+  const { deleteItem } = useWorkspaceStore();
+  const { t } = useTranslation();
+
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<FileSystemItem | null>(null);
 
   if (!workspacePath) {
     return null;
@@ -235,42 +274,85 @@ export const FileTreeView: React.FC = () => {
   const pathParts = currentPath?.split("/") || [];
   const currentFolder = pathParts[pathParts.length - 1] || "Workspace";
 
+  const handleRequestDelete = (item: FileSystemItem) => {
+    setItemToDelete(item);
+    setDeleteModalOpened(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+
+    try {
+      await deleteItem(itemToDelete.path);
+      setDeleteModalOpened(false);
+      setItemToDelete(null);
+    } catch (error) {
+      console.error("[FileTreeView] Failed to delete item:", error);
+      alert(`Failed to delete: ${error}`);
+    }
+  };
+
   return (
-    <div className="flex-1 flex flex-col items-center overflow-y-auto no-scrollbar pt-16 pb-32 px-4 sm:px-8">
-      <div className="w-full max-w-3xl flex flex-col">
-        <header className="mb-10 group">
-          <div className="flex items-center gap-2 text-xs font-medium text-gray-400 mb-4 select-none">
-            <span className="hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer transition-colors">
-              Workspace
-            </span>
-            <span className="material-symbols-outlined text-[10px]">
-              chevron_right
-            </span>
-            <span className="text-gray-600 dark:text-gray-400">
-              {currentFolder}
-            </span>
+    <PageContainer>
+      <ContentWrapper>
+        <PageHeader title={currentFolder} />
+
+        <Stack gap={0}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              fontSize: "var(--font-size-sm)",
+              lineHeight: "var(--line-height-normal)",
+            }}
+          >
+            {fileTree.map((item) => (
+              <FileTreeNode
+                key={item.path}
+                item={item}
+                level={0}
+                onFileClick={openFile}
+                onRequestDelete={handleRequestDelete}
+              />
+            ))}
           </div>
+        </Stack>
+      </ContentWrapper>
 
-          <h1 className="text-5xl font-bold tracking-tight text-gray-900 dark:text-white mb-2 outline-none">
-            {currentFolder}
-          </h1>
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={deleteModalOpened}
+        onClose={() => {
+          setDeleteModalOpened(false);
+          setItemToDelete(null);
+        }}
+        title={t("common.delete_page")}
+        centered
+        size="sm"
+      >
+        <Stack gap="lg">
+          <Text size="sm">
+            {t("common.delete_page_question", {
+              title: itemToDelete?.name.replace(".md", "") || "",
+            })}
+          </Text>
 
-          <div className="text-sm text-gray-400 dark:text-gray-600 pl-1">
-            File tree view
-          </div>
-        </header>
-
-        <div className="flex flex-col w-full text-[15px] leading-6">
-          {fileTree.map((item) => (
-            <FileTreeNode
-              key={item.path}
-              item={item}
-              level={0}
-              onFileClick={openFile}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              onClick={() => {
+                setDeleteModalOpened(false);
+                setItemToDelete(null);
+              }}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button color="red" onClick={confirmDelete}>
+              {t("common.delete")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </PageContainer>
   );
 };

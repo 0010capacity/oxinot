@@ -46,7 +46,9 @@ describe("parseMarkdownToBlocks", () => {
     expect(result[0].content).toBe("Level 0");
     expect(result[0].children[0].content).toBe("Level 1");
     expect(result[0].children[0].children[0].content).toBe("Level 2");
-    expect(result[0].children[0].children[0].children[0].content).toBe("Level 3");
+    expect(result[0].children[0].children[0].children[0].content).toBe(
+      "Level 3",
+    );
   });
 
   it("should handle Korean text", () => {
@@ -63,7 +65,9 @@ describe("parseMarkdownToBlocks", () => {
     expect(result[1].content).toBe("블록은 중첩될 수 있습니다");
     expect(result[1].children).toHaveLength(1);
     expect(result[1].children[0].content).toBe("이것은 중첩된 블록");
-    expect(result[1].children[0].children[0].content).toBe("이것은 더 깊은 중첩");
+    expect(result[1].children[0].children[0].content).toBe(
+      "이것은 더 깊은 중첩",
+    );
     expect(result[2].content).toBe("무한한 확장 가능성");
   });
 
@@ -125,11 +129,17 @@ describe("parseMarkdownToBlocks", () => {
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("Level 0");
     expect(result[0].indent).toBe(0);
-    expect(result[0].children[0].content).toBe("Level 1 (1 space, should become 2)");
+    expect(result[0].children[0].content).toBe(
+      "Level 1 (1 space, should become 2)",
+    );
     expect(result[0].children[0].indent).toBe(1);
-    expect(result[0].children[0].children[0].content).toBe("Level 2 (3 spaces, should become 4)");
+    expect(result[0].children[0].children[0].content).toBe(
+      "Level 2 (3 spaces, should become 4)",
+    );
     expect(result[0].children[0].children[0].indent).toBe(2);
-    expect(result[0].children[0].children[0].children[0].content).toBe("Level 3 (5 spaces, should become 6)");
+    expect(result[0].children[0].children[0].children[0].content).toBe(
+      "Level 3 (5 spaces, should become 6)",
+    );
     expect(result[0].children[0].children[0].children[0].indent).toBe(3);
   });
 

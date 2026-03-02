@@ -186,7 +186,8 @@ function AppContent({ workspacePath }: AppContentProps) {
   const pageIds = usePageStore((state) => state.pageIds);
   const viewMode = useViewMode();
   const breadcrumb = useBreadcrumb();
-  const { showIndex, setWorkspaceName, showPage } = useViewStore();
+  const { showIndex, setWorkspaceName, showPage, toggleWritingMode } =
+    useViewStore();
 
   const fontFamily = useThemeStore((state) => state.fontFamily);
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
@@ -256,6 +257,7 @@ function AppContent({ workspacePath }: AppContentProps) {
         document.querySelector<HTMLElement>(".copilot-input")?.focus();
       }
     },
+    onWritingMode: () => toggleWritingMode(),
   });
 
   // Listen for block updates from Copilot tools
@@ -347,7 +349,6 @@ function AppContent({ workspacePath }: AppContentProps) {
               setSearchOpened(false);
               setCommandPaletteOpened(true);
             }}
-            onGraphViewClick={() => setGraphViewOpened(true)}
           />
 
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -488,6 +489,7 @@ function AppContent({ workspacePath }: AppContentProps) {
       <Suspense fallback={null}>
         <Updater />
       </Suspense>
+
       <Notifications />
       <ErrorNotifications />
       <SnowEffect />

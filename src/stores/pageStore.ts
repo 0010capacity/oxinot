@@ -40,6 +40,7 @@ interface PageActions {
   createPage: (title: string, parentId?: string) => Promise<string>;
   updatePageTitle: (id: string, title: string) => Promise<void>;
   deletePage: (id: string) => Promise<void>;
+  deletePageRecursive: (id: string) => Promise<number>; // Returns count of deleted pages
   movePage: (id: string, newParentId: string | null) => Promise<void>;
   convertToDirectory: (id: string) => Promise<void>;
 
@@ -216,6 +217,39 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         throw error;
       }
     },
+    deletePageRecursive: async (id: string) => {
+      const pagesById = get().pagesById;
+
+      // Find all descendants (children, grandchildren, etc.)
+      const findAllDescendants = (parentId: string): string[] => {
+        const children = Object.values(pagesById)
+          .filter((p) => p.parentId === parentId)
+          .map((p) => p.id);
+        const descendants = [...children];
+        for (const childId of children) {
+          descendants.push(...findAllDescendants(childId));
+        }
+        return descendants;
+      };
+
+      const descendantIds = findAllDescendants(id);
+      const allIdsToDelete = [...descendantIds, id];
+
+      // Delete from deepest to shallowest (children before parents)
+      // This ensures backend can delete files before directories
+      let deletedCount = 0;
+      for (const pageId of allIdsToDelete.reverse()) {
+        try {
+          await get().deletePage(pageId);
+          deletedCount++;
+        } catch (error) {
+          console.error(`[pageStore.deletePageRecursive] Failed to delete ${pageId}:`, error);
+          throw error;
+        }
+      }
+
+      return deletedCount;
+    },
 
     selectPage: (id: string) => {
       set((state) => {
@@ -382,6 +416,10 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
               );
             },
             async (id: string) => {
+              // Defense-in-depth: skip if already a directory to prevent
+              // cascading nested directories from repeated convertToDirectory calls
+              const pageData = get().pagesById[id];
+              if (pageData?.isDirectory) return;
               await get().convertToDirectory(id);
             },
           );

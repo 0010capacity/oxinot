@@ -3,6 +3,9 @@ import type { EditorView } from "@codemirror/view";
 import { Box, Popover, useComputedColorScheme } from "@mantine/core";
 
 import {
+  IconAdjustments,
+  IconCalendar,
+  IconClock,
   IconCopy,
   IconIndentDecrease,
   IconIndentIncrease,
@@ -45,6 +48,7 @@ import {
   useBlockType,
   useChildrenIds,
 } from "../stores/blockStore";
+import { usePageStore } from "../stores/pageStore";
 import { useTargetCursorPosition } from "../stores/blockUIStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
@@ -58,8 +62,20 @@ import { MacroContentWrapper } from "./MacroContentWrapper";
 import { editorStateCache } from "./editorStateCache";
 import { renderMarkdownToHtml } from "./markdownRenderer";
 import "./BlockComponent.css";
+import { TodoDatePicker } from "../components/todo/TodoDatePicker";
+import { TodoStatusIcon } from "../components/todo/TodoStatusIcon";
+import { STATUS_COLORS } from "../components/todo/TodoStatusIcon";
 import { INDENT_PER_LEVEL } from "../constants/layout";
 import { useIsBlockSelected } from "../hooks/useBlockSelection";
+import {
+  ALL_STATUSES,
+  STATUS_DISPLAY_NAMES,
+  extractStatusPrefix,
+  getNextStatus,
+  getTodoStatus,
+  isOverdue,
+  setStatusPrefix,
+} from "../types/todo";
 import { BlockOrderContext } from "./BlockEditor";
 import {
   calculateNextBlockCursorPosition,
@@ -90,16 +106,41 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const isAiPrompt = blockType === "ai-prompt";
     const isAiResponse = blockType === "ai-response";
+    const isSubpageHeader = blockType === "subpage-header";
     const isAiLocked = useIsBlockLocked(blockId);
+
+    // For subpage-header: get page opening functions
+    const pagesById = usePageStore((state) => state.pagesById);
+    const selectPage = usePageStore((state) => state.selectPage);
+  const openNote = useViewStore((state) => state.openNote);
+  const writingMode = useViewStore((state) => state.writingMode);
+  const loadPage = useBlockStore((state) => state.loadPage);
+
+    // Extract pageId from subpage-header block id
+    const subpageId = isSubpageHeader ? blockId.replace("subpage-header:", "") : null;
+    const subpageTitle = subpageId ? (pagesById[subpageId]?.title || subpageId) : null;
 
     const thread = useThreadByResponseBlock(blockId);
     const isStreaming = thread?.status === "streaming";
     const streamContent = thread?.streamContent ?? "";
+
+    // Optimistic display content: show draft when not focused to prevent
+    // content disappearing during async commitDraft() transition.
+    const [optimisticContent, setOptimisticContent] = useState<string>(blockContent ?? "");
+    const prevFocusedRef = useRef(isFocused);
+
+    // Sync optimistic content with blockContent when it changes externally
+    // (e.g., page reload, undo, external sync).
+    useEffect(() => {
+      setOptimisticContent(blockContent ?? "");
+    }, [blockContent]);
+
     const displayContent =
-      isStreaming && streamContent ? streamContent : (blockContent ?? "");
+      isStreaming && streamContent ? streamContent : optimisticContent;
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
     const createBlock = useBlockStore((state) => state.createBlock);
+    const duplicateBlock = useBlockStore((state) => state.duplicateBlock);
     const indentBlock = useBlockStore((state) => state.indentBlock);
     const outdentBlock = useBlockStore((state) => state.outdentBlock);
     const mergeWithPrevious = useBlockStore((state) => state.mergeWithPrevious);
@@ -131,6 +172,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const appliedPositionRef = useRef<number | null>(null);
     const popoverDropdownRef = useRef<HTMLDivElement>(null);
 
+    // skipNextOnChangeRef removed - no longer needed since we let onChange flow naturally
     const [isMetadataOpen, setIsMetadataOpen] = useState(false);
     const metadataCloseTimeoutRef = useRef<ReturnType<
       typeof setTimeout
@@ -144,6 +186,83 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [blocksToDelete, setBlocksToDelete] = useState<string[]>([]);
+    const [todoStatusMenuOpen, setTodoStatusMenuOpen] = useState(false);
+    const [showScheduledPicker, setShowScheduledPicker] = useState(false);
+    const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
+    const [showPriorityMenu, setShowPriorityMenu] = useState(false);
+
+    const scheduleCacheUpdate = useCallback(
+      (view: EditorView) => {
+        requestAnimationFrame(() => {
+          editorStateCache.set(blockId, view.state);
+        });
+      },
+      [blockId],
+    );
+
+    const toggleTodoStatus = useCallback(async () => {
+      const currentStatus = getTodoStatus(blockMetadata);
+      // Use draftRef for real-time content
+      const content = draftRef.current || blockContent || "";
+
+      let newContent: string;
+      if (currentStatus) {
+        // Remove TODO prefix
+        const extracted = extractStatusPrefix(content);
+        newContent = extracted?.rest || content;
+      } else {
+        // Add TODO prefix
+        newContent = setStatusPrefix(content, "todo");
+      }
+
+      // Update CodeMirror editor view immediately
+      const view = editorRef.current?.getView();
+      if (view) {
+        // Directly update CodeMirror - it will trigger onChange which updates draft state naturally
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: newContent },
+        });
+        // Keep editorStateCache in sync so any blur/refocus cycle won't revert the prefix
+        scheduleCacheUpdate(view);
+      } else {
+        // Fallback: no editor view, update draft directly
+        draftRef.current = newContent;
+        setDraft(newContent);
+      }
+
+      await useBlockStore.getState().updateBlockContent(blockId, newContent);
+    }, [blockId, blockMetadata, blockContent, scheduleCacheUpdate]);
+
+    const cycleTodoStatus = useCallback(async () => {
+      const currentStatus = getTodoStatus(blockMetadata);
+      if (currentStatus) {
+        const nextStatus = getNextStatus(currentStatus);
+        // Use draftRef for real-time content (may differ from store's blockContent during editing)
+        const content = draftRef.current || blockContent || "";
+        const extracted = extractStatusPrefix(content);
+        const newContent = setStatusPrefix(
+          extracted?.rest || content,
+          nextStatus,
+        );
+
+        // Update CodeMirror editor view immediately
+        const view = editorRef.current?.getView();
+        if (view) {
+          // Directly update CodeMirror - it will trigger onChange which updates draft state naturally
+          view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: newContent },
+          });
+          // Keep editorStateCache in sync so any blur/refocus cycle won't revert the prefix
+          scheduleCacheUpdate(view);
+        } else {
+          // Fallback: no editor view, update draft directly
+          draftRef.current = newContent;
+          setDraft(newContent);
+        }
+
+        await useBlockStore.getState().updateBlockContent(blockId, newContent);
+      }
+    }, [blockId, blockMetadata, blockContent, scheduleCacheUpdate]);
 
     const copyBlocksAsMarkdown = useCallback(() => {
       const currentSelectedIds = useBlockUIStore.getState().selectedBlockIds;
@@ -221,13 +340,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           : [blockId];
       const isBatchOperation = targetBlocks.length > 1;
 
-      const handleAIEdit = () => {
-        window.dispatchEvent(
-          new CustomEvent("ai-edit-blocks", {
-            detail: { blockIds: targetBlocks },
-          }),
-        );
-      };
 
       return [
         {
@@ -269,18 +381,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               icon: <IconCopy size={16} />,
               onClick: async () => {
                 for (const id of targetBlocks) {
-                  await createBlock(id);
+                  await duplicateBlock(id);
                 }
                 if (isBatchOperation) {
                   useBlockUIStore.getState().clearSelectedBlocks();
                 }
               },
             },
-            {
-              label: "AI Edit... (⌘⇧A)",
-              icon: <IconRobot size={16} />,
-              onClick: handleAIEdit,
-            },
+
             {
               label: isBatchOperation
                 ? `${t("common.delete") || "Delete"} (${targetBlocks.length})`
@@ -324,7 +432,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       blockId,
       indentBlock,
       outdentBlock,
-      createBlock,
+      duplicateBlock,
       copyBlocksAsMarkdown,
     ]);
 
@@ -591,6 +699,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // (otherwise keybindings change every keystroke and the editor view gets recreated).
     const draftRef = useRef<string>(blockContent || "");
 
+    // Bridge draft → optimistic content on blur (before paint) so
+    // StaticMarkdownRenderer shows the latest edit immediately.
+    useLayoutEffect(() => {
+      if (prevFocusedRef.current && !isFocused) {
+        setOptimisticContent(draftRef.current);
+      }
+      prevFocusedRef.current = isFocused;
+    }, [isFocused]);
+
     // Keep draft in sync when the underlying block changes (e.g., page load, external update)
     // but do not overwrite while this block is focused (editing session owns the draft),
     // UNLESS we are navigating to this block programmatically (targetCursorPosition is set),
@@ -670,6 +787,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     }, [blockId]);
 
     // Commit draft when focus is lost.
+    // Note: optimisticContent is updated via useLayoutEffect (above draftRef)
+    // before paint, so the static renderer shows correct content immediately.
     useEffect(() => {
       if (isFocused === false) {
         commitDraft();
@@ -686,13 +805,46 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         // When gaining focus: restore cached state if available
         const cachedState = editorStateCache.get(blockId);
         if (cachedState) {
-          view.setState(cachedState);
+          const cachedDoc = cachedState.doc.toString();
+          const currentDoc = view.state.doc.toString();
+          const latestDraft = draftRef.current || blockContent || "";
+
+          if (cachedDoc === currentDoc) {
+            if (!cachedState.selection.eq(view.state.selection)) {
+              view.dispatch({ selection: cachedState.selection });
+            }
+            return;
+          }
+
+          if (cachedDoc === latestDraft) {
+            view.dispatch({
+              changes: {
+                from: 0,
+                to: view.state.doc.length,
+                insert: cachedDoc,
+              },
+              selection: cachedState.selection,
+            });
+            scheduleCacheUpdate(view);
+            return;
+          }
+
+          if (currentDoc !== latestDraft) {
+            view.dispatch({
+              changes: {
+                from: 0,
+                to: view.state.doc.length,
+                insert: latestDraft,
+              },
+            });
+            scheduleCacheUpdate(view);
+          }
         }
       } else {
         // When losing focus: save current editor state
-        editorStateCache.set(blockId, view.state);
+        scheduleCacheUpdate(view);
       }
-    }, [isFocused, blockId]);
+    }, [isFocused, blockId, blockContent, scheduleCacheUpdate]);
 
     // Focus editor when this block becomes focused
     useEffect(() => {
@@ -1017,6 +1169,132 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       [blockId, hasChildren, setFocusedBlock],
     );
 
+    // Handle clicking on subpage-header to open the page
+    const handleSubpageHeaderClick = useCallback(
+      async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!subpageId) return;
+
+        const page = pagesById[subpageId];
+        if (!page) return;
+
+        const parentNames: string[] = [];
+        const pagePathIds: string[] = [];
+
+        const buildParentPath = (pid: string) => {
+          const p = pagesById[pid];
+          if (!p) return;
+          if (p.parentId) {
+            buildParentPath(p.parentId);
+          }
+          parentNames.push(p.title);
+          pagePathIds.push(p.id);
+        };
+
+        if (page.parentId) {
+          buildParentPath(page.parentId);
+        }
+
+        selectPage(page.id);
+        openNote(page.id, page.title, parentNames, pagePathIds);
+
+        try {
+          await loadPage(page.id);
+        } catch (error) {
+          console.error("[BlockComponent] Failed to load page:", error);
+        }
+      },
+      [subpageId, pagesById, selectPage, openNote, loadPage],
+    );
+    const todoStatus =
+      extractStatusPrefix(draft || blockContent || "")?.status ||
+      getTodoStatus(blockMetadata);
+
+    const handleTodoStatusClick = useCallback(async () => {
+      await cycleTodoStatus();
+      setTodoStatusMenuOpen(true);
+    }, [cycleTodoStatus]);
+
+    const handleTodoContextMenu = useCallback((e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setTodoStatusMenuOpen(true);
+    }, []);
+
+    const handleSetTodoStatus = useCallback(
+      async (status: import("../types/todo").TodoStatus) => {
+        // Use draftRef for real-time content
+        const content = draftRef.current || blockContent || "";
+        const extracted = extractStatusPrefix(content);
+        const newContent = setStatusPrefix(extracted?.rest || content, status);
+        const currentStatus = todoStatus;
+        setTodoStatusMenuOpen(false);
+
+        // Update CodeMirror editor view immediately
+        const view = editorRef.current?.getView();
+        if (view) {
+          // Directly update CodeMirror - it will trigger onChange which updates draft state naturally
+          view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: newContent },
+          });
+          // Keep editorStateCache in sync so any blur/refocus cycle won't revert the prefix
+          editorStateCache.set(blockId, view.state);
+        } else {
+          // Fallback: no editor view, update draft directly
+          setDraft(newContent);
+        }
+
+        await useBlockStore.getState().updateBlockContent(blockId, newContent);
+
+        // Auto-register completed date when status changes to "done"
+        if (
+          status === "done" &&
+          currentStatus !== "done" &&
+          !blockMetadata?.completed
+        ) {
+          const today = new Date().toISOString().split("T")[0];
+          await useBlockStore
+            .getState()
+            .setBlockMetadata(blockId, "completed", today);
+        }
+      },
+      [blockId, blockContent, scheduleCacheUpdate, todoStatus, blockMetadata],
+    );
+
+    const handleSetPriority = useCallback(
+      async (priority: import("../types/todo").Priority | null) => {
+        await useBlockStore
+          .getState()
+          .setBlockMetadata(blockId, "priority", priority);
+        setShowPriorityMenu(false);
+      },
+      [blockId],
+    );
+
+    const handleRemoveTodoStatus = useCallback(async () => {
+      // Use draftRef for real-time content
+      const content = draftRef.current || blockContent || "";
+      const extracted = extractStatusPrefix(content);
+      const newContent = extracted?.rest || content;
+      setTodoStatusMenuOpen(false);
+
+      // Update CodeMirror editor view immediately
+      const view = editorRef.current?.getView();
+      if (view) {
+        // Directly update CodeMirror - it will trigger onChange which updates draft state naturally
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: newContent },
+        });
+        // Keep editorStateCache in sync so any blur/refocus cycle won't revert the prefix
+        scheduleCacheUpdate(view);
+      } else {
+        // Fallback: no editor view, update draft directly
+        setDraft(newContent);
+      }
+
+      await useBlockStore.getState().updateBlockContent(blockId, newContent);
+    }, [blockId, blockContent, scheduleCacheUpdate]);
+
     // Create custom keybindings for CodeMirror to handle block operations
     const handleContentChangeWithTrigger = useCallback(
       (value: string) => {
@@ -1037,6 +1315,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         {
           key: "Enter",
           run: (view: EditorView) => {
+            // Writing mode: Enter creates newline, not new block
+            const writingMode = useViewStore.getState().writingMode;
+            if (writingMode) {
+              return false; // Let CodeMirror handle default newline
+            }
+
             if (
               imeStateRef.current.isComposing ||
               imeStateRef.current.lastInputWasComposition ||
@@ -1248,21 +1532,42 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           },
         },
         {
+          key: "Mod-Shift-Enter",
+          preventDefault: true,
+          run: () => {
+            void cycleTodoStatus();
+            return true;
+          },
+        },
+        {
           key: "Mod-Enter",
           preventDefault: true,
           run: (view: EditorView) => {
-            const content = view.state.doc.toString();
-            if (!content.trim()) return false;
+            // If this is an AI prompt block, execute the prompt
+            if (isAiPrompt) {
+              const content = view.state.doc.toString();
+              if (!content.trim()) return false;
 
-            const blockStore = useBlockStore.getState();
-            const pageId = blockStore.currentPageId;
-            if (!pageId) return false;
+              const blockStore = useBlockStore.getState();
+              const pageId = blockStore.currentPageId;
+              if (!pageId) return false;
 
-            commitDraft().then(async () => {
-              await blockStore.updateBlock(blockId, { blockType: "ai-prompt" });
+              commitDraft().then(async () => {
+                await blockStore.updateBlock(blockId, {
+                  blockType: "ai-prompt",
+                });
 
-              await threadBlockService.executePrompt(blockId, content, pageId);
-            });
+                await threadBlockService.executePrompt(
+                  blockId,
+                  content,
+                  pageId,
+                );
+              });
+              return true;
+            }
+
+            // Otherwise, toggle TODO
+            void toggleTodoStatus();
             return true;
           },
         },
@@ -1276,15 +1581,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       commitDraft,
       mergeWithPrevious,
       splitBlockAtCursor,
+      toggleTodoStatus,
+      cycleTodoStatus,
+      isAiPrompt,
     ]);
 
-    // Render only one indent guide at this block's depth level
+    // Render indent guide at parent level's bullet center
     const indentGuide =
       showIndentGuides && depth > 0 ? (
         <div
           className="indent-guide"
           style={{
-            left: `${depth * INDENT_PER_LEVEL + 18}px`, // Align with collapse toggle center (20px width / 2 + 4px margin)
+            left: `calc(${(depth - 1) * INDENT_PER_LEVEL}px + var(--layout-indent-guide-offset))`,
           }}
         />
       ) : null;
@@ -1303,6 +1611,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         <div
           ref={blockComponentRef}
           className="block-component"
+          data-block-depth={depth}
+          style={{ "--block-depth": depth } as React.CSSProperties}
           onMouseDown={(e) => {
             // Save text selection before right-click might clear it
             if (e.button === 2) {
@@ -1344,7 +1654,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: Selection via mouse is the primary UX; keyboard navigation is handled by collapse button and arrow keys */}
           <div
             ref={blockRowRef}
-            className="block-row"
+            data-block-row-id={blockId}
+            className={`block-row${writingMode && isFocused ? " writing-mode-focused" : ""}`}
             style={{
               position: "relative",
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
@@ -1388,6 +1699,14 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 useBlockUIStore.getState().clearSelectionAnchor();
               }
             }}
+            onDoubleClick={(e: React.MouseEvent) => {
+              const target = e.target as HTMLElement;
+              const isCollapseButton = target.closest(".collapse-toggle");
+              const isBulletButton = target.closest(".block-bullet-wrapper");
+              if (isCollapseButton || isBulletButton) return;
+              e.stopPropagation();
+              useBlockUIStore.getState().setSelectedBlocks([blockId]);
+            }}
             onMouseDown={(e: React.MouseEvent) => {
               const target = e.target as HTMLElement;
               const isCollapseButton = target.closest(".collapse-toggle");
@@ -1395,6 +1714,13 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
               if (isCollapseButton || isBulletButton) {
                 return;
+              }
+
+              // Clear selection on plain left-click (no modifiers) immediately on mousedown
+              // so re-renders from setFocusedBlock don't swallow the subsequent onClick
+              if (e.button === 0 && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                useBlockUIStore.getState().clearSelectedBlocks();
+                useBlockUIStore.getState().clearSelectionAnchor();
               }
 
               if (isFocused && editorRef.current) {
@@ -1442,33 +1768,547 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               <div className="collapse-toggle-placeholder" />
             )}
 
-            {/* Bullet Point / AI Icon - clickable for zoom */}
-            <button
-              type="button"
-              className={`block-bullet-wrapper ${isAiPrompt ? "ai-prompt-icon" : ""} ${isAiResponse ? "ai-response-icon" : ""}`}
-              onClick={handleBulletClick}
-              style={{
-                cursor: hasChildren ? "pointer" : "default",
-                border: "none",
-                background: "transparent",
-                padding: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              title={hasChildren ? "Click to zoom into this block" : undefined}
-            >
-              {isAiPrompt ? (
-                <IconSparkles
-                  size={16}
-                  style={{ color: "var(--color-accent)" }}
-                />
-              ) : isAiResponse ? (
-                <IconRobot size={16} style={{ color: "var(--color-accent)" }} />
-              ) : (
-                <div className="block-bullet" />
-              )}
-            </button>
+            {/* Bullet Point / AI Icon / TODO Status - clickable for zoom or cycle */}
+            {todoStatus ? (
+              <Popover
+                withinPortal
+                opened={todoStatusMenuOpen}
+                onChange={setTodoStatusMenuOpen}
+                position="top-start"
+                shadow="sm"
+                withArrow
+                arrowSize={6}
+                arrowOffset={2}
+              >
+                <Popover.Target>
+                  <TodoStatusIcon
+                    status={todoStatus}
+                    showTooltip={false}
+                    onClick={handleTodoStatusClick}
+                    onContextMenu={handleTodoContextMenu}
+                  />
+                </Popover.Target>
+
+                <Popover.Dropdown
+                  style={{
+                    padding: "var(--spacing-xs)",
+                    backgroundColor: "var(--color-bg-elevated)",
+                    border: "1px solid var(--color-border-primary)",
+                    borderRadius: "var(--radius-sm)",
+                  }}
+                >
+                  <div
+                    style={{ display: "flex", gap: 2, alignItems: "center" }}
+                  >
+                    {ALL_STATUSES.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        title={STATUS_DISPLAY_NAMES[s]}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSetTodoStatus(s);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 24,
+                          height: 24,
+                          padding: 0,
+                          border: "none",
+                          background:
+                            todoStatus === s
+                              ? "var(--color-interactive-selected)"
+                              : "transparent",
+                          borderRadius: "var(--radius-sm)",
+                          cursor: "pointer",
+                          transition: "background-color var(--transition-fast)",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (todoStatus !== s) {
+                            e.currentTarget.style.background =
+                              "var(--color-interactive-hover)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (todoStatus !== s) {
+                            e.currentTarget.style.background = "transparent";
+                          }
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "inline-block",
+                            width: 12,
+                            height: 12,
+                            borderRadius: "50%",
+                            background: STATUS_COLORS[s],
+                          }}
+                        />
+                      </button>
+                    ))}
+                    <div
+                      style={{
+                        width: 1,
+                        height: 16,
+                        background: "var(--color-border-secondary)",
+                        margin: "0 2px",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      title="Set scheduled date"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowScheduledPicker(true);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        padding: 0,
+                        border: "none",
+                        background: showScheduledPicker
+                          ? "var(--color-interactive-selected)"
+                          : blockMetadata?.scheduled
+                            ? "var(--color-accent-muted)"
+                            : "transparent",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer",
+                        color: "var(--color-text-secondary)",
+                        transition: "all var(--transition-fast)",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!showScheduledPicker) {
+                          e.currentTarget.style.background =
+                            "var(--color-interactive-hover)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!showScheduledPicker && !blockMetadata?.scheduled) {
+                          e.currentTarget.style.background = "transparent";
+                        } else if (blockMetadata?.scheduled) {
+                          e.currentTarget.style.background =
+                            "var(--color-accent-muted)";
+                        }
+                      }}
+                    >
+                      <IconCalendar size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Set deadline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDeadlinePicker(true);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        padding: 0,
+                        border: "none",
+                        background: showDeadlinePicker
+                          ? "var(--color-interactive-selected)"
+                          : blockMetadata?.deadline
+                            ? "var(--color-accent-muted)"
+                            : "transparent",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer",
+                        color: "var(--color-text-secondary)",
+                        transition: "all var(--transition-fast)",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!showDeadlinePicker) {
+                          e.currentTarget.style.background =
+                            "var(--color-interactive-hover)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!showDeadlinePicker && !blockMetadata?.deadline) {
+                          e.currentTarget.style.background = "transparent";
+                        } else if (blockMetadata?.deadline) {
+                          e.currentTarget.style.background =
+                            "var(--color-accent-muted)";
+                        }
+                      }}
+                    >
+                      <IconClock size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Priority settings"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowPriorityMenu(!showPriorityMenu);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        padding: 0,
+                        border: "none",
+                        background: showPriorityMenu
+                          ? "var(--color-interactive-selected)"
+                          : blockMetadata?.priority
+                            ? "var(--color-accent-muted)"
+                            : "transparent",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer",
+                        color: "var(--color-text-secondary)",
+                        transition: "all var(--transition-fast)",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!showPriorityMenu) {
+                          e.currentTarget.style.background =
+                            "var(--color-interactive-hover)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!showPriorityMenu && !blockMetadata?.priority) {
+                          e.currentTarget.style.background = "transparent";
+                        } else if (blockMetadata?.priority) {
+                          e.currentTarget.style.background =
+                            "var(--color-accent-muted)";
+                        }
+                      }}
+                    >
+                      <IconAdjustments size={14} />
+                    </button>
+                    {/* Priority menu */}
+                    {showPriorityMenu && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          marginTop: "var(--spacing-xs)",
+                          background: "var(--color-bg-secondary)",
+                          border: "1px solid var(--color-border-secondary)",
+                          borderRadius: "var(--radius-md)",
+                          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                          zIndex: 1000,
+                          minWidth: 120,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSetPriority("A");
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "var(--spacing-sm)",
+                            textAlign: "left",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            color: "var(--color-text-primary)",
+                            fontSize: 12,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "var(--spacing-xs)",
+                            transition: "background var(--transition-fast)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background =
+                              "var(--color-interactive-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              background: "var(--color-error)",
+                            }}
+                          />
+                          Priority A
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSetPriority("B");
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "var(--spacing-sm)",
+                            textAlign: "left",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            color: "var(--color-text-primary)",
+                            fontSize: 12,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "var(--spacing-xs)",
+                            transition: "background var(--transition-fast)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background =
+                              "var(--color-interactive-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              background: "var(--color-warning)",
+                            }}
+                          />
+                          Priority B
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSetPriority("C");
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "var(--spacing-sm)",
+                            textAlign: "left",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            color: "var(--color-text-primary)",
+                            fontSize: 12,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "var(--spacing-xs)",
+                            transition: "background var(--transition-fast)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background =
+                              "var(--color-interactive-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              background: "var(--color-accent-muted)",
+                            }}
+                          />
+                          Priority C
+                        </button>
+                        <div
+                          style={{
+                            height: 1,
+                            background: "var(--color-border-secondary)",
+                            margin: "var(--spacing-xs) 0",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSetPriority(null);
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "var(--spacing-sm)",
+                            textAlign: "left",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            color: "var(--color-text-tertiary)",
+                            fontSize: 12,
+                            transition: "background var(--transition-fast)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background =
+                              "var(--color-interactive-hover)";
+                            e.currentTarget.style.color =
+                              "var(--color-text-primary)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color =
+                              "var(--color-text-tertiary)";
+                          }}
+                        >
+                          None
+                        </button>
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        width: 1,
+                        height: 16,
+                        background: "var(--color-border-secondary)",
+                        margin: "0 2px",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      title="Remove"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveTodoStatus();
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        padding: 0,
+                        border: "none",
+                        background: "transparent",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer",
+                        color: "var(--color-text-tertiary)",
+                        fontSize: 14,
+                        transition: "all var(--transition-fast)",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background =
+                          "var(--color-interactive-hover)";
+                        e.currentTarget.style.color = "var(--color-error)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.color =
+                          "var(--color-text-tertiary)";
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {/* Date pickers rendered below the buttons */}
+                  {showScheduledPicker && (
+                    <div style={{ marginTop: "var(--spacing-xs)" }}>
+                      <TodoDatePicker
+                        blockId={blockId}
+                        type="scheduled"
+                        value={blockMetadata?.scheduled || null}
+                        onClose={() => setShowScheduledPicker(false)}
+                      />
+                    </div>
+                  )}
+                  {showDeadlinePicker && (
+                    <div style={{ marginTop: "var(--spacing-xs)" }}>
+                      <TodoDatePicker
+                        blockId={blockId}
+                        type="deadline"
+                        value={blockMetadata?.deadline || null}
+                        onClose={() => setShowDeadlinePicker(false)}
+                      />
+                    </div>
+                  )}
+                </Popover.Dropdown>
+              </Popover>
+            ) : (
+              <button
+                type="button"
+                className={`block-bullet-wrapper ${isAiPrompt ? "ai-prompt-icon" : ""} ${isAiResponse ? "ai-response-icon" : ""}`}
+                onClick={handleBulletClick}
+                style={{
+                  cursor: hasChildren ? "pointer" : "default",
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                title={
+                  hasChildren ? "Click to zoom into this block" : undefined
+                }
+              >
+                {isAiPrompt ? (
+                  <IconSparkles
+                    size={16}
+                    style={{ color: "var(--color-accent)" }}
+                  />
+                ) : isAiResponse ? (
+                  <IconRobot
+                    size={16}
+                    style={{ color: "var(--color-accent)" }}
+                  />
+                ) : (
+                  <div className="block-bullet" />
+                )}
+              </button>
+            )}
+
+            {/* TODO date/priority badges */}
+            {blockMetadata?.scheduled && (
+              <TodoDatePicker
+                blockId={blockId}
+                type="scheduled"
+                value={blockMetadata.scheduled}
+              />
+            )}
+            {blockMetadata?.deadline && (
+              <TodoDatePicker
+                blockId={blockId}
+                type="deadline"
+                value={blockMetadata.deadline}
+              />
+            )}
+            {blockMetadata?.priority && (
+              <Box
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "2px",
+                  fontSize: "var(--font-size-xs)",
+                  padding: "2px 6px",
+                  borderRadius: "var(--radius-sm)",
+                  backgroundColor:
+                    blockMetadata.priority === "A"
+                      ? "rgba(239, 68, 68, 0.2)"
+                      : blockMetadata.priority === "B"
+                        ? "rgba(234, 179, 8, 0.2)"
+                        : "rgba(59, 130, 246, 0.2)",
+                  color:
+                    blockMetadata.priority === "A"
+                      ? "#ef4444"
+                      : blockMetadata.priority === "B"
+                        ? "#eab308"
+                        : "#3b82f6",
+                  fontWeight: 500,
+                  marginLeft: "4px",
+                }}
+              >
+                {blockMetadata.priority}
+              </Box>
+            )}
+            {isOverdue(blockMetadata) && (
+              <Box
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  fontSize: "var(--font-size-xs)",
+                  color: "var(--color-error)",
+                  marginLeft: "4px",
+                }}
+              >
+                ⚠️ Overdue
+              </Box>
+            )}
 
             {/* Content Editor */}
             <div
@@ -1493,9 +2333,28 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   />
                   {isStreaming && <span className="ai-streaming-cursor" />}
                 </div>
+              ) : isSubpageHeader ? (
+                <button
+                  type="button"
+                  className="subpage-header-link"
+                  onClick={handleSubpageHeaderClick}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    fontSize: "inherit",
+                    fontWeight: 500,
+                    color: "var(--color-text-primary)",
+                    textAlign: "left",
+                    width: "100%",
+                  }}
+                >
+                  {subpageTitle}
+                </button>
               ) : (
                 <MacroContentWrapper
-                  content={blockContent || ""}
+                  content={displayContent}
                   blockId={blockId}
                   isFocused={isFocused}
                   onEdit={() => setFocusedBlock(blockId)}

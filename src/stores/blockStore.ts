@@ -20,12 +20,19 @@ export interface BlockData {
   content: string;
   orderWeight: number;
   isCollapsed: boolean;
-  blockType: "bullet" | "code" | "fence" | "ai-prompt" | "ai-response";
+  blockType: "bullet" | "code" | "fence" | "ai-prompt" | "ai-response" | "subpage-header";
   language?: string;
   createdAt: string;
   updatedAt: string;
   metadata?: Record<string, string>;
 }
+
+// Result of a block move operation (indent/outdent)
+interface MoveResult {
+  moved_block: BlockData;
+  affected_siblings: BlockData[];
+}
+
 
 export type BlockStatus = "synced" | "optimistic" | "syncing" | "error";
 
@@ -51,6 +58,8 @@ interface BlockState {
 interface BlockActions {
   // 페이지 로드
   loadPage: (pageId: string) => Promise<void>;
+  loadSubpageBlocks: (pageIds: string[]) => Promise<void>;
+  clearSubpageBlocks: () => void;
   clearPage: () => void;
   updatePartialBlocks: (
     blocks: BlockData[],
@@ -66,7 +75,13 @@ interface BlockActions {
   ) => Promise<string | undefined>;
   updateBlock: (id: string, updates: Partial<BlockData>) => Promise<void>;
   updateBlockContent: (id: string, content: string) => Promise<void>;
+  setBlockMetadata: (
+    id: string,
+    key: string,
+    value: string | null,
+  ) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
+  duplicateBlock: (id: string) => Promise<string | undefined>;
   splitBlockAtCursor: (
     id: string,
     offset: number,
@@ -346,6 +361,123 @@ export const useBlockStore = create<BlockStore>()(
           mergingBlockId: null,
           mergingTargetBlockId: null,
           targetCursorPosition: null,
+        });
+      },
+
+      loadSubpageBlocks: async (pageIds: string[]) => {
+        if (pageIds.length === 0) return;
+
+        const workspacePath = useWorkspaceStore.getState().workspacePath;
+        if (!workspacePath) return;
+
+        const newBlocksById: Record<string, BlockData> = {};
+        const newChildrenMap: Record<string, string[]> = {};
+        const subpageRootIds: string[] = [];
+
+        for (const pageId of pageIds) {
+          try {
+            const response = await invoke<{
+              rootBlocks: BlockData[];
+              childrenByParent: Record<string, BlockData[]>;
+              metadata: Record<string, Record<string, string>>;
+            }>("get_page_blocks_complete", {
+              workspacePath,
+              pageId,
+            });
+
+            const headerBlockId = `subpage-header:${pageId}`;
+            const now = new Date().toISOString();
+            const headerBlock: BlockData = {
+              id: headerBlockId,
+              pageId,
+              parentId: null,
+              content: `[[${pageId}]]`,
+              orderWeight: Date.now(),
+              isCollapsed: false,
+              blockType: "subpage-header",
+              createdAt: now,
+              updatedAt: now,
+            };
+
+            newBlocksById[headerBlockId] = headerBlock;
+            subpageRootIds.push(headerBlockId);
+
+            const transformedBlocks: BlockData[] = [];
+            const rootChildren: string[] = [];
+
+            for (const block of response.rootBlocks) {
+              const newId = `subpage:${pageId}:${block.id}`;
+              transformedBlocks.push({
+                ...block,
+                id: newId,
+                parentId: headerBlockId,
+              });
+              rootChildren.push(newId);
+            }
+
+            for (const blocks of Object.values(response.childrenByParent)) {
+              for (const block of blocks) {
+                const newId = `subpage:${pageId}:${block.id}`;
+                const newParentId = block.parentId
+                  ? `subpage:${pageId}:${block.parentId}`
+                  : null;
+                transformedBlocks.push({
+                  ...block,
+                  id: newId,
+                  parentId: newParentId,
+                });
+              }
+            }
+
+            for (const [blockId, metadata] of Object.entries(response.metadata)) {
+              const newId = `subpage:${pageId}:${blockId}`;
+              const block = transformedBlocks.find((b) => b.id === newId);
+              if (block) {
+                block.metadata = metadata;
+              }
+            }
+
+            for (const block of transformedBlocks) {
+              newBlocksById[block.id] = block;
+              if (block.parentId) {
+                if (!newChildrenMap[block.parentId]) {
+                  newChildrenMap[block.parentId] = [];
+                }
+                newChildrenMap[block.parentId].push(block.id);
+              }
+            }
+
+            newChildrenMap[headerBlockId] = rootChildren;
+          } catch (error) {
+            console.error(
+              `[blockStore] Failed to load subpage blocks for ${pageId}:`,
+              error,
+            );
+          }
+        }
+
+        set((state) => {
+          Object.assign(state.blocksById, newBlocksById);
+          Object.assign(state.childrenMap, newChildrenMap);
+          state.childrenMap["subpages"] = subpageRootIds;
+        });
+      },
+
+      clearSubpageBlocks: () => {
+        set((state) => {
+          const idsToRemove = Object.keys(state.blocksById).filter(
+            (id) => id.startsWith("subpage:") || id.startsWith("subpage-header:"),
+          );
+          for (const id of idsToRemove) {
+            delete state.blocksById[id];
+            delete state.blockStatus[id];
+          }
+          for (const key of Object.keys(state.childrenMap)) {
+            if (key.startsWith("subpage:") || key.startsWith("subpage-header:")) {
+              delete state.childrenMap[key];
+            }
+          }
+          delete state.childrenMap["subpages"];
         });
       },
 
@@ -649,7 +781,7 @@ export const useBlockStore = create<BlockStore>()(
             `[blockStore:updateBlockContent] invoke START blockId=${id.slice(0, 8)}, content="${content.slice(0, 30)}"`,
           );
 
-          await invoke("update_block", {
+          const updatedBlock = await invoke<BlockData>("update_block", {
             workspacePath,
             request: { id, content },
           });
@@ -658,15 +790,17 @@ export const useBlockStore = create<BlockStore>()(
             `[blockStore:updateBlockContent] invoke DONE blockId=${id.slice(0, 8)}, updating state`,
           );
 
-          // Update state with backend result
           set((state) => {
             if (state.blocksById[id]) {
               state.blocksById[id].content = content;
-              state.blocksById[id].updatedAt = new Date().toISOString();
+              state.blocksById[id].updatedAt = updatedBlock.updatedAt;
+              if (updatedBlock.metadata) {
+                state.blocksById[id].metadata = updatedBlock.metadata;
+              }
               console.log(
-                `[blockStore:updateBlockContent] state updated for blockId=${id.slice(0, 8)}`,
+                `[blockStore:updateBlockContent] state updated for blockId=${id.slice(0, 8)}, metadata=`,
+                updatedBlock.metadata,
               );
-            } else {
             }
           });
         } catch (error) {
@@ -674,6 +808,54 @@ export const useBlockStore = create<BlockStore>()(
           // Reload to restore correct state
           const pageId = get().currentPageId;
           if (pageId) await get().loadPage(pageId);
+          throw error;
+        }
+      },
+
+      setBlockMetadata: async (
+        id: string,
+        key: string,
+        value: string | null,
+      ) => {
+        const { blocksById } = get();
+        const block = blocksById[id];
+        if (!block) return;
+
+        const currentMetadata = block.metadata ?? {};
+        const newMetadata = { ...currentMetadata };
+
+        if (value === null) {
+          delete newMetadata[key];
+        } else {
+          newMetadata[key] = value;
+        }
+
+        // Optimistic update
+        set((state) => {
+          if (state.blocksById[id]) {
+            state.blocksById[id].metadata = newMetadata;
+          }
+        });
+
+        try {
+          const workspacePath = useWorkspaceStore.getState().workspacePath;
+          if (!workspacePath) throw new Error("No workspace selected");
+
+          await invoke("update_block", {
+            workspacePath,
+            request: {
+              id,
+              metadata: newMetadata,
+            },
+          });
+        } catch (error) {
+          console.error("Failed to set block metadata:", error);
+          // Revert
+          set((state) => {
+            if (state.blocksById[id]) {
+              state.blocksById[id].metadata = currentMetadata;
+            }
+          });
           throw error;
         }
       },
@@ -781,6 +963,53 @@ export const useBlockStore = create<BlockStore>()(
         }
       },
 
+      duplicateBlock: async (id: string) => {
+        const { blocksById, childrenMap, currentPageId } = get();
+        const block = blocksById[id];
+        if (!block) return undefined;
+
+        // Determine where to place the duplicated block
+        const target = getInsertBelowTarget(id, blocksById, childrenMap);
+        const parentId = target.parentId;
+        const afterBlockIdForBackend = target.afterBlockId;
+
+        try {
+          const workspacePath = useWorkspaceStore.getState().workspacePath;
+          if (!workspacePath) {
+            throw new Error("No workspace selected");
+          }
+
+          const newBlock: BlockData = await invoke("create_block", {
+            workspacePath,
+            request: {
+              pageId: currentPageId,
+              parentId,
+              afterBlockId: afterBlockIdForBackend,
+              content: block.content,
+            },
+          });
+
+          // Update blockType if it's different from default
+          if (block.blockType !== "bullet") {
+            await invoke("update_block", {
+              workspacePath,
+              blockId: newBlock.id,
+              updates: { blockType: block.blockType },
+            });
+          }
+
+          // Reload to get the updated state
+          if (currentPageId) {
+            await get().loadPage(currentPageId);
+          }
+
+          return newBlock.id;
+        } catch (error) {
+          console.error("Failed to duplicate block:", error);
+          throw error;
+        }
+      },
+
       // ============ Block Manipulation ============
 
       indentBlock: async (id: string) => {
@@ -811,14 +1040,15 @@ export const useBlockStore = create<BlockStore>()(
             "[blockStore:indentBlock] Calling backend indent_block for:",
             id,
           );
-          // Backend returns the updated block
-          const updatedBlock: BlockData = await invoke("indent_block", {
+          // Backend returns MoveResult with moved_block and affected_siblings
+          const result: MoveResult = await invoke("indent_block", {
             workspacePath,
             blockId: id,
           });
 
-          // Update only the changed block
-          get().updatePartialBlocks([updatedBlock]);
+          // Update the moved block and any affected siblings (from rebalancing)
+          const allUpdated = [result.moved_block, ...result.affected_siblings];
+          get().updatePartialBlocks(allUpdated);
         } catch (error) {
           console.error("Failed to indent block:", error);
           const pageId = get().currentPageId;
@@ -838,14 +1068,15 @@ export const useBlockStore = create<BlockStore>()(
             throw new Error("No workspace selected");
           }
 
-          // Backend returns the updated block
-          const updatedBlock: BlockData = await invoke("outdent_block", {
+          // Backend returns MoveResult with moved_block and affected_siblings
+          const result: MoveResult = await invoke("outdent_block", {
             workspacePath,
             blockId: id,
           });
 
-          // Update only the changed block
-          get().updatePartialBlocks([updatedBlock]);
+          // Update the moved block and any affected siblings (from rebalancing)
+          const allUpdated = [result.moved_block, ...result.affected_siblings];
+          get().updatePartialBlocks(allUpdated);
         } catch (error) {
           console.error("Failed to outdent block:", error);
           const pageId = get().currentPageId;

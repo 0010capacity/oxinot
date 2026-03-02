@@ -88,6 +88,13 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     const pendingOnChangeValueRef = useRef<string | null>(null);
     const flushTimerRef = useRef<MaybeTimer>(null);
 
+    // Track the last value emitted via onChange. This prevents a race condition
+    // where a programmatic view.dispatch() updates the CM doc, onChange fires with
+    // the new value, but React hasn't yet re-rendered with the new value prop.
+    // Without this guard, the useEffect([value]) below would see a stale `value`
+    // and overwrite CM's already-correct document.
+    const lastEmittedRef = useRef<string | null>(null);
+
     // Keep latest callbacks/flags without forcing editor re-creation.
     const latestRef = useRef<{
       onChange?: (value: string) => void;
@@ -180,6 +187,8 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
             return;
           }
 
+          // Track what we emitted so the value-sync effect can detect stale props
+          lastEmittedRef.current = newDoc;
           latest.onChange(newDoc);
         },
         onFocus: () => {
@@ -278,10 +287,24 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         if (isComposingRef.current) return;
 
         const currentDoc = editorViewRef.current.state.doc.toString();
+
         if (currentDoc !== value) {
+          // Guard: if onChange just emitted the current doc content, the CM doc
+          // is authoritative and `value` is simply stale (React hasn't re-rendered
+          // yet with the new draft). Skip the overwrite to prevent revert flicker.
+          if (
+            lastEmittedRef.current !== null &&
+            currentDoc === lastEmittedRef.current
+          ) {
+            return;
+          }
           isUpdatingRef.current = true;
           updateEditorContent(editorViewRef.current, value);
           isUpdatingRef.current = false;
+        }
+
+        if (value === currentDoc) {
+          lastEmittedRef.current = null;
         }
       }
     }, [value]);

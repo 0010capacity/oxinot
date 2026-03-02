@@ -12,16 +12,14 @@ interface IndentGuideProps {
 
 /**
  * Reusable indent guide line component.
- * Displays a single vertical line for the current indentation level.
+ * Displays a single vertical line at the parent level's bullet center.
  *
- * Calculation:
- * - Each item has: paddingLeft = depth * INDENT_PER_LEVEL
- * - Inside padding: collapse-toggle (20px) + gap (8px) + bullet-container (24px, center at 12px)
- * - Bullet center for depth 0: 0 + 20 + 8 + 12 = 40px
- * - Bullet center for depth 1: 24 + 20 + 8 + 12 = 64px
- * - Bullet center for depth N: N * 24 + 40px
+ * Position is computed structurally from CSS layout variables:
+ *   left = (depth - 1) * indent-size + collapse-toggle-size + flex-gap + bullet-container-size / 2
  *
- * Each component draws ONLY its own depth level guide to prevent overlapping.
+ * Used by the file tree (PageTreeItem). The block editor (BlockComponent)
+ * computes its own offset via --layout-indent-guide-offset which includes
+ * an additional collapse-toggle margin-left.
  */
 export function IndentGuide({
   depth,
@@ -34,14 +32,14 @@ export function IndentGuide({
     return null;
   }
 
-  // Calculate position for THIS depth level only
-  const leftPosition = (depth - 1) * indentSize + 40;
+  // Depth-dependent portion computed in JS; structural offset deferred to CSS calc()
+  const depthOffset = (depth - 1) * indentSize;
 
   return (
     <div
       className={`${styles.indentGuide} ${className}`}
       style={{
-        left: `${leftPosition}px`,
+        left: `calc(${depthOffset}px + var(--layout-collapse-toggle-size) + var(--spacing-sm) + var(--layout-bullet-container-size) / 2)`,
         ...style,
       }}
     />

@@ -21,12 +21,63 @@
   z-index: var(--z-index-base);
 }
 
+/* ==========================================================================
+   Bullet Threading — focus-activated hierarchy path visualization
+   The threading path is now rendered via SVG (ThreadingPath.tsx).
+   This CSS only handles the focused bullet glow effect.
+   ========================================================================== */
+
+/* --- Focused block's bullet: glow effect ---
+   The focused block gets a prominent glow to indicate selection. */
+.bullet-threading .block-component:focus-within > .block-row .block-bullet {
+  background-color: var(--color-thread-line);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--color-thread-line) 20%, transparent);
+  transition: all var(--transition-fast);
+}
+
+/* --- Threading path SVG container --- */
+.threading-path-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.threading-path-container svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.threading-path-container path {
+  fill: none;
+  stroke: var(--color-thread-line);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--color-thread-line) 40%, transparent));
+  opacity: 0.9;
+}
+
+/* Smooth transition when path changes */
+.threading-path-line {
+  transition: d 0.2s ease-out, opacity 0.15s ease-in-out;
+}
+
+
 .block-row {
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
-  padding: 2px 0;
-  min-height: 24px;
+  padding: var(--block-padding-top) 0 var(--block-padding-bottom) 0;
+  min-height: var(--block-min-height);
   position: relative;
   border-radius: var(--radius-sm);
   transition: background-color var(--transition-normal);
@@ -42,7 +93,7 @@
   width: var(--layout-collapse-toggle-size);
   height: var(--layout-collapse-toggle-size);
   padding: 0;
-  margin: 2px 0 0 var(--spacing-sm);
+  margin: var(--block-padding-top) 0 0 var(--spacing-sm);
   background: none;
   border: none;
   cursor: pointer;
@@ -81,7 +132,7 @@
   flex-shrink: 0;
   width: var(--layout-collapse-toggle-size);
   height: var(--layout-collapse-toggle-size);
-  margin: 2px 0 0 var(--spacing-sm);
+  margin: var(--block-padding-top) 0 0 var(--spacing-sm);
 }
 
 /* Bullet Point Wrapper */
@@ -143,6 +194,18 @@
   .block-row:has(.block-editor .cm-focused) .block-bullet {
     background-color: rgba(0, 0, 0, 0.8);
   }
+}
+
+[data-mantine-color-scheme="light"] .block-bullet {
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+[data-mantine-color-scheme="light"] .block-bullet-wrapper:hover .block-bullet {
+  background-color: rgba(0, 0, 0, 0.55);
+}
+
+[data-mantine-color-scheme="light"] .block-row:has(.block-editor .cm-focused) .block-bullet {
+  background-color: rgba(0, 0, 0, 0.8);
 }
 
 /* Content Wrapper */

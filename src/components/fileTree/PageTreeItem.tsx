@@ -5,14 +5,9 @@ import {
   TextInput,
   UnstyledButton,
 } from "@mantine/core";
-import {
-  IconCheck,
-  IconEdit,
-  IconFolderPlus,
-  IconX,
-} from "@tabler/icons-react";
+import { IconCheck, IconX } from "@tabler/icons-react";
 import type React from "react";
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { INDENT_PER_LEVEL } from "../../constants/layout";
 import { useBlockStore } from "../../stores/blockStore";
@@ -85,7 +80,6 @@ export function PageTreeItem({
   const loadPage = useBlockStore((state) => state.loadPage);
   const { t } = useTranslation();
 
-  const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const hasChildren = !!children;
@@ -232,8 +226,6 @@ export function PageTreeItem({
 
       <ContextMenu sections={contextMenuSections}>
         <div
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
           onMouseDown={(e) => {
             if (!isEditing && e.button === 0) {
               onMouseDown(e, page.id);
@@ -292,9 +284,7 @@ export function PageTreeItem({
                   opacity: hasChildren
                     ? isCollapsed
                       ? "var(--opacity-disabled)"
-                      : isHovered
-                        ? "var(--opacity-dimmed)"
-                        : 0
+                      : 0
                     : 0,
                   visibility: hasChildren ? "visible" : "hidden",
                 }}
@@ -357,90 +347,37 @@ export function PageTreeItem({
                 </Group>
               </Group>
             ) : (
-              <>
-                <UnstyledButton
-                  className="page-tree-item-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePageClick(e);
-                  }}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    onEdit(page.id);
-                  }}
-                  onKeyDown={handleKeyDown}
-                  style={{
-                    flex: 1,
-                    color: "var(--color-accent)",
-                    userSelect: "none",
-                    fontSize: "var(--font-size-sm)",
-                    lineHeight: "24px",
-                    paddingTop: "2px",
-                    paddingBottom: "2px",
-                    paddingLeft: "4px",
-                    paddingRight: "8px",
-                    fontWeight: 500,
-                    textAlign: "left",
-                  }}
-                  aria-label={page.title}
-                  aria-expanded={hasChildren ? !isCollapsed : undefined}
-                >
-                  <Text size="sm" truncate>
-                    {getPageBasename(page.title)}
-                  </Text>
-                </UnstyledButton>
-
-                {/* Action buttons */}
-                {isHovered && !isEditing && (
-                  <Group
-                    gap={4}
-                    wrap="nowrap"
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      opacity: isHovered ? 1 : 0,
-                      transition: "opacity var(--transition-slow)",
-                    }}
-                  >
-                    <ActionIcon
-                      variant="subtle"
-                      size="xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAddChild(page.id);
-                      }}
-                      title="Add child page"
-                      data-action-button="true"
-                    >
-                      <IconFolderPlus size={14} />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      size="xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit(page.id);
-                      }}
-                      title="Rename"
-                      data-action-button="true"
-                    >
-                      <IconEdit size={14} />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      size="xs"
-                      color="red"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(page.id);
-                      }}
-                      title="Delete"
-                      data-action-button="true"
-                    >
-                      <IconX size={14} />
-                    </ActionIcon>
-                  </Group>
-                )}
-              </>
+              <UnstyledButton
+                className="page-tree-item-button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePageClick(e);
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(page.id);
+                }}
+                onKeyDown={handleKeyDown}
+                style={{
+                  flex: 1,
+                  color: "var(--color-text-primary)",
+                  userSelect: "none",
+                  fontSize: "var(--font-size-sm)",
+                  lineHeight: "24px",
+                  paddingTop: "2px",
+                  paddingBottom: "2px",
+                  paddingLeft: "4px",
+                  paddingRight: "8px",
+                  fontWeight: page.isDirectory ? 500 : 400,
+                  textAlign: "left",
+                }}
+                aria-label={page.title}
+                aria-expanded={hasChildren ? !isCollapsed : undefined}
+              >
+                <Text size="sm" truncate>
+                  {getPageBasename(page.title)}
+                </Text>
+              </UnstyledButton>
             )}
           </div>
         </div>

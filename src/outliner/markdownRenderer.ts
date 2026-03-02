@@ -200,27 +200,176 @@ export function renderMarkdownToHtml(
 }
 
 export function renderOutlinerBulletPreviewHtml(source: string): string {
-  // For single-line content without block elements, use inline rendering
-  // to avoid wrapping in <p> tags which causes extra spacing
   const trimmed = source?.trim() ?? "";
-  const hasBlockSyntax = /^(#{1,6}\s|>\s|\d+\.\s|[-*+]\s|```|> \[!)/.test(
-    trimmed,
-  );
+  if (!trimmed) return "";
 
-  if (!hasBlockSyntax) {
-    // No block syntax: render inline (no <p> wrapper)
-    // For multi-line content, convert newlines to <br> tags
+  // Check for block-level syntax that needs full rendering (headings, code fences, callouts)
+  const hasBlockSyntax = /^(#{1,6}\s|```|> \[!)/.test(trimmed);
+
+  const rawLines = source.split("\n");
+  const hasMultipleLines = rawLines.length > 1;
+
+  if (hasBlockSyntax && !hasMultipleLines) {
+    // Single-line block syntax (heading, callout): full block rendering
+    let html = renderMarkdownToHtml(source, { allowBlocks: true });
+    html = html.replace(/^<p>([\s\S]*)<\/p>\n?$/i, "$1");
+    html = html.replace(/\n+$/, "");
+    return html;
+  }
+
+  if (!hasMultipleLines) {
+    // Single line: inline rendering
     const html = renderMarkdownToHtml(source, { inline: true });
     return html.replace(/\n/g, "<br>");
   }
 
-  // Block syntax: use full block rendering, but strip wrapping <p> tags
-  let html = renderMarkdownToHtml(source, { allowBlocks: true });
-  // Remove wrapping <p>...</p> tags to match CodeMirror line structure
-  html = html.replace(/^<p>([\s\S]*)<\/p>\n?$/i, "$1");
-  // Remove trailing newline after block elements (blockquote, list, code, etc.)
-  html = html.replace(/\n+$/, "");
-  return html;
+  // Multi-line content: group consecutive lines by type for correct HTML structure
+  // Strategy: accumulate runs of list items / blockquotes / code-fence / text,
+  // then flush each group as a proper block.
+  type LineGroup =
+    | { kind: "ul"; items: string[] }
+    | { kind: "ol"; items: string[] }
+    | { kind: "bq"; items: string[] }
+    | { kind: "fence"; raw: string[] }
+    | { kind: "heading"; level: number; content: string }
+    | { kind: "blank" }
+    | { kind: "text"; content: string };
+
+  const groups: LineGroup[] = [];
+
+  let inFence = false;
+  let fenceLines: string[] = [];
+
+  for (const line of rawLines) {
+    // --- Code fence handling (must stay together) ---
+    if (line.trim().startsWith("```")) {
+      if (!inFence) {
+        // Flush any open group first
+        inFence = true;
+        fenceLines = [line];
+      } else {
+        fenceLines.push(line);
+        groups.push({ kind: "fence", raw: fenceLines });
+        fenceLines = [];
+        inFence = false;
+      }
+      continue;
+    }
+    if (inFence) {
+      fenceLines.push(line);
+      continue;
+    }
+
+    // --- Blank line ---
+    if (line.trim() === "") {
+      groups.push({ kind: "blank" });
+      continue;
+    }
+
+    const lt = line.trim();
+
+    // --- Heading ---
+    const headingMatch = lt.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      groups.push({ kind: "heading", level: headingMatch[1].length, content: headingMatch[2] });
+      continue;
+    }
+
+    // --- Blockquote ---
+    if (lt.startsWith("> ")) {
+      const last = groups[groups.length - 1];
+      if (last?.kind === "bq") {
+        last.items.push(lt.slice(2));
+      } else {
+        groups.push({ kind: "bq", items: [lt.slice(2)] });
+      }
+      continue;
+    }
+
+    // --- Unordered list ---
+    const ulMatch = lt.match(/^[-*+]\s+(.+)$/);
+    if (ulMatch) {
+      const last = groups[groups.length - 1];
+      if (last?.kind === "ul") {
+        last.items.push(ulMatch[1]);
+      } else {
+        groups.push({ kind: "ul", items: [ulMatch[1]] });
+      }
+      continue;
+    }
+
+    // --- Ordered list ---
+    const olMatch = lt.match(/^\d+\.\s+(.+)$/);
+    if (olMatch) {
+      const last = groups[groups.length - 1];
+      if (last?.kind === "ol") {
+        last.items.push(olMatch[1]);
+      } else {
+        groups.push({ kind: "ol", items: [olMatch[1]] });
+      }
+      continue;
+    }
+
+    // --- Regular text ---
+    groups.push({ kind: "text", content: lt });
+  }
+
+  // Flush an unclosed code fence
+  if (inFence && fenceLines.length > 0) {
+    groups.push({ kind: "fence", raw: fenceLines });
+  }
+
+  // Render each group to HTML
+  const parts: string[] = [];
+  for (const group of groups) {
+    switch (group.kind) {
+      case "heading": {
+        const inner = renderMarkdownToHtml(group.content, { inline: true });
+        parts.push(`<h${group.level}>${inner}</h${group.level}>`);
+        break;
+      }
+      case "bq": {
+        const inner = group.items
+          .map((item) => `<p>${renderMarkdownToHtml(item, { inline: true })}</p>`)
+          .join("");
+        parts.push(`<blockquote>${inner}</blockquote>`);
+        break;
+      }
+      case "ul": {
+        const items = group.items
+          .map((item) => `<li>${renderMarkdownToHtml(item, { inline: true })}</li>`)
+          .join("");
+        parts.push(`<ul>${items}</ul>`);
+        break;
+      }
+      case "ol": {
+        const items = group.items
+          .map((item) => `<li>${renderMarkdownToHtml(item, { inline: true })}</li>`)
+          .join("");
+        parts.push(`<ol>${items}</ol>`);
+        break;
+      }
+      case "fence": {
+        const raw = group.raw.join("\n");
+        let html = renderMarkdownToHtml(raw, { allowBlocks: true });
+        html = html.replace(/\n+$/, "");
+        parts.push(html);
+        break;
+      }
+      case "blank": {
+        // Blank line = paragraph break (thin spacer)
+        parts.push('<div class="multiline-blank"></div>');
+        break;
+      }
+      case "text": {
+        const inner = renderMarkdownToHtml(group.content, { inline: true });
+        parts.push(`<div class="multiline-text">${inner}</div>`);
+        break;
+      }
+    }
+  }
+
+  return parts.join("");
 }
 
 export function renderOutlinerBracePreviewHtml(source: string): string {

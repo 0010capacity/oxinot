@@ -36,6 +36,16 @@
   --block-min-height: 24px;
   --block-padding-x: 0px;
 
+  /* Heading Sizes - Shared by CodeMirror and Static Renderer */
+  --heading-size-h1: 2em;
+  --heading-size-h2: 1.75em;
+  --heading-size-h3: 1.5em;
+  --heading-size-h4: 1.25em;
+  --heading-size-h5: 1.1em;
+  --heading-size-h6: 1em;
+
+  /* Border Radius */
+
   /* Border Radius */
   --radius-sm: 3px;
   --radius-md: 6px;
@@ -53,6 +63,13 @@
   --layout-indent-size: 24px;
   --layout-indent-guide-color: rgba(255, 255, 255, 0.08);
 
+  /* Indent guide offset: distance from depth-padding edge to bullet center.
+     = collapse-toggle-margin-left + collapse-toggle-size + flex-gap + bullet-container-size / 2 */
+  --layout-indent-guide-offset: calc(
+    var(--spacing-sm) + var(--layout-collapse-toggle-size) + var(--spacing-sm) +
+      var(--layout-bullet-container-size) / 2
+  );
+
   /* Transitions */
   --transition-fast: 0.1s ease;
   --transition-normal: 0.15s ease;
@@ -66,8 +83,8 @@
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2),
-    0 2px 4px -1px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px
+    rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
 
   /* Color variables - set dynamically by ThemeProvider */
@@ -93,9 +110,21 @@
   --color-bullet-default: rgba(255, 255, 255, 0.35);
   --color-bullet-hover: rgba(255, 255, 255, 0.65);
   --color-bullet-active: rgba(255, 255, 255, 0.9);
-  --color-indent-guide: rgba(255, 255, 255, 0.08);
+  --color-indent-guide: var(--layout-indent-guide-color);
+
+  /* Bullet Threading */
+  --color-thread-line: var(--color-text-tertiary);
+  --layout-thread-line-width: 1px;
 
   /* Graph Node Colors */
   --color-graph-node-page: #ffffff;
   --color-graph-node-block: #e0e0e0;
+
+  /* Inline Element Styles - Shared padding/radius for code, tags, highlights */
+  --inline-element-padding: 0.1em 0.3em;
+  --inline-element-border-radius: var(--radius-sm);
+
+  /* Highlight Colors */
+  --color-highlight-bg: rgba(255, 235, 59, 0.35);
+  --color-highlight-text: inherit;
 }

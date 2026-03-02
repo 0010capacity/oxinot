@@ -85,7 +85,7 @@ export const StaticMarkdownRenderer = memo(
         tabIndex={onClick ? 0 : undefined}
       />
     );
-  }
+  },
 );
 
 StaticMarkdownRenderer.displayName = "StaticMarkdownRenderer";

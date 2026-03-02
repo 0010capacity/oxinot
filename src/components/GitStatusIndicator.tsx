@@ -37,9 +37,9 @@ export function GitStatusIndicator({ workspacePath }: GitStatusIndicatorProps) {
     <div
       style={{
         position: "fixed",
-        bottom: "8px",
-        left: "50%",
-        transform: "translateX(-50%)",
+        left: "8px",
+        top: "50%",
+        transform: "translateY(-50%)",
         zIndex: 1000,
       }}
       onMouseEnter={() => setGitMenuOpen(true)}

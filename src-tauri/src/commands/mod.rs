@@ -5,6 +5,7 @@ pub mod graph;
 pub mod page;
 pub mod query;
 pub mod search;
+pub mod todo;
 pub mod wiki_link;
 pub mod workspace;
 

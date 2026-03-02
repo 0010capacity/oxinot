@@ -106,8 +106,8 @@ export function ToolApprovalModal({ toolCall, onApprove, onDeny }: Props) {
                   dangerLevel === "high"
                     ? "red"
                     : dangerLevel === "medium"
-                    ? "orange"
-                    : "green"
+                      ? "orange"
+                      : "green"
                 }
               >
                 {dangerLabel}
@@ -159,8 +159,8 @@ export function ToolApprovalModal({ toolCall, onApprove, onDeny }: Props) {
               dangerLevel === "high"
                 ? "red"
                 : dangerLevel === "medium"
-                ? "orange"
-                : "blue"
+                  ? "orange"
+                  : "blue"
             }
             onClick={onApprove}
           >

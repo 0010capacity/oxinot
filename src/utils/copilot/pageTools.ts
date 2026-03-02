@@ -52,7 +52,7 @@ export const openPageTool = {
  */
 export async function executeSearchNotes(
   workspacePath: string,
-  query: string
+  query: string,
 ): Promise<SearchResult[]> {
   logger.group("executeSearchNotes");
   logger.info("Starting search with query:", query);
@@ -91,7 +91,7 @@ export async function executeSearchNotes(
         resultType: r.resultType,
         rank: r.rank,
         snippet: `${r.snippet.substring(0, 50)}...`,
-      }))
+      })),
     );
 
     logger.groupEnd();
@@ -108,7 +108,7 @@ export async function executeSearchNotes(
     throw new Error(
       `Failed to search notes: ${
         error instanceof Error ? error.message : "Unknown error"
-      }`
+      }`,
     );
   }
 }
@@ -147,7 +147,7 @@ export async function executeOpenPage(pageId: string): Promise<void> {
     const currentPageId = usePageStore.getState().currentPageId;
     if (currentPageId === pageId) {
       logger.info(
-        `✓ Verification successful: currentPageId matches "${pageId}"`
+        `✓ Verification successful: currentPageId matches "${pageId}"`,
       );
     } else {
       logger.warn(`✗ Verification failed: currentPageId is "${currentPageId}"`);
@@ -167,7 +167,7 @@ export async function executeOpenPage(pageId: string): Promise<void> {
     throw new Error(
       `Failed to open page: ${
         error instanceof Error ? error.message : "Unknown error"
-      }`
+      }`,
     );
   }
 }
@@ -179,7 +179,7 @@ export async function executeOpenPage(pageId: string): Promise<void> {
 export async function processPageToolCall(
   toolName: string,
   toolInput: Record<string, unknown>,
-  workspacePath: string
+  workspacePath: string,
 ): Promise<unknown> {
   logger.group(`processPageToolCall - ${toolName}`);
   logger.info(`Tool: ${toolName}`);

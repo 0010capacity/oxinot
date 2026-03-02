@@ -24,7 +24,7 @@
     "new_page": "New page",
     "home": "Home",
     "delete_page": "Delete Page",
-    "delete_page_question": "Delete <strong>{{title}}</strong>?",
+    "delete_page_question": "Delete \"{{title}}\"?",
     "remove_workspace": "Remove Workspace",
     "remove_workspace_question": "Are you sure you want to remove \"{{name}}\" from your recent workspaces?",
     "remove": "Remove",
@@ -75,7 +75,9 @@
     "go_forward": "Go forward",
     "toggle_theme": "Toggle theme",
     "command_palette": "Command Palette (Cmd+K)",
-    "calendar": "Calendar"
+    "calendar": "Calendar",
+    "writing_mode_toggle": "Writing Mode (Enter = newline)",
+    "writing_mode_disabled": "Writing Mode (open a page first)"
   },
   "tooltips": {
     "remove_remote": "Remove remote"
@@ -178,6 +180,8 @@
       "description": "Customize the block editor behavior",
       "indent_guides": "Show indent guides",
       "indent_guides_desc": "Display vertical lines to show indentation levels",
+      "bullet_threading": "Show bullet threading",
+      "bullet_threading_desc": "Highlight the hierarchy path when hovering over a block",
       "auto_expand": "Auto-expand blocks",
       "auto_expand_desc": "Automatically expand collapsed blocks when navigating",
       "block_count": "Show block count",
@@ -396,6 +400,18 @@
     "graph_visualization_content": "See how your notes are connected:\n• **Open Graph** - Look for the graph icon or use the Command Palette\n• **Full Graph** - Shows all pages and their connections\n• **Page Graph** - Shows connections from a specific page\n• **Adjust Physics** - Tweak repulsion, link distance, and collision radius\n• **Drag Nodes** - Reposition nodes for better visibility\n• **Zoom & Pan** - Scroll to zoom, click and drag to pan",
     "daily_notes": "Daily Notes / Calendar",
     "daily_notes_content": "Create dated notes for journaling and daily tasks:\n• **Open Calendar** - Look for the calendar icon or use the Command Palette\n• **Create Daily Note** - Click a date to create/open a note for that day\n• **Format** - Daily notes are named YYYY-MM-DD (e.g., 2024-01-15)\n• **Highlights** - Dates with existing notes are highlighted\n• **Today** - Click \"Go to Today\" button to jump to today's note\n• **Organization** - Daily notes are separate from your main page hierarchy",
+    "calendar_popover": {
+      "scheduled": "Scheduled",
+      "deadline": "Deadline",
+      "today": "Today",
+      "set_label": "Set {{label}}",
+      "clear_date": "Clear date",
+      "aria_label": "{{label}}: {{displayLabel}} or not set. Click to {{action}} calendar.",
+      "aria_action_open": "open",
+      "aria_action_close": "close",
+      "aria_dialog": "{{label}} date picker",
+      "aria_clear": "Clear {{label}} date"
+    },
     "command_palette_title": "Command Palette",
     "command_palette_content": "The Command Palette gives you quick access to all app features:\n• **Open** - Press Cmd+K (Mac) or Ctrl+K (Windows/Linux)\n• **Search** - Type to find commands by name, description, keywords, or category\n• **Run** - Press Enter or click to execute a command\n• **Keyboard** - Some commands show their keyboard shortcuts",
     "common_commands": "Common Commands",
@@ -425,5 +441,53 @@
     "slow_performance_content": "• Try collapsing large nested sections\n• Close pages with 1000+ blocks (split into smaller pages)\n• Restart the app to free memory",
     "keyboard_shortcuts_summary": "Keyboard Shortcuts Summary",
     "shortcuts_table": "Command Palette | Cmd/Ctrl+K\nSearch | Cmd/Ctrl+F\nNew Block | Enter\nLine Break | Shift+Enter\nIndent | Tab\nOutdent | Shift+Tab\nMove Block Up | Cmd/Ctrl+Arrow Up\nMove Block Down | Cmd/Ctrl+Arrow Down\nSelect Block | Ctrl/Cmd+Click\nRange Select | Shift+Click\nDeselect | Escape"
+  },
+  "calendar": {
+    "tabs": {
+      "date": "Date",
+      "today": "Today",
+      "overdue": "Overdue",
+      "all": "All"
+    },
+    "stats": {
+      "this_day": "This Day",
+      "today": "Today",
+      "overdue": "Overdue",
+      "upcoming": "Upcoming"
+    },
+    "search_placeholder": "Search tasks...",
+    "quick_add_placeholder": "Add a task...",
+    "no_tasks_found": "No tasks found",
+    "try_different_search": "Try a different search term",
+    "selected": "{{count}} selected",
+    "done": "Done",
+    "delete": "Delete",
+    "clear": "Clear",
+    "task_list": "Tasks",
+    "calendar_grid": "Calendar",
+    "task_groups": {
+      "scheduled": "Scheduled",
+      "deadline": "Deadline Today",
+      "other": "Other"
+    },
+    "weekdays": {
+      "monday": "Mon",
+      "tuesday": "Tue",
+      "wednesday": "Wed",
+      "thursday": "Thu",
+      "friday": "Fri",
+      "saturday": "Sat",
+      "sunday": "Sun"
+    },
+    "empty_state": {
+      "title": "No tasks for this date",
+      "description": "Tasks with scheduled or deadline dates will appear here"
+    },
+    "delete_modal": {
+      "title": "Delete Task",
+      "message": "Are you sure you want to remove the TODO status from this task?",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    }
   }
 }

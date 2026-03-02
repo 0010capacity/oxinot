@@ -157,7 +157,7 @@ describe("EditorStateCache", () => {
       for (let i = 0; i < MAX_ENTRIES + 5; i++) {
         editorStateCache.set(
           `block-${i}`,
-          createMockEditorState(`content-${i}`)
+          createMockEditorState(`content-${i}`),
         );
       }
 

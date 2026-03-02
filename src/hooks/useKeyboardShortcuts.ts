@@ -14,6 +14,8 @@ export interface KeyboardShortcutHandlers {
   onRedo?: () => void;
   onCopilotToggle?: () => void;
   onFocusSwitch?: () => void;
+  onTodoPanel?: () => void;
+  onWritingMode?: () => void;
 }
 
 const isShortcutMatch = (e: KeyboardEvent, shortcut: Shortcut | undefined) => {
@@ -163,6 +165,35 @@ export const useKeyboardShortcuts = (handlers: KeyboardShortcutHandlers) => {
       ) {
         e.preventDefault();
         handlers.onFocusSwitch();
+      }
+      // TODO Panel
+      if (
+        handlers.onTodoPanel &&
+        (shortcuts.todo_panel
+          ? isShortcutMatch(e, shortcuts.todo_panel)
+          : isShortcutMatch(e, {
+              id: "todo_panel",
+              key: "t",
+              modKey: true,
+            }))
+      ) {
+        e.preventDefault();
+        handlers.onTodoPanel();
+      }
+      // Writing Mode
+      if (
+        handlers.onWritingMode &&
+        (shortcuts.writing_mode
+          ? isShortcutMatch(e, shortcuts.writing_mode)
+          : isShortcutMatch(e, {
+              id: "writing_mode",
+              key: "w",
+              modKey: true,
+              shiftKey: true,
+            }))
+      ) {
+        e.preventDefault();
+        handlers.onWritingMode();
       }
     };
 

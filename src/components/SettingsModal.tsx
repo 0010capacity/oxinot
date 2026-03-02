@@ -197,6 +197,12 @@ export function SettingsModal({
   const toggleIndentGuides = useOutlinerSettingsStore(
     (state) => state.toggleIndentGuides,
   );
+  const showBulletThreading = useOutlinerSettingsStore(
+    (state) => state.showBulletThreading,
+  );
+  const toggleBulletThreading = useOutlinerSettingsStore(
+    (state) => state.toggleBulletThreading,
+  );
   const autoExpandBlocks = useOutlinerSettingsStore(
     (state) => state.autoExpandBlocks ?? true,
   );
@@ -420,12 +426,15 @@ export function SettingsModal({
           t("common.search_keywords.blocks"),
           t("common.search_keywords.code_block"),
           "line numbers",
+          "bullet threading",
         ],
         component: (
           <OutlinerSettings
             matchesSearch={matchesSearch}
             showIndentGuides={showIndentGuides}
             toggleIndentGuides={toggleIndentGuides}
+            showBulletThreading={showBulletThreading}
+            toggleBulletThreading={toggleBulletThreading}
             autoExpandBlocks={autoExpandBlocks}
             setAutoExpandBlocks={setAutoExpandBlocks}
             showBlockCount={showBlockCount}
@@ -593,6 +602,8 @@ export function SettingsModal({
       setCustomHomepageId,
       showIndentGuides,
       toggleIndentGuides,
+      showBulletThreading,
+      toggleBulletThreading,
       autoExpandBlocks,
       setAutoExpandBlocks,
       showBlockCount,
