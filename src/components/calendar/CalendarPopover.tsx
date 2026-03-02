@@ -13,6 +13,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { CalendarGrid } from "./CalendarGrid";
 import { DayTaskList } from "./DayTaskList";
 import { TaskQuickAdd } from "./TaskQuickAdd";
@@ -46,16 +47,7 @@ interface ViewCounts {
   completed: number;
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
-const TABS: TabConfig[] = [
-  { id: "date", label: "Date", getCount: () => 0 },
-  { id: "today", label: "Today", getCount: (c) => c.today },
-  { id: "overdue", label: "Overdue", getCount: (c) => c.overdue },
-  { id: "all", label: "All", getCount: (c) => c.all },
-];
 
 const POPOVER_WIDTH = 420;
 
@@ -293,6 +285,8 @@ function CalendarSidebar({
   upcomingCount: number;
   onTabChange: (tab: TabId) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div
       style={{
@@ -320,25 +314,25 @@ function CalendarSidebar({
       >
         <StatCard
           value={dayTaskCount}
-          label="This Day"
+          label={t("calendar.stats.this_day")}
           color="var(--color-text-primary)"
           onClick={() => onTabChange("date")}
         />
         <StatCard
           value={todayCount}
-          label="Today"
+          label={t("calendar.stats.today")}
           color="var(--color-accent)"
           onClick={() => onTabChange("today")}
         />
         <StatCard
           value={overdueCount}
-          label="Overdue"
+          label={t("calendar.stats.overdue")}
           color="var(--color-error)"
           onClick={() => onTabChange("overdue")}
         />
         <StatCard
           value={upcomingCount}
-          label="Upcoming"
+          label={t("calendar.stats.upcoming")}
           color="var(--color-text-primary)"
           onClick={() => onTabChange("all")}
         />
@@ -578,6 +572,7 @@ function BulkBar({
   onDelete: () => void;
   onClear: () => void;
 }) {
+  const { t } = useTranslation();
   const btnStyle: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
@@ -615,7 +610,7 @@ function BulkBar({
           fontFamily: "var(--font-family)",
         }}
       >
-        {count} selected
+        {t("calendar.selected", { count })}
       </span>
       <div style={{ display: "flex", gap: 6 }}>
         <button
@@ -635,7 +630,7 @@ function BulkBar({
             e.currentTarget.style.backgroundColor = "transparent";
           }}
         >
-          <IconCheck size={11} stroke={2.5} /> Done
+          <IconCheck size={11} stroke={2.5} /> {t("calendar.done")}
         </button>
         <button
           type="button"
@@ -654,7 +649,7 @@ function BulkBar({
             e.currentTarget.style.backgroundColor = "transparent";
           }}
         >
-          <IconX size={11} stroke={2.5} /> Delete
+          <IconX size={11} stroke={2.5} /> {t("calendar.delete")}
         </button>
         <button
           type="button"
@@ -667,7 +662,7 @@ function BulkBar({
             e.currentTarget.style.backgroundColor = "transparent";
           }}
         >
-          Clear
+          {t("calendar.clear")}
         </button>
       </div>
     </div>
@@ -683,6 +678,7 @@ export function CalendarPopover({
   onClose,
   triggerRef,
 }: CalendarPopoverProps) {
+  const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [activeTab, setActiveTab] = useState<TabId>("date");
   const [searchQuery, setSearchQuery] = useState("");
@@ -690,6 +686,21 @@ export function CalendarPopover({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [visible, setVisible] = useState(false);
   const [animReady, setAnimReady] = useState(false);
+
+  // Dynamic TABS based on i18n
+  const tabs = useMemo<TabConfig[]>(
+    () => [
+      { id: "date", label: t("calendar.tabs.date"), getCount: () => 0 },
+      { id: "today", label: t("calendar.tabs.today"), getCount: (c) => c.today },
+      {
+        id: "overdue",
+        label: t("calendar.tabs.overdue"),
+        getCount: (c) => c.overdue,
+      },
+      { id: "all", label: t("calendar.tabs.all"), getCount: (c) => c.all },
+    ],
+    [t],
+  );
 
   const fetchTodos = useTodoStore((s) => s.fetchTodos);
   const fetchSmartView = useTodoStore((s) => s.fetchSmartView);
@@ -1007,7 +1018,7 @@ export function CalendarPopover({
         role="tablist"
         aria-label="Task views"
       >
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const count = tab.getCount(counts);
           const isOverdue = tab.id === "overdue" && count > 0;
           return (
@@ -1043,7 +1054,7 @@ export function CalendarPopover({
         <TaskQuickAdd
           selectedDate={selectedDate}
           onTaskAdded={handleTaskAdded}
-          placeholder="Add a task…"
+          placeholder={t("calendar.quick_add_placeholder")}
         />
       </div>
 
@@ -1069,7 +1080,7 @@ export function CalendarPopover({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search tasks…"
+            placeholder={t("calendar.search_placeholder")}
             style={{
               flex: 1,
               background: "transparent",
@@ -1080,7 +1091,7 @@ export function CalendarPopover({
               fontFamily: "var(--font-family)",
               padding: "2px 0",
             }}
-            aria-label="Search tasks"
+            aria-label={t("calendar.search_placeholder")}
           />
           {searchQuery && (
             <button
@@ -1134,7 +1145,7 @@ export function CalendarPopover({
                 color: "var(--color-text-tertiary)",
               }}
             >
-              No tasks found
+              {t("calendar.no_tasks_found")}
             </span>
             {searchQuery && (
               <span
@@ -1144,7 +1155,7 @@ export function CalendarPopover({
                   opacity: 0.7,
                 }}
               >
-                Try a different search term
+                {t("calendar.try_different_search")}
               </span>
             )}
           </div>

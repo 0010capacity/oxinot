@@ -400,6 +400,43 @@
     "graph_visualization_content": "See how your notes are connected:\n• **Open Graph** - Look for the graph icon or use the Command Palette\n• **Full Graph** - Shows all pages and their connections\n• **Page Graph** - Shows connections from a specific page\n• **Adjust Physics** - Tweak repulsion, link distance, and collision radius\n• **Drag Nodes** - Reposition nodes for better visibility\n• **Zoom & Pan** - Scroll to zoom, click and drag to pan",
     "daily_notes": "Daily Notes / Calendar",
     "daily_notes_content": "Create dated notes for journaling and daily tasks:\n• **Open Calendar** - Look for the calendar icon or use the Command Palette\n• **Create Daily Note** - Click a date to create/open a note for that day\n• **Format** - Daily notes are named YYYY-MM-DD (e.g., 2024-01-15)\n• **Highlights** - Dates with existing notes are highlighted\n• **Today** - Click \"Go to Today\" button to jump to today's note\n• **Organization** - Daily notes are separate from your main page hierarchy",
+    "calendar_popover": {
+      "scheduled": "Scheduled",
+      "deadline": "Deadline",
+      "today": "Today",
+      "set_label": "Set {{label}}",
+      "clear_date": "Clear date",
+      "aria_label": "{{label}}: {{displayLabel}} or not set. Click to {{action}} calendar.",
+      "aria_action_open": "open",
+      "aria_action_close": "close",
+      "aria_dialog": "{{label}} date picker",
+      "aria_clear": "Clear {{label}} date"
+    },
+    "calendar": {
+      "tabs": {
+        "date": "Date",
+        "today": "Today",
+        "overdue": "Overdue",
+        "all": "All"
+      },
+      "stats": {
+        "this_day": "This Day",
+        "today": "Today",
+        "overdue": "Overdue",
+        "upcoming": "Upcoming"
+      },
+      "search_placeholder": "Search tasks...",
+      "quick_add_placeholder": "Add a task...",
+      "no_tasks_found": "No tasks found",
+      "try_different_search": "Try a different search term",
+      "selected": "{{count}} selected",
+      "done": "Done",
+      "delete": "Delete",
+      "clear": "Clear",
+      "task_list": "Tasks",
+      "calendar_grid": "Calendar"
+    },
+
     "command_palette_title": "Command Palette",
     "command_palette_content": "The Command Palette gives you quick access to all app features:\n• **Open** - Press Cmd+K (Mac) or Ctrl+K (Windows/Linux)\n• **Search** - Type to find commands by name, description, keywords, or category\n• **Run** - Press Enter or click to execute a command\n• **Keyboard** - Some commands show their keyboard shortcuts",
     "common_commands": "Common Commands",

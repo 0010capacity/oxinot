@@ -3,6 +3,7 @@ import { IconAlarm, IconCalendar } from "@tabler/icons-react";
 import { format, isToday, parseISO } from "date-fns";
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useBlockStore } from "../../stores/blockStore";
 import { CalendarGrid } from "../calendar/CalendarGrid";
 
@@ -72,11 +73,14 @@ const styles = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatTriggerLabel(value: string | null | undefined): string | null {
+function formatTriggerLabel(
+  value: string | null | undefined,
+  todayLabel: string,
+): string | null {
   if (!value) return null;
   try {
     const date = parseISO(value);
-    if (isToday(date)) return "Today";
+    if (isToday(date)) return todayLabel;
     return format(date, "d MMM");
   } catch {
     return value;
@@ -93,6 +97,7 @@ export function TodoDatePicker({
   value,
   onClose,
 }: TodoDatePickerProps) {
+  const { t } = useTranslation();
   const [opened, setOpened] = useState(false);
 
   const setBlockMetadata = useBlockStore((s) => s.setBlockMetadata);
@@ -133,9 +138,12 @@ export function TodoDatePicker({
     [onClose],
   );
 
-  const label = type === "scheduled" ? "Scheduled" : "Deadline";
+  const label = t(
+    `help.calendar_popover.${type === "scheduled" ? "scheduled" : "deadline"}`,
+  );
   const Icon = type === "scheduled" ? IconCalendar : IconAlarm;
-  const displayLabel = formatTriggerLabel(value);
+  const todayLabel = t("help.calendar_popover.today");
+  const displayLabel = formatTriggerLabel(value, todayLabel);
 
   return (
     <Popover
@@ -157,17 +165,27 @@ export function TodoDatePicker({
             ...styles.trigger,
             ...(opened ? styles.triggerFocused : {}),
           }}
-          aria-label={`${label}: ${displayLabel || "not set"}. Click to ${opened ? "close" : "open"} calendar.`}
+          aria-label={t("help.calendar_popover.aria_label", {
+            label,
+            displayLabel:
+              displayLabel || t("help.calendar_popover.set_label", { label }),
+            action: opened
+              ? t("help.calendar_popover.aria_action_close")
+              : t("help.calendar_popover.aria_action_open"),
+          })}
           aria-expanded={opened}
           aria-haspopup="dialog"
         >
           <Icon size={12} stroke={1.5} />
-          {displayLabel || `Set ${label}`}
+          {displayLabel || t("help.calendar_popover.set_label", { label })}
         </button>
       </Popover.Target>
 
       <Popover.Dropdown style={styles.dropdown}>
-        <div onKeyDown={handleKeyDown} aria-label={`${label} date picker`}>
+        <div
+          onKeyDown={handleKeyDown}
+          aria-label={t("help.calendar_popover.aria_dialog", { label })}
+        >
           <CalendarGrid
             selectedDate={selectedDate}
             onDateSelect={handleSelectDate}
@@ -180,7 +198,9 @@ export function TodoDatePicker({
                 type="button"
                 style={styles.clearButton}
                 onClick={handleClear}
-                aria-label={`Clear ${label.toLowerCase()} date`}
+                aria-label={t("help.calendar_popover.aria_clear", {
+                  label: label.toLowerCase(),
+                })}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = "var(--color-text-secondary)";
                   e.currentTarget.style.backgroundColor =
@@ -191,7 +211,7 @@ export function TodoDatePicker({
                   e.currentTarget.style.backgroundColor = "transparent";
                 }}
               >
-                Clear date
+                {t("help.calendar_popover.clear_date")}
               </button>
             </div>
           )}
