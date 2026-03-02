@@ -76,12 +76,10 @@ export class HorizontalRuleHandler extends BaseHandler {
       createHiddenMarker(line.from, line.to, context.isEditMode),
     );
 
-    // Add the horizontal rule widget (only in preview mode)
-    if (!context.isEditMode) {
-      decorations.push(
-        createWidget(line.from, new HorizontalRuleWidget(), 0),
-      );
-    }
+    // Add the horizontal rule widget
+    decorations.push(
+      createWidget(line.from, new HorizontalRuleWidget(), 0),
+    );
 
     return decorations;
   }
