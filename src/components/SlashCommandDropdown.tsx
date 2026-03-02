@@ -43,7 +43,7 @@ export function SlashCommandDropdown({
 
   useEffect(() => {
     setSelectedIndex(0);
-  }, [filteredCommands]);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -459,7 +459,7 @@ export const useBlockStore = create<BlockStore>()(
         set((state) => {
           Object.assign(state.blocksById, newBlocksById);
           Object.assign(state.childrenMap, newChildrenMap);
-          state.childrenMap["subpages"] = subpageRootIds;
+          state.childrenMap.subpages = subpageRootIds;
         });
       },
 
@@ -477,7 +477,7 @@ export const useBlockStore = create<BlockStore>()(
               delete state.childrenMap[key];
             }
           }
-          delete state.childrenMap["subpages"];
+          state.childrenMap.subpages = undefined;
         });
       },
 

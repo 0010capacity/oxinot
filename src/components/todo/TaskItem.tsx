@@ -211,6 +211,7 @@ export function TaskItem({
         onClick={handleRowClick}
         onMouseEnter={onHoverEnter}
         onMouseLeave={onHoverLeave}
+        // biome-ignore lint/a11y/useSemanticElements: custom div with keyboard handling
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {

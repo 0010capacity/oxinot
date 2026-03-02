@@ -120,7 +120,7 @@ export function PageTreeItem({
         ],
       },
     ],
-    [page.id, page.title, page.parentId, onAddChild, onEdit, onDelete, t],
+    [page.id, onAddChild, onEdit, onDelete, t],
   );
 
   const handlePageClick = async (e: React.MouseEvent) => {

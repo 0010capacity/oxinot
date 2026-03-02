@@ -186,6 +186,8 @@ export const ThreadingPath = memo(function ThreadingPath() {
       }}
     >
       <svg
+        role="img"
+        aria-label="Thread connection path"
         style={{
           width: "100%",
           height: "100%",

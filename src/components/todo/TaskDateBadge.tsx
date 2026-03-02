@@ -106,6 +106,7 @@ export function TaskDateBadge({ date, type, isOverdue }: TaskDateBadgeProps) {
 
   return (
     <span
+      // biome-ignore lint/a11y/useSemanticElements: custom styled badge
       role="status"
       aria-label={ariaLabel}
       style={{

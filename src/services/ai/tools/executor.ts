@@ -49,11 +49,13 @@ function waitForApprovalDecision(
 
       if (currentState.isApproved(callId)) {
         resolved = true;
+        // biome-ignore lint/style/noNonNullAssertion: timeoutId is assigned before this point
         clearTimeout(timeoutId!);
         unsubscribe();
         resolve("approved");
       } else if (currentState.isDenied(callId)) {
         resolved = true;
+        // biome-ignore lint/style/noNonNullAssertion: timeoutId is assigned before this point
         clearTimeout(timeoutId!);
         unsubscribe();
         resolve("denied");

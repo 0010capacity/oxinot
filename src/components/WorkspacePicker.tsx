@@ -165,7 +165,9 @@ function ConfirmModal({
   };
 
   return createPortal(
+    // biome-ignore lint/a11y/useKeyWithClickEvents: overlay dismiss - ESC handled separately
     <div style={overlayStyle} onClick={onCancel}>
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: modal content - not interactive */}
       <div style={boxStyle} onClick={(e) => e.stopPropagation()}>
         <div>
           <div
@@ -286,6 +288,7 @@ function WorkspaceDropdown({
   }, [calcPosition]);
 
   // Outside click
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ref.current is stable
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -621,6 +624,8 @@ export function WorkspacePicker({
           height="10"
           viewBox="0 0 10 10"
           fill="none"
+          role="img"
+          aria-label="Dropdown arrow"
           style={{
             flexShrink: 0,
             opacity: 0.45,

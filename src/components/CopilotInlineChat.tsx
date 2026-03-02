@@ -153,7 +153,7 @@ export function CopilotInlineChat() {
       label: cmd.command,
       description: cmd.description,
       action: () => {
-        setInputValue(cmd.command + " ");
+        setInputValue(`${cmd.command} `);
       },
     }));
   }, [inputValue, models, sessions, setModel, switchSession]);
@@ -183,14 +183,14 @@ export function CopilotInlineChat() {
 
   useEffect(() => {
     setSelectedCommandIndex(0);
-  }, [commandItems.length]);
+  }, []);
 
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop =
         chatContainerRef.current.scrollHeight;
     }
-  }, [messages, currentStreamingContent]);
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     const trimmedInput = inputValue.trim();
@@ -368,8 +368,9 @@ export function CopilotInlineChat() {
               }}
             >
               {commandItems.map((item, index) => (
-                <div
+                <button
                   key={item.id}
+                  type="button"
                   style={{
                     padding: "4px 8px",
                     cursor: "pointer",
@@ -385,8 +386,17 @@ export function CopilotInlineChat() {
                     alignItems: "center",
                     gap: "6px",
                     justifyContent: "space-between",
+                    border: "none",
+                    fontFamily: "inherit",
                   }}
                   onMouseEnter={() => setSelectedCommandIndex(index)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      item.action();
+                      inputRef.current?.focus();
+                    }
+                  }}
                   onClick={() => {
                     item.action();
                     inputRef.current?.focus();
@@ -415,7 +425,7 @@ export function CopilotInlineChat() {
                       {item.description}
                     </span>
                   )}
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -596,15 +606,22 @@ export function CopilotInlineChat() {
                 {isStreamingEmpty ? (
                   <span style={{ opacity: 0.6 }}>Thinking...</span>
                 ) : message.role === "assistant" ? (
-                  <span
-                    dangerouslySetInnerHTML={{
-                      __html: md.render(
+                  <span style={{ overflow: "hidden", wordBreak: "break-word" }}>
+                    {(() => {
+                      const content =
                         message.isStreaming && currentStreamingContent
                           ? currentStreamingContent
-                          : message.content || "",
-                      ),
-                    }}
-                  />
+                          : message.content || "";
+                      return (
+                        <div
+                          // biome-ignore lint/security/noDangerouslySetInnerHtml: markdown rendering
+                          dangerouslySetInnerHTML={{
+                            __html: md.render(content),
+                          }}
+                        />
+                      );
+                    })()}
+                  </span>
                 ) : (
                   message.content
                 )}
@@ -634,11 +651,12 @@ export function CopilotInlineChat() {
             animation: "fadeIn 0.3s ease",
           }}
         >
-          <span
-            dangerouslySetInnerHTML={{
-              __html: md.render(latestResponse),
-            }}
-          />
+          <span>
+            <div
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: markdown rendering
+              dangerouslySetInnerHTML={{ __html: md.render(latestResponse) }}
+            />
+          </span>
         </div>
       )}
 

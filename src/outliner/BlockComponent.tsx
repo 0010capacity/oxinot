@@ -789,6 +789,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // Commit draft when focus is lost.
     // Note: optimisticContent is updated via useLayoutEffect (above draftRef)
     // before paint, so the static renderer shows correct content immediately.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: blockId is stable
     useEffect(() => {
       if (isFocused === false) {
         commitDraft();
@@ -847,6 +848,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     }, [isFocused, blockId, blockContent, scheduleCacheUpdate]);
 
     // Focus editor when this block becomes focused
+    // biome-ignore lint/correctness/useExhaustiveDependencies: editorRef is stable
     useEffect(() => {
       if (isFocused && editorRef.current) {
         const view = editorRef.current?.getView();
@@ -1053,6 +1055,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       }
     }, [blockId, setFocusedBlock, isFocused]);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: blockId is stable
     const handleContentChange = useCallback(
       (content: string) => {
         draftRef.current = content;
@@ -1089,6 +1092,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       [blockId],
     );
 
+
     const handleSlashCommandSelect = useCallback(
       (command: SlashCommand) => {
         setSlashCommand(null);
@@ -1118,6 +1122,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         } else if (command.id === "code") {
           const content = draftRef.current;
           const newContent = content.replace(/\/\w*$/, "");
+          // biome-ignore lint/style/useTemplate: intentional string concatenation for code fence
           const updatedContent = newContent + "```typescript\n\n```";
 
           draftRef.current = updatedContent;
@@ -1221,6 +1226,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       setTodoStatusMenuOpen(true);
     }, []);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: scheduleCacheUpdate is stable
     const handleSetTodoStatus = useCallback(
       async (status: import("../types/todo").TodoStatus) => {
         // Use draftRef for real-time content
@@ -1303,6 +1309,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       [handleContentChange],
     );
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: slashCommand is checked dynamically
     const keybindings: KeyBinding[] = useMemo(() => {
       return [
         {
@@ -2325,6 +2332,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   }}
                 >
                   <div
+                    // biome-ignore lint/security/noDangerouslySetInnerHtml: markdown rendering
                     dangerouslySetInnerHTML={{
                       __html: renderMarkdownToHtml(displayContent, {
                         allowBlocks: true,

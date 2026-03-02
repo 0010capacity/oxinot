@@ -61,6 +61,7 @@ describe("AgentOrchestrator Phase Transition", () => {
     const steps: AgentStep[] = [];
 
     for await (const step of orchestrator.execute("test", {
+      // biome-ignore lint/suspicious/noExplicitAny: test mock context
       context: {} as any,
     })) {
       steps.push(step);
@@ -78,6 +79,7 @@ describe("AgentOrchestrator Phase Transition", () => {
   it("should complete when AI returns text-only after tool calls in previous iteration", async () => {
     let callCount = 0;
 
+    // biome-ignore lint/suspicious/noExplicitAny: test mock
     (mockProvider.generateStream as any).mockImplementation(async function* () {
       callCount++;
       if (callCount === 1) {
@@ -94,6 +96,7 @@ describe("AgentOrchestrator Phase Transition", () => {
     const steps: AgentStep[] = [];
 
     for await (const step of orchestrator.execute("test", {
+      // biome-ignore lint/suspicious/noExplicitAny: test mock context
       context: {} as any,
     })) {
       steps.push(step);
@@ -127,6 +130,7 @@ describe("AgentOrchestrator Phase Transition", () => {
     const steps: AgentStep[] = [];
 
     for await (const step of orchestrator.execute("test", {
+      // biome-ignore lint/suspicious/noExplicitAny: test mock context
       context: {} as any,
       maxIterations: 2,
     })) {

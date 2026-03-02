@@ -290,11 +290,14 @@ export function DayTaskList({
     <>
       <Box
         style={containerStyle}
+        // biome-ignore lint/a11y/useSemanticElements: Mantine Box with custom styling
         role="list"
         aria-label={`Tasks for ${selectedDate}`}
       >
         {groups.map((group) => (
+          // biome-ignore lint/a11y/useSemanticElements: Mantine Box with custom styling
           <Box key={group.label} role="group" aria-label={group.label}>
+            {/* biome-ignore lint/a11y/useSemanticElements: Mantine Box with custom styling */}
             <Box style={groupHeaderStyle} role="heading" aria-level={3}>
               {group.label}&ensp;
               <span style={{ opacity: 0.6, fontWeight: 500 }}>
@@ -314,6 +317,7 @@ export function DayTaskList({
               return (
                 <Box
                   key={task.blockId}
+                  // biome-ignore lint/a11y/useSemanticElements: Mantine Box with custom styling
                   role="listitem"
                   aria-label={`Task: ${displayContent}`}
                   style={{

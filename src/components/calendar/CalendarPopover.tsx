@@ -434,6 +434,7 @@ function SmartTaskRow({
   };
 
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: task row - selection via checkbox
     <div
       style={{
         display: "flex",
@@ -547,7 +548,7 @@ function SmartTaskRow({
         aria-hidden="true"
       >
         {isSelected && (
-          <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+          <svg width="9" height="9" viewBox="0 0 9 9" fill="none" role="img" aria-label="Selected">
             <path
               d="M1.5 4.5l2 2 4-4"
               stroke="white"
@@ -794,6 +795,7 @@ export function CalendarPopover({
     fetchViewCounts,
   ]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetch functions are stable from store
   useEffect(() => {
     if (isOpen) {
       setVisible(true);
@@ -819,6 +821,7 @@ export function CalendarPopover({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetch functions are stable from store
   useEffect(() => {
     if (!isOpen) return;
     setSelectedIds(new Set());
@@ -828,13 +831,12 @@ export function CalendarPopover({
     } else {
       fetchForSmartTab(activeTab as SmartViewType);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetch function is stable from store
   useEffect(() => {
     if (!isOpen || activeTab !== "date") return;
     fetchForDateTab(selectedDate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   useEffect(() => {
@@ -998,6 +1000,7 @@ export function CalendarPopover({
           ? "opacity 0.18s ease-out, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)"
           : "opacity 0.12s ease-in, transform 0.12s ease-in",
       }}
+      // biome-ignore lint/a11y/useSemanticElements: custom styled dialog
       role="dialog"
       aria-label="Calendar and tasks"
       aria-modal="false"

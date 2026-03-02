@@ -411,7 +411,7 @@ function ThreadFloatingPanelInternal() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, currentStreamingContent]);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -543,7 +543,8 @@ function ThreadFloatingPanelInternal() {
   }, [
     inputValue,
     isExecuting,
-    messages.length,
+    messages,
+    setExecuting,
     addUserMessage,
     addAssistantMessage,
     completeAssistantMessage,
@@ -980,6 +981,7 @@ function ThreadFloatingPanelInternal() {
             >
               {message.role === "assistant" ? (
                 <span
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: markdown rendering
                   dangerouslySetInnerHTML={{
                     __html: md.render(
                       message.isStreaming && currentStreamingContent
@@ -991,6 +993,7 @@ function ThreadFloatingPanelInternal() {
                 />
               ) : (
                 <span
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: markdown rendering
                   dangerouslySetInnerHTML={{
                     __html: md.render(message.content),
                   }}

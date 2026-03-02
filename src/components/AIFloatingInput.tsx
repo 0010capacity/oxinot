@@ -119,7 +119,7 @@ function AIFloatingInputInternal({
     } finally {
       setIsSubmitting(false);
     }
-  }, [prompt, blockIds, mode, onClose, firstBlockId, isSubmitting]);
+  }, [prompt, blockIds, onClose, firstBlockId, isSubmitting]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

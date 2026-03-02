@@ -28,7 +28,6 @@ interface CalendarGridProps {
   defaultMonth?: Date;
 }
 
-
 // Cell size and gap — single source of truth
 const CELL = 28;
 const GAP = 2;
@@ -169,7 +168,10 @@ function DayCell({
   language?: string;
 }) {
   const handleClick = useCallback(() => onClick(date), [onClick, date]);
-  const handleDoubleClick = useCallback(() => onDoubleClick?.(date), [onDoubleClick, date]);
+  const handleDoubleClick = useCallback(
+    () => onDoubleClick?.(date),
+    [onDoubleClick, date],
+  );
 
   const style: CSSProperties = {
     ...dayCellBase,
@@ -194,7 +196,9 @@ function DayCell({
       style={style}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      aria-label={format(date, "EEEE, MMMM d, yyyy", { locale: language === "ko" ? ko : enUS })}
+      aria-label={format(date, "EEEE, MMMM d, yyyy", {
+        locale: language === "ko" ? ko : enUS,
+      })}
       aria-pressed={isSelected}
       aria-current={isToday ? "date" : undefined}
       onMouseEnter={(e) => {
@@ -268,7 +272,9 @@ export function CalendarGrid({
     return eachDayOfInterval({ start: gridStart, end: gridEnd });
   }, [viewDate]);
 
-  const monthLabel = format(viewDate, "MMMM yyyy", { locale: i18n.language === "ko" ? ko : enUS });
+  const monthLabel = format(viewDate, "MMMM yyyy", {
+    locale: i18n.language === "ko" ? ko : enUS,
+  });
 
   return (
     <div style={containerStyle} aria-label="Calendar">
@@ -312,40 +318,54 @@ export function CalendarGrid({
         </div>
       )}
 
-      <div style={gridStyle} role="grid" aria-label={monthLabel}>
-        {getWeekdayNames(i18n.language).map((day, idx) => (
-          <div
-            key={idx}
-            style={weekdayStyle}
-            role="columnheader"
-            aria-label={day}
-          >
-            {day}
-          </div>
-        ))}
+      <table
+        style={{ borderCollapse: "collapse", width: GRID_W }}
+        aria-label={monthLabel}
+      >
+        <thead>
+          <tr>
+            {getWeekdayNames(i18n.language).map((day) => (
+              <th key={day} style={{ ...weekdayStyle, padding: 0 }} scope="col">
+                {day}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {(() => {
+            const rows = [];
+            for (let i = 0; i < calendarDays.length; i += 7) {
+              rows.push(
+                <tr key={`week-${i}`}>
+                  {calendarDays.slice(i, i + 7).map((day) => {
+                    const key = toISODateKey(day);
+                    const todoCount = todosByDate[key]?.length ?? 0;
+                    const isSelected = selectedDate
+                      ? isSameDay(day, selectedDate)
+                      : false;
 
-        {calendarDays.map((day) => {
-          const key = toISODateKey(day);
-          const todoCount = todosByDate[key]?.length ?? 0;
-          const isSelected = selectedDate
-            ? isSameDay(day, selectedDate)
-            : false;
-
-          return (
-            <DayCell
-              key={key}
-              date={day}
-              isCurrentMonth={isSameMonth(day, viewDate)}
-              isSelected={isSelected}
-              isToday={isDateToday(day)}
-              todoCount={todoCount}
-              onClick={handleDateClick}
-              onDoubleClick={handleDateDoubleClick}
-              language={i18n.language}
-            />
-          );
-        })}
-      </div>
+                    return (
+                      <td key={key} style={{ padding: 0, textAlign: "center" }}>
+                        <DayCell
+                          date={day}
+                          isCurrentMonth={isSameMonth(day, viewDate)}
+                          isSelected={isSelected}
+                          isToday={isDateToday(day)}
+                          todoCount={todoCount}
+                          onClick={handleDateClick}
+                          onDoubleClick={handleDateDoubleClick}
+                          language={i18n.language}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>,
+              );
+            }
+            return rows;
+          })()}
+        </tbody>
+      </table>
     </div>
   );
 }

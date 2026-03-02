@@ -394,7 +394,9 @@ export function TaskQuickAdd({
                       viewBox="0 0 10 10"
                       fill="none"
                       style={{ marginLeft: "auto" }}
+                      aria-label="Selected"
                     >
+                      <title>Selected repeat frequency</title>
                       <path
                         d="M1.5 5l2.5 2.5 5-5"
                         stroke="currentColor"

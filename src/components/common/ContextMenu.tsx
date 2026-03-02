@@ -69,7 +69,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         useBlockUIStore.getState().clearSelectionAnchor();
       }
     },
-    [menuId, setOpenMenuId],
+    [setOpenMenuId],
   );
 
   // Save selection on mousedown before browser can change it
