@@ -464,12 +464,19 @@ export function BlockEditor({
             userSelect: isDragging ? "none" : undefined,
           }}
           onPointerDown={handlePointerDown}
-          onClick={(e: React.MouseEvent) => {
-            // If click landed directly on blocks-list (not on a block row), clear selection
+          onPointerDownCapture={(e: React.PointerEvent) => {
+            // Capture phase: clear focus BEFORE blur/click synthesis.
+            // On macOS trackpad, light taps fire pointerdown but may skip click,
+            // which would leave isFocused=true while CodeMirror lost DOM focus.
+            if (e.button !== 0) return;
             const target = e.target as HTMLElement;
-            if (!target.closest('[data-block-row-id]')) {
+            if (
+              !target.closest("[data-block-row-id]") &&
+              !target.closest(".empty-state")
+            ) {
               useBlockUIStore.getState().clearSelectedBlocks();
               useBlockUIStore.getState().clearSelectionAnchor();
+              useBlockUIStore.getState().setFocusedBlock(null);
             }
           }}
         >

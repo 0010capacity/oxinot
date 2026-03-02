@@ -123,8 +123,20 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const thread = useThreadByResponseBlock(blockId);
     const isStreaming = thread?.status === "streaming";
     const streamContent = thread?.streamContent ?? "";
+
+    // Optimistic display content: show draft when not focused to prevent
+    // content disappearing during async commitDraft() transition.
+    const [optimisticContent, setOptimisticContent] = useState<string>(blockContent ?? "");
+    const prevFocusedRef = useRef(isFocused);
+
+    // Sync optimistic content with blockContent when it changes externally
+    // (e.g., page reload, undo, external sync).
+    useEffect(() => {
+      setOptimisticContent(blockContent ?? "");
+    }, [blockContent]);
+
     const displayContent =
-      isStreaming && streamContent ? streamContent : (blockContent ?? "");
+      isStreaming && streamContent ? streamContent : optimisticContent;
 
     const toggleCollapse = useBlockStore((state) => state.toggleCollapse);
     const createBlock = useBlockStore((state) => state.createBlock);
@@ -687,6 +699,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     // (otherwise keybindings change every keystroke and the editor view gets recreated).
     const draftRef = useRef<string>(blockContent || "");
 
+    // Bridge draft → optimistic content on blur (before paint) so
+    // StaticMarkdownRenderer shows the latest edit immediately.
+    useLayoutEffect(() => {
+      if (prevFocusedRef.current && !isFocused) {
+        setOptimisticContent(draftRef.current);
+      }
+      prevFocusedRef.current = isFocused;
+    }, [isFocused]);
+
     // Keep draft in sync when the underlying block changes (e.g., page load, external update)
     // but do not overwrite while this block is focused (editing session owns the draft),
     // UNLESS we are navigating to this block programmatically (targetCursorPosition is set),
@@ -766,6 +787,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     }, [blockId]);
 
     // Commit draft when focus is lost.
+    // Note: optimisticContent is updated via useLayoutEffect (above draftRef)
+    // before paint, so the static renderer shows correct content immediately.
     useEffect(() => {
       if (isFocused === false) {
         commitDraft();
@@ -2331,7 +2354,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 </button>
               ) : (
                 <MacroContentWrapper
-                  content={blockContent || ""}
+                  content={displayContent}
                   blockId={blockId}
                   isFocused={isFocused}
                   onEdit={() => setFocusedBlock(blockId)}
