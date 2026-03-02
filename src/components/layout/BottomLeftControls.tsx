@@ -6,6 +6,7 @@ import {
   useMantineColorScheme,
 } from "@mantine/core";
 import {
+  IconCalendar,
   IconCommand,
   IconHelp,
   IconHome,
@@ -26,6 +27,7 @@ interface BottomLeftControlsProps {
   onSearchClick?: () => void;
   onHelpClick?: () => void;
   onCommandPaletteClick?: () => void;
+  onDailyNoteClick?: () => void;
 }
 
 export function BottomLeftControls({
@@ -34,6 +36,7 @@ export function BottomLeftControls({
   onSearchClick,
   onHelpClick,
   onCommandPaletteClick,
+  onDailyNoteClick,
 }: BottomLeftControlsProps) {
   const { t } = useTranslation();
   const { toggleColorScheme } = useMantineColorScheme();
@@ -125,6 +128,28 @@ export function BottomLeftControls({
           styles={iconButtonStyles}
         >
           <IconHome size={16} />
+        </ActionIcon>
+      </Tooltip>
+
+      <Tooltip label={t("navigation.daily_note")} position="top">
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          onClick={onDailyNoteClick}
+          styles={iconButtonStyles}
+        >
+          <IconCalendar size={16} />
+        </ActionIcon>
+      </Tooltip>
+
+      <Tooltip label={t("navigation.daily_note")} position="top">
+        <ActionIcon
+          variant="subtle"
+          size="md"
+          onClick={onDailyNoteClick}
+          styles={iconButtonStyles}
+        >
+          <IconCalendar size={16} />
         </ActionIcon>
       </Tooltip>
 

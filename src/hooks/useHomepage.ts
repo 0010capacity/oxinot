@@ -7,6 +7,7 @@ import { useCallback } from "react";
 
 export interface UseHomepageReturn {
   openHomepage: () => Promise<void>;
+  openDailyNote: (date?: Date) => Promise<void>;
 }
 
 export const useHomepage = (): UseHomepageReturn => {
@@ -108,5 +109,34 @@ export const useHomepage = (): UseHomepageReturn => {
     addError,
   ]);
 
-  return { openHomepage };
+  const openDailyNote = useCallback(
+    async (date: Date = new Date()): Promise<void> => {
+      try {
+        const fullPath = getDailyNotePath(date);
+        const pageId = await openPageByPath(fullPath);
+
+        // Get fresh page data from store after opening
+        const freshPageData = usePageStore.getState().pagesById[pageId];
+
+        if (!freshPageData) {
+          throw new Error("Page not found after opening");
+        }
+
+        const freshPagesById = usePageStore.getState().pagesById;
+        const { names, ids } = buildPageBreadcrumb(pageId, freshPagesById);
+        openNote(pageId, freshPageData.title, names, ids);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        console.error("[useHomepage] Failed to open daily note:", error);
+        addError(`Failed to open daily note: ${errorMessage}`, {
+          type: "error",
+          details: String(error),
+        });
+      }
+    },
+    [getDailyNotePath, openPageByPath, openNote, addError],
+  );
+
+  return { openHomepage, openDailyNote };
 };

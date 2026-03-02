@@ -204,7 +204,7 @@ function AppContent({ workspacePath }: AppContentProps) {
   const workspaceName = workspacePath.split("/").pop() || "Workspace";
 
   // Homepage management hook
-  const { openHomepage } = useHomepage();
+  const { openHomepage, openDailyNote } = useHomepage();
 
   // Workspace initialization hook
   const {
@@ -258,6 +258,7 @@ function AppContent({ workspacePath }: AppContentProps) {
       }
     },
     onWritingMode: () => toggleWritingMode(),
+    onDailyNote: () => openDailyNote(),
   });
 
   // Listen for block updates from Copilot tools
@@ -349,6 +350,7 @@ function AppContent({ workspacePath }: AppContentProps) {
               setSearchOpened(false);
               setCommandPaletteOpened(true);
             }}
+            onDailyNoteClick={() => openDailyNote()}
           />
 
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
