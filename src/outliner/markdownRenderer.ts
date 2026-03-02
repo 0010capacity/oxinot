@@ -203,14 +203,16 @@ export function renderOutlinerBulletPreviewHtml(source: string): string {
   const trimmed = source?.trim() ?? "";
   if (!trimmed) return "";
 
-  // Check for block-level syntax that needs full rendering (headings, code fences, callouts)
-  const hasBlockSyntax = /^(#{1,6}\s|```|> \[!)/.test(trimmed);
+  // Check for block-level syntax that needs full rendering (headings, code fences, callouts, horizontal rules)
+  const hasBlockSyntax = /^(#{1,6}\s|```|> \[!|(-{3,}|\*{3,}|_{3,})\s*$)/.test(
+    trimmed,
+  );
 
   const rawLines = source.split("\n");
   const hasMultipleLines = rawLines.length > 1;
 
   if (hasBlockSyntax && !hasMultipleLines) {
-    // Single-line block syntax (heading, callout): full block rendering
+    // Single-line block syntax (heading, callout, hr): full block rendering
     let html = renderMarkdownToHtml(source, { allowBlocks: true });
     html = html.replace(/^<p>([\s\S]*)<\/p>\n?$/i, "$1");
     html = html.replace(/\n+$/, "");
@@ -232,6 +234,7 @@ export function renderOutlinerBulletPreviewHtml(source: string): string {
     | { kind: "bq"; items: string[] }
     | { kind: "fence"; raw: string[] }
     | { kind: "heading"; level: number; content: string }
+    | { kind: "hr" }
     | { kind: "blank" }
     | { kind: "text"; content: string };
 
@@ -271,7 +274,11 @@ export function renderOutlinerBulletPreviewHtml(source: string): string {
     // --- Heading ---
     const headingMatch = lt.match(/^(#{1,6})\s+(.+)$/);
     if (headingMatch) {
-      groups.push({ kind: "heading", level: headingMatch[1].length, content: headingMatch[2] });
+      groups.push({
+        kind: "heading",
+        level: headingMatch[1].length,
+        content: headingMatch[2],
+      });
       continue;
     }
 
@@ -310,6 +317,12 @@ export function renderOutlinerBulletPreviewHtml(source: string): string {
       continue;
     }
 
+    // --- Horizontal rule ---
+    if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(lt)) {
+      groups.push({ kind: "hr" });
+      continue;
+    }
+
     // --- Regular text ---
     groups.push({ kind: "text", content: lt });
   }
@@ -330,21 +343,29 @@ export function renderOutlinerBulletPreviewHtml(source: string): string {
       }
       case "bq": {
         const inner = group.items
-          .map((item) => `<p>${renderMarkdownToHtml(item, { inline: true })}</p>`)
+          .map(
+            (item) => `<p>${renderMarkdownToHtml(item, { inline: true })}</p>`,
+          )
           .join("");
         parts.push(`<blockquote>${inner}</blockquote>`);
         break;
       }
       case "ul": {
         const items = group.items
-          .map((item) => `<li>${renderMarkdownToHtml(item, { inline: true })}</li>`)
+          .map(
+            (item) =>
+              `<li>${renderMarkdownToHtml(item, { inline: true })}</li>`,
+          )
           .join("");
         parts.push(`<ul>${items}</ul>`);
         break;
       }
       case "ol": {
         const items = group.items
-          .map((item) => `<li>${renderMarkdownToHtml(item, { inline: true })}</li>`)
+          .map(
+            (item) =>
+              `<li>${renderMarkdownToHtml(item, { inline: true })}</li>`,
+          )
           .join("");
         parts.push(`<ol>${items}</ol>`);
         break;
@@ -359,6 +380,11 @@ export function renderOutlinerBulletPreviewHtml(source: string): string {
       case "blank": {
         // Blank line = paragraph break (thin spacer)
         parts.push('<div class="multiline-blank"></div>');
+        break;
+      }
+      case "hr": {
+        // Horizontal rule
+        parts.push('<hr class="static-hr" />');
         break;
       }
       case "text": {

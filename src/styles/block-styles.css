@@ -365,11 +365,13 @@ h6 {
 }
 
 /* Horizontal Rule */
-hr {
+hr,
+.static-hr {
   border: none;
   height: 1px;
-  background-color: var(--color-border-secondary);
-  margin: 0;
+  background-color: var(--color-border-primary);
+  margin: 4px 0;
+  border-radius: var(--radius-sm);
 }
 
 /* Images */
