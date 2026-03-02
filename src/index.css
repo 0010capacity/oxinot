@@ -416,9 +416,23 @@ span.cm-wiki-link,
 
 /* Context Menu */
 /* Disable default browser context menu globally */
+/*
+ * Default: disable text selection on ALL elements (desktop app behavior)
+ * Only editor content should allow text selection
+ */
 * {
-  -webkit-user-select: text;
-  user-select: text;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection only in editor content areas */
+.cm-content,
+.cm-line,
+.cm-line *,
+[contenteditable],
+[contenteditable] * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }
 
 /* Allow text selection but prevent default context menu on right-click */
