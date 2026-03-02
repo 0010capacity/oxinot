@@ -1,6 +1,6 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 
-interface PageContainerProps {
+interface PageContainerProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
@@ -14,6 +14,7 @@ export function PageContainer({
   children,
   className = "",
   style,
+  ...rest
 }: PageContainerProps) {
   return (
     <div
@@ -31,6 +32,7 @@ export function PageContainer({
 
         ...style,
       }}
+      {...rest}
     >
       {children}
     </div>
