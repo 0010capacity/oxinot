@@ -77,7 +77,8 @@
     "command_palette": "Command Palette (Cmd+K)",
     "calendar": "Calendar",
     "writing_mode_toggle": "Writing Mode (Enter = newline)",
-    "writing_mode_disabled": "Writing Mode (open a page first)"
+    "writing_mode_disabled": "Writing Mode (open a page first)",
+    "daily_note": "Today's Daily Note (Cmd+D)"
   },
   "tooltips": {
     "remove_remote": "Remove remote"
