@@ -1,6 +1,7 @@
 import { Badge, Box, Group, Modal, Text, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconTrash } from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useBlockUIStore } from "../../stores/blockUIStore";
@@ -126,6 +127,7 @@ function getStatusPrefix(status: TodoStatus): string {
 function groupTasksByType(
   tasks: TodoResult[],
   selectedDate: string,
+  t: (key: string) => string,
 ): TaskGroup[] {
   const scheduled: TodoResult[] = [];
   const deadline: TodoResult[] = [];
@@ -150,13 +152,13 @@ function groupTasksByType(
   const groups: TaskGroup[] = [];
 
   if (scheduled.length > 0) {
-    groups.push({ label: "Scheduled Today", tasks: scheduled });
+    groups.push({ label: t("calendar.task_groups.scheduled"), tasks: scheduled });
   }
   if (deadline.length > 0) {
-    groups.push({ label: "Deadline Today", tasks: deadline });
+    groups.push({ label: t("calendar.task_groups.deadline"), tasks: deadline });
   }
   if (other.length > 0) {
-    groups.push({ label: "Other", tasks: other });
+    groups.push({ label: t("calendar.task_groups.other"), tasks: other });
   }
 
   return groups;
@@ -187,6 +189,7 @@ export function DayTaskList({
   onTaskStatusChange,
   onTaskDelete,
 }: DayTaskListProps) {
+  const { t } = useTranslation();
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TodoResult | null>(null);
   const [
@@ -203,8 +206,8 @@ export function DayTaskList({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const groups = useMemo(
-    () => groupTasksByType(tasks, selectedDate),
-    [tasks, selectedDate],
+    () => groupTasksByType(tasks, selectedDate, t),
+    [tasks, selectedDate, t],
   );
 
   const handleTaskClick = useCallback(
@@ -271,13 +274,13 @@ export function DayTaskList({
     return (
       <Box style={emptyStateStyle} aria-label="No tasks for selected date">
         <Text size="sm" style={{ color: "var(--color-text-tertiary)" }}>
-          No tasks for this date
+          {t("calendar.empty_state.title")}
         </Text>
         <Text
           size="xs"
           style={{ color: "var(--color-text-tertiary)", opacity: 0.7 }}
         >
-          Tasks with scheduled or deadline dates will appear here
+          {t("calendar.empty_state.description")}
         </Text>
       </Box>
     );
@@ -411,7 +414,7 @@ export function DayTaskList({
       <Modal
         opened={deleteModalOpened}
         onClose={handleCancelDelete}
-        title="Delete Task"
+        title={t("calendar.delete_modal.title")}
         centered
         size="sm"
         aria-label="Confirm task deletion"
@@ -436,7 +439,7 @@ export function DayTaskList({
               marginBottom: "var(--spacing-sm)",
             }}
           >
-            Are you sure you want to remove the TODO status from this task?
+            {t("calendar.delete_modal.message")}
           </Text>
           {deleteTarget && (
             <Text
@@ -465,7 +468,7 @@ export function DayTaskList({
           >
             <UnstyledButton
               onClick={handleCancelDelete}
-              aria-label="Cancel deletion"
+              aria-label={t("calendar.delete_modal.cancel")}
               style={{
                 padding: "var(--spacing-sm) var(--spacing-md)",
                 borderRadius: "var(--radius-sm)",
@@ -486,7 +489,7 @@ export function DayTaskList({
             </UnstyledButton>
             <UnstyledButton
               onClick={handleConfirmDelete}
-              aria-label="Confirm deletion"
+              aria-label={t("calendar.delete_modal.confirm")}
               style={{
                 padding: "var(--spacing-sm) var(--spacing-md)",
                 borderRadius: "var(--radius-sm)",

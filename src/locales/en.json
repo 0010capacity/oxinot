@@ -412,8 +412,6 @@
       "aria_dialog": "{{label}} date picker",
       "aria_clear": "Clear {{label}} date"
     },
-
-
     "command_palette_title": "Command Palette",
     "command_palette_content": "The Command Palette gives you quick access to all app features:\n• **Open** - Press Cmd+K (Mac) or Ctrl+K (Windows/Linux)\n• **Search** - Type to find commands by name, description, keywords, or category\n• **Run** - Press Enter or click to execute a command\n• **Keyboard** - Some commands show their keyboard shortcuts",
     "common_commands": "Common Commands",
@@ -466,6 +464,30 @@
     "delete": "Delete",
     "clear": "Clear",
     "task_list": "Tasks",
-    "calendar_grid": "Calendar"
+    "calendar_grid": "Calendar",
+    "task_groups": {
+      "scheduled": "Scheduled Today",
+      "deadline": "Deadline Today",
+      "other": "Other"
+    },
+    "weekdays": {
+      "monday": "Mon",
+      "tuesday": "Tue",
+      "wednesday": "Wed",
+      "thursday": "Thu",
+      "friday": "Fri",
+      "saturday": "Sat",
+      "sunday": "Sun"
+    },
+    "empty_state": {
+      "title": "No tasks for this date",
+      "description": "Tasks with scheduled or deadline dates will appear here"
+    },
+    "delete_modal": {
+      "title": "Delete Task",
+      "message": "Are you sure you want to remove the TODO status from this task?",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    }
   }
 }

@@ -14,6 +14,8 @@ import {
 } from "date-fns";
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { enUS, ko } from "date-fns/locale";
 
 type TodosByDate = Record<string, TodoResult[]>;
 
@@ -25,7 +27,6 @@ interface CalendarGridProps {
   defaultMonth?: Date;
 }
 
-const WEEKDAYS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"] as const;
 
 // Cell size and gap — single source of truth
 const CELL = 28;
@@ -154,6 +155,7 @@ function DayCell({
   isToday,
   todoCount,
   onClick,
+  language = "en",
 }: {
   date: Date;
   isCurrentMonth: boolean;
@@ -161,6 +163,7 @@ function DayCell({
   isToday: boolean;
   todoCount: number;
   onClick: (date: Date) => void;
+  language?: string;
 }) {
   const handleClick = useCallback(() => onClick(date), [onClick, date]);
 
@@ -186,7 +189,7 @@ function DayCell({
       type="button"
       style={style}
       onClick={handleClick}
-      aria-label={format(date, "EEEE, MMMM d, yyyy")}
+      aria-label={format(date, "EEEE, MMMM d, yyyy", { locale: language === "ko" ? ko : enUS })}
       aria-pressed={isSelected}
       aria-current={isToday ? "date" : undefined}
       onMouseEnter={(e) => {
@@ -215,6 +218,13 @@ function DayCell({
 // CalendarGrid
 // ---------------------------------------------------------------------------
 
+function getWeekdayNames(language: string) {
+  if (language === "ko") {
+    return ["월", "화", "수", "목", "금", "토", "일"];
+  }
+  return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+}
+
 export function CalendarGrid({
   selectedDate,
   onDateSelect,
@@ -222,6 +232,7 @@ export function CalendarGrid({
   showNavigation = true,
   defaultMonth,
 }: CalendarGridProps) {
+  const { i18n } = useTranslation();
   const [viewDate, setViewDate] = useState<Date>(
     defaultMonth ?? selectedDate ?? new Date(),
   );
@@ -247,7 +258,7 @@ export function CalendarGrid({
     return eachDayOfInterval({ start: gridStart, end: gridEnd });
   }, [viewDate]);
 
-  const monthLabel = format(viewDate, "MMMM yyyy");
+  const monthLabel = format(viewDate, "MMMM yyyy", { locale: i18n.language === "ko" ? ko : enUS });
 
   return (
     <div style={containerStyle} aria-label="Calendar">
@@ -292,9 +303,9 @@ export function CalendarGrid({
       )}
 
       <div style={gridStyle} role="grid" aria-label={monthLabel}>
-        {WEEKDAYS.map((day) => (
+        {getWeekdayNames(i18n.language).map((day, idx) => (
           <div
-            key={day}
+            key={idx}
             style={weekdayStyle}
             role="columnheader"
             aria-label={day}
@@ -319,6 +330,7 @@ export function CalendarGrid({
               isToday={isDateToday(day)}
               todoCount={todoCount}
               onClick={handleDateClick}
+              language={i18n.language}
             />
           );
         })}
