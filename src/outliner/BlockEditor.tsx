@@ -316,9 +316,19 @@ export function BlockEditor({
     return blockRow?.getAttribute('data-block-row-id') || null;
   }, []);
 
-  // Handle pointer down - record potential drag start
+  // Check if modifier key for block selection is held (Cmd on Mac, Ctrl on others)
+  const isBlockSelectionModifier = useCallback((e: React.PointerEvent | PointerEvent): boolean => {
+    // macOS uses metaKey (Cmd), others use ctrlKey
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    return isMac ? e.metaKey : e.ctrlKey;
+  }, []);
+
+  // Handle pointer down - record potential drag start (only with modifier key)
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
+
+    // Require modifier key for block selection (Cmd on Mac, Ctrl on others)
+    if (!isBlockSelectionModifier(e)) return;
 
     const target = e.target as HTMLElement;
     if (
@@ -335,10 +345,13 @@ export function BlockEditor({
     const blockId = getBlockIdFromPoint(e.clientX, e.clientY);
     if (!blockId) return;
 
+    // Prevent text selection while block-selecting
+    e.preventDefault();
+
     setIsDragPending(true);
     setDragStart({ x: e.clientX, y: e.clientY, blockId });
     setDragCurrent({ x: e.clientX, y: e.clientY });
-  }, [getBlockIdFromPoint]);
+  }, [getBlockIdFromPoint, isBlockSelectionModifier]);
 
   // Stable document-level listeners (registered once)
   useEffect(() => {
@@ -354,8 +367,23 @@ export function BlockEditor({
       setDragCurrent(null);
     };
 
-    const onPointerMove = (e: PointerEvent) => {
+const onPointerMove = (e: PointerEvent) => {
       if (!dragStartRef.current) return;
+
+      // Cancel block selection if modifier key was released
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifierHeld = isMac ? e.metaKey : e.ctrlKey;
+      if (!modifierHeld) {
+        // Modifier released - cancel selection
+        isDragPendingRef.current = false;
+        isDraggingRef.current = false;
+        dragStartRef.current = null;
+        setIsDragPending(false);
+        setIsDragging(false);
+        setDragStart(null);
+        setDragCurrent(null);
+        return;
+      }
 
       const dx = e.clientX - dragStartRef.current.x;
       const dy = e.clientY - dragStartRef.current.y;

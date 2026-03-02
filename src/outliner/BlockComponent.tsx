@@ -1715,15 +1715,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 useBlockUIStore.getState().clearSelectedBlocks();
                 useBlockUIStore.getState().clearSelectionAnchor();
               }
-            }}
-            onDoubleClick={(e: React.MouseEvent) => {
-              const target = e.target as HTMLElement;
-              const isCollapseButton = target.closest(".collapse-toggle");
-              const isBulletButton = target.closest(".block-bullet-wrapper");
-              if (isCollapseButton || isBulletButton) return;
-              e.stopPropagation();
-              useBlockUIStore.getState().setSelectedBlocks([blockId]);
-            }}
+}}
             onMouseDown={(e: React.MouseEvent) => {
               const target = e.target as HTMLElement;
               const isCollapseButton = target.closest(".collapse-toggle");
