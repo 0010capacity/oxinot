@@ -16,6 +16,7 @@ export interface KeyboardShortcutHandlers {
   onFocusSwitch?: () => void;
   onTodoPanel?: () => void;
   onWritingMode?: () => void;
+  onDailyNote?: () => void;
 }
 
 const isShortcutMatch = (e: KeyboardEvent, shortcut: Shortcut | undefined) => {
@@ -194,6 +195,20 @@ export const useKeyboardShortcuts = (handlers: KeyboardShortcutHandlers) => {
       ) {
         e.preventDefault();
         handlers.onWritingMode();
+      }
+      // Daily Note
+      if (
+        handlers.onDailyNote &&
+        (shortcuts.daily_note
+          ? isShortcutMatch(e, shortcuts.daily_note)
+          : isShortcutMatch(e, {
+              id: "daily_note",
+              key: "d",
+              modKey: true,
+            }))
+      ) {
+        e.preventDefault();
+        handlers.onDailyNote();
       }
     };
 

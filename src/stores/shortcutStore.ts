@@ -33,6 +33,7 @@ export const DEFAULT_SHORTCUTS: Record<string, Shortcut> = {
   focus_switch: { id: "focus_switch", key: "Escape", modKey: true },
   todo_panel: { id: "todo_panel", key: "t", modKey: true },
   writing_mode: { id: "writing_mode", key: "w", modKey: true, shiftKey: true },
+  daily_note: { id: "daily_note", key: "d", modKey: true },
 };
 
 export const useShortcutStore = create<ShortcutStore>()(
