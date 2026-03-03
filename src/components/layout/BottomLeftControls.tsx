@@ -142,17 +142,6 @@ export function BottomLeftControls({
         </ActionIcon>
       </Tooltip>
 
-      <Tooltip label={t("navigation.daily_note")} position="top">
-        <ActionIcon
-          variant="subtle"
-          size="md"
-          onClick={onDailyNoteClick}
-          styles={iconButtonStyles}
-        >
-          <IconCalendar size={16} />
-        </ActionIcon>
-      </Tooltip>
-
       <Tooltip label={t("common.settings")} position="top">
         <ActionIcon
           variant="subtle"
