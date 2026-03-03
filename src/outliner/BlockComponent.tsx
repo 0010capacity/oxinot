@@ -81,7 +81,10 @@ import {
   isOverdue,
   setStatusPrefix,
 } from "../types/todo";
-import { BlockOrderContext } from "./BlockEditor";
+import {
+  BlockOrderContext,
+  DragOverPositionContext,
+} from "./BlockEditor";
 import {
   calculateNextBlockCursorPosition,
   calculatePrevBlockCursorPosition,
@@ -95,6 +98,9 @@ interface BlockComponentProps {
 export const BlockComponent: React.FC<BlockComponentProps> = memo(
   ({ blockId, depth }: BlockComponentProps) => {
     const blockOrder = useContext(BlockOrderContext);
+    const { overBlockId, dropPosition } = useContext(
+      DragOverPositionContext,
+    );
     const computedColorScheme = useComputedColorScheme("light");
     const isDark = computedColorScheme === "dark";
 
@@ -128,9 +134,9 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     });
 
     const dndStyle: React.CSSProperties = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
+      // Don't apply transform - keep block in place during drag
+      // DragOverlay shows the dragging preview instead
+      opacity: isDragging ? 0.3 : 1,
     };
 
     // For subpage-header: get page opening functions
@@ -1768,9 +1774,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
             style={{
               position: "relative",
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
-              backgroundColor: isSelected
-                ? "rgba(128, 128, 128, 0.1)"
-                : undefined,
+              backgroundColor:
+                overBlockId === blockId && dropPosition === "child"
+                  ? "rgba(128, 128, 128, 0.08)"
+                  : isSelected
+                    ? "rgba(128, 128, 128, 0.1)"
+                    : undefined,
               transition: "background-color 0.15s ease",
               ...dndStyle,
             }}
@@ -2549,6 +2558,37 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 </Box>
               )}
             </div>
+
+            {/* Drop position indicators */}
+            {overBlockId === blockId && dropPosition === "before" && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: `${depth * INDENT_PER_LEVEL}px`,
+                  right: 0,
+                  height: "2px",
+                  backgroundColor: "rgba(128, 128, 128, 0.5)",
+                  pointerEvents: "none",
+                  zIndex: 10,
+                }}
+              />
+            )}
+            {overBlockId === blockId && dropPosition === "after" && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: `${depth * INDENT_PER_LEVEL}px`,
+                  right: 0,
+                  height: "2px",
+                  backgroundColor: "rgba(128, 128, 128, 0.5)",
+                  pointerEvents: "none",
+                  zIndex: 10,
+                }}
+              />
+            )}
+            {/* Child drop: only background highlight, no line indicator */}
           </div>
 
           {/* Render children recursively if not collapsed */}
