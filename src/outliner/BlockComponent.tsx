@@ -2,7 +2,7 @@ import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { Box, Popover, useComputedColorScheme } from "@mantine/core";
 import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+
 import {
   IconAdjustments,
   IconCalendar,
@@ -125,8 +125,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       attributes,
       listeners,
       setNodeRef,
-      transform,
-      transition,
+
       isDragging,
     } = useSortable({
       id: blockId,
@@ -1144,7 +1143,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         dom.removeEventListener("beforeinput", handleBeforeInput);
         dom.removeEventListener("keydown", handleKeyDown, { capture: true });
       };
-    }, [blockId, createBlock, commitDraft, splitBlockAtCursor]);
+    }, [blockId, createBlock, commitDraft, splitBlockAtCursor, setIsComposing]);
 
     const handleFocus = useCallback(() => {
       // Reset IME state when focusing a different block
