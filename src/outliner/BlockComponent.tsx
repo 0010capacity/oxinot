@@ -174,6 +174,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const deleteBlock = useBlockStore((state) => state.deleteBlock);
     const targetCursorPosition = useTargetCursorPosition();
     const setFocusedBlock = useBlockUIStore((state) => state.setFocusedBlock);
+    const setIsComposing = useBlockUIStore((state) => state.setIsComposing);
     const clearTargetCursorPosition = useBlockUIStore(
       (state) => state.clearTargetCursorPosition,
     );
@@ -979,11 +980,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         imeStateRef.current.isComposing = true;
         imeStateRef.current.lastInputWasComposition = true;
         imeStateRef.current.enterPressed = false;
+        // Sync with global store for cross-component IME state
+        setIsComposing(true);
       };
 
       const handleCompositionEnd = () => {
         imeStateRef.current.isComposing = false;
         // Keep lastInputWasComposition flag - will be cleared on next non-IME input
+        // Sync with global store for cross-component IME state
+        setIsComposing(false);
       };
 
       // Track input events to detect IME vs normal input
