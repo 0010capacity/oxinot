@@ -1,16 +1,22 @@
+import {
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  type DragOverEvent,
+  type DragStartEvent,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconPlus } from "@tabler/icons-react";
-import type React from "react";
-import {
-  createContext,
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
 import {
@@ -26,29 +32,6 @@ import { ContentWrapper } from "./layout/ContentWrapper";
 import { PageContainer } from "./layout/PageContainer";
 import { PageHeader } from "./layout/PageHeader";
 
-interface DragState {
-  isDragging: boolean;
-  draggedPageId: string | null;
-  dragOverPageId: string | null;
-  startY: number;
-  startX: number;
-  mouseX: number;
-  mouseY: number;
-}
-
-const DRAG_THRESHOLD = 5; // pixels to move before considering it a drag
-
-// Create isolated drag context to prevent cascading re-renders
-export const DragContext = createContext<DragState>({
-  isDragging: false,
-  draggedPageId: null,
-  dragOverPageId: null,
-  startY: 0,
-  startX: 0,
-  mouseX: 0,
-  mouseY: 0,
-});
-
 // Memoized PageTreeItem wrapper to prevent unnecessary re-renders
 const MemoizedPageTreeItem = memo(PageTreeItem, (prev, next) => {
   return (
@@ -61,7 +44,6 @@ const MemoizedPageTreeItem = memo(PageTreeItem, (prev, next) => {
     prev.isEditing === next.isEditing &&
     prev.editValue === next.editValue &&
     prev.collapsed[prev.page.id] === next.collapsed[next.page.id] &&
-    prev.draggedPageId === next.draggedPageId &&
     prev.dragOverPageId === next.dragOverPageId &&
     prev.showIndentGuides === next.showIndentGuides &&
     prev.isCreating === next.isCreating &&
@@ -83,7 +65,6 @@ interface RecursivePageTreeItemProps {
   onEdit: (pageId: string) => void;
   onDelete: (pageId: string) => void;
   onAddChild: (pageId: string) => void;
-  onMouseDown: (e: React.MouseEvent, pageId: string) => void;
   editingPageId: string | null;
   editValue: string;
   onEditChange: (value: string) => void;
@@ -91,7 +72,6 @@ interface RecursivePageTreeItemProps {
   onEditCancel: () => void;
   collapsed: Record<string, boolean>;
   onToggleCollapse: (pageId: string) => void;
-  draggedPageId: string | null;
   dragOverPageId: string | null;
   showIndentGuides: boolean;
 }
@@ -109,7 +89,6 @@ const RecursivePageTreeItem = memo(
       onEdit,
       onDelete,
       onAddChild,
-      onMouseDown,
       editingPageId,
       editValue,
       onEditChange,
@@ -117,7 +96,6 @@ const RecursivePageTreeItem = memo(
       onEditCancel,
       collapsed,
       onToggleCollapse,
-      draggedPageId,
       dragOverPageId,
       showIndentGuides,
     } = props;
@@ -139,16 +117,6 @@ const RecursivePageTreeItem = memo(
     const hasChildren = sortedChildrenIds.length > 0;
     const isCreatingChild = isCreating && creatingParentId === pageId;
 
-    // Log when creating child for debugging
-    if (isCreatingChild) {
-      console.log(
-        "[RecursivePageTreeItem] Rendering NewPageInput for parent:",
-        pageId,
-        "depth:",
-        depth + 1,
-      );
-    }
-
     return (
       <MemoizedPageTreeItem
         page={page}
@@ -158,14 +126,12 @@ const RecursivePageTreeItem = memo(
         onEdit={onEdit}
         onDelete={onDelete}
         onAddChild={onAddChild}
-        onMouseDown={onMouseDown}
         editValue={editValue}
         onEditChange={onEditChange}
         onEditSubmit={onEditSubmit}
         onEditCancel={onEditCancel}
         collapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
-        draggedPageId={draggedPageId}
         dragOverPageId={dragOverPageId}
         showIndentGuides={showIndentGuides}
         isCreating={isCreating}
@@ -186,7 +152,6 @@ const RecursivePageTreeItem = memo(
               onEdit={onEdit}
               onDelete={onDelete}
               onAddChild={onAddChild}
-              onMouseDown={onMouseDown}
               editingPageId={editingPageId}
               editValue={editValue}
               onEditChange={onEditChange}
@@ -194,7 +159,6 @@ const RecursivePageTreeItem = memo(
               onEditCancel={onEditCancel}
               collapsed={collapsed}
               onToggleCollapse={onToggleCollapse}
-              draggedPageId={draggedPageId}
               dragOverPageId={dragOverPageId}
               showIndentGuides={showIndentGuides}
             />
@@ -212,7 +176,6 @@ const RecursivePageTreeItem = memo(
   },
   (prev, next) => {
     // Custom comparison to prevent unnecessary re-renders
-    // but allow re-renders when isCreating or creatingParentId changes
     return (
       prev.pageId === next.pageId &&
       prev.depth === next.depth &&
@@ -222,7 +185,6 @@ const RecursivePageTreeItem = memo(
       prev.editingPageId === next.editingPageId &&
       prev.editValue === next.editValue &&
       prev.collapsed[prev.pageId] === next.collapsed[next.pageId] &&
-      prev.draggedPageId === next.draggedPageId &&
       prev.dragOverPageId === next.dragOverPageId &&
       prev.showIndentGuides === next.showIndentGuides
     );
@@ -230,6 +192,23 @@ const RecursivePageTreeItem = memo(
 );
 
 RecursivePageTreeItem.displayName = "RecursivePageTreeItem";
+
+// Helper to get all page IDs in a flat array for SortableContext
+function getAllPageIds(
+  parentId: string | null,
+  pagesById: Record<string, PageData>,
+): string[] {
+  const result: string[] = [];
+  const children = Object.values(pagesById)
+    .filter((p) => p.parentId === parentId)
+    .sort((a, b) => a.title.localeCompare(b.title));
+
+  for (const child of children) {
+    result.push(child.id);
+    result.push(...getAllPageIds(child.id, pagesById));
+  }
+  return result;
+}
 
 export function FileTreeIndex() {
   const { t } = useTranslation();
@@ -253,6 +232,7 @@ export function FileTreeIndex() {
   const pages = usePageStore((state) =>
     state.pageIds.map((id) => state.pagesById[id]).filter(Boolean),
   );
+  const pagesById = usePageStore((state) => state.pagesById);
 
   const [isCreating, setIsCreating] = useState(false);
   const [creatingParentId, setCreatingParentId] = useState<string | null>(null);
@@ -262,198 +242,102 @@ export function FileTreeIndex() {
   const [editValue, setEditValue] = useState("");
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [dragState, setDragState] = useState<DragState>({
-    isDragging: false,
-    draggedPageId: null,
-    dragOverPageId: null,
-    startY: 0,
-    startX: 0,
-    mouseX: 0,
-    mouseY: 0,
-  });
-  const draggedPageId = dragState.draggedPageId;
-  const dragOverPageId = dragState.dragOverPageId;
+
+  // DnD state for tracking active drag
+  const [activePageId, setActivePageId] = useState<string | null>(null);
+  const [dragOverPageId, setDragOverPageId] = useState<string | null>(null);
 
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
   const [pageToDelete, setPageToDelete] = useState<PageData | null>(null);
 
   // Use refs to hold latest values without triggering re-renders
-  const pagesRef = useRef(pages);
   const movePageRef = useRef(movePage);
-  const loadPagesRef = useRef(loadPages);
 
   useEffect(() => {
-    pagesRef.current = pages;
     movePageRef.current = movePage;
-    loadPagesRef.current = loadPages;
-  }, [pages, movePage, loadPages]);
+  }, [movePage]);
 
   useEffect(() => {
     loadPages();
   }, [loadPages]);
 
-  // Mouse-based drag and drop - use callback refs to maintain stable event handlers
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    setDragState((prevState) => {
-      // Check if we should start dragging (threshold check)
-      if (prevState.draggedPageId && !prevState.isDragging) {
-        const deltaX = Math.abs(e.clientX - prevState.startX);
-        const deltaY = Math.abs(e.clientY - prevState.startY);
+  // Configure pointer sensor with drag threshold to distinguish from click
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px threshold to distinguish drag from click
+      },
+    }),
+  );
 
-        if (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD) {
-          return { ...prevState, isDragging: true };
-        }
-        return prevState;
-      }
+  // Get all page IDs for SortableContext
+  const allPageIds = useMemo(() => getAllPageIds(null, pagesById), [pagesById]);
 
-      if (!prevState.isDragging) return prevState;
-
-      // Prevent text selection while dragging
-      e.preventDefault();
-
-      // Find element under cursor
-      const elements = document.elementsFromPoint(e.clientX, e.clientY);
-      const pageElement = elements.find((el) =>
-        el.getAttribute("data-page-id"),
-      );
-      const dropZone = elements.find(
-        (el) => el.getAttribute("data-drop-zone") === "root",
-      );
-
-      let dragOverPageId: string | null = null;
-      if (pageElement) {
-        const pageId = pageElement.getAttribute("data-page-id");
-        if (pageId && pageId !== prevState.draggedPageId) {
-          dragOverPageId = pageId;
-        }
-      } else if (dropZone) {
-        dragOverPageId = "root";
-      }
-
-      // Update mouse position and dragOverPageId
-      return {
-        ...prevState,
-        mouseX: e.clientX,
-        mouseY: e.clientY,
-        dragOverPageId,
-      };
-    });
+  // Handle drag start
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActivePageId(event.active.id as string);
   }, []);
 
-  const handleMouseUp = useCallback(() => {
-    setDragState((currentState) => {
-      const { draggedPageId, dragOverPageId, isDragging } = currentState;
-
-      // If we never started dragging (just a click), reset and do nothing
-      if (!isDragging) {
-        return {
-          isDragging: false,
-          draggedPageId: null,
-          dragOverPageId: null,
-          startY: 0,
-          startX: 0,
-          mouseX: 0,
-          mouseY: 0,
-        };
-      }
-
-      // Perform drop if valid
-      if (draggedPageId) {
-        if (dragOverPageId === "root") {
-          // Move to root level
-          movePageRef.current(draggedPageId, null).catch((error) => {
-            const errorMessage = String(error);
-            console.error(
-              "[FileTreeIndex.handleMouseUp] Failed to move page:",
-              error,
-            );
-
-            // Silently ignore validation errors (invalid move operations)
-            if (
-              errorMessage.includes("Cannot move page to itself") ||
-              errorMessage.includes("Cannot move page to its own descendant")
-            ) {
-              return;
-            }
-
-            // Show notification for actual errors
-            notifications.show({
-              color: "red",
-              title: "Error",
-              message: `Failed to move page: ${error}`,
-          });
-          });
-        } else if (dragOverPageId && draggedPageId !== dragOverPageId) {
-          movePageRef
-            .current(draggedPageId, dragOverPageId)
-            .then(() => {
-              setCollapsed((prev) => ({
-                ...prev,
-                [dragOverPageId]: false,
-              }));
-            })
-            .catch((error) => {
-              const errorMessage = String(error);
-              console.error(
-                "[FileTreeIndex.handleMouseUp] Failed to move page:",
-                error,
-              );
-
-              // Silently ignore validation errors (invalid move operations)
-              if (
-                errorMessage.includes("Cannot move page to itself") ||
-                errorMessage.includes("Cannot move page to its own descendant")
-              ) {
-                return;
-              }
-
-              // Show notification for actual errors
-              notifications.show({
-                color: "red",
-                title: "Error",
-                message: `Failed to move page: ${error}`,
-              });
-            });
-        }
-      }
-
-      // Reset drag state
-      return {
-        isDragging: false,
-        draggedPageId: null,
-        dragOverPageId: null,
-        startY: 0,
-        startX: 0,
-        mouseX: 0,
-        mouseY: 0,
-      };
-    });
+  // Handle drag over (for drop zone highlighting)
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { over } = event;
+    if (over) {
+      setDragOverPageId(over.id as string);
+    } else {
+      setDragOverPageId(null);
+    }
   }, []);
 
-  useEffect(() => {
-    if (!dragState.draggedPageId) {
-      document.body.style.cursor = "";
-      return;
-    }
+  // Handle drag end
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActivePageId(null);
+      setDragOverPageId(null);
 
-    if (dragState.isDragging) {
-      document.body.style.cursor = "grabbing";
-    }
+      if (!over || active.id === over.id) return;
 
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+      const draggedId = active.id as string;
+      const targetId = over.id as string;
+      // Move the page to be a child of the target (or root if target is "root")
 
-    return () => {
-      document.body.style.cursor = "";
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [
-    dragState.draggedPageId,
-    dragState.isDragging,
-    handleMouseMove,
-    handleMouseUp,
-  ]);
+      try {
+        // Move the page to be a child of the target (or root if target is "root")
+        if (targetId === "root") {
+          await movePageRef.current(draggedId, null);
+        } else {
+          await movePageRef.current(draggedId, targetId);
+          // Expand the target folder after drop
+          setCollapsed((prev) => ({
+            ...prev,
+            [targetId]: false,
+          }));
+        }
+      } catch (error) {
+        const errorMessage = String(error);
+        console.error(
+          "[FileTreeIndex.handleDragEnd] Failed to move page:",
+          error,
+        );
+
+        // Silently ignore validation errors (invalid move operations)
+        if (
+          errorMessage.includes("Cannot move page to itself") ||
+          errorMessage.includes("Cannot move page to its own descendant")
+        ) {
+          return;
+        }
+
+        // Show notification for actual errors
+        notifications.show({
+          color: "red",
+          title: "Error",
+          message: `Failed to move page: ${error}`,
+        });
+      }
+    },
+    [],
+  );
 
   const handleCreatePage = useCallback<(title: string) => Promise<void>>(
     async (title: string) => {
@@ -609,37 +493,7 @@ export function FileTreeIndex() {
     }));
   }, []);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent, pageId: string) => {
-    // Only start drag on left mouse button
-    if (e.button !== 0) return;
-
-    const target = e.target as HTMLElement;
-    // Don't start drag if clicking on action buttons or input fields
-    // But allow dragging from the page title text/button area
-    if (
-      target.tagName === "INPUT" ||
-      target.closest("input") ||
-      target.closest('[data-action-button="true"]')
-    ) {
-      return;
-    }
-
-    // Don't prevent default yet - let click events work
-    // We'll prevent default only when drag threshold is exceeded
-
-    setDragState({
-      isDragging: false, // Not dragging yet, just mouse down
-      draggedPageId: pageId,
-      dragOverPageId: null,
-      startY: e.clientY,
-      startX: e.clientX,
-      mouseX: e.clientX,
-      mouseY: e.clientY,
-    });
-  }, []);
-
   const rootChildrenIds = usePageChildrenIds(null);
-  const pagesById = usePageStore((state) => state.pagesById);
   const sortedRootPageIds = useMemo(() => {
     return [...rootChildrenIds].sort((a, b) => {
       const titleA = pagesById[a]?.title || "";
@@ -676,186 +530,162 @@ export function FileTreeIndex() {
     return descendants;
   }, [pageToDelete, pages]);
 
+  // Get active page for DragOverlay
+  const activePage = activePageId ? pagesById[activePageId] : null;
+
   return (
     <PageContainer>
       <ContentWrapper>
         {/* Workspace Title */}
         <PageHeader title={workspaceName} />
 
-        {/* Dragging Ghost */}
-        {dragState.isDragging && dragState.draggedPageId && (
-          <div
-            style={{
-              position: "fixed",
-              left: dragState.mouseX + 10,
-              top: dragState.mouseY + 10,
-              zIndex: 10000,
-              pointerEvents: "none",
-              backgroundColor: "var(--mantine-color-dark-6)",
-              border: "1px solid var(--mantine-color-dark-4)",
-              borderRadius: "var(--radius-sm)",
-              padding: "8px 12px",
-              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-              opacity: 0.9,
-            }}
-          >
-            <Text size="sm" fw={500}>
-              {pages.find((p) => p.id === dragState.draggedPageId)?.title || ""}
-            </Text>
-          </div>
-        )}
-
         <Stack gap={0} style={{ position: "relative" }}>
-          {/* Root Drop Zone */}
-          {dragState.isDragging && (
-            <div
-              data-drop-zone="root"
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 1000,
-                pointerEvents: "all",
-                backgroundColor:
-                  dragOverPageId === "root"
-                    ? "var(--color-interactive-hover)"
-                    : "transparent",
-                border:
-                  dragOverPageId === "root"
-                    ? "2px dashed var(--mantine-color-blue-5)"
-                    : "2px dashed transparent",
-                borderRadius: "var(--radius-sm)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.15s ease",
-              }}
-            >
-              {dragOverPageId === "root" && (
-                <Text size="sm" c="dimmed" fw={500}>
-                  Drop here to move to root
-                </Text>
-              )}
-            </div>
-          )}
-
-          {/* Pages Tree */}
-          <Stack
-            gap={0}
-            style={{ flex: 1 }}
-            onClick={(e) => {
-              // Close new page input if clicking on empty space
-              if (isCreating && e.target === e.currentTarget) {
-                handleCancelCreate();
-              }
-            }}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
           >
-            {/* New Page Input at bottom */}
-            {isCreating && !creatingParentId && (
-              <NewPageInput
-                depth={0}
-                onSubmit={handleCreatePage}
-                onCancel={handleCancelCreate}
-                isSubmitting={isSubmitting}
-              />
-            )}
-            {sortedRootPageIds.map((pageId) => (
-              <RecursivePageTreeItem
-                key={pageId}
-                pageId={pageId}
-                depth={0}
-                onEdit={handleEditPage}
-                onDelete={handleDeletePage}
-                onAddChild={handleAddChild}
-                onMouseDown={handleMouseDown}
-                editingPageId={editingPageId}
-                editValue={editValue}
-                onEditChange={setEditValue}
-                onEditSubmit={handleEditSubmit}
-                onEditCancel={handleEditCancel}
-                collapsed={collapsed}
-                onToggleCollapse={handleToggleCollapse}
-                draggedPageId={draggedPageId}
-                dragOverPageId={dragOverPageId}
-                showIndentGuides={showIndentGuides}
-                isCreating={isCreating}
-                creatingParentId={creatingParentId}
-                handleCreatePage={handleCreatePage}
-                handleCancelCreate={handleCancelCreate}
-                isSubmitting={isSubmitting}
-              />
-            ))}
-
-            {/* Floating New Page Button */}
-            {!isCreating && (
-              <button
-                type="button"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--spacing-sm)",
-                  paddingLeft: "0px",
-                  paddingTop: "8px",
-                  paddingBottom: "4px",
-                  cursor: "pointer",
-                  borderRadius: "var(--radius-sm)",
-                  transition: "background-color var(--transition-normal)",
-                  opacity: "var(--opacity-hover)",
-                  border: "none",
-                  background: "none",
-                }}
-                onClick={() => setIsCreating(true)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = "1";
-                  e.currentTarget.style.backgroundColor =
-                    "var(--color-interactive-hover)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = "var(--opacity-hover)";
-                  e.currentTarget.style.backgroundColor = "transparent";
+            <SortableContext
+              items={allPageIds}
+              strategy={verticalListSortingStrategy}
+            >
+              {/* Pages Tree */}
+              <Stack
+                gap={0}
+                style={{ flex: 1 }}
+                onClick={(e) => {
+                  // Close new page input if clicking on empty space
+                  if (isCreating && e.target === e.currentTarget) {
+                    handleCancelCreate();
+                  }
                 }}
               >
-                {/* Spacer for collapse toggle */}
-                <div
-                  style={{
-                    flexShrink: 0,
-                    width: "var(--layout-collapse-toggle-size)",
-                    height: "var(--layout-collapse-toggle-size)",
-                  }}
-                />
-
-                {/* Plus icon at bullet position */}
-                <div
-                  style={{
-                    flexShrink: 0,
-                    width: "var(--layout-bullet-container-size)",
-                    height: "var(--layout-bullet-container-size)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <IconPlus
-                    size={16}
-                    style={{ opacity: "var(--opacity-dimmed)" }}
+                {/* New Page Input at bottom */}
+                {isCreating && !creatingParentId && (
+                  <NewPageInput
+                    depth={0}
+                    onSubmit={handleCreatePage}
+                    onCancel={handleCancelCreate}
+                    isSubmitting={isSubmitting}
                   />
-                </div>
+                )}
+                {sortedRootPageIds.map((pageId) => (
+                  <RecursivePageTreeItem
+                    key={pageId}
+                    pageId={pageId}
+                    depth={0}
+                    onEdit={handleEditPage}
+                    onDelete={handleDeletePage}
+                    onAddChild={handleAddChild}
+                    editingPageId={editingPageId}
+                    editValue={editValue}
+                    onEditChange={setEditValue}
+                    onEditSubmit={handleEditSubmit}
+                    onEditCancel={handleEditCancel}
+                    collapsed={collapsed}
+                    onToggleCollapse={handleToggleCollapse}
+                    dragOverPageId={dragOverPageId}
+                    showIndentGuides={showIndentGuides}
+                    isCreating={isCreating}
+                    creatingParentId={creatingParentId}
+                    handleCreatePage={handleCreatePage}
+                    handleCancelCreate={handleCancelCreate}
+                    isSubmitting={isSubmitting}
+                  />
+                ))}
 
-                <Text
-                  size="sm"
-                  c="dimmed"
+                {/* Floating New Page Button */}
+                {!isCreating && (
+                  <button
+                    type="button"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "var(--spacing-sm)",
+                      paddingLeft: "0px",
+                      paddingTop: "8px",
+                      paddingBottom: "4px",
+                      cursor: "pointer",
+                      borderRadius: "var(--radius-sm)",
+                      transition: "background-color var(--transition-normal)",
+                      opacity: "var(--opacity-hover)",
+                      border: "none",
+                      background: "none",
+                    }}
+                    onClick={() => setIsCreating(true)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = "1";
+                      e.currentTarget.style.backgroundColor =
+                        "var(--color-interactive-hover)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = "var(--opacity-hover)";
+                      e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    {/* Spacer for collapse toggle */}
+                    <div
+                      style={{
+                        flexShrink: 0,
+                        width: "var(--layout-collapse-toggle-size)",
+                        height: "var(--layout-collapse-toggle-size)",
+                      }}
+                    />
+
+                    {/* Plus icon at bullet position */}
+                    <div
+                      style={{
+                        flexShrink: 0,
+                        width: "var(--layout-bullet-container-size)",
+                        height: "var(--layout-bullet-container-size)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <IconPlus
+                        size={16}
+                        style={{ opacity: "var(--opacity-dimmed)" }}
+                      />
+                    </div>
+
+                    <Text
+                      size="sm"
+                      c="dimmed"
+                      style={{
+                        userSelect: "none",
+                        paddingLeft: "4px",
+                      }}
+                    >
+                      New page
+                    </Text>
+                  </button>
+                )}
+              </Stack>
+            </SortableContext>
+
+            {/* Drag Overlay - shows preview while dragging */}
+            <DragOverlay>
+              {activePage ? (
+                <div
                   style={{
-                    userSelect: "none",
-                    paddingLeft: "4px",
+                    opacity: 0.9,
+                    padding: "8px 12px",
+                    backgroundColor: "var(--color-bg-secondary)",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--color-border-primary)",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
                   }}
                 >
-                  New page
-                </Text>
-              </button>
-            )}
-          </Stack>
+                  <Text size="sm" fw={500}>
+                    {activePage.title}
+                  </Text>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         </Stack>
       </ContentWrapper>
 

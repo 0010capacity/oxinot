@@ -1,3 +1,5 @@
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   ActionIcon,
   Group,
@@ -7,7 +9,14 @@ import {
 } from "@mantine/core";
 import { IconCheck, IconX } from "@tabler/icons-react";
 import type React from "react";
-import { memo, startTransition, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { INDENT_PER_LEVEL } from "../../constants/layout";
 import { useBlockStore } from "../../stores/blockStore";
@@ -36,7 +45,6 @@ interface PageTreeItemProps {
   onEdit: (pageId: string) => void;
   onDelete: (pageId: string) => void;
   onAddChild: (parentId: string) => void;
-  onMouseDown: (e: React.MouseEvent, pageId: string) => void;
   isEditing: boolean;
   editValue: string;
   onEditChange: (value: string) => void;
@@ -44,7 +52,6 @@ interface PageTreeItemProps {
   onEditCancel: () => void;
   collapsed: Record<string, boolean>;
   onToggleCollapse: (pageId: string) => void;
-  draggedPageId: string | null;
   dragOverPageId: string | null;
   showIndentGuides?: boolean;
   isCreating?: boolean;
@@ -60,7 +67,6 @@ export const PageTreeItem = memo(function PageTreeItem({
   onEdit,
   onDelete,
   onAddChild,
-  onMouseDown,
   isEditing,
   editValue,
   onEditChange,
@@ -68,7 +74,6 @@ export const PageTreeItem = memo(function PageTreeItem({
   onEditCancel,
   collapsed,
   onToggleCollapse,
-  draggedPageId,
   dragOverPageId,
   showIndentGuides = true,
   children,
@@ -82,10 +87,28 @@ export const PageTreeItem = memo(function PageTreeItem({
 
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // DnD sortable hook for drag-and-drop with smooth animations
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: page.id,
+  });
+
   const hasChildren = !!children;
   const isCollapsed = collapsed[page.id];
   const isDraggedOver = dragOverPageId === page.id;
-  const isDragging = draggedPageId === page.id;
+
+  // Apply transform and transition for smooth drag animations
+  const dndStyle: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   // Context menu sections
   const contextMenuSections: ContextMenuSection[] = useMemo(
@@ -123,55 +146,64 @@ export const PageTreeItem = memo(function PageTreeItem({
     [page.id, onAddChild, onEdit, onDelete, t],
   );
 
-  const handlePageClick = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isEditing) return;
+  const handlePageClick = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (isEditing) return;
 
-    const parentNames: string[] = [];
-    const pagePathIds: string[] = [];
-    let currentParentId = page.parentId;
-    const { pagesById } = usePageStore.getState();
+      const parentNames: string[] = [];
+      const pagePathIds: string[] = [];
+      let currentParentId = page.parentId;
+      const { pagesById } = usePageStore.getState();
 
-    while (currentParentId) {
-      const parentPage = pagesById[currentParentId];
-      if (parentPage) {
-        parentNames.unshift(parentPage.title);
-        pagePathIds.unshift(currentParentId);
-        currentParentId = parentPage.parentId;
-      } else {
-        break;
+      while (currentParentId) {
+        const parentPage = pagesById[currentParentId];
+        if (parentPage) {
+          parentNames.unshift(parentPage.title);
+          pagePathIds.unshift(currentParentId);
+          currentParentId = parentPage.parentId;
+        } else {
+          break;
+        }
       }
-    }
 
-    pagePathIds.push(page.id);
+      pagePathIds.push(page.id);
 
-    selectPage(page.id);
-    startTransition(() => {
-      openNote(page.id, page.title, parentNames, pagePathIds);
-    });
+      selectPage(page.id);
+      startTransition(() => {
+        openNote(page.id, page.title, parentNames, pagePathIds);
+      });
 
-    try {
-      await loadPage(page.id);
-    } catch (error) {
-      console.error("[PageTreeItem] Failed to load page:", error);
-    }
-  }, [page.id, page.parentId, page.title]);
+      try {
+        await loadPage(page.id);
+      } catch (error) {
+        console.error("[PageTreeItem] Failed to load page:", error);
+      }
+    },
+    [page.id, page.parentId, page.title, isEditing],
+  );
 
-  const handleBulletClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (hasChildren) {
-      onToggleCollapse(page.id);
-    }
-  }, [hasChildren, onToggleCollapse, page.id]);
+  const handleBulletClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (hasChildren) {
+        onToggleCollapse(page.id);
+      }
+    },
+    [hasChildren, onToggleCollapse, page.id],
+  );
 
-  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      onEditSubmit();
-    } else if (e.key === "Escape") {
-      onEditCancel();
-    }
-  }, [onEditSubmit, onEditCancel]);
+  const handleEditKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        onEditSubmit();
+      } else if (e.key === "Escape") {
+        onEditCancel();
+      }
+    },
+    [onEditSubmit, onEditCancel],
+  );
 
   const moveFocus = useCallback((direction: number) => {
     const buttons = Array.from(
@@ -186,30 +218,32 @@ export const PageTreeItem = memo(function PageTreeItem({
     }
   }, []);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "ArrowRight") {
-      if (hasChildren && isCollapsed) {
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowRight") {
+        if (hasChildren && isCollapsed) {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggleCollapse(page.id);
+        }
+      } else if (e.key === "ArrowLeft") {
+        if (hasChildren && !isCollapsed) {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggleCollapse(page.id);
+        }
+      } else if (e.key === "ArrowDown") {
         e.preventDefault();
         e.stopPropagation();
-        onToggleCollapse(page.id);
-      }
-    } else if (e.key === "ArrowLeft") {
-      if (hasChildren && !isCollapsed) {
+        moveFocus(1);
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
         e.stopPropagation();
-        onToggleCollapse(page.id);
+        moveFocus(-1);
       }
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      e.stopPropagation();
-      moveFocus(1);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      e.stopPropagation();
-      moveFocus(-1);
-    }
-  }, [hasChildren, isCollapsed, onToggleCollapse, page.id, moveFocus]);
-
+    },
+    [hasChildren, isCollapsed, onToggleCollapse, page.id, moveFocus],
+  );
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -227,21 +261,18 @@ export const PageTreeItem = memo(function PageTreeItem({
 
       <ContextMenu sections={contextMenuSections}>
         <div
-          onMouseDown={(e) => {
-            if (!isEditing && e.button === 0) {
-              onMouseDown(e, page.id);
-            }
-          }}
+          ref={setNodeRef}
           style={{
+            ...dndStyle,
             position: "relative",
-            opacity: isDragging ? "var(--opacity-dimmed)" : 1,
-            transition: "opacity var(--transition-slow)",
             cursor: isEditing ? "default" : "pointer",
             userSelect: isDragging ? "none" : "auto",
           }}
+          {...attributes}
+          {...listeners}
         >
           {/* Drop indicator */}
-          {isDraggedOver && draggedPageId !== page.id && (
+          {isDraggedOver && !isDragging && (
             <div
               style={{
                 position: "absolute",
