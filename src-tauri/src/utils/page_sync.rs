@@ -1,5 +1,5 @@
 use rusqlite::{params, Connection};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use tokio::fs;
 
@@ -231,6 +231,31 @@ fn find_bullet_subtree_end(
     Some(lines.len() - 1)
 }
 
+
+/// Collect all descendant block IDs (including self) for a given block using recursive CTE.
+fn collect_descendant_ids(conn: &Connection, block_id: &str) -> Result<Vec<String>, String> {
+    let mut stmt = conn
+        .prepare(
+            "WITH RECURSIVE descendants AS (
+            SELECT id FROM blocks WHERE id = ?
+            UNION ALL
+            SELECT b.id FROM blocks b
+            INNER JOIN descendants d ON b.parent_id = d.id
+        )
+        SELECT id FROM descendants",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let ids = stmt
+        .query_map([block_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<String>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(ids)
+}
+
+
 /// Re-indent a subtree by adjusting leading spaces on each line by `indent_delta` (can be negative).
 /// This assumes indent is represented with spaces (canonical serializer uses two spaces per depth).
 fn reindent_subtree_lines(subtree_lines: &mut [String], indent_delta: isize) -> Result<(), String> {
@@ -354,6 +379,32 @@ async fn try_patch_bullet_subtree_relocation(
 
     // Extract subtree lines [src_start_idx..=src_end_idx]
     let mut subtree_lines: Vec<String> = lines[src_start_idx..=src_end_idx].to_vec();
+
+
+    // ---- Validate subtree integrity against DB hierarchy ----
+    // If the extracted subtree is missing any descendants that exist in DB,
+    // the file is out of sync and we should fall back to full rewrite.
+    {
+        let conn = conn_mutex.lock().map_err(|e| e.to_string())?;
+        let db_descendants: HashSet<String> = collect_descendant_ids(&conn, moved_block_id)?
+            .into_iter()
+            .filter(|id| id != moved_block_id) // exclude self
+            .collect();
+
+        let file_descendants: HashSet<String> = subtree_lines
+            .iter()
+            .filter_map(|line| {
+                let trimmed = line.trim_start();
+                trimmed.strip_prefix("ID::").map(|s| s.to_string())
+            })
+            .filter(|id| id != moved_block_id) // exclude self
+            .collect();
+
+        if !db_descendants.is_subset(&file_descendants) {
+            // Some DB children are missing from the extracted subtree
+            return Ok(false); // Fall back to full rewrite
+        }
+    }
 
     // Remove original subtree from the document
     lines.drain(src_start_idx..=src_end_idx);
@@ -793,16 +844,23 @@ pub async fn sync_page_to_markdown_after_delete(
 }
 
 /// Sync a page after a block move/indent/outdent, attempting safe incremental relocation.
+/// If the incremental patch fails (for any reason including indent errors), falls back to full rewrite.
 pub async fn sync_page_to_markdown_after_move(
     conn_mutex: &Mutex<Connection>,
     workspace_path: &str,
     page_id: &str,
     moved_block_id: &str,
 ) -> Result<(), String> {
-    if try_patch_bullet_subtree_relocation(conn_mutex, workspace_path, page_id, moved_block_id)
-        .await?
-    {
-        return Ok(());
+    // Try incremental patch first; if it fails for any reason, fall back to full rewrite
+    match try_patch_bullet_subtree_relocation(conn_mutex, workspace_path, page_id, moved_block_id).await {
+        Ok(true) => return Ok(()),
+        Ok(false) => {
+            // Patch returned false (conditions not met), fall back to full rewrite
+        }
+        Err(e) => {
+            // Patch failed with error (e.g., "Invalid negative indent"), log and fall back
+            eprintln!("[page_sync] Incremental patch failed, falling back to full rewrite: {}", e);
+        }
     }
     sync_page_to_markdown(conn_mutex, workspace_path, page_id).await
 }
