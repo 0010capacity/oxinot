@@ -909,7 +909,21 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       }
     }, [isFocused, targetCursorPosition, clearTargetCursorPosition, editorRef]);
 
-    // Apply cursor position from click coordinates when Editor mounts
+    // ============================================================================
+    // FOCUS/CURSOR POSITIONING MECHANISMS (Priority Order)
+    // ============================================================================
+    // 1. pendingFocusSelection (mouse click on static content)
+    //    - Set by: handleStaticMouseDown when clicking on StaticMarkdownRenderer
+    //    - Uses: CodeMirror's posAtCoords(clientX, clientY) for accurate positioning
+    //    - Scope: Single application, cleared immediately after use
+    //
+    // 2. focusRequest + targetCursorPosition (programmatic navigation)
+    //    - Set by: Arrow key navigation, block split/merge operations
+    //    - Uses: Character offset from block start
+    //    - Scope: Single application, cleared immediately after use
+    // ============================================================================
+
+    // Mechanism 1: Mouse click positioning via pendingFocusSelection
     // This converts screen coordinates (from StaticMarkdownRenderer click) to text position
     useLayoutEffect(() => {
       if (!isFocused) return;
@@ -943,6 +957,8 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
       editorRef.current?.focus();
     }, [isFocused, blockId]);
 
+    // Mechanism 2: Programmatic focus via focusRequest + targetCursorPosition
+    // Used for keyboard navigation (ArrowUp/Down) and block operations (split/merge)
     useLayoutEffect(() => {
       const focusRequest = useBlockUIStore.getState().focusRequest;
       if (!focusRequest || focusRequest.blockId !== blockId) return;
