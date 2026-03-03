@@ -29,15 +29,24 @@ export function SubPagesSection({ currentPageId }: SubPagesSectionProps) {
 
   // Build tree structure recursively
   const childPages = useMemo(() => {
-    // Debug: log page hierarchy state
-    const allPages = pageIds.map((id) => pagesById[id]).filter(Boolean);
-    console.log("[SubPagesSection] currentPageId:", currentPageId?.slice(0, 8));
-    console.log("[SubPagesSection] pages:", allPages.map((p) => ({ t: p.title, id: p.id.slice(0, 8), pid: p.parentId?.slice(0, 8), dir: p.isDirectory })));
+    // Get all pages that exist in the store
+    const allPages = pageIds
+      .map((id) => pagesById[id])
+      .filter((page): page is NonNullable<typeof page> => page !== undefined);
+
+    // Find direct children of current page (including directory pages)
+    const directChildren = allPages.filter((page) => page.parentId === currentPageId);
+
+    console.log(
+      "[SubPagesSection] currentPageId:",
+      currentPageId?.slice(0, 8),
+      "children:",
+      directChildren.map((p) => ({ t: p.title, dir: p.isDirectory })),
+    );
 
     const buildTree = (parentId: string): PageTreeNode[] => {
-      return pageIds
-        .map((id) => pagesById[id])
-        .filter((page) => page && page.parentId === parentId)
+      return allPages
+        .filter((page) => page.parentId === parentId)
         .sort((a, b) => {
           // Sort directories first, then by title
           if (a.isDirectory !== b.isDirectory) {

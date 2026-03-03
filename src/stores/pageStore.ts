@@ -391,9 +391,13 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         `[pageStore.convertToDirectory] After: parentId=${updatedPage.parentId?.slice(0, 8) ?? "null"}`,
       );
 
-      // Update store with the backend response
+      // Update store with the backend response (create new object to ensure re-render)
       set((state) => {
-        state.pagesById[id] = updatedPage;
+        // Create a new pagesById object to ensure React detects the change
+        state.pagesById = {
+          ...state.pagesById,
+          [id]: updatedPage,
+        };
       });
 
       // Trigger file tree refresh
