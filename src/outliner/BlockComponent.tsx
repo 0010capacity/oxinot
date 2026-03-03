@@ -679,26 +679,17 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
         e.preventDefault();
         e.stopPropagation();
 
-        // Calculate text position from click location in static renderer
-        let cursorPos = 0;
-
-        // Use caretRangeFromPoint to find caret position at click coordinates
-        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-        if (range && e.currentTarget.contains(range.startContainer)) {
-          // Calculate offset from the start of the block content
-          const preCaretRange = document.createRange();
-          preCaretRange.selectNodeContents(e.currentTarget);
-          preCaretRange.setEnd(range.startContainer, range.startOffset);
-          cursorPos = preCaretRange.toString().length;
-        }
-
-        // Store click coordinates for fallback
+        // Store click coordinates for CodeMirror's posAtCoords to calculate
+        // accurate text position when Editor mounts. This is more accurate than
+        // caretRangeFromPoint on static HTML because CodeMirror knows the actual
+        // editor layout including decorations and line wrapping.
         useBlockUIStore
           .getState()
           .setPendingFocusSelection(blockId, e.clientX, e.clientY);
 
-        // Set focus with calculated cursor position
-        setFocusedBlock(blockId, cursorPos);
+        // Set focus WITHOUT cursor position - will be calculated by useLayoutEffect
+        // using CodeMirror's posAtCoords for accuracy
+        setFocusedBlock(blockId);
       },
       [blockId, setFocusedBlock],
     );
