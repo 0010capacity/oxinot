@@ -1,5 +1,4 @@
 import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import {
   ActionIcon,
   Group,
@@ -87,13 +86,11 @@ export const PageTreeItem = memo(function PageTreeItem({
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // DnD sortable hook for drag-and-drop with smooth animations
+  // DnD sortable hook for drag-and-drop
   const {
     attributes,
     listeners,
     setNodeRef,
-    transform,
-    transition,
     isDragging,
   } = useSortable({
     id: page.id,
@@ -103,10 +100,9 @@ export const PageTreeItem = memo(function PageTreeItem({
   const isCollapsed = collapsed[page.id];
   const isDraggedOver = dragOverPageId === page.id;
 
-  // Apply transform and transition for smooth drag animations
+  // Only apply opacity change when dragging, no transform/transition needed
+  // since file tree is alphabetically sorted (no reordering)
   const dndStyle: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
     opacity: isDragging ? 0.5 : 1,
   };
 
@@ -180,7 +176,7 @@ export const PageTreeItem = memo(function PageTreeItem({
         console.error("[PageTreeItem] Failed to load page:", error);
       }
     },
-    [page.id, page.parentId, page.title, isEditing],
+    [page.id, page.parentId, page.title, isEditing, loadPage, selectPage, openNote],
   );
 
   const handleBulletClick = useCallback(
@@ -271,7 +267,6 @@ export const PageTreeItem = memo(function PageTreeItem({
           {...attributes}
           {...listeners}
         >
-          {/* Drop indicator */}
           {isDraggedOver && !isDragging && (
             <div
               style={{
@@ -280,7 +275,7 @@ export const PageTreeItem = memo(function PageTreeItem({
                 right: 0,
                 top: 0,
                 bottom: 0,
-                backgroundColor: "var(--color-interactive-selected)",
+                backgroundColor: "rgba(128, 128, 128, 0.08)",
                 borderRadius: "var(--radius-sm)",
                 pointerEvents: "none",
                 zIndex: 1,
