@@ -1096,12 +1096,14 @@ export const useBlockStore = create<BlockStore>()(
           throw new Error("No workspace path");
         }
 
-        // Backend returns the updated block
+        // Backend expects a request object with id, newParentId, afterBlockId
         const updatedBlock: BlockData = await invoke("move_block", {
           workspacePath,
-          blockId: id,
-          newParentId: targetParentId,
-          afterBlockId,
+          request: {
+            id,
+            newParentId: targetParentId,
+            afterBlockId,
+          },
         });
 
         // Update only the changed block

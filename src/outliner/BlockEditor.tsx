@@ -1,6 +1,28 @@
+import {
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { useComputedColorScheme } from "@mantine/core";
 import { IconCopy } from "@tabler/icons-react";
-import { createContext, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   AIFloatingInput,
   useAIFloatingInput,
@@ -12,10 +34,9 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { useBlockEditorCommands } from "../hooks/useBlockEditorCommands";
 import { useBlockStore } from "../stores/blockStore";
 import { useBlockUIStore } from "../stores/blockUIStore";
-import { usePageStore } from "../stores/pageStore";
 import { useRegisterCommands } from "../stores/commandStore";
 import { useOutlinerSettingsStore } from "../stores/outlinerSettingsStore";
-
+import { usePageStore } from "../stores/pageStore";
 import { useThemeStore } from "../stores/themeStore";
 import { useViewStore } from "../stores/viewStore";
 import { showToast } from "../utils/toast";
@@ -88,6 +109,7 @@ export function BlockEditor({
   const error = useBlockStore((state) => state.error);
   const childrenMap = useBlockStore((state) => state.childrenMap);
   const blocksById = useBlockStore((state) => state.blocksById);
+  const moveBlock = useBlockStore((state) => state.moveBlock);
 
   // Page data for finding child pages
   const pagesById = usePageStore((state) => state.pagesById);
@@ -96,7 +118,9 @@ export function BlockEditor({
   const zoomPath = useViewStore((state) => state.zoomPath);
   const editorFontSize = useThemeStore((state) => state.editorFontSize);
   const editorLineHeight = useThemeStore((state) => state.editorLineHeight);
-  const showBulletThreading = useOutlinerSettingsStore((s) => s.showBulletThreading);
+  const showBulletThreading = useOutlinerSettingsStore(
+    (s) => s.showBulletThreading,
+  );
 
   const aiFloatingInput = useAIFloatingInput();
 
@@ -176,10 +200,7 @@ export function BlockEditor({
   const childPageIds = useMemo(() => {
     return pageIds
       .map((id) => pagesById[id])
-      .filter(
-        (page) =>
-          page && page.parentId === pageId && !page.isDirectory,
-      )
+      .filter((page) => page && page.parentId === pageId && !page.isDirectory)
       .map((page) => page.id);
   }, [pageIds, pagesById, pageId]);
 
@@ -191,7 +212,13 @@ export function BlockEditor({
     return () => {
       clearSubpageBlocks();
     };
-  }, [currentPageId, pageId, childPageIds, loadSubpageBlocks, clearSubpageBlocks]);
+  }, [
+    currentPageId,
+    pageId,
+    childPageIds,
+    loadSubpageBlocks,
+    clearSubpageBlocks,
+  ]);
 
   const clearZoom = useViewStore((state) => state.clearZoom);
   const zoomByPageId = useViewStore((state) => state.zoomByPageId);
@@ -284,18 +311,113 @@ export function BlockEditor({
     return computed;
   }, [blocksToShow, blocksById, childrenMap]);
 
+  // DnD state for block reordering
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+
+  // Configure pointer sensor with drag threshold to distinguish from click
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px threshold to distinguish drag from click
+      },
+    }),
+  );
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveBlockId(event.active.id as string);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveBlockId(null);
+
+      if (!over || active.id === over.id) return;
+
+      const activeId = active.id as string;
+      const overId = over.id as string;
+
+      // Find the position in blockOrder
+      const overIndex = blockOrder.indexOf(overId);
+      const activeIndex = blockOrder.indexOf(activeId);
+
+      if (overIndex === -1 || activeIndex === -1) return;
+
+      // Determine new parent and position
+      const activeBlock = blocksById[activeId];
+      const overBlock = blocksById[overId];
+
+      if (!activeBlock || !overBlock) return;
+
+      // Prevent dropping onto self or descendants (circular reference)
+      const isDescendant = (parentId: string, childId: string): boolean => {
+        const children = childrenMap[parentId] || [];
+        if (children.includes(childId)) return true;
+        for (const child of children) {
+          if (isDescendant(child, childId)) return true;
+        }
+        return false;
+      };
+
+      if (isDescendant(activeId, overId)) {
+        showToast({
+          message: "Cannot drop block onto its own descendant",
+          type: "error",
+        });
+        return;
+      }
+
+      // Determine the new parent (same as over block's parent for now)
+      const newParentId = overBlock.parentId;
+
+      // Determine the afterBlockId based on position
+      let afterBlockId: string | null = null;
+      if (overIndex > activeIndex) {
+        // Moving down: place after over block
+        afterBlockId = overId;
+      } else {
+        // Moving up: find the block before over block in the same parent
+        const overSiblings = newParentId
+          ? childrenMap[newParentId] || []
+          : childrenMap["root"] || [];
+        const overSiblingIndex = overSiblings.indexOf(overId);
+        if (overSiblingIndex > 0) {
+          afterBlockId = overSiblings[overSiblingIndex - 1];
+        }
+        // If overSiblingIndex === 0, afterBlockId stays null (move to first position)
+      }
+
+      try {
+        await moveBlock(activeId, newParentId, afterBlockId);
+      } catch (error) {
+        console.error("[BlockEditor] Failed to move block:", error);
+        showToast({ message: "Failed to move block", type: "error" });
+      }
+    },
+    [blockOrder, blocksById, childrenMap, moveBlock],
+  );
+
   // Drag selection state
   const blocksListRef = useRef<HTMLDivElement>(null);
   const [isDragPending, setIsDragPending] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number; blockId: string } | null>(null);
-  const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
+  const [dragStart, setDragStart] = useState<{
+    x: number;
+    y: number;
+    blockId: string;
+  } | null>(null);
+  const [dragCurrent, setDragCurrent] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const DRAG_THRESHOLD = 5;
 
   // Refs to track state in event handlers (avoids stale closure issues)
   const isDragPendingRef = useRef(false);
   const isDraggingRef = useRef(false);
-  const dragStartRef = useRef<{ x: number; y: number; blockId: string } | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number; blockId: string } | null>(
+    null,
+  );
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -309,49 +431,58 @@ export function BlockEditor({
   }, [dragStart]);
 
   // Get block ID from element under cursor
-  const getBlockIdFromPoint = useCallback((x: number, y: number): string | null => {
-    const element = document.elementFromPoint(x, y);
-    if (!element) return null;
-    const blockRow = element.closest('[data-block-row-id]');
-    return blockRow?.getAttribute('data-block-row-id') || null;
-  }, []);
+  const getBlockIdFromPoint = useCallback(
+    (x: number, y: number): string | null => {
+      const element = document.elementFromPoint(x, y);
+      if (!element) return null;
+      const blockRow = element.closest("[data-block-row-id]");
+      return blockRow?.getAttribute("data-block-row-id") || null;
+    },
+    [],
+  );
 
   // Check if modifier key for block selection is held (Cmd on Mac, Ctrl on others)
-  const isBlockSelectionModifier = useCallback((e: React.PointerEvent | PointerEvent): boolean => {
-    // macOS uses metaKey (Cmd), others use ctrlKey
-    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    return isMac ? e.metaKey : e.ctrlKey;
-  }, []);
+  const isBlockSelectionModifier = useCallback(
+    (e: React.PointerEvent | PointerEvent): boolean => {
+      // macOS uses metaKey (Cmd), others use ctrlKey
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      return isMac ? e.metaKey : e.ctrlKey;
+    },
+    [],
+  );
 
   // Handle pointer down - record potential drag start (only with modifier key)
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.button !== 0) return;
 
-    // Require modifier key for block selection (Cmd on Mac, Ctrl on others)
-    if (!isBlockSelectionModifier(e)) return;
+      // Require modifier key for block selection (Cmd on Mac, Ctrl on others)
+      if (!isBlockSelectionModifier(e)) return;
 
-    const target = e.target as HTMLElement;
-    if (
-      target.closest('.cm-editor') ||
-      target.closest('.block-bullet-wrapper') ||
-      target.closest('.collapse-toggle') ||
-      target.closest('button') ||
-      target.closest('a') ||
-      target.closest('input')
-    ) {
-      return;
-    }
+      const target = e.target as HTMLElement;
+      if (
+        target.closest(".cm-editor") ||
+        target.closest(".block-bullet-wrapper") ||
+        target.closest(".collapse-toggle") ||
+        target.closest("button") ||
+        target.closest("a") ||
+        target.closest("input")
+      ) {
+        return;
+      }
 
-    const blockId = getBlockIdFromPoint(e.clientX, e.clientY);
-    if (!blockId) return;
+      const blockId = getBlockIdFromPoint(e.clientX, e.clientY);
+      if (!blockId) return;
 
-    // Prevent text selection while block-selecting
-    e.preventDefault();
+      // Prevent text selection while block-selecting
+      e.preventDefault();
 
-    setIsDragPending(true);
-    setDragStart({ x: e.clientX, y: e.clientY, blockId });
-    setDragCurrent({ x: e.clientX, y: e.clientY });
-  }, [getBlockIdFromPoint, isBlockSelectionModifier]);
+      setIsDragPending(true);
+      setDragStart({ x: e.clientX, y: e.clientY, blockId });
+      setDragCurrent({ x: e.clientX, y: e.clientY });
+    },
+    [getBlockIdFromPoint, isBlockSelectionModifier],
+  );
 
   // Stable document-level listeners (registered once)
   useEffect(() => {
@@ -367,11 +498,11 @@ export function BlockEditor({
       setDragCurrent(null);
     };
 
-const onPointerMove = (e: PointerEvent) => {
+    const onPointerMove = (e: PointerEvent) => {
       if (!dragStartRef.current) return;
 
       // Cancel block selection if modifier key was released
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const modifierHeld = isMac ? e.metaKey : e.ctrlKey;
       if (!modifierHeld) {
         // Modifier released - cancel selection
@@ -390,11 +521,19 @@ const onPointerMove = (e: PointerEvent) => {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       // Start actual drag when threshold is crossed
-      if (isDragPendingRef.current && !isDraggingRef.current && distance > DRAG_THRESHOLD) {
+      if (
+        isDragPendingRef.current &&
+        !isDraggingRef.current &&
+        distance > DRAG_THRESHOLD
+      ) {
         setIsDragging(true);
         setIsDragPending(false);
-        useBlockUIStore.getState().setSelectionAnchor(dragStartRef.current.blockId);
-        useBlockUIStore.getState().setSelectedBlocks([dragStartRef.current.blockId]);
+        useBlockUIStore
+          .getState()
+          .setSelectionAnchor(dragStartRef.current.blockId);
+        useBlockUIStore
+          .getState()
+          .setSelectedBlocks([dragStartRef.current.blockId]);
       }
 
       if (!isDragPendingRef.current && !isDraggingRef.current) return;
@@ -407,9 +546,15 @@ const onPointerMove = (e: PointerEvent) => {
       const currentBlockId = getBlockIdFromPoint(e.clientX, e.clientY);
       if (currentBlockId && currentBlockId !== dragStartRef.current.blockId) {
         const { selectBlockRange } = useBlockUIStore.getState();
-        selectBlockRange(dragStartRef.current.blockId, currentBlockId, blockOrder);
+        selectBlockRange(
+          dragStartRef.current.blockId,
+          currentBlockId,
+          blockOrder,
+        );
       } else if (currentBlockId === dragStartRef.current.blockId) {
-        useBlockUIStore.getState().setSelectedBlocks([dragStartRef.current.blockId]);
+        useBlockUIStore
+          .getState()
+          .setSelectedBlocks([dragStartRef.current.blockId]);
       }
     };
 
@@ -424,7 +569,7 @@ const onPointerMove = (e: PointerEvent) => {
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         setIsDragPending(false);
         setIsDragging(false);
         setDragStart(null);
@@ -433,31 +578,30 @@ const onPointerMove = (e: PointerEvent) => {
       }
     };
 
-    document.addEventListener('pointerup', onPointerUp);
-    document.addEventListener('pointermove', onPointerMove);
-    document.addEventListener('pointercancel', onPointerCancel);
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointercancel", onPointerCancel);
+    document.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.removeEventListener('pointerup', onPointerUp);
-      document.removeEventListener('pointermove', onPointerMove);
-      document.removeEventListener('pointercancel', onPointerCancel);
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointercancel", onPointerCancel);
+      document.removeEventListener("keydown", onKeyDown);
     };
   }, [blockOrder, getBlockIdFromPoint]);
 
   // Calculate selection rectangle for visual feedback
   const selectionRect = useMemo(() => {
     if (!isDragging || !dragStart || !dragCurrent) return null;
-    
+
     const left = Math.min(dragStart.x, dragCurrent.x);
     const top = Math.min(dragStart.y, dragCurrent.y);
     const width = Math.abs(dragCurrent.x - dragStart.x);
     const height = Math.abs(dragCurrent.y - dragStart.y);
-    
+
     return { left, top, width, height };
   }, [isDragging, dragStart, dragCurrent]);
-
 
   if (error) {
     return (
@@ -530,11 +674,42 @@ const onPointerMove = (e: PointerEvent) => {
               </div>
             </div>
           ) : (
-            <BlockOrderContext.Provider value={blockOrder}>
-              <BlockList rootBlocks={rootBlocks} subpageBlocks={subpageBlocks} />
-            </BlockOrderContext.Provider>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={blockOrder}
+                strategy={verticalListSortingStrategy}
+              >
+                <BlockOrderContext.Provider value={blockOrder}>
+                  <BlockList
+                    rootBlocks={rootBlocks}
+                    subpageBlocks={subpageBlocks}
+                  />
+                </BlockOrderContext.Provider>
+              </SortableContext>
+              <DragOverlay>
+                {activeBlockId ? (
+                  <div
+                    style={{
+                      opacity: 0.8,
+                      padding: "4px 8px",
+                      backgroundColor: "var(--color-bg-secondary)",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid var(--color-border-primary)",
+                    }}
+                  >
+                    {blocksById[activeBlockId]?.content?.slice(0, 50) ||
+                      "Block"}
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           )}
-          
+
           {/* Selection rectangle overlay */}
           {selectionRect && (
             <div
@@ -550,7 +725,7 @@ const onPointerMove = (e: PointerEvent) => {
               }}
             />
           )}
-          
+
           {/* Threading path visualization */}
           {showBulletThreading && <ThreadingPath />}
         </div>

@@ -1,7 +1,8 @@
 import type { KeyBinding } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { Box, Popover, useComputedColorScheme } from "@mantine/core";
-
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   IconAdjustments,
   IconCalendar,
@@ -108,6 +109,25 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
     const isAiResponse = blockType === "ai-response";
     const isSubpageHeader = blockType === "subpage-header";
     const isAiLocked = useIsBlockLocked(blockId);
+
+    // DnD sortable hook for block reordering
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({
+      id: blockId,
+      disabled: isSubpageHeader, // Disable DnD for subpage headers
+    });
+
+    const dndStyle: React.CSSProperties = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
 
     // For subpage-header: get page opening functions
     const pagesById = usePageStore((state) => state.pagesById);
@@ -1670,9 +1690,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
           {indentGuide}
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: Selection via mouse is the primary UX; keyboard navigation is handled by collapse button and arrow keys */}
           <div
-            ref={blockRowRef}
+            ref={(node: HTMLDivElement | null) => {
+              blockRowRef.current = node;
+              setNodeRef(node);
+            }}
             data-block-row-id={blockId}
-            className={`block-row${writingMode && isFocused ? " writing-mode-focused" : ""}`}
+            className={`block-row${writingMode && isFocused ? " writing-mode-focused" : ""}${isDragging ? " dragging" : ""}`}
             style={{
               position: "relative",
               paddingLeft: `${depth * INDENT_PER_LEVEL}px`,
@@ -1680,6 +1703,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 ? "rgba(128, 128, 128, 0.1)"
                 : undefined,
               transition: "background-color 0.15s ease",
+              ...dndStyle,
             }}
             onClick={(e: React.MouseEvent) => {
               // If clicking this block's row (not collapse/bullet) and it's not currently focused,
@@ -1790,12 +1814,18 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 arrowOffset={2}
               >
                 <Popover.Target>
-                  <TodoStatusIcon
-                    status={todoStatus}
-                    showTooltip={false}
-                    onClick={handleTodoStatusClick}
-                    onContextMenu={handleTodoContextMenu}
-                  />
+                  <span
+                    style={{ cursor: isDragging ? "grabbing" : "grab" }}
+                    {...attributes}
+                    {...listeners}
+                  >
+                    <TodoStatusIcon
+                      status={todoStatus}
+                      showTooltip={false}
+                      onClick={handleTodoStatusClick}
+                      onContextMenu={handleTodoContextMenu}
+                    />
+                  </span>
                 </Popover.Target>
 
                 <Popover.Dropdown
@@ -2234,7 +2264,7 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                 className={`block-bullet-wrapper ${isAiPrompt ? "ai-prompt-icon" : ""} ${isAiResponse ? "ai-response-icon" : ""}`}
                 onClick={handleBulletClick}
                 style={{
-                  cursor: hasChildren ? "pointer" : "default",
+                  cursor: isDragging ? "grabbing" : "grab",
                   border: "none",
                   background: "transparent",
                   padding: 0,
@@ -2243,8 +2273,10 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
                   justifyContent: "center",
                 }}
                 title={
-                  hasChildren ? "Click to zoom into this block" : undefined
+                  hasChildren ? "Click to zoom, drag to reorder" : "Drag to reorder"
                 }
+                {...attributes}
+                {...listeners}
               >
                 {isAiPrompt ? (
                   <IconSparkles
