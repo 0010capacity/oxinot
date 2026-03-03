@@ -5,17 +5,17 @@ import {
   endOfMonth,
   endOfWeek,
   format,
+  isToday as isDateToday,
   isSameDay,
   isSameMonth,
-  isToday as isDateToday,
   startOfMonth,
   startOfWeek,
   subMonths,
 } from "date-fns";
+import { enUS, ko } from "date-fns/locale";
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { enUS, ko } from "date-fns/locale";
 
 type TodosByDate = Record<string, TodoResult[]>;
 
@@ -29,10 +29,10 @@ interface CalendarGridProps {
 }
 
 // Cell size and gap — single source of truth
-const CELL = 28;
-const GAP = 2;
+const CELL = 32;
+const GAP = 4;
 // Total grid width: 7 cells + 6 gaps
-export const GRID_W = 7 * CELL + 6 * GAP; // 208px
+export const GRID_W = 7 * CELL + 6 * GAP; // 248px
 
 function toISODateKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
@@ -55,12 +55,12 @@ const headerStyle: CSSProperties = {
   alignItems: "center",
   justifyContent: "space-between",
   width: GRID_W,
-  marginBottom: 4,
+  marginBottom: 8,
 };
 
 const headerLabelStyle: CSSProperties = {
-  fontSize: 12,
-  fontWeight: 700,
+  fontSize: 13,
+  fontWeight: 600,
   color: "var(--color-text-primary)",
   cursor: "default",
   letterSpacing: "0.01em",
@@ -70,8 +70,8 @@ const navButtonStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  width: 20,
-  height: 20,
+  width: 24,
+  height: 24,
   border: "none",
   borderRadius: "var(--radius-sm)",
   backgroundColor: "transparent",
@@ -85,20 +85,17 @@ const navButtonStyle: CSSProperties = {
   flexShrink: 0,
 };
 
-
-
 const weekdayStyle: CSSProperties = {
-  fontSize: 8,
-  fontWeight: 700,
+  fontSize: 10,
+  fontWeight: 500,
   color: "var(--color-text-tertiary)",
-  textTransform: "uppercase",
   textAlign: "center",
-  verticalAlign: "middle",
   width: CELL,
-  height: 18,
-  lineHeight: "18px",
-  letterSpacing: "0.05em",
+  height: 20,
+  lineHeight: "20px",
+  letterSpacing: "0.02em",
   whiteSpace: "nowrap",
+  opacity: 0.7,
 };
 
 const dayCellBase: CSSProperties = {
@@ -108,16 +105,16 @@ const dayCellBase: CSSProperties = {
   justifyContent: "center",
   width: CELL,
   height: CELL,
-  borderRadius: "var(--radius-sm)",
+  borderRadius: "var(--radius-md)",
   border: "none",
   backgroundColor: "transparent",
   cursor: "pointer",
-  fontSize: 11,
+  fontSize: 12,
   fontFamily: "var(--font-family)",
   lineHeight: 1,
   padding: 0,
   transition:
-    "background-color var(--transition-fast), color var(--transition-fast)",
+    "background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast)",
 };
 
 const badgeStyle: CSSProperties = {
@@ -128,7 +125,7 @@ const badgeStyle: CSSProperties = {
   height: 10,
   padding: "0 2px",
   borderRadius: "var(--radius-lg)",
-  backgroundColor: "var(--color-accent)",
+  backgroundColor: "var(--color-text-secondary)",
   color: "#fff",
   fontSize: 7,
   fontWeight: 700,
@@ -166,21 +163,22 @@ function DayCell({
     [onDoubleClick, date],
   );
 
+  const todayBg =
+    "color-mix(in srgb, var(--color-text-primary) 10%, transparent)";
+  const todayBorder = "var(--color-text-secondary)";
+
   const style: CSSProperties = {
     ...dayCellBase,
     color: isSelected
-      ? "#fff"
+      ? "var(--color-bg-primary)"
       : !isCurrentMonth
         ? "var(--color-text-tertiary)"
-        : isToday
-          ? "var(--color-accent)"
-          : "var(--color-text-primary)",
-    backgroundColor: isSelected ? "var(--color-accent)" : "transparent",
-    fontWeight: isSelected ? 700 : isToday ? 600 : 400,
-    outline:
-      isToday && !isSelected ? "1.5px solid var(--color-accent)" : "none",
-    outlineOffset: -1,
-    opacity: !isCurrentMonth ? 0.35 : 1,
+        : "var(--color-text-primary)",
+    backgroundColor: isSelected ? "var(--color-text-primary)" : "transparent",
+    fontWeight: isSelected || isToday ? 600 : 400,
+    boxShadow:
+      isToday && !isSelected ? `inset 0 0 0 1.5px ${todayBorder}` : "none",
+    opacity: !isCurrentMonth ? 0.4 : 1,
   };
 
   return (
@@ -198,11 +196,15 @@ function DayCell({
         if (!isSelected) {
           e.currentTarget.style.backgroundColor =
             "var(--color-interactive-hover)";
+          e.currentTarget.style.transform = "scale(1.05)";
         }
       }}
       onMouseLeave={(e) => {
         if (!isSelected) {
-          e.currentTarget.style.backgroundColor = "transparent";
+          e.currentTarget.style.backgroundColor = isToday
+            ? todayBg
+            : "transparent";
+          e.currentTarget.style.transform = "scale(1)";
         }
       }}
     >
@@ -269,6 +271,12 @@ export function CalendarGrid({
     locale: i18n.language === "ko" ? ko : enUS,
   });
 
+  const gridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: `repeat(7, ${CELL}px)`,
+    gap: GAP,
+  };
+
   return (
     <div style={containerStyle} aria-label="Calendar">
       {showNavigation && (
@@ -311,54 +319,39 @@ export function CalendarGrid({
         </div>
       )}
 
-      <table
-        style={{ borderCollapse: "collapse", width: GRID_W }}
-        aria-label={monthLabel}
-      >
-        <thead>
-          <tr>
-            {getWeekdayNames(i18n.language).map((day) => (
-              <th key={day} style={{ ...weekdayStyle, padding: 0 }} scope="col">
-                {day}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {(() => {
-            const rows = [];
-            for (let i = 0; i < calendarDays.length; i += 7) {
-              rows.push(
-                <tr key={`week-${i}`}>
-                  {calendarDays.slice(i, i + 7).map((day) => {
-                    const key = toISODateKey(day);
-                    const todoCount = todosByDate[key]?.length ?? 0;
-                    const isSelected = selectedDate
-                      ? isSameDay(day, selectedDate)
-                      : false;
+      {/* Weekday headers */}
+      <div style={{ ...gridStyle, marginBottom: 4 }}>
+        {getWeekdayNames(i18n.language).map((day) => (
+          <div key={day} style={weekdayStyle}>
+            {day}
+          </div>
+        ))}
+      </div>
 
-                    return (
-                      <td key={key} style={{ padding: 0, textAlign: "center" }}>
-                        <DayCell
-                          date={day}
-                          isCurrentMonth={isSameMonth(day, viewDate)}
-                          isSelected={isSelected}
-                          isToday={isDateToday(day)}
-                          todoCount={todoCount}
-                          onClick={handleDateClick}
-                          onDoubleClick={handleDateDoubleClick}
-                          language={i18n.language}
-                        />
-                      </td>
-                    );
-                  })}
-                </tr>,
-              );
-            }
-            return rows;
-          })()}
-        </tbody>
-      </table>
+      {/* Day grid */}
+      <div style={gridStyle} aria-label={monthLabel}>
+        {calendarDays.map((day) => {
+          const key = toISODateKey(day);
+          const todoCount = todosByDate[key]?.length ?? 0;
+          const isSelected = selectedDate
+            ? isSameDay(day, selectedDate)
+            : false;
+
+          return (
+            <DayCell
+              key={key}
+              date={day}
+              isCurrentMonth={isSameMonth(day, viewDate)}
+              isSelected={isSelected}
+              isToday={isDateToday(day)}
+              todoCount={todoCount}
+              onClick={handleDateClick}
+              onDoubleClick={handleDateDoubleClick}
+              language={i18n.language}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
