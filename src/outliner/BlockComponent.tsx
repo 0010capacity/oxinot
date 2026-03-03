@@ -58,6 +58,10 @@ import { useIsBlockFocused } from "../stores/viewStore";
 import { useViewStore } from "../stores/viewStore";
 import * as batchOps from "../utils/batchBlockOperations";
 import { showToast } from "../utils/toast";
+import {
+  navigateToBlockById,
+  openOrCreateNoteByTitle,
+} from "../utils/wikiLinkNavigation";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { MacroContentWrapper } from "./MacroContentWrapper";
 import { editorStateCache } from "./editorStateCache";
@@ -676,6 +680,46 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
     const handleStaticMouseDown = useCallback(
       (e: React.MouseEvent) => {
+        const target = e.target;
+        if (target instanceof Node) {
+          // Check if clicking on a wiki-link or block-ref in static preview HTML.
+          // These are rendered as <a class="wiki-link"> or <a class="block-ref">
+          // by markdownRenderer.ts. If so, navigate instead of focusing the block.
+          const element =
+            target instanceof Element
+              ? target
+              : target.parentElement;
+          if (element) {
+            const wikiLink = element.closest(
+              "a.wiki-link",
+            ) as HTMLAnchorElement | null;
+            if (wikiLink) {
+              e.preventDefault();
+              e.stopPropagation();
+              const pageLabel = wikiLink.getAttribute("data-page") ?? "";
+              if (pageLabel) {
+                void openOrCreateNoteByTitle(pageLabel);
+              }
+              return;
+            }
+
+            const blockRef = element.closest(
+              "a.block-ref",
+            ) as HTMLAnchorElement | null;
+            if (blockRef) {
+              e.preventDefault();
+              e.stopPropagation();
+              const refId =
+                blockRef.getAttribute("data-block-id") ?? "";
+              if (refId) {
+                void navigateToBlockById(refId);
+              }
+              return;
+            }
+          }
+        }
+
+        // Not a link click — default behavior: focus the block for editing
         e.preventDefault();
         e.stopPropagation();
 
@@ -1770,7 +1814,17 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
               const isCollapseButton = target.closest(".collapse-toggle");
               const isBulletButton = target.closest(".block-bullet-wrapper");
 
+
               if (isCollapseButton || isBulletButton) {
+                return;
+              }
+
+              // Check if clicking on a clickable link element
+              // If so, let CodeMirror's handler process it for navigation
+              const isClickableLink = target.closest(
+                ".cm-wiki-link, .cm-block-ref, .cm-link-text, .cm-block-embed",
+              );
+              if (isClickableLink) {
                 return;
               }
 
