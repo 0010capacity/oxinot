@@ -207,11 +207,11 @@ export function BlockEditor({
     }
   }, [pageId, currentPageId, openPage]);
 
-  // Get child page IDs for the current page
+  // Get child page IDs for the current page (including folder notes)
   const childPageIds = useMemo(() => {
     return pageIds
       .map((id) => pagesById[id])
-      .filter((page) => page && page.parentId === pageId && !page.isDirectory)
+      .filter((page) => page && page.parentId === pageId)
       .map((page) => page.id);
   }, [pageIds, pagesById, pageId]);
 
