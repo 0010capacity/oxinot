@@ -123,10 +123,16 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         throw new Error("No workspace selected");
       }
 
+      console.log(
+        `[pageStore.createPage] Creating "${title}" with parentId=${parentId?.slice(0, 8) ?? "null"}`,
+      );
       const newPage = await invoke<PageData>("create_page", {
         workspacePath,
         request: { title, parentId: parentId || null },
       });
+      console.log(
+        `[pageStore.createPage] Created "${title}" id=${newPage.id.slice(0, 8)} parentId=${newPage.parentId?.slice(0, 8) ?? "null"}`,
+      );
 
       // Incremental update: add new page directly to store
       set((state) => {
@@ -371,11 +377,19 @@ export const usePageStore = createWithEqualityFn<PageStore>()(
         return;
       }
 
+      const oldPage = get().pagesById[id];
+      console.log(
+        `[pageStore.convertToDirectory] Converting ${id.slice(0, 8)}, before: parentId=${oldPage?.parentId?.slice(0, 8) ?? "null"}`,
+      );
+
       // Incremental update: get the updated page from backend
       const updatedPage = await invoke<PageData>("convert_page_to_directory", {
         workspacePath,
         pageId: id,
       });
+      console.log(
+        `[pageStore.convertToDirectory] After: parentId=${updatedPage.parentId?.slice(0, 8) ?? "null"}`,
+      );
 
       // Update store with the backend response
       set((state) => {

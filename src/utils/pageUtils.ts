@@ -79,11 +79,16 @@ export const createPageHierarchy = async (
   const pathParts = fullPath.split("/");
   let parentId: string | undefined = undefined;
 
+  console.log(`[createPageHierarchy] Creating hierarchy: ${fullPath}`);
+
   for (let i = 0; i < pathParts.length; i++) {
     const currentPath = pathParts.slice(0, i + 1).join("/");
     const isLastPart = i === pathParts.length - 1;
 
     const existingPage = findPageFn(currentPath);
+    console.log(
+      `[createPageHierarchy] Step ${i}: path=${currentPath}, exists=${!!existingPage}, parentId=${parentId?.slice(0, 8) ?? "null"}`,
+    );
 
     if (existingPage) {
       // If this is an intermediate path (not the last part),
