@@ -1,6 +1,7 @@
 import {
   DndContext,
   type DragEndEvent,
+  type DragMoveEvent,
   DragOverlay,
   type DragStartEvent,
   PointerSensor,
@@ -46,6 +47,16 @@ import "./BlockEditor.css";
 
 export const BlockOrderContext = createContext<string[]>([]);
 
+// Drop position type for drag-and-drop indicators
+export type DropPosition = "before" | "child" | "after" | null;
+
+export const DragOverPositionContext = createContext<{
+  overBlockId: string | null;
+  dropPosition: DropPosition;
+}>({
+  overBlockId: null,
+  dropPosition: null,
+});
 interface BlockListProps {
   rootBlocks: string[];
   subpageBlocks: string[];
@@ -313,6 +324,17 @@ export function BlockEditor({
 
   // DnD state for block reordering
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  const [dragOverInfo, setDragOverInfo] = useState<{
+    overBlockId: string | null;
+    dropPosition: DropPosition;
+  }>({
+    overBlockId: null,
+    dropPosition: null,
+  });
+  // Track current over block id during drag (for global pointer move handler)
+  const dragOverBlockIdRef = useRef<string | null>(null);
+  // Global pointer move handler ref
+  const globalPointerMoveRef = useRef<((e: PointerEvent) => void) | null>(null);
 
   // Configure pointer sensor with drag threshold to distinguish from click
   const sensors = useSensors(
@@ -323,14 +345,86 @@ export function BlockEditor({
     }),
   );
 
+  // Calculate drop position based on cursor Y position relative to the over element
+  const getDropPosition = useCallback(
+    (overId: string, cursorY: number): DropPosition => {
+      const element = document.querySelector(
+        `[data-block-row-id="${overId}"]`,
+      );
+      if (!element) return null;
+
+      const rect = element.getBoundingClientRect();
+      const relativeY = cursorY - rect.top;
+      const height = rect.height;
+
+      // Use percentage-based thresholds for drop zones
+      // Top 30%: before, Bottom 30%: after, Middle 40%: child
+      const beforeThreshold = height * 0.3;
+      const afterThreshold = height * 0.7;
+
+      if (relativeY < beforeThreshold) {
+        return "before";
+      }
+      if (relativeY > afterThreshold) {
+        return "after";
+      }
+      return "child";
+    },
+    [],
+  );
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveBlockId(event.active.id as string);
-  }, []);
+      setActiveBlockId(event.active.id as string);
+      setDragOverInfo({ overBlockId: null, dropPosition: null });
+      dragOverBlockIdRef.current = null;
+
+      // Add global pointer move listener to track mouse position during drag
+      // This is needed because @dnd-kit captures pointer events
+      const handleGlobalPointerMove = (e: PointerEvent) => {
+        const overId = dragOverBlockIdRef.current;
+        if (overId) {
+          const dropPosition = getDropPosition(overId, e.clientY);
+          setDragOverInfo((prev) => {
+            if (prev.overBlockId === overId && prev.dropPosition === dropPosition) {
+              return prev;
+            }
+            return { overBlockId: overId, dropPosition };
+          });
+        }
+      };
+      globalPointerMoveRef.current = handleGlobalPointerMove;
+      document.addEventListener("pointermove", handleGlobalPointerMove);
+    },
+    [getDropPosition],
+  );
+
+  const handleDragMove = useCallback(
+    (event: DragMoveEvent) => {
+      const { over } = event;
+      if (!over || over.id === activeBlockId) {
+        dragOverBlockIdRef.current = null;
+        setDragOverInfo({ overBlockId: null, dropPosition: null });
+        return;
+      }
+      // Update the ref - the global pointer move handler will update the state
+      dragOverBlockIdRef.current = over.id as string;
+    },
+    [activeBlockId],
+  );
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
       const { active, over } = event;
+      const currentDragOverInfo = { ...dragOverInfo };
       setActiveBlockId(null);
+      setDragOverInfo({ overBlockId: null, dropPosition: null });
+      dragOverBlockIdRef.current = null;
+
+      // Remove global pointer move listener
+      if (globalPointerMoveRef.current) {
+        document.removeEventListener("pointermove", globalPointerMoveRef.current);
+        globalPointerMoveRef.current = null;
+      }
 
       if (!over || active.id === over.id) return;
 
@@ -367,24 +461,38 @@ export function BlockEditor({
         return;
       }
 
-      // Determine the new parent (same as over block's parent for now)
-      const newParentId = overBlock.parentId;
-
-      // Determine the afterBlockId based on position
+      // Determine new parent and afterBlockId based on drop position
+      let newParentId: string | null;
       let afterBlockId: string | null = null;
-      if (overIndex > activeIndex) {
-        // Moving down: place after over block
-        afterBlockId = overId;
+
+      const dropPosition = currentDragOverInfo.dropPosition || "after";
+
+      if (dropPosition === "child") {
+        // Drop as a child of the over block (at the end)
+        newParentId = overId;
+        const overChildren = childrenMap[overId] || [];
+        afterBlockId =
+          overChildren.length > 0
+            ? overChildren[overChildren.length - 1]
+            : null;
       } else {
-        // Moving up: find the block before over block in the same parent
-        const overSiblings = newParentId
-          ? childrenMap[newParentId] || []
-          : childrenMap["root"] || [];
-        const overSiblingIndex = overSiblings.indexOf(overId);
-        if (overSiblingIndex > 0) {
-          afterBlockId = overSiblings[overSiblingIndex - 1];
+        // Drop as a sibling of the over block
+        newParentId = overBlock.parentId;
+
+        if (dropPosition === "before") {
+          // Place before the over block
+          const overSiblings = newParentId
+            ? childrenMap[newParentId] || []
+            : childrenMap.root || [];
+          const overSiblingIndex = overSiblings.indexOf(overId);
+          if (overSiblingIndex > 0) {
+            afterBlockId = overSiblings[overSiblingIndex - 1];
+          }
+          // If overSiblingIndex === 0, afterBlockId stays null (move to first position)
+        } else {
+          // Place after the over block
+          afterBlockId = overId;
         }
-        // If overSiblingIndex === 0, afterBlockId stays null (move to first position)
       }
 
       try {
@@ -394,7 +502,7 @@ export function BlockEditor({
         showToast({ message: "Failed to move block", type: "error" });
       }
     },
-    [blockOrder, blocksById, childrenMap, moveBlock],
+    [blockOrder, blocksById, childrenMap, moveBlock, dragOverInfo],
   );
 
   // Drag selection state
@@ -678,6 +786,7 @@ export function BlockEditor({
               sensors={sensors}
               collisionDetection={closestCenter}
               onDragStart={handleDragStart}
+              onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
             >
               <SortableContext
@@ -685,10 +794,12 @@ export function BlockEditor({
                 strategy={verticalListSortingStrategy}
               >
                 <BlockOrderContext.Provider value={blockOrder}>
-                  <BlockList
-                    rootBlocks={rootBlocks}
-                    subpageBlocks={subpageBlocks}
-                  />
+                  <DragOverPositionContext.Provider value={dragOverInfo}>
+                    <BlockList
+                      rootBlocks={rootBlocks}
+                      subpageBlocks={subpageBlocks}
+                    />
+                  </DragOverPositionContext.Provider>
                 </BlockOrderContext.Provider>
               </SortableContext>
               <DragOverlay>
