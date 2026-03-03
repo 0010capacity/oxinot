@@ -93,13 +93,12 @@ const weekdayStyle: CSSProperties = {
   color: "var(--color-text-tertiary)",
   textTransform: "uppercase",
   textAlign: "center",
+  verticalAlign: "middle",
   width: CELL,
   height: 18,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  lineHeight: 1,
+  lineHeight: "18px",
   letterSpacing: "0.05em",
+  whiteSpace: "nowrap",
 };
 
 const dayCellBase: CSSProperties = {
