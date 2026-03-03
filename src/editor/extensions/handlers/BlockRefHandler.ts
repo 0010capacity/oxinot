@@ -34,7 +34,10 @@ import { useWorkspaceStore } from "../../../stores/workspaceStore";
 import { ThemeProvider } from "../../../theme/ThemeProvider";
 import { blockBatcher } from "../../../utils/blockBatcher";
 import type { DecorationSpec } from "../utils/decorationHelpers";
-import { createHiddenMarker } from "../utils/decorationHelpers";
+import {
+  createHiddenMarker,
+  createStyledText,
+} from "../utils/decorationHelpers";
 import { BaseHandler, type RenderContext } from "./types";
 
 type BlockRefMatch = {
@@ -255,8 +258,13 @@ class BlockRefPreviewWidget extends WidgetType {
           error: err,
         });
 
-        el.textContent = "Missing block";
+        // Broken link styling
+        el.className = "cm-block-ref cm-block-ref-broken";
+        el.textContent = "⚠ Missing block";
+        el.style.color = "var(--color-error)";
         el.style.opacity = "0.7";
+        el.style.textDecoration = "line-through";
+        el.title = `Block ID: ${this.blockId}`;
       }
     })();
 
@@ -268,6 +276,85 @@ class BlockRefPreviewWidget extends WidgetType {
     // Returning `true` here causes CodeMirror to ignore DOM events that happen on this widget,
     // which prevents the editor-level click handler (`createBlockRefClickHandler`) from firing.
     // We want clicks to bubble so the app can zoom/navigate to the referenced block.
+    return false;
+  }
+}
+
+/**
+ * Widget for showing block ref preview in edit mode
+ * Shows a compact token-like representation
+ */
+class BlockRefEditWidget extends WidgetType {
+  private readonly blockId: string;
+
+  constructor(blockId: string) {
+    super();
+    this.blockId = blockId;
+  }
+
+  eq(other: BlockRefEditWidget) {
+    return other.blockId === this.blockId;
+  }
+
+  toDOM() {
+    const el = document.createElement("span");
+    el.className = "cm-block-ref cm-block-ref-edit";
+    el.setAttribute("data-block-id", this.blockId);
+
+    el.style.display = "inline-flex";
+    el.style.alignItems = "center";
+    el.style.maxWidth = "min(200px, 30vw)";
+    el.style.whiteSpace = "nowrap";
+    el.style.overflow = "hidden";
+    el.style.textOverflow = "ellipsis";
+    el.style.verticalAlign = "baseline";
+
+    // Show abbreviated ID while loading
+    const shortId = this.blockId.slice(0, 8);
+    el.textContent = `#${shortId}…`;
+
+    const workspacePath = useWorkspaceStore.getState().workspacePath;
+    if (!workspacePath) {
+      el.textContent = "No workspace";
+      el.style.opacity = "0.7";
+      return el;
+    }
+
+    void (async () => {
+      try {
+        const block = await blockBatcher.fetchBlock(this.blockId);
+        const content = (block?.content ?? "").toString().trim();
+
+        if (!content) {
+          // Broken link styling
+          el.className = "cm-block-ref cm-block-ref-broken";
+          el.textContent = "⚠ Missing";
+          el.style.color = "var(--color-error)";
+          el.style.opacity = "0.7";
+          el.style.textDecoration = "line-through";
+          el.title = `Block ID: ${this.blockId}`;
+          return;
+        }
+
+        // Single-line preview (collapse whitespace + truncate)
+        const oneLine = content.replace(/\s+/g, " ").trim();
+        el.textContent = oneLine;
+      } catch (err) {
+        // Error state - broken link
+        el.className = "cm-block-ref cm-block-ref-broken";
+        el.textContent = "⚠ Missing";
+        el.style.color = "var(--color-error)";
+        el.style.opacity = "0.7";
+        el.style.textDecoration = "line-through";
+        el.title = `Block ID: ${this.blockId}`;
+      }
+    })();
+
+    return el;
+  }
+
+  ignoreEvent() {
+    // Allow clicks to bubble for navigation
     return false;
   }
 }
@@ -297,15 +384,9 @@ export class BlockRefHandler extends BaseHandler {
       const from = lineFrom + match.start;
       const to = lineFrom + match.end;
 
-      // In edit mode, show raw markdown for editing
-      // Don't hide anything and don't show widgets
-      if (isEditMode) {
-        continue;
-      }
-
       const hasBang = match.isEmbed;
 
-      // BLOCK-LEVEL RENDERING ENFORCEMENT:
+      // BLOCK-LEVEL RENDERING ENFORCEMENT for embeds:
       // Embed blocks !((uuid)) must be alone on their line.
       // If there's other content before or after, show raw syntax instead.
       if (hasBang && !isEmbedBlockAlone(lineText, match)) {
@@ -319,39 +400,87 @@ export class BlockRefHandler extends BaseHandler {
       const openStart = hasBang ? from + 1 : from;
       const openEnd = openStart + 2;
 
-      if (hasBang) {
-        // Hide "!"
-        decorations.push(createHiddenMarker(bangStart, bangEnd, false));
-      }
+      if (isEditMode) {
+        // EDIT MODE: Show dimmed markers and render clickable widget
+        if (hasBang) {
+          // Dim the "!"
+          decorations.push(
+            createStyledText(bangStart, bangEnd, {
+              className: "cm-block-ref-marker",
+              style: "opacity: 0.3;",
+            }),
+          );
+        }
 
-      // Hide "(("
-      decorations.push(createHiddenMarker(openStart, openEnd, false));
+        // Dim the "(("
+        decorations.push(
+          createStyledText(openStart, openEnd, {
+            className: "cm-block-ref-marker",
+            style: "opacity: 0.3;",
+          }),
+        );
 
-      // Hide the entire block-ref syntax, including UUID
-      decorations.push(createHiddenMarker(from, to, false));
+        // Dim the content (UUID)
+        const contentStart = openEnd;
+        const contentEnd = to - 2;
+        decorations.push(
+          createStyledText(contentStart, contentEnd, {
+            className: "cm-block-ref-marker",
+            style: "opacity: 0.4;",
+          }),
+        );
 
-      if (match.isEmbed) {
-        // BLOCK-LEVEL EMBED: insert a block-level widget (full-width subtree preview)
-        // Widget must use single position, not range - use from only
+        // Dim the "))"
+        decorations.push(
+          createStyledText(to - 2, to, {
+            className: "cm-block-ref-marker",
+            style: "opacity: 0.3;",
+          }),
+        );
+
+        // Add the edit mode widget (shows abbreviated preview)
         decorations.push({
           from,
           to: from,
           decoration: Decoration.widget({
-            widget: new EmbedSubtreeWidget(match.id),
+            widget: new BlockRefEditWidget(match.id),
             side: 0,
           }),
         });
       } else {
-        // INLINE LINK: render a one-line inline preview widget (read-only).
-        // Widget must use single position, not range - use from only
-        decorations.push({
-          from,
-          to: from,
-          decoration: Decoration.widget({
-            widget: new BlockRefPreviewWidget(match.id),
-            side: 0,
-          }),
-        });
+        // PREVIEW MODE: Hide markers completely, render full widget
+        if (hasBang) {
+          // Hide "!"
+          decorations.push(createHiddenMarker(bangStart, bangEnd, false));
+        }
+
+        // Hide "(("
+        decorations.push(createHiddenMarker(openStart, openEnd, false));
+
+        // Hide the entire block-ref syntax, including UUID
+        decorations.push(createHiddenMarker(from, to, false));
+
+        if (match.isEmbed) {
+          // BLOCK-LEVEL EMBED: insert a block-level widget (full-width subtree preview)
+          decorations.push({
+            from,
+            to: from,
+            decoration: Decoration.widget({
+              widget: new EmbedSubtreeWidget(match.id),
+              side: 0,
+            }),
+          });
+        } else {
+          // INLINE LINK: render a one-line inline preview widget (read-only).
+          decorations.push({
+            from,
+            to: from,
+            decoration: Decoration.widget({
+              widget: new BlockRefPreviewWidget(match.id),
+              side: 0,
+            }),
+          });
+        }
       }
     }
 
@@ -359,7 +488,7 @@ export class BlockRefHandler extends BaseHandler {
     decorations.sort((a, b) => {
       if (a.from !== b.from) return a.from - b.from;
       // If same position, prefer wider ranges first (ensures proper nesting)
-      return b.to - b.from - (a.to - a.from);
+      return b.to - a.from - (a.to - a.from);
     });
 
     return decorations;
