@@ -75,6 +75,7 @@ import {
   sortDecorations,
 } from "./utils/decorationHelpers";
 import { getCursorInfo } from "./utils/nodeHelpers";
+import { usePageStore } from "../../stores/pageStore";
 
 type VisibleRange = { from: number; to: number };
 
@@ -252,8 +253,13 @@ function buildDecorations(view: EditorView): DecorationSet {
       const lineText = line.text;
 
       // Block-level and inline wiki links (embed pages are block-level)
+      // Pass pageStore data for page existence checking
+      const pageStore = usePageStore.getState();
       decorations.push(
-        ...WikiLinkHandler.processLine(lineText, line.from, isEditMode),
+        ...WikiLinkHandler.processLine(lineText, line.from, isEditMode, {
+          pageIds: pageStore.pageIds,
+          pagesById: pageStore.pagesById,
+        }),
       );
 
       // Block-level and inline block references (embed blocks are block-level)
@@ -889,6 +895,33 @@ export const hybridRenderingTheme = EditorView.theme({
     background: "color-mix(in srgb, var(--color-accent), transparent 82%)",
     boxShadow:
       "inset 0 0 0 1px color-mix(in srgb, var(--color-accent), transparent 65%)",
+  },
+
+  // Wiki link markers (dimmed [[ and ]] in edit mode)
+  ".cm-wiki-marker": {
+    opacity: "0.3",
+    userSelect: "none",
+  },
+
+  // Wiki link states
+  ".cm-wiki-link-exists": {
+    opacity: "1.0",
+  },
+  ".cm-wiki-link-missing": {
+    opacity: "0.5",
+  },
+
+  // Block ref markers (dimmed (( and )) in edit mode)
+  ".cm-block-ref-marker": {
+    opacity: "0.3",
+    userSelect: "none",
+  },
+
+  // Block ref broken state
+  ".cm-block-ref-broken": {
+    color: "var(--color-error)",
+    opacity: "0.7",
+    textDecoration: "line-through",
   },
 
   // Embed subtree widget container (read-only)

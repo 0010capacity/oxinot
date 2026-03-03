@@ -31,7 +31,9 @@ import { MantineProvider } from "@mantine/core";
 import React from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { EmbeddedPageCard } from "../../../components/EmbeddedPageCard";
+import type { PageData } from "../../../stores/pageStore";
 import { ThemeProvider } from "../../../theme/ThemeProvider";
+import { findPageByPath } from "../../../utils/pageUtils";
 import type { DecorationSpec } from "../utils/decorationHelpers";
 import {
   createHiddenMarker,
@@ -47,6 +49,50 @@ function getWikiBasename(path: string): string {
     .map((p) => p.trim())
     .filter(Boolean);
   return parts.length > 0 ? parts[parts.length - 1] : trimmed;
+}
+
+/**
+ * Page data structure for existence checking
+ */
+type PageStoreData = {
+  pageIds: string[];
+  pagesById: Record<string, PageData>;
+};
+
+/**
+ * Check if a page exists by its path or title
+ * Returns true if page exists, false if it doesn't
+ *
+ * This handles both:
+ * - Simple page names: [[MyPage]] - searches by title
+ * - Full paths: [[Parent/MyPage]] - searches by full path
+ */
+function checkPageExists(
+  noteName: string,
+  pageStore: PageStoreData | undefined,
+): boolean {
+  if (!pageStore) return true; // Default to "exists" if no store provided
+  if (pageStore.pageIds.length === 0) return true; // Default to "exists" if pages not loaded yet
+
+  // First, try to find by full path (for links like [[Parent/MyPage]])
+  const foundByPath = findPageByPath(
+    noteName,
+    pageStore.pageIds,
+    pageStore.pagesById,
+  );
+  if (foundByPath !== undefined) return true;
+
+  // If not found by path, search by title (for simple links like [[MyPage]])
+  // This handles the case where the user links to a page by its title without the full path
+  const normalizedName = noteName.toLowerCase().trim();
+  for (const id of pageStore.pageIds) {
+    const page = pageStore.pagesById[id];
+    if (page && page.title.toLowerCase() === normalizedName) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -170,11 +216,13 @@ export class WikiLinkHandler extends BaseHandler {
    * @param lineText - The text content of the line
    * @param lineFrom - The absolute position of the line start in the document
    * @param isEditMode - true if block is in edit mode (focused), false if in preview mode (unfocused)
+   * @param pageStore - Optional page store data for checking page existence
    */
   static processLine(
     lineText: string,
     lineFrom: number,
     isEditMode: boolean,
+    pageStore?: PageStoreData,
   ): DecorationSpec[] {
     const decorations: DecorationSpec[] = [];
 
@@ -230,34 +278,55 @@ export class WikiLinkHandler extends BaseHandler {
       const start = lineFrom + match.index;
       const end = start + fullMatch.length;
 
-      // In edit mode, show raw markdown for editing
-      // This allows the user to edit the source code and see autocomplete
-      if (!isEditMode) {
-        // Opening [[ - always hide (even when cursor is on line)
-        decorations.push(createHiddenMarker(start, start + 2, false));
+      // Check if the target page exists
+      const pageExists = checkPageExists(noteName, pageStore);
+      const opacity = pageExists ? "1.0" : "0.5";
+      const linkClassName = pageExists
+        ? "cm-wiki-link cm-wiki-link-exists"
+        : "cm-wiki-link cm-wiki-link-missing";
+
+      // Handle markers based on mode
+      if (isEditMode) {
+        // EDIT MODE: Show dimmed markers, render clickable link
+        decorations.push(
+          createStyledText(start, start + 2, {
+            className: "cm-wiki-marker",
+            style: "opacity: 0.3; user-select: none;",
+          }),
+        );
 
         if (hasAlias) {
           // Format: [[note|alias]]
-          // We want to show only the alias, hide the note name and |
-
+          // Dim the note name and pipe, style the alias as link
           const noteStart = start + 2;
           const noteEnd = noteStart + noteName.length;
           const pipePos = noteEnd;
           const aliasStart = pipePos + 1;
           const aliasEnd = aliasStart + aliasText.length;
 
-          // Hide the note name - always hide
-          decorations.push(createHiddenMarker(noteStart, noteEnd, false));
+          // Dim the note name
+          decorations.push(
+            createStyledText(noteStart, noteEnd, {
+              className: "cm-wiki-marker",
+              style: "opacity: 0.4;",
+            }),
+          );
 
-          // Hide the pipe | - always hide
-          decorations.push(createHiddenMarker(pipePos, pipePos + 1, false));
+          // Dim the pipe
+          decorations.push(
+            createStyledText(pipePos, pipePos + 1, {
+              className: "cm-wiki-marker",
+              style: "opacity: 0.4;",
+            }),
+          );
 
           // Style the alias text as a wiki link
           decorations.push(
             createStyledText(aliasStart, aliasEnd, {
-              className: "cm-wiki-link",
+              className: linkClassName,
               style: `
                 color: var(--color-accent);
+                opacity: ${opacity};
                 cursor: pointer;
                 font-weight: 500;
                 text-decoration: none !important;
@@ -266,15 +335,13 @@ export class WikiLinkHandler extends BaseHandler {
           );
         } else {
           // Format: [[note]]
-          // Render only the basename by default (e.g., [[A/B/C]] shows "C")
-
+          // Style the basename as a link, dim the rest
           const noteStart = start + 2;
           const noteEnd = noteStart + noteName.length;
 
           const basename = getWikiBasename(noteName);
           const basenameIndex = noteName.lastIndexOf(basename);
 
-          // If we can't reliably locate basename, fall back to full note range.
           const linkStart =
             basename && basenameIndex >= 0
               ? noteStart + basenameIndex
@@ -282,16 +349,23 @@ export class WikiLinkHandler extends BaseHandler {
           const linkEnd =
             linkStart + (basename ? basename.length : noteName.length);
 
-          // Hide any leading path part (A/B/) - always hide
+          // Dim any leading path part (A/B/)
           if (linkStart > noteStart) {
-            decorations.push(createHiddenMarker(noteStart, linkStart, false));
+            decorations.push(
+              createStyledText(noteStart, linkStart, {
+                className: "cm-wiki-marker",
+                style: "opacity: 0.4;",
+              }),
+            );
           }
 
+          // Style the link text
           decorations.push(
             createStyledText(linkStart, linkEnd, {
-              className: "cm-wiki-link",
+              className: linkClassName,
               style: `
                 color: var(--color-accent);
+                opacity: ${opacity};
                 cursor: pointer;
                 font-weight: 500;
                 text-decoration: none !important;
@@ -299,13 +373,97 @@ export class WikiLinkHandler extends BaseHandler {
             }),
           );
 
-          // Hide any trailing part (unlikely, but keep safe) - always hide
+          // Dim any trailing part
+          if (linkEnd < noteEnd) {
+            decorations.push(
+              createStyledText(linkEnd, noteEnd, {
+                className: "cm-wiki-marker",
+                style: "opacity: 0.4;",
+              }),
+            );
+          }
+        }
+
+        // Dim closing ]]
+        decorations.push(
+          createStyledText(end - 2, end, {
+            className: "cm-wiki-marker",
+            style: "opacity: 0.3; user-select: none;",
+          }),
+        );
+      } else {
+        // PREVIEW MODE: Hide markers completely, render styled link
+        // Opening [[ - always hide
+        decorations.push(createHiddenMarker(start, start + 2, false));
+
+        if (hasAlias) {
+          // Format: [[note|alias]]
+          const noteStart = start + 2;
+          const noteEnd = noteStart + noteName.length;
+          const pipePos = noteEnd;
+          const aliasStart = pipePos + 1;
+          const aliasEnd = aliasStart + aliasText.length;
+
+          // Hide the note name
+          decorations.push(createHiddenMarker(noteStart, noteEnd, false));
+
+          // Hide the pipe
+          decorations.push(createHiddenMarker(pipePos, pipePos + 1, false));
+
+          // Style the alias text as a wiki link
+          decorations.push(
+            createStyledText(aliasStart, aliasEnd, {
+              className: linkClassName,
+              style: `
+                color: var(--color-accent);
+                opacity: ${opacity};
+                cursor: pointer;
+                font-weight: 500;
+                text-decoration: none !important;
+              `,
+            }),
+          );
+        } else {
+          // Format: [[note]]
+          const noteStart = start + 2;
+          const noteEnd = noteStart + noteName.length;
+
+          const basename = getWikiBasename(noteName);
+          const basenameIndex = noteName.lastIndexOf(basename);
+
+          const linkStart =
+            basename && basenameIndex >= 0
+              ? noteStart + basenameIndex
+              : noteStart;
+          const linkEnd =
+            linkStart + (basename ? basename.length : noteName.length);
+
+          // Hide any leading path part
+          if (linkStart > noteStart) {
+            decorations.push(createHiddenMarker(noteStart, linkStart, false));
+          }
+
+          // Style the link text
+          decorations.push(
+            createStyledText(linkStart, linkEnd, {
+              className: linkClassName,
+              style: `
+                color: var(--color-accent);
+                opacity: ${opacity};
+                cursor: pointer;
+                font-weight: 500;
+                text-decoration: none !important;
+              `,
+            }),
+          );
+
+          // Hide any trailing part
           if (linkEnd < noteEnd) {
             decorations.push(createHiddenMarker(linkEnd, noteEnd, false));
           }
         }
 
-        // Closing ]] - always hide (even when cursor is on line)
+        // Closing ]] - always hide
         decorations.push(createHiddenMarker(end - 2, end, false));
       }
       match = wikiLinkRegex.exec(lineText);
