@@ -176,6 +176,10 @@
   text-decoration: underline;
 }
 
+.wiki-link-missing {
+  opacity: 0.5;
+}
+
 /* ============================================================================
    Custom Block Reference Syntax
    ============================================================================ */
@@ -193,6 +197,12 @@
   background-color: var(--color-interactive-hover);
   text-decoration: underline;
   opacity: 1;
+}
+
+.block-ref-broken {
+  opacity: 0.4;
+  text-decoration: line-through;
+  cursor: not-allowed;
 }
 
 /* ============================================================================

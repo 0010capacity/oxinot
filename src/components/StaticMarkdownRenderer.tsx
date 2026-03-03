@@ -1,6 +1,9 @@
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { renderOutlinerBulletPreviewHtml } from "../outliner/markdownRenderer";
 import { useBlockUIStore } from "../stores/blockUIStore";
+import { useBlockStore } from "../stores/blockStore";
+import { usePageStore } from "../stores/pageStore";
+import { findPageByPath } from "../utils/pageUtils";
 
 interface StaticMarkdownRendererProps {
   content: string;
@@ -31,7 +34,48 @@ export const StaticMarkdownRenderer = memo(
       }
       return renderOutlinerBulletPreviewHtml(content);
     }, [content]);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const pageIds = usePageStore((s) => s.pageIds);
+    const pagesById = usePageStore((s) => s.pagesById);
+    const blocksById = useBlockStore((s) => s.blocksById);
 
+    // After rendering, mark wiki links as existing/missing and block refs as broken
+    // biome-ignore lint/correctness/useExhaustiveDependencies: html triggers re-check when DOM content changes via dangerouslySetInnerHTML
+    useEffect(() => {
+      const el = containerRef.current;
+      if (!el || pageIds.length === 0) return;
+
+      const links = el.querySelectorAll("a.wiki-link[data-page]");
+      for (const link of links) {
+        const pageName = link.getAttribute("data-page") ?? "";
+        if (!pageName) continue;
+
+        // Check by full path first, then by title
+        const foundByPath = findPageByPath(pageName, pageIds, pagesById);
+        let exists = foundByPath !== undefined;
+        if (!exists) {
+          const normalized = pageName.toLowerCase().trim();
+          for (const id of pageIds) {
+            const p = pagesById[id];
+            if (p && p.title.toLowerCase() === normalized) {
+              exists = true;
+              break;
+            }
+          }
+        }
+
+        link.classList.toggle("wiki-link-missing", !exists);
+      }
+
+      // Check block refs for broken references
+      const blockRefs = el.querySelectorAll("a.block-ref[data-block-id]");
+      for (const ref of blockRefs) {
+        const blockId = ref.getAttribute("data-block-id") ?? "";
+        if (!blockId) continue;
+        const blockExists = blocksById[blockId] !== undefined;
+        ref.classList.toggle("block-ref-broken", !blockExists);
+      }
+    }, [html, pageIds, pagesById, blocksById]);
     const handleMouseDownCapture = (e: React.MouseEvent) => {
       if (isComposing) {
         e.preventDefault();
@@ -73,6 +117,7 @@ export const StaticMarkdownRenderer = memo(
     // The style prop can still be used for custom overrides
     return (
       <div
+        ref={containerRef}
         className={`${className} block-static-content`}
         onClick={onClick}
         onMouseDownCapture={handleMouseDownCapture}
