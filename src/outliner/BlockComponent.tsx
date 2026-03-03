@@ -1008,8 +1008,21 @@ export const BlockComponent: React.FC<BlockComponentProps> = memo(
 
       // Intercept Enter key during or after IME composition at DOM level (capture phase)
       const handleKeyDown = (e: KeyboardEvent) => {
-        // Clear IME flag on Space key - ensures normal text input after composition
-        if (e.key === " ") {
+        // Clear IME flag on navigation/edit keys - ensures normal Enter behavior after cursor movement
+        // These keys indicate user has finished composition and is doing something else
+        const navigationKeys = [
+          "ArrowLeft",
+          "ArrowRight",
+          "ArrowUp",
+          "ArrowDown",
+          "Home",
+          "End",
+          "Delete",
+          "Escape",
+          "PageUp",
+          "PageDown",
+        ];
+        if (e.key === " " || navigationKeys.includes(e.key)) {
           imeStateRef.current.lastInputWasComposition = false;
         }
 
