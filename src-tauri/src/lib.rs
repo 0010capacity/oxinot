@@ -1,7 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use tauri::Manager;
+use std::sync::atomic::{AtomicI64, Ordering};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tokio::fs as tokio_fs;
+
+// Track last Option key press time for double-tap detection (in milliseconds)
+static LAST_OPTION_PRESS: AtomicI64 = AtomicI64::new(0);
+
+// Maximum time between two Option key presses to trigger Quick Note (in milliseconds)
+const DOUBLE_TAP_THRESHOLD_MS: i64 = 500;
 
 pub mod commands;
 pub mod config;
@@ -442,6 +449,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             // No global DB - each command will open workspace-specific DB as needed
 
@@ -451,6 +459,15 @@ pub fn run() {
                         .level(log::LevelFilter::Info)
                         .build(),
                 )?;
+            }
+
+            // Set up Option key double-tap detection for Quick Note (macOS only)
+            #[cfg(target_os = "macos")]
+            {
+                let app_handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    start_option_key_listener(app_handle);
+                });
             }
 
             Ok(())
@@ -551,6 +568,9 @@ pub fn run() {
             commands::query::execute_query_macro,
             // TODO commands
             commands::todo::query_todos,
+            // Quick Note commands
+            hide_quick_note_window,
+            append_to_inbox,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -573,4 +593,208 @@ pub fn run() {
 
     #[cfg(not(target_os = "macos"))]
     app.run(|_app_handle, _event| {});
+}
+
+/// Show or create the Quick Note window at the bottom of the screen
+#[cfg(target_os = "macos")]
+fn show_quick_note_window(app_handle: &tauri::AppHandle) {
+    const QUICK_NOTE_WINDOW_LABEL: &str = "quick-note";
+
+    // Check if window already exists
+    if let Some(window) = app_handle.get_webview_window(QUICK_NOTE_WINDOW_LABEL) {
+        if window.is_visible().unwrap_or(false) {
+            // Window is visible, hide it (toggle behavior)
+            window.hide().ok();
+            return;
+        } else {
+            // Window exists but hidden, show and focus it
+            window.show().ok();
+            window.set_focus().ok();
+            return;
+        }
+    }
+
+    // Get screen size - use a reasonable default for the window
+    let window_width = 600.0;
+    let window_height = 160.0;
+
+    // Create the Quick Note window at the bottom center of the screen
+    let window = WebviewWindowBuilder::new(
+        app_handle,
+        QUICK_NOTE_WINDOW_LABEL,
+        WebviewUrl::App("/quick-note".into()),
+    )
+    .title("Quick Note")
+    .inner_size(window_width, window_height)
+    .decorations(false)
+    .always_on_top(true)
+    .resizable(false)
+    .skip_taskbar(true)
+    .visible(true)
+    .focused(true)
+    .build();
+
+    match window {
+        Ok(win) => {
+            // Position window at bottom center of screen
+            if let Ok(monitor) = win.current_monitor() {
+                if let Some(monitor) = monitor {
+                    let monitor_size = monitor.size();
+                    let x = (monitor_size.width as f64 - window_width) / 2.0;
+                    let y = monitor_size.height as f64 - window_height - 80.0; // 80px from bottom
+                    let _ = win.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                        x: x as i32,
+                        y: y as i32,
+                    }));
+                }
+            }
+            let _ = win.set_focus();
+        }
+        Err(e) => {
+            log::error!("Failed to create Quick Note window: {}", e);
+        }
+    }
+}
+
+/// Command to hide the Quick Note window (called from frontend)
+#[tauri::command]
+fn hide_quick_note_window(app: tauri::AppHandle) -> Result<(), String> {
+    const QUICK_NOTE_WINDOW_LABEL: &str = "quick-note";
+
+    if let Some(window) = app.get_webview_window(QUICK_NOTE_WINDOW_LABEL) {
+        window.hide().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Command to append content to Inbox.md file
+#[tauri::command]
+async fn append_to_inbox(app: tauri::AppHandle, content: String) -> Result<String, String> {
+    use tauri::Manager;
+
+    // Get the workspace path from the main window's store
+    // The workspace path is stored in the main app, we need to get it from app state
+    // For now, we'll use a simpler approach: read from the config file
+
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| format!("Failed to get config directory: {}", e))?;
+
+    let config_file = config_dir.join("oxinot_config.json");
+
+    // Read config to get workspace path
+    let config_content = tokio_fs::read_to_string(&config_file)
+        .await
+        .map_err(|e| format!("Failed to read config: {}. Please open Oxinot first.", e))?;
+
+    let config: serde_json::Value = serde_json::from_str(&config_content)
+        .map_err(|e| format!("Failed to parse config: {}", e))?;
+
+    let workspace_path = config["workspacePath"]
+        .as_str()
+        .ok_or("No workspace path found in config. Please open Oxinot first.")?;
+
+    // Create path to Inbox.md
+    let inbox_path = PathBuf::from(workspace_path).join("Inbox.md");
+
+    // Format the note with timestamp
+    let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M");
+    let note_entry = format!("\n## {} (Quick Note)\n{}\n", timestamp, content);
+
+    // Check if Inbox.md exists
+    if inbox_path.exists() {
+        // Append to existing file
+        let existing_content = tokio_fs::read_to_string(&inbox_path)
+            .await
+            .map_err(|e| format!("Failed to read Inbox.md: {}", e))?;
+
+        let new_content = existing_content.trim_end().to_string() + &note_entry;
+        tokio_fs::write(&inbox_path, new_content)
+            .await
+            .map_err(|e| format!("Failed to write Inbox.md: {}", e))?;
+    } else {
+        // Create new Inbox.md with header
+        let initial_content = format!("# Inbox\n\n{}", note_entry.trim_start());
+        tokio_fs::write(&inbox_path, initial_content)
+            .await
+            .map_err(|e| format!("Failed to create Inbox.md: {}", e))?;
+    }
+
+    Ok(inbox_path.to_string_lossy().to_string())
+}
+
+/// Start listening for Option key double-tap using CGEventTap (macOS only)
+#[cfg(target_os = "macos")]
+fn start_option_key_listener(app_handle: tauri::AppHandle) {
+    use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
+    use core_graphics::event::{
+        CGEvent, CGEventTap, CGEventTapLocation, CGEventTapOptions,
+        CGEventTapPlacement, CGEventType,
+    };
+    use std::sync::Arc;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    // Option key keycode on macOS (kVK_Option = 58)
+    const KEYCODE_OPTION: i64 = 58;
+    // CGEventField::KeyboardEventKeycode value
+    const KEYBOARD_EVENT_KEYCODE: u32 = 9;
+
+    let app_handle = Arc::new(app_handle);
+
+    let tap = CGEventTap::new(
+        CGEventTapLocation::Session,
+        CGEventTapPlacement::HeadInsertEventTap,
+        CGEventTapOptions::ListenOnly, // Listen only, don't modify events
+        vec![CGEventType::KeyDown],
+        {
+            let app_handle = app_handle.clone();
+            move |_proxy, _event_type, event: &CGEvent| {
+                let keycode = event.get_integer_value_field(KEYBOARD_EVENT_KEYCODE);
+
+                if keycode == KEYCODE_OPTION {
+                    let now = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis() as i64;
+
+                    let last_press = LAST_OPTION_PRESS.load(Ordering::Relaxed);
+                    let time_diff = now - last_press;
+
+                    if time_diff < DOUBLE_TAP_THRESHOLD_MS && time_diff > 50 {
+                        // Double-tap detected! Show Quick Note
+                        let app_handle_clone = Arc::clone(&app_handle);
+                        // Use run_on_main_thread to safely call from background thread
+                        let _ = app_handle.run_on_main_thread(move || {
+                            show_quick_note_window(&app_handle_clone);
+                        });
+                        // Reset to prevent triple-tap from triggering again
+                        LAST_OPTION_PRESS.store(0, Ordering::Relaxed);
+                    } else {
+                        // First tap or too slow, record this press
+                        LAST_OPTION_PRESS.store(now, Ordering::Relaxed);
+                    }
+                }
+                // Return the event unchanged
+                Some(event.clone())
+            }
+        },
+    );
+
+    match tap {
+        Ok(tap) => {
+            unsafe {
+                let loop_source = tap
+                    .mach_port
+                    .create_runloop_source(0)
+                    .expect("Failed to create runloop source");
+                CFRunLoop::get_current().add_source(&loop_source, kCFRunLoopCommonModes);
+                tap.enable();
+                CFRunLoop::run_current();
+            }
+        }
+        Err(e) => {
+            log::error!("Failed to create event tap: {:?}. Accessibility permission may be required.", e);
+        }
+    }
 }

@@ -1,6 +1,7 @@
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { resolve } from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -15,6 +16,10 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, "index.html"),
+        "quick-note": resolve(__dirname, "quick-note.html"),
+      },
       output: {
         manualChunks: {
           // React core
